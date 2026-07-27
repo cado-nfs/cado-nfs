@@ -3,8 +3,6 @@
 <head>
 <meta charset="utf-8" />
 <title>CADO-NFS Chronogram Viewer</title>
-<!-- Tiny 8KB Zstandard decompressor library for .zst files -->
-<script src="https://cdn.jsdelivr.net/npm/fzstd@0.1.1/umd/index.js"></script>
 <style type="text/css">
   html, body {
     height: 100%; margin: 0; padding: 0; overflow: hidden;
@@ -28,7 +26,7 @@
   .file-dropzone.dragover { background: #e8f4ff; border-color: #2b8a3e; }
 
   .controls-bar {
-    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
     background: #f8f9fa; padding: 6px 10px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 12px; margin-top: 6px;
   }
   .controls-bar label { cursor: pointer; display: flex; align-items: center; gap: 4px; }
@@ -43,8 +41,29 @@
     font-family: SFMono-Regular, Consolas, monospace; font-size: 12px; border-radius: 3px; min-height: 16px; white-space: pre-wrap;
   }
 
-  .chart-viewport { flex: 1 1 auto; position: relative; background: #ffffff; border: 1px solid #bbb; border-radius: 4px; overflow: hidden; }
+  /* Viewport & Native Scrollbar Container Layout */
+  .viewport-layout { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+  .canvas-and-vscroll { flex: 1 1 auto; display: flex; flex-direction: row; min-height: 0; }
+  .chart-viewport { flex: 1 1 auto; position: relative; background: #ffffff; border: 1px solid #bbb; border-radius: 4px 0 0 0; overflow: hidden; }
   #viewport-canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+
+  /* Native Scrollbar Windows */
+  .v-scroll-box {
+    width: 16px; flex: 0 0 16px; overflow-y: scroll; overflow-x: hidden;
+    background: #f0f0f0; border: 1px solid #bbb; border-left: none; border-radius: 0 4px 0 0;
+  }
+  .v-scroll-dummy { width: 1px; height: 1px; }
+
+  .h-scroll-row { display: flex; flex-direction: row; height: 16px; flex: 0 0 16px; }
+  .h-scroll-box {
+    flex: 1 1 auto; overflow-x: scroll; overflow-y: hidden;
+    background: #f0f0f0; border: 1px solid #bbb; border-top: none; border-radius: 0 0 0 4px;
+  }
+  .h-scroll-dummy { height: 1px; width: 1px; }
+  .scroll-corner {
+    width: 16px; height: 16px; flex: 0 0 16px;
+    background: #e0e0e0; border: 1px solid #bbb; border-top: none; border-left: none; border-radius: 0 0 4px 0;
+  }
 </style>
 </head>
 
@@ -80,6 +99,14 @@
       </select>
 
       <span style="color:#ccc;">|</span>
+      <strong>LOD Coalescing:</strong>
+      <select id="lod-mode">
+        <option value="mixed" selected="selected">Mixed Activity (Slate Gray)</option>
+        <option value="strict">Same Category Only</option>
+        <option value="disabled">Disabled (Full Detail)</option>
+      </select>
+
+      <span style="color:#ccc;">|</span>
       <button id="reset-view-btn" style="cursor:pointer; font-size:11px;">Reset Zoom</button>
 
       <span style="color:#ccc;">|</span>
@@ -88,13 +115,10 @@
         &nbsp;•&nbsp;
         <strong>Ctrl+Scroll:</strong> Zoom Time
         &nbsp;•&nbsp;
-        <strong>Home / End:</strong> Start / End
+        <strong>Home/End:</strong> Start/End
         &nbsp;•&nbsp;
-        <strong>Shift+Scroll / Arrows:</strong> Pan Threads
-        &nbsp;•&nbsp;
-        <strong>Ctrl + Shift + Scroll:</strong> Zoom Threads
+        <strong>Shift+Scroll / Arrows:</strong> Threads
       </span>
-
     </div>
 
     <div class="window-meta" id="meta-info">No trace file loaded.</div>
@@ -102,8 +126,21 @@
     <div id="information">Load a CADO-NFS JSON trace to inspect bubbles...</div>
   </div>
 
-  <div class="chart-viewport">
-    <canvas id="viewport-canvas"></canvas>
+  <div class="viewport-layout">
+    <div class="canvas-and-vscroll">
+      <div class="chart-viewport">
+        <canvas id="viewport-canvas"></canvas>
+      </div>
+      <div id="v-scrollbar-box" class="v-scroll-box">
+        <div id="v-scroll-dummy" class="v-scroll-dummy"></div>
+      </div>
+    </div>
+    <div class="h-scroll-row">
+      <div id="h-scrollbar-box" class="h-scroll-box">
+        <div id="h-scroll-dummy" class="h-scroll-dummy"></div>
+      </div>
+      <div class="scroll-corner"></div>
+    </div>
   </div>
 
 </div>
@@ -118,19 +155,34 @@ let CATEGORY_COLORS = [];
 let winStart = 0, winEnd = 0, totalSpan = 0;
 
 // --- Viewport State ---
-// Vertical Axis (Time in seconds)
 let viewStart = 0.0;
 let viewSpan = 0.0;
 
-// Horizontal Axis (Threads)
-let viewThreadStart = 0.0; // Starting thread index (float for smooth panning)
-let viewThreadSpan = 0.0;  // Number of threads visible across the plot width
+let viewThreadStart = 0.0;
+let viewThreadSpan = 0.0;
 
 let showDelimiters = false;
 let minDurationThreshold = 0;
+let lodMode = "mixed"; // "mixed", "strict", "disabled"
+const LOD_THRESHOLD_COUNT = 20000;
+
 let activeBubble = null;
+let renderScheduled = false;
+
+// Tracking for automatic post-render hover updates
+let lastMouseX = -1;
+let lastMouseY = -1;
+
+// Flag to break event loops between scrollbar listeners and render updates
+let isSyncingScrollbars = false;
+
+// Debug Counters
+let candidateEventCount = 0;
+let renderedShapeCount = 0;
+let isLODActive = false;
 
 const LEFT_MARGIN = 75, RIGHT_MARGIN = 20, HEADER_HEIGHT = 30, BOTTOM_MARGIN = 20;
+const MIXED_COLOR = "#6c757d"; // Slate Gray for mixed sub-pixel tasks
 
 // Color generator
 const PREDEFINED_COLORS = {
@@ -148,7 +200,7 @@ function getCategoryColor(cat) {
   return `hsl(${hue}, 65%, 55%)`;
 }
 
-// --- Call Stack Reconstruction (Runs once on JSON load) ---
+// --- Call Stack Reconstruction ---
 function annotateHierarchy() {
   if (!TRACE_DATA) return;
 
@@ -156,7 +208,6 @@ function annotateHierarchy() {
     const events = TRACE_DATA[threadId];
     if (!events || events.length === 0) continue;
 
-    // Sort events: Start time ascending, Duration descending (parents before children)
     events.sort((a, b) => (a[0] !== b[0] ? a[0] - b[0] : b[1] - a[1]));
 
     const stack = [];
@@ -165,7 +216,6 @@ function annotateHierarchy() {
       const e = events[i];
       const eStart = e[0];
 
-      // Pop completed parents off the stack
       while (stack.length > 0) {
         const top = stack[stack.length - 1];
         const topEnd = top[0] + top[1];
@@ -176,7 +226,6 @@ function annotateHierarchy() {
         }
       }
 
-      // Attach nesting depth and parent references
       e.depth = stack.length;
       e.parents = stack.slice();
       stack.push(e);
@@ -193,45 +242,122 @@ document.addEventListener("DOMContentLoaded", () => {
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("file-input");
 
+  const vScrollBox = document.getElementById("v-scrollbar-box");
+  const vScrollDummy = document.getElementById("v-scroll-dummy");
+  const hScrollBox = document.getElementById("h-scrollbar-box");
+  const hScrollDummy = document.getElementById("h-scroll-dummy");
+
   function resizeCanvas() {
     const rect = canvas.parentElement.getBoundingClientRect();
     canvas.width = rect.width;
     canvas.height = rect.height;
     render();
+    syncScrollbars();
+  }
+
+  // Synchronize scrollbars with view state
+  function syncScrollbars() {
+    if (!TRACE_DATA || totalSpan <= 0 || THREADS.length === 0) return;
+
+    isSyncingScrollbars = true;
+
+    // 1. Vertical Time Scrollbar
+    const vBoxH = vScrollBox.clientHeight;
+    if (vBoxH > 0 && viewSpan > 0) {
+      const vDummyH = Math.max(vBoxH, Math.round(vBoxH * (totalSpan / viewSpan)));
+      vScrollDummy.style.height = `${vDummyH}px`;
+
+      const vScrollMax = vDummyH - vBoxH;
+      if (vScrollMax > 0 && (totalSpan - viewSpan) > 0) {
+        vScrollBox.scrollTop = (viewStart / (totalSpan - viewSpan)) * vScrollMax;
+      } else {
+        vScrollBox.scrollTop = 0;
+      }
+    }
+
+    // 2. Horizontal Thread Scrollbar
+    const hBoxW = hScrollBox.clientWidth;
+    if (hBoxW > 0 && viewThreadSpan > 0) {
+      const hDummyW = Math.max(hBoxW, Math.round(hBoxW * (THREADS.length / viewThreadSpan)));
+      hScrollDummy.style.width = `${hDummyW}px`;
+
+      const hScrollMax = hDummyW - hBoxW;
+      if (hScrollMax > 0 && (THREADS.length - viewThreadSpan) > 0) {
+        hScrollBox.scrollLeft = (viewThreadStart / (THREADS.length - viewThreadSpan)) * hScrollMax;
+      } else {
+        hScrollBox.scrollLeft = 0;
+      }
+    }
+
+    isSyncingScrollbars = false;
+  }
+
+  // Transient action message display
+  function updateViewFeedback(actionLabel) {
+    if (!TRACE_DATA || THREADS.length === 0) return;
+
+    const spanMs = (viewSpan * 1000).toFixed(2);
+    const startMs = (viewStart * 1000).toFixed(2);
+    const endMs = ((viewStart + viewSpan) * 1000).toFixed(2);
+
+    const firstThrIdx = Math.max(0, Math.floor(viewThreadStart));
+    const lastThrIdx = Math.min(THREADS.length - 1, Math.ceil(viewThreadStart + viewThreadSpan) - 1);
+    const thrCount = Math.round(viewThreadSpan);
+
+    const firstThr = THREADS[firstThrIdx] !== undefined ? `T${THREADS[firstThrIdx]}` : '';
+    const lastThr = THREADS[lastThrIdx] !== undefined ? `T${THREADS[lastThrIdx]}` : '';
+    const thrRangeStr = (firstThr === lastThr) ? firstThr : `${firstThr}–${lastThr}`;
+
+    const prefix = actionLabel ? `⏳ [${actionLabel}] ` : '';
+    infoElement.textContent = `${prefix}Time: +${startMs}ms to +${endMs}ms (${spanMs}ms span) | Threads: ${thrRangeStr} (${thrCount} visible)`;
+  }
+
+  function scheduleRender(actionLabel) {
+    updateViewFeedback(actionLabel);
+    if (!renderScheduled) {
+      renderScheduled = true;
+      setTimeout(() => {
+        requestAnimationFrame(() => {
+          render();
+          syncScrollbars();
+          updateHover(lastMouseX, lastMouseY); // Auto-update hover message over current pixel
+          renderScheduled = false;
+        });
+      }, 0);
+    }
   }
 
   // --- Load JSON File ---
   function loadJSON(jsonText) {
     try {
       const data = JSON.parse(jsonText);
-
       TRACE_DATA = data.events;
+     
       if ("format" in data) {
-          const expected_format = 20260727
+          const expected_format = 20260727;
           if (data.format != expected_format) {
-              alert(`Data format not understood (got ${data.format}, expected ${expected_format})`)
+              alert(`Data format not understood (got ${data.format}, expected ${expected_format})`);
           }
-          /* convert everything to seconds */
+          /* convert start [0], duration [1], and CPU time [3] to seconds */
           winStart = data.win_start / 1e9;
           winEnd = data.win_end / 1e9;
           for (const threadId in TRACE_DATA) {
             const events = TRACE_DATA[threadId];
             for (let i = 0; i < events.length; i++) {
-              events[i][0] /= 1e9;
-              events[i][1] /= 1e9;
-              events[i][2] /= 1e9;
+              events[i][0] /= 1e9; // start
+              events[i][1] /= 1e9; // duration
+              events[i][3] /= 1e9; // CPU metric
             }
           }
       } else {
-          winStart = data.win_start
-          winEnd = data.win_end
+          winStart = data.win_start;
+          winEnd = data.win_end;
       }
+
       totalSpan = winEnd - winStart;
 
-      // Reconstruct task hierarchy
       annotateHierarchy();
 
-      // Reset Viewports
       viewStart = 0.0;
       viewSpan = totalSpan;
 
@@ -242,39 +368,66 @@ document.addEventListener("DOMContentLoaded", () => {
       CATEGORY_NAMES = data.categories;
       CATEGORY_COLORS = CATEGORY_NAMES.map(getCategoryColor);
 
-      // Render Legend
-      legendElement.innerHTML = CATEGORY_NAMES.map((cat, idx) =>
+      // Render Legend with MIXED activity indicator
+      const legendHTML = CATEGORY_NAMES.map((cat, idx) =>
         `<span class="legend-item"><span class="color-box" style="background-color:${CATEGORY_COLORS[idx]};"></span>${cat}</span>`
-      ).join('');
+      );
+      legendHTML.push(`<span class="legend-item"><span class="color-box" style="background-color:${MIXED_COLOR};"></span><em>MIXED (LOD)</em></span>`);
+      legendElement.innerHTML = legendHTML.join('');
 
-      metaElement.innerHTML = `Time Span: <strong>${(totalSpan*1000).toFixed(2)} ms</strong> | Threads: ${THREADS.length}`;
       infoElement.textContent = "Trace loaded! Hover over bubbles or scroll/zoom in 2D.";
       render();
+      syncScrollbars();
     } catch (err) {
       alert("Failed to parse JSON trace: " + err.message);
     }
   }
 
-  // Transparent decompression stream pipeline
+  // Lazy-loaded inlined WASM Zstandard decoder (@hpcc-js/wasm-zstd)
+  let zstdWasmInstance = null;
+
+  async function getZstd() {
+    if (!zstdWasmInstance) {
+      // Dynamic import from CDN (WASM binary is inlined, so no separate .wasm file fetch)
+      const { Zstd } = await import("https://cdn.jsdelivr.net/npm/@hpcc-js/wasm-zstd/+esm");
+      zstdWasmInstance = await Zstd.load();
+    }
+    return zstdWasmInstance;
+  }
+
+  // Transparent decompression pipeline
   async function decompressAndRead(file) {
     const fileName = file.name.toLowerCase();
     const arrayBuffer = await file.arrayBuffer();
 
+    // 1. Handle Gzip (.gz / .gzip) via native browser API
     if (fileName.endsWith(".gz") || fileName.endsWith(".gzip")) {
       const blob = new Blob([arrayBuffer]);
       const decompressedStream = blob.stream().pipeThrough(new DecompressionStream("gzip"));
       return await new Response(decompressedStream).text();
     }
 
+    // 2. Handle Zstandard (.zst / .zstd)
     if (fileName.endsWith(".zst") || fileName.endsWith(".zstd")) {
-      if (typeof fzstd === "undefined") {
-        throw new Error("zstd library (fzstd) failed to load from CDN.");
+      // Fast Path A: Attempt Native Browser DecompressionStream (Chrome 123+, Firefox 126+, Safari 26+)
+      try {
+        if (typeof DecompressionStream !== "undefined") {
+          const blob = new Blob([arrayBuffer]);
+          const decompressedStream = blob.stream().pipeThrough(new DecompressionStream("zstd"));
+          return await new Response(decompressedStream).text();
+        }
+      } catch (e) {
+        // Native stream unsupported or failed; fall back to inlined WASM
       }
+
+      // Fast Path B: Inlined libzstd C engine compiled to WebAssembly
       const compressedBytes = new Uint8Array(arrayBuffer);
-      const decompressedBytes = fzstd.decompress(compressedBytes);
+      const zstd = await getZstd();
+      const decompressedBytes = zstd.decompress(compressedBytes);
       return new TextDecoder("utf-8").decode(decompressedBytes);
     }
 
+    // 3. Plain Uncompressed JSON (.json)
     return new TextDecoder("utf-8").decode(arrayBuffer);
   }
 
@@ -304,7 +457,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
   });
 
-  // Binary search for first event with start >= targetStart
   function findFirstVisibleIndex(events, targetStart) {
     let low = 0, high = events.length - 1, ans = events.length;
     while (low <= high) {
@@ -314,6 +466,34 @@ document.addEventListener("DOMContentLoaded", () => {
       } else { low = mid + 1; }
     }
     return ans;
+  }
+
+  // Find active ancestor events crossing viewStart
+  function getSpanningEvents(events, idx) {
+    const spanning = [];
+    const addSpanning = (ev) => {
+      if (ev && ev[0] < viewStart && (ev[0] + ev[1]) > viewStart) {
+        if (!spanning.includes(ev)) spanning.push(ev);
+      }
+    };
+
+    if (idx > 0) {
+      const prev = events[idx - 1];
+      addSpanning(prev);
+      if (prev.parents) {
+        for (const p of prev.parents) addSpanning(p);
+      }
+    }
+    if (idx < events.length) {
+      const curr = events[idx];
+      addSpanning(curr);
+      if (curr.parents) {
+        for (const p of curr.parents) addSpanning(p);
+      }
+    }
+
+    spanning.sort((a, b) => (a.depth || 0) - (b.depth || 0));
+    return spanning;
   }
 
   // --- Main Canvas Render Loop ---
@@ -329,7 +509,34 @@ document.addEventListener("DOMContentLoaded", () => {
     const y_scale = availableH / viewSpan;
     const viewEnd = viewStart + viewSpan;
 
-    // 1. Time Grid Lines (Left Axis)
+    const minCol = Math.max(0, Math.floor(viewThreadStart));
+    const maxCol = Math.min(THREADS.length - 1, Math.ceil(viewThreadStart + viewThreadSpan));
+
+    // Calculate candidate event count in viewport
+    candidateEventCount = 0;
+    renderedShapeCount = 0;
+
+    for (let colIdx = minCol; colIdx <= maxCol; colIdx++) {
+      const events = TRACE_DATA[THREADS[colIdx]];
+      if (!events || events.length === 0) continue;
+      
+      const idxStart = findFirstVisibleIndex(events, viewStart);
+      const spanning = getSpanningEvents(events, idxStart);
+
+      for (let i = 0; i < spanning.length; i++) {
+        if (spanning[i][1] >= minDurationThreshold) candidateEventCount++;
+      }
+
+      let i = idxStart;
+      while (i < events.length && events[i][0] <= viewEnd) {
+        if (events[i][1] >= minDurationThreshold) candidateEventCount++;
+        i++;
+      }
+    }
+
+    isLODActive = (lodMode !== "disabled") && (candidateEventCount > LOD_THRESHOLD_COUNT);
+
+    // Time Grid Lines
     ctx.fillStyle = "#777"; ctx.strokeStyle = "#ebebeb"; ctx.font = "11px sans-serif"; ctx.lineWidth = 1;
     for (let i = 0; i <= 8; i++) {
       const rel_t = viewStart + (viewSpan * (i / 8));
@@ -341,7 +548,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.fillText(`${msStr.startsWith('-') ? '' : '+'}${msStr}ms`, 5, y + 4);
     }
 
-    // 2. Thread Headers
+    // Thread Headers
     ctx.save();
     ctx.beginPath();
     ctx.rect(LEFT_MARGIN, 0, availableW, HEADER_HEIGHT);
@@ -351,14 +558,12 @@ document.addEventListener("DOMContentLoaded", () => {
     for (let i = 0; i < THREADS.length; i++) {
       const x1 = LEFT_MARGIN + (i - viewThreadStart) * perThreadWidth;
       if (x1 + perThreadWidth >= LEFT_MARGIN && x1 <= W - RIGHT_MARGIN) {
-        if (perThreadWidth > 14) {
-          ctx.fillText(`T${THREADS[i]}`, x1 + 2, 18);
-        }
+        if (perThreadWidth > 14) ctx.fillText(`T${THREADS[i]}`, x1 + 2, 18);
       }
     }
     ctx.restore();
 
-    // 3. Clip Drawing Area for Main Chart Plot
+    // Main Chart Plot Area
     ctx.save();
     ctx.beginPath();
     ctx.rect(LEFT_MARGIN, HEADER_HEIGHT, availableW, availableH);
@@ -372,10 +577,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Draw Hierarchical Bubbles
-    const minCol = Math.max(0, Math.floor(viewThreadStart));
-    const maxCol = Math.min(THREADS.length - 1, Math.ceil(viewThreadStart + viewThreadSpan));
-
+    // --- Render Events ---
     for (let colIdx = minCol; colIdx <= maxCol; colIdx++) {
       const threadId = THREADS[colIdx];
       const events = TRACE_DATA[threadId];
@@ -383,61 +585,107 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const colX = LEFT_MARGIN + (colIdx - viewThreadStart) * perThreadWidth;
       const idx = findFirstVisibleIndex(events, viewStart);
+      const spanningEvents = getSpanningEvents(events, idx);
 
-      // Helper function to render a single bubble
-      const drawBubble = (e) => {
-        if (e[1] < minDurationThreshold) return;
-        const y1 = HEADER_HEIGHT + (e[0] - viewStart) * y_scale;
-        const y2 = HEADER_HEIGHT + ((e[0] + e[1]) - viewStart) * y_scale;
-        const h = Math.max(1, y2 - y1);
+      if (isLODActive) {
+        // --- CATEGORY-AWARE LOD COALESCING ---
+        let spanY1 = null, spanY2 = null;
+        let spanCat = -1;
+        let isMixedSpan = false;
 
-        const depth = e.depth || 0;
-        const maxInset = Math.floor(perThreadWidth / 3);
-        const inset = Math.min(depth * 2, maxInset);
+        const processLODEvent = (e) => {
+          if (e[0] + e[1] < viewStart) return;
+          if (e[1] < minDurationThreshold) return;
 
-        const drawX = colX + inset;
-        const drawW = Math.max(1, perThreadWidth - 2 * inset);
+          const y1 = HEADER_HEIGHT + (e[0] - viewStart) * y_scale;
+          const y2 = HEADER_HEIGHT + ((e[0] + e[1]) - viewStart) * y_scale;
+          const h = Math.max(0.5, y2 - y1);
 
-        ctx.fillStyle = CATEGORY_COLORS[e[2]];
-        ctx.fillRect(drawX, y1, drawW, h);
+          if (spanY1 === null) {
+            spanY1 = y1; spanY2 = y1 + h; spanCat = e[2]; isMixedSpan = false;
+          } else {
+            const canMergeCategory = (lodMode === "mixed") || (lodMode === "strict" && e[2] === spanCat);
 
-        if (depth > 0 && h > 2 && drawW > 4) {
-          ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
-          ctx.strokeRect(drawX, y1, drawW, h);
-        }
+            if (y1 <= spanY2 + 1.2 && canMergeCategory) {
+              if (e[2] !== spanCat) isMixedSpan = true;
+              spanY2 = Math.max(spanY2, y1 + h);
+            } else {
+              ctx.fillStyle = isMixedSpan ? MIXED_COLOR : (CATEGORY_COLORS[spanCat] || "#888");
+              ctx.fillRect(colX, spanY1, Math.max(1, perThreadWidth), Math.max(1, spanY2 - spanY1));
+              renderedShapeCount++;
 
-        if (showDelimiters) {
-          ctx.fillStyle = "rgba(0,0,0,0.6)";
-          ctx.fillRect(drawX, y1, drawW, 1);
-        }
-      };
-
-      // Step A: Collect & draw active parents extending across viewStart
-      if (idx > 0) {
-        const prev = events[idx - 1];
-        const activeAncestors = [];
-
-        if (prev[0] + prev[1] > viewStart) activeAncestors.push(prev);
-        if (prev.parents) {
-          for (const p of prev.parents) {
-            if (p[0] + p[1] > viewStart) activeAncestors.push(p);
+              spanY1 = y1; spanY2 = y1 + h; spanCat = e[2]; isMixedSpan = false;
+            }
           }
+        };
+
+        for (let i = 0; i < spanningEvents.length; i++) {
+          processLODEvent(spanningEvents[i]);
         }
 
-        // Sort by depth ascending so outer parents draw before inner children
-        activeAncestors.sort((a, b) => (a.depth || 0) - (b.depth || 0));
-        for (const e of activeAncestors) drawBubble(e);
-      }
+        for (let i = idx; i < events.length; i++) {
+          const e = events[i];
+          if (e[0] > viewEnd) break;
+          processLODEvent(e);
+        }
 
-      // Step B: Draw all events starting inside [viewStart, viewEnd]
-      for (let i = idx; i < events.length; i++) {
-        const e = events[i];
-        if (e[0] > viewEnd) break;
-        drawBubble(e);
+        if (spanY1 !== null) {
+          ctx.fillStyle = isMixedSpan ? MIXED_COLOR : (CATEGORY_COLORS[spanCat] || "#888");
+          ctx.fillRect(colX, spanY1, Math.max(1, perThreadWidth), Math.max(1, spanY2 - spanY1));
+          renderedShapeCount++;
+        }
+
+      } else {
+        // --- DETAILED MODE (Depth Insets & Call Stacks) ---
+        const drawDetailedEvent = (e) => {
+          if (e[1] < minDurationThreshold) return;
+
+          const y1 = HEADER_HEIGHT + (e[0] - viewStart) * y_scale;
+          const y2 = HEADER_HEIGHT + ((e[0] + e[1]) - viewStart) * y_scale;
+          const h = Math.max(1, y2 - y1);
+
+          const depth = e.depth || 0;
+          const maxInset = Math.floor(perThreadWidth / 3);
+          const inset = Math.min(depth * 2, maxInset);
+
+          const drawX = colX + inset;
+          const drawW = Math.max(1, perThreadWidth - 2 * inset);
+
+          ctx.fillStyle = CATEGORY_COLORS[e[2]];
+          ctx.fillRect(drawX, y1, drawW, h);
+          renderedShapeCount++;
+
+          if (depth > 0 && h > 2 && drawW > 4) {
+            ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
+            ctx.strokeRect(drawX, y1, drawW, h);
+          }
+
+          if (showDelimiters) {
+            ctx.fillStyle = "rgba(0,0,0,0.6)";
+            ctx.fillRect(drawX, y1, drawW, 1);
+          }
+        };
+
+        for (let i = 0; i < spanningEvents.length; i++) {
+          drawDetailedEvent(spanningEvents[i]);
+        }
+
+        for (let i = idx; i < events.length; i++) {
+          const e = events[i];
+          if (e[0] > viewEnd) break;
+          drawDetailedEvent(e);
+        }
       }
     }
 
-    // 4. Hover Highlight Box
+    // Refresh Meta Debug Bar
+    const modeBadge = isLODActive 
+      ? `<span style="color:#d9534f;font-weight:bold;">⚡ LOD Active (${lodMode.toUpperCase()} - ${renderedShapeCount.toLocaleString()} spans drawn)</span>`
+      : `<span style="color:#2b8a3e;font-weight:bold;">Detailed Mode (${renderedShapeCount.toLocaleString()} shapes drawn)</span>`;
+
+    metaElement.innerHTML = `Time Span: <strong>${(totalSpan*1000).toFixed(2)} ms</strong> | Threads: ${THREADS.length} | Viewport Candidate Events: <strong>${candidateEventCount.toLocaleString()}</strong> | ${modeBadge}`;
+
+    // Hover Highlight Box
     if (activeBubble) {
       const [colIdx, e] = activeBubble;
       const colX = LEFT_MARGIN + (colIdx - viewThreadStart) * perThreadWidth;
@@ -445,7 +693,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const y2 = HEADER_HEIGHT + ((e[0] + e[1]) - viewStart) * y_scale;
       const h = Math.max(1, y2 - y1);
 
-      const depth = e.depth || 0;
+      const depth = isLODActive ? 0 : (e.depth || 0);
       const maxInset = Math.floor(perThreadWidth / 3);
       const inset = Math.min(depth * 2, maxInset);
       const drawX = colX + inset;
@@ -460,47 +708,58 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.restore();
   }
 
-  // --- Innermost Hover Detection ---
-  canvas.addEventListener("mousemove", (e) => {
+  // Visual-bound hover update routine
+  function updateHover(mx, my) {
     if (!TRACE_DATA || THREADS.length === 0) return;
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
-    const availableW = canvas.width - LEFT_MARGIN - RIGHT_MARGIN;
-    const perThreadWidth = availableW / viewThreadSpan;
 
-    const colIdx = Math.floor(viewThreadStart + (mouseX - LEFT_MARGIN) / perThreadWidth);
+    if (mx < 0 || my < 0) {
+      const hadActive = (activeBubble !== null);
+      activeBubble = null;
+      infoElement.textContent = "Hover over a region to inspect details...";
+      if (hadActive) render();
+      return;
+    }
+
+    const availableW = canvas.width - LEFT_MARGIN - RIGHT_MARGIN;
+    const availableH = canvas.height - HEADER_HEIGHT - BOTTOM_MARGIN;
+    const perThreadWidth = availableW / viewThreadSpan;
+    const y_scale = availableH / viewSpan;
+
+    const colIdx = Math.floor(viewThreadStart + (mx - LEFT_MARGIN) / perThreadWidth);
 
     let hit = null;
-    if (colIdx >= 0 && colIdx < THREADS.length && mouseY >= HEADER_HEIGHT && mouseY <= canvas.height - BOTTOM_MARGIN) {
-      const availableH = canvas.height - HEADER_HEIGHT - BOTTOM_MARGIN;
-      const tMouse = viewStart + ((mouseY - HEADER_HEIGHT) / availableH) * viewSpan;
+    if (colIdx >= 0 && colIdx < THREADS.length && my >= HEADER_HEIGHT && my <= canvas.height - BOTTOM_MARGIN) {
       const events = TRACE_DATA[THREADS[colIdx]];
       
       if (events && events.length > 0) {
         let deepestHit = null;
-        const idx = findFirstVisibleIndex(events, tMouse);
+        const idx = findFirstVisibleIndex(events, viewStart);
 
+        // Visual screen-pixel hit testing
         const testEvent = (ev) => {
-          if (ev && ev[0] <= tMouse && (ev[0] + ev[1]) > tMouse) {
+          if (!ev) return;
+          if (ev[1] < minDurationThreshold) return;
+
+          const y1 = HEADER_HEIGHT + (ev[0] - viewStart) * y_scale;
+          const y2 = y1 + Math.max(1, ev[1] * y_scale);
+
+          if (my >= y1 && my <= y2) {
             if (!deepestHit || (ev.depth || 0) >= (deepestHit.depth || 0)) {
               deepestHit = ev;
             }
           }
         };
 
-        // Step 1: Test the event right before tMouse and its active parent stack
-        if (idx > 0) {
-          const prev = events[idx - 1];
-          testEvent(prev);
-          if (prev.parents) {
-            for (const p of prev.parents) testEvent(p);
-          }
+        // 1. Test spanning background parents
+        const spanningEvents = getSpanningEvents(events, idx);
+        for (let i = 0; i < spanningEvents.length; i++) {
+          testEvent(spanningEvents[i]);
         }
 
-        // Step 2: Test any events starting at/after tMouse
+        // 2. Test events in/near current viewport
         for (let i = idx; i < events.length; i++) {
           const ev = events[i];
-          if (ev[0] > tMouse) break;
+          if (ev[0] > viewStart + viewSpan) break;
           testEvent(ev);
         }
 
@@ -508,40 +767,81 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    if (hit !== activeBubble) {
-      activeBubble = hit;
-      if (hit) {
-        const e = hit[1];
-        const catName = CATEGORY_NAMES[e[2]];
+    const activeChanged = (hit !== activeBubble);
+    activeBubble = hit;
 
-        let stackStr = "";
-        if (e.parents && e.parents.length > 0) {
-          const parentNames = e.parents.map(p => CATEGORY_NAMES[p[2]]).join(" › ");
-          stackStr = `Stack: [ ${parentNames} ] › `;
-        }
+    // Always update text message to clear transient hourglass prompts
+    if (hit) {
+      const e = hit[1];
+      const catName = CATEGORY_NAMES[e[2]];
 
-        infoElement.textContent = `Thread ${THREADS[hit[0]]} | ${stackStr}ACTIVE: ${catName} | Start: +${(e[0]*1000).toFixed(3)}ms | Duration: ${(e[1]*1000).toFixed(3)}ms | On CPU: ${e[3]} | Details: ${e[4]}`;
-      } else {
-        infoElement.textContent = "Hover over a region to inspect details...";
+      let stackStr = "";
+      if (e.parents && e.parents.length > 0) {
+        const parentNames = e.parents.map(p => CATEGORY_NAMES[p[2]]).join(" › ");
+        stackStr = `Stack: [ ${parentNames} ] › `;
       }
+
+      const lodNote = (isLODActive && lodMode === "mixed") ? " (LOD Sub-pixel Inspection)" : "";
+      infoElement.textContent = `Thread ${THREADS[hit[0]]} | ${stackStr}ACTIVE: ${catName}${lodNote} | Start: +${(e[0]*1000).toFixed(3)}ms | Duration: ${(e[1]*1000).toFixed(3)}ms | On CPU: ${(e[3]*1000).toFixed(3)}ms | Details: ${e[4]}`;
+    } else {
+      infoElement.textContent = "Hover over a region to inspect details...";
+    }
+
+    // Only trigger canvas repaint if highlight box changed position or appearance
+    if (activeChanged) {
       render();
     }
+  }
+
+  // Mouse Move Event Listener with exact bounding box ratio scaling
+  canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    lastMouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+    lastMouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+    updateHover(lastMouseX, lastMouseY);
   });
 
   canvas.addEventListener("mouseleave", () => {
-    activeBubble = null;
-    infoElement.textContent = "Hover over a region to inspect details...";
-    render();
+    lastMouseX = -1;
+    lastMouseY = -1;
+    updateHover(-1, -1);
   });
 
-  // --- 2D Navigation: Panning & Zooming via Wheel/Trackpad ---
+  // Scrollbar Event Listeners
+  vScrollBox.addEventListener("scroll", () => {
+    if (isSyncingScrollbars || !TRACE_DATA) return;
+    const vBoxH = vScrollBox.clientHeight;
+    const vDummyH = vScrollDummy.offsetHeight;
+    const vScrollMax = vDummyH - vBoxH;
+
+    if (vScrollMax > 0) {
+      const frac = vScrollBox.scrollTop / vScrollMax;
+      viewStart = frac * Math.max(0, totalSpan - viewSpan);
+      scheduleRender("Vertical Scroll");
+    }
+  });
+
+  hScrollBox.addEventListener("scroll", () => {
+    if (isSyncingScrollbars || !TRACE_DATA) return;
+    const hBoxW = hScrollBox.clientWidth;
+    const hDummyW = hScrollDummy.offsetWidth;
+    const hScrollMax = hDummyW - hBoxW;
+
+    if (hScrollMax > 0) {
+      const frac = hScrollBox.scrollLeft / hScrollMax;
+      viewThreadStart = frac * Math.max(0, THREADS.length - viewThreadSpan);
+      scheduleRender("Horizontal Scroll");
+    }
+  });
+
+  // --- 2D Navigation ---
   canvas.addEventListener("wheel", (e) => {
     if (!TRACE_DATA || THREADS.length === 0) return;
     e.preventDefault();
 
     const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
 
     const availableW = canvas.width - LEFT_MARGIN - RIGHT_MARGIN;
     const availableH = canvas.height - HEADER_HEIGHT - BOTTOM_MARGIN;
@@ -549,10 +849,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const isZoom = e.ctrlKey || e.metaKey;
     const isHorizontal = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY);
 
+    let actionLabel = "";
+
     if (isHorizontal && isZoom) {
+      actionLabel = "Zooming Threads";
       const mouseRelX = Math.max(0, Math.min(1, (mouseX - LEFT_MARGIN) / availableW));
       const threadFocus = viewThreadStart + mouseRelX * viewThreadSpan;
-
       const zoomFactor = e.deltaY > 0 ? 1.15 : 0.85;
       const newSpan = Math.max(1.0, Math.min(THREADS.length, viewThreadSpan * zoomFactor));
 
@@ -560,14 +862,15 @@ document.addEventListener("DOMContentLoaded", () => {
       viewThreadSpan = newSpan;
 
     } else if (isHorizontal) {
+      actionLabel = "Panning Threads";
       const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       const panAmount = (delta / availableW) * viewThreadSpan * 0.4;
       viewThreadStart = Math.max(0, Math.min(THREADS.length - viewThreadSpan, viewThreadStart + panAmount));
 
     } else if (isZoom) {
+      actionLabel = "Zooming Time";
       const mouseRelY = Math.max(0, Math.min(1, (mouseY - HEADER_HEIGHT) / availableH));
       const tFocus = viewStart + mouseRelY * viewSpan;
-
       const zoomFactor = e.deltaY > 0 ? 1.15 : 0.85;
       const newSpan = Math.max(0.000001, Math.min(totalSpan * 2, viewSpan * zoomFactor));
 
@@ -575,84 +878,72 @@ document.addEventListener("DOMContentLoaded", () => {
       viewSpan = newSpan;
 
     } else {
+      actionLabel = "Panning Time";
       const panAmount = (e.deltaY / canvas.height) * viewSpan * 0.4;
       viewStart = Math.max(0.0 - viewSpan * 0.1, Math.min(totalSpan - viewSpan * 0.9, viewStart + panAmount));
     }
 
-    render();
+    scheduleRender(actionLabel);
   }, { passive: false });
 
-  // --- Keyboard Navigation (PageUp, PageDown, Home, End, Arrows) ---
+  // Keyboard Shortcuts
   window.addEventListener("keydown", (e) => {
     if (!TRACE_DATA || THREADS.length === 0) return;
+    if (["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(document.activeElement.tagName)) return;
 
-    // Ignore keyboard shortcuts if focus is inside a control input/select
-    if (["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(document.activeElement.tagName)) {
-      return;
-    }
-
-    let handled = true;
+    let actionLabel = "";
 
     switch (e.key) {
       case "PageUp":
-        // Move backward in time by 80% of visible viewport
+        actionLabel = "Page Up";
         viewStart = Math.max(0.0, viewStart - viewSpan * 0.8);
         break;
-
       case "PageDown":
-        // Move forward in time by 80% of visible viewport
+        actionLabel = "Page Down";
         viewStart = Math.min(Math.max(0.0, totalSpan - viewSpan), viewStart + viewSpan * 0.8);
         break;
-
       case "Home":
-        // Jump to beginning of time collection
+        actionLabel = "Jump to Start";
         viewStart = 0.0;
         break;
-
       case "End":
-        // Jump to end of time collection
+        actionLabel = "Jump to End";
         viewStart = Math.max(0.0, totalSpan - viewSpan);
         break;
-
       case "ArrowUp":
-        // Nudge time backward (10%)
+        actionLabel = "Nudge Time Up";
         viewStart = Math.max(0.0, viewStart - viewSpan * 0.1);
         break;
-
       case "ArrowDown":
-        // Nudge time forward (10%)
+        actionLabel = "Nudge Time Down";
         viewStart = Math.min(Math.max(0.0, totalSpan - viewSpan), viewStart + viewSpan * 0.1);
         break;
-
       case "ArrowLeft":
-        // Nudge thread viewport left
+        actionLabel = "Nudge Threads Left";
         viewThreadStart = Math.max(0.0, viewThreadStart - Math.max(1.0, viewThreadSpan * 0.1));
         break;
-
       case "ArrowRight":
-        // Nudge thread viewport right
+        actionLabel = "Nudge Threads Right";
         viewThreadStart = Math.min(Math.max(0.0, THREADS.length - viewThreadSpan), viewThreadStart + Math.max(1.0, viewThreadSpan * 0.1));
         break;
-
       default:
-        handled = false;
-        break;
+        return;
     }
 
-    if (handled) {
-      e.preventDefault(); // Prevent standard browser window scrolling
-      render();
-    }
+    e.preventDefault();
+    scheduleRender(actionLabel);
   });
+
   // Control Event Listeners
-  document.querySelectorAll("input[name='border-opt']").forEach(r => r.addEventListener("change", (e) => { showDelimiters = (e.target.value === "top"); render(); }));
-  document.getElementById("duration-filter").addEventListener("change", (e) => { minDurationThreshold = parseFloat(e.target.value); render(); });
+  document.querySelectorAll("input[name='border-opt']").forEach(r => r.addEventListener("change", (e) => { showDelimiters = (e.target.value === "top"); scheduleRender("Toggle Delimiters"); }));
+  document.getElementById("duration-filter").addEventListener("change", (e) => { minDurationThreshold = parseFloat(e.target.value); scheduleRender("Filter Applied"); });
+  document.getElementById("lod-mode").addEventListener("change", (e) => { lodMode = e.target.value; scheduleRender("LOD Mode Changed"); });
   document.getElementById("reset-view-btn").addEventListener("click", () => {
     viewStart = 0;
     viewSpan = totalSpan;
     viewThreadStart = 0.0;
     viewThreadSpan = THREADS.length;
-    render();
+    scheduleRender("Reset View");
   });
 
   window.addEventListener("resize", resizeCanvas);
