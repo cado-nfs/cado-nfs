@@ -18,6 +18,7 @@
 #include "macros.h"
 #include "mpz_poly.h"
 #include "sieve-methods.hpp"
+#include "threadpool.hpp"
 
 struct special_q; // IWYU pragma: keep
 
@@ -201,7 +202,7 @@ public:
     // should be discarded.
     int sieve_info_adjust_IJ();    // "raw" J.
     int sieve_info_update_norm_data_Jmax(bool keep_logI = false);
-    int adjust_with_estimated_yield();
+    int adjust_with_estimated_yield(thread_pool * pool);
 
     // a fall-back measure for desperate cases.
     // XXX when estimated_yield() wins, this will probably no longer be
@@ -245,7 +246,7 @@ private:
     friend qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis const& Q) ;
     void prepare_fijd();
     int round_to_full_bucket_regions(const char *, std::string const & s = std::string());
-    double estimate_yield_in_sieve_area(mat<int> const& shuffle, int squeeze, unsigned int N);
+    double estimate_yield_in_sieve_area(thread_pool * pool, mat<int> const& shuffle, int squeeze, unsigned int N);
 };/*}}}*/
 
 extern sieve_range_adjust::vec<double> operator*(sieve_range_adjust::vec<double> const& a, sieve_range_adjust::mat<int> const& m) ;

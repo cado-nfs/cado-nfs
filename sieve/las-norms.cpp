@@ -13,6 +13,7 @@
 #include <sstream>
 #include <string>
 #include <utility>
+#include <atomic>
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -29,8 +30,10 @@
 #include "macros.h"
 #include "mpz_poly.h"
 #include "polynomial.hpp"
+#include "subdivision.hpp"
 #include "rho.h"
 #include "verbose.hpp"
+#include "threadpool.hpp"
 
 using namespace std;
 
@@ -1073,7 +1076,7 @@ qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis c
  *
  * The shuffle[] argument can be used to specify an alternate basis
  */
-double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle, int squeeze, unsigned int N)
+double sieve_range_adjust::estimate_yield_in_sieve_area(thread_pool * pool, mat<int> const& shuffle, int squeeze, unsigned int N)
 {
     int const nsides = cpoly.nsides();
     int const nx = 1 << (N - squeeze);
@@ -1088,42 +1091,69 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle,
 
     /* Beware, we're really using (nx+1)*(ny/2+1) points, but weighted. */
 
-    double weightsum = 0;
+    std::atomic<double> global_weightsum = 0;
+    std::atomic<double> global_sum = 0;
 
-    double sum = 0;
-    for(int i = -nx/2 ; i <= nx/2 ; i++) {
-        double const x = X/nx * i;
-        /* We're doing half of the computation on the y axis, since
-         * it's symmetric anyway */
-        for(int j = 0 ; j <= ny/2 ; j++) {
-            double const y = Y/ny * j;
-            vec<double> xys = vec<double>(x,y) * shuffle;
+    /* the loop is from i=-nx/2 to i=+nx/2 (inclusive) and from j=0 to
+     * j=ny/2 (We're doing half of the computation on the y axis, since
+     * it's symmetric anyway). */
 
-            double weight = 1;
-            if (i == -nx/2 || i == nx/2) weight /= 2;
-            if (j == 0 || j == ny/2) weight /= 2;
-            verbose_fmt_print(0, 4, "# {} {} ({:.2f}) {:.1f} {:.1f}", i, j, weight, xys[0], xys[1]);
+    size_t i_width = nx + 1 - (nx&1);
+    size_t j_height = ny / 2 + 1;
+    size_t number_ijs = i_width * j_height;
 
-            double sprod = 1;
-            for(int side = 0 ; side < nsides ; side++) {
-                double const z = fijd[side].eval(xys[0], xys[1]);
-                double const a = log2(fabs(z));
-                double const d = dickman_rho_local(a/conf.sides[side].lpb, fabs(z));
-                verbose_fmt_print(0, 4, " {} {:e} {:e}", side, z, d);
-                sprod *= d;
+    for(auto [ij0, ij1] : subdivision(number_ijs, pool ? pool->size() : 1)) {
+        auto f = [&, ij0, ij1](worker_thread *, int) {
+            double weightsum = 0;
+            double sum = 0;
+            int i = static_cast<int>(ij0 / j_height) - nx/2;
+            int j = static_cast<int>(ij0 % j_height);
+            auto ij = ij0;
+            for( ; i <= nx / 2 && ij < ij1 ; i++, j=0)  {
+                double const x = X/nx * i;
+                for( ; j <= ny/2 && ij < ij1 ; j++, ij++) {
+                    double const y = Y/ny * j;
+                    vec<double> xys = vec<double>(x,y) * shuffle;
+
+                    double weight = 1;
+                    if (i == -nx/2 || i == nx/2) weight /= 2;
+                    if (j == 0 || j == ny/2) weight /= 2;
+                    verbose_fmt_print(0, 4, "# {} {} ({:.2f}) {:.1f} {:.1f}", i, j, weight, xys[0], xys[1]);
+
+                    double sprod = 1;
+                    for(int side = 0 ; side < nsides ; side++) {
+                        double const z = fijd[side].eval(xys[0], xys[1]);
+                        double const a = log2(fabs(z));
+                        double const d = dickman_rho_local(a/conf.sides[side].lpb, fabs(z));
+                        verbose_fmt_print(0, 4, " {} {:e} {:e}", side, z, d);
+                        sprod *= d;
+                    }
+                    verbose_fmt_print(0, 4, " {:e}", sprod);
+
+                    weightsum += weight;
+                    sum += weight*sprod;
+                }
             }
-            verbose_fmt_print(0, 4, " {:e}", sprod);
-
-            weightsum += weight;
-            sum += weight*sprod;
+            global_weightsum += weightsum;
+            global_sum += sum;
+        };
+        if (pool) {
+            pool->add_task_lambda(f, 0, thread_pool::QUEUE_GENERIC, 0);
+        } else {
+            f(nullptr, 0);
         }
     }
+    if (pool) {
+        pool->drain_queue(thread_pool::QUEUE_GENERIC);
+    }
+    double sum = global_sum;
+    double weightsum = global_weightsum;
     sum /= weightsum;
     sum *= 1UL << logA;
     return sum;
 }//}}}
 
-int sieve_range_adjust::adjust_with_estimated_yield()/*{{{*/
+int sieve_range_adjust::adjust_with_estimated_yield(thread_pool * pool)/*{{{*/
 {
     prepare_fijd(); // side-effect of the above
 
@@ -1209,12 +1239,12 @@ B:=[bestrep(a):a in {{a*b*c*x:a in {1,-1},b in {1,d},c in {1,s}}:x in MM}];
      * that by homogeneity) */
     int const N = 5;
 
-    double const reference = estimate_yield_in_sieve_area(shuffle_matrices[0], 0, N);
+    double const reference = estimate_yield_in_sieve_area(pool, shuffle_matrices[0], 0, N);
     for(int squeeze = ADJUST_STRATEGY2_MIN_SQUEEZE ; squeeze <= ADJUST_STRATEGY2_MAX_SQUEEZE ; squeeze++) {
         for(int r = 0 ; r < (int) shuffle_matrices.size() ; r++) {
             if (squeeze == 0 && (r & 1)) continue;
             auto const & Sr(shuffle_matrices[r]);
-            double const sum = estimate_yield_in_sieve_area(Sr, squeeze, N);
+            double const sum = estimate_yield_in_sieve_area(pool, Sr, squeeze, N);
             if (sum > best_sum) {
                 best_r = r;
                 best_squeeze = squeeze;

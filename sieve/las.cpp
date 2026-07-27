@@ -904,7 +904,7 @@ do_one_special_q(
      *
      */
     ALGO::special_q_data Q;
-    if (!choose_sieve_area(las, aux_p, aux.doing, ws.conf, Q, ws.J))
+    if (!choose_sieve_area(las, aux_p, pool, aux.doing, ws.conf, Q, ws.J))
         return false;
     ws.doing = Q.doing;
 

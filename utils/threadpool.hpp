@@ -142,6 +142,11 @@ class thread_pool : private monitor_or_synchronous, private NonCopyable {
         double cumulated_wait_time = 0;
         std::mutex mm_cumulated_wait_time;
 
+        size_t size() {
+            my_unique_lock const u(*this);
+            return threads.size();
+        }
+
         thread_pool(size_t _nr_threads, double & store_wait_time,
                 size_t nr_queues = 1, bool sync_thread_pool = false);
         ~thread_pool();
