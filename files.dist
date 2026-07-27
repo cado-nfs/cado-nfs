@@ -658,6 +658,7 @@ macros.h
 misc/CMakeLists.txt
 misc/check_rels.cpp
 misc/cl_structure_from_group_order.cpp
+misc/clamp_chronogram_trace.cpp
 misc/debug_renumber.cpp
 misc/descent_init_Fp.cpp
 misc/explain_indexed_relation.cpp
