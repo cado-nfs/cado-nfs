@@ -1126,6 +1126,8 @@ sieve/logapprox.hpp
 sieve/makefb.cpp
 sieve/makefb.sage
 sieve/plattice.sage
+sieve/relation_cache.cpp
+sieve/relation_cache.hpp
 sieve/sieve-methods.hpp
 sieve/siqs-fill-in-buckets.inl
 sieve/siqs-largesieve.hpp
@@ -1579,7 +1581,6 @@ tests/utils/test_gpf.c
 tests/utils/test_imaginary_quadratic_class_groups.cpp
 tests/utils/test_integer_partitions.cpp
 tests/utils/test_intinv.c
-tests/utils/test_json_parsing.cpp
 tests/utils/test_memusage.c
 tests/utils/test_min_max_heap.cpp
 tests/utils/test_mmappable_vector.cpp
@@ -1743,6 +1744,7 @@ utils/embedded/fmt/printf.h
 utils/embedded/fmt/ranges.h
 utils/embedded/fmt/std.h
 utils/embedded/fmt/xchar.h
+utils/embedded/nlohmann/json.hpp
 utils/extra_complex_overloads.hpp
 utils/fakempi.h
 utils/fd_streambuf.hpp
@@ -1784,8 +1786,6 @@ utils/indexed_relation.hpp
 utils/integer_partitions.hpp
 utils/intrinsics.hpp
 utils/iqsort.h
-utils/json.cpp
-utils/json.hpp
 utils/lll.c
 utils/lll.h
 utils/lock_guarded_container.hpp

@@ -205,8 +205,19 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const data = JSON.parse(jsonText);
       TRACE_DATA = data.events;
-      winStart = data.win_start;
-      winEnd = data.win_end;
+
+      winStart = data.win_start / 1e9;
+      winEnd = data.win_end / 1e9;
+
+      // Convert integer nanoseconds [start_ns, dur_ns, ...] to seconds in-place
+      for (const threadId in TRACE_DATA) {
+        const events = TRACE_DATA[threadId];
+        for (let i = 0; i < events.length; i++) {
+          events[i][0] /= 1e9;
+          events[i][1] /= 1e9;
+          events[i][2] /= 1e9;
+        }
+      }
       totalSpan = winEnd - winStart;
 
       // Reconstruct task hierarchy
@@ -501,7 +512,7 @@ document.addEventListener("DOMContentLoaded", () => {
           stackStr = `Stack: [ ${parentNames} ] › `;
         }
 
-        infoElement.textContent = `Thread ${THREADS[hit[0]]} | ${stackStr}ACTIVE: ${catName} | Start: +${(e[0]*1000).toFixed(3)}ms | Duration: ${(e[1]*1000).toFixed(3)}ms | Metric: ${e[3]} | Details: ${e[4]}`;
+        infoElement.textContent = `Thread ${THREADS[hit[0]]} | ${stackStr}ACTIVE: ${catName} | Start: +${(e[0]*1000).toFixed(3)}ms | Duration: ${(e[1]*1000).toFixed(3)}ms | On CPU: ${e[3]} | Details: ${e[4]}`;
       } else {
         infoElement.textContent = "Hover over a region to inspect details...";
       }

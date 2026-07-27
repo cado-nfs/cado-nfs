@@ -542,8 +542,7 @@ namespace chronograms {
 
     // Empty tag structs for parameterless events
     struct INIT {};
-    struct SKEWGAUSS {};
-    struct ADJUST {};
+    struct QLATTICE {};
     struct SLICING {};
     struct ALLOC {};
     struct AB {};
@@ -561,8 +560,7 @@ namespace chronograms {
     struct bubble_info {
         enum class kind_t : uint8_t {
             INIT,
-            SKEWGAUSS,
-            ADJUST,
+            QLATTICE,
             SLICING,
             ALLOC,
             SSS,
@@ -578,8 +576,7 @@ namespace chronograms {
 
         static constexpr std::array<const char*, 13> kind_names = {
             "INIT",
-            "SKEWGAUSS",
-            "ADJUST",
+            "QLATTICE",
             "SLICING",
             "ALLOC",
             "SSS",
@@ -617,8 +614,7 @@ namespace chronograms {
         bubble_info(DS e)       : kind(kind_t::DS), data(e) { }
         bubble_info(PCLAT e)    : kind(kind_t::PCLAT), data(e) { }
         bubble_info(PBR e)      : kind(kind_t::PBR), data(e) { }
-	bubble_info(SKEWGAUSS)  : kind(kind_t::SKEWGAUSS) {}
-	bubble_info(ADJUST)     : kind(kind_t::ADJUST) {}
+	bubble_info(QLATTICE)   : kind(kind_t::QLATTICE) {}
 	bubble_info(SLICING)    : kind(kind_t::SLICING) {}
 	bubble_info(ALLOC)      : kind(kind_t::ALLOC) {}
 	bubble_info(AB)         : kind(kind_t::AB) {}
@@ -630,8 +626,8 @@ namespace chronograms {
     // NOLINTEND(cppcoreguidelines-pro-type-union-access)
 
     struct bubble {
-        timeval tv_get = {};
-        timeval tv_put = {};
+        uint64_t t0;
+        uint64_t t1;
         int thread = 0;
         uint64_t on_cpu = 0;
         bubble_info info;
@@ -643,12 +639,12 @@ namespace chronograms {
         {}
 
         void start() {
-            gettimeofday(&tv_get, nullptr);
-            on_cpu = - microseconds_thread();
+            t0 = wct_nanoseconds();
+            on_cpu = - microseconds_thread() * 1000;
         }
         void stop() {
-            gettimeofday(&tv_put, nullptr);
-            on_cpu += microseconds_thread();
+            t1 = wct_nanoseconds();
+            on_cpu += microseconds_thread() * 1000;
         }
     };
 
@@ -736,26 +732,6 @@ inline chronograms::bubble_guard::~bubble_guard() {
 using fast_timetree_t = tdict::tree<tdict::timer_ticks>;
 #else
 using fast_timetree_t = tdict::tree<tdict::timer_none>;
-#endif
-
-#if 0
-/* It's ugly and I'm not convinced I need this */
-extern template class std::map<tdict::key, tdict::slot_base const *>;
-
-extern template struct tdict::tree<tdict::timer_seconds_thread>;
-extern template class std::map<tdict::key, tdict::tree<tdict::timer_seconds_thread> >;
-// extern template struct std::pair<tdict::key const, tdict::slot_base const *>;
-extern template struct tdict::tree<tdict::timer_seconds_thread>::accounting_child_meta<tdict::tree<tdict::timer_seconds_thread>::accounting_base>;
-
-#ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
-extern template struct tdict::tree<tdict::timer_ticks>;
-extern template class std::map<tdict::key, tdict::tree<tdict::timer_ticks> >;
-extern template struct tdict::tree<tdict::timer_ticks>::accounting_child_meta<tdict::tree<tdict::timer_ticks>::accounting_base>;
-#else
-extern template struct tdict::tree<tdict::timer_none>;
-extern template class std::map<tdict::key, tdict::tree<tdict::timer_none> >;
-extern template struct tdict::tree<tdict::timer_none>::accounting_child_meta<tdict::tree<tdict::timer_none>::accounting_base>;
-#endif
 #endif
 
 #if 0

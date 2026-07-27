@@ -36,6 +36,7 @@ add_library(las_core_b0 OBJECT
         las-norms.cpp
         logapprox.cpp
         las-coordinates.cpp
+        relation_cache.cpp
 )
 
 add_library(las_core_b OBJECT

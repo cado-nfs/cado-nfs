@@ -35,6 +35,7 @@
 #include "sieve-methods.hpp"
 #include "trialdiv.hpp"
 #include "utils_cxx.hpp"
+#include "relation_cache.hpp"
 
 // scan-headers: stop here
 
@@ -169,7 +170,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     // ----- special mode when we don't compute relations, but read them
     // from a relation cache instead.
 
-    std::string relation_cache;
+    relation_cache rel_cache;
     void reproduce_relations_from_cache(special_q const & doing);
     
     // ----- batch mode
@@ -250,9 +251,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     void prepare_sieve_shared_data(cxx_param_list & pl);
     void load_factor_base(cxx_param_list & pl);
 
-    static void declare_usage(cxx_param_list & pl);
-    static void configure_switches(cxx_param_list & pl);
-    static void configure_aliases(cxx_param_list & pl);
+    static void configure(cxx_param_list & pl);
 };
 
 #endif	/* CADO_LAS_INFO_HPP */

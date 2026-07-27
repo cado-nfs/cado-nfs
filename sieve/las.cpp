@@ -43,7 +43,7 @@
 #include "fb-types.hpp"
 #include "fb.hpp"
 #include "gmp_aux.h"
-#include "json.hpp"
+#include "relation_cache.hpp"
 #include "las-auxiliary-data.hpp"
 #include "las-bkmult.hpp"
 #include "las-choose-sieve-area.hpp"
@@ -99,7 +99,6 @@
 
 static void configure_aliases(cxx_param_list & pl)
 {
-    las_info::configure_aliases(pl);
     pl.configure_alias("log-bucket-region", "B");
     pl.configure_alias("log-bucket-region-step", "Bi");
     las_output::configure_aliases(pl);
@@ -108,7 +107,6 @@ static void configure_aliases(cxx_param_list & pl)
 
 static void configure_switches(cxx_param_list & pl)
 {
-    las_info::configure_switches(pl);
     las_output::configure_switches(pl);
     tdict::configure_switches(pl);
 
@@ -128,16 +126,6 @@ static void configure_switches(cxx_param_list & pl)
 
 static void declare_usage(cxx_param_list & pl)/*{{{*/
 {
-    pl.declare_usage_header(
-            "In the names and in the descriptions of the parameters, below there are often\n"
-            "aliases corresponding to the convention that 0 is the rational side and 1\n"
-            "is the algebraic side. If the two sides are algebraic, then the word\n"
-            "'rational' just means the side number 0. Note also that for a rational\n"
-            "side, the factor base is recomputed on the fly (or cached), and there is\n"
-            "no need to provide a fb0 parameter.\n"
-            );
-
-    las_info::declare_usage(pl);
     las_parallel_desc::declare_usage(pl);
     ALGO::todo_list::declare_usage(pl);
     las_output::declare_usage(pl);
@@ -174,6 +162,24 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     chronograms::declare_usage(pl);
     verbose_decl_usage(pl);
 }/*}}}*/
+
+void configure(cxx_param_list & pl)
+{
+    pl.declare_usage_header(
+            "In the names and in the descriptions of the parameters, below there are often\n"
+            "aliases corresponding to the convention that 0 is the rational side and 1\n"
+            "is the algebraic side. If the two sides are algebraic, then the word\n"
+            "'rational' just means the side number 0. Note also that for a rational\n"
+            "side, the factor base is recomputed on the fly (or cached), and there is\n"
+            "no need to provide a fb0 parameter.\n"
+            );
+
+    las_info::configure(pl);
+
+    declare_usage(pl);
+    configure_switches(pl);
+    configure_aliases(pl);
+}
 
 struct round_me {
     slice_index_t initial = 1;
@@ -1286,93 +1292,8 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
     verbose_fmt_print(0, 1, "# subjob {} done ({} special-q's), now waiting for other jobs\n", subjob, nq);
 }/*}}}*/
 
-static std::string relation_cache_subdir_name(std::vector<unsigned long> const & splits, std::vector<unsigned long> const & split_q)/*{{{*/
-{
-    std::string d;
-    /* find the file */
-    for(unsigned int i = 0 ; i + 1 < split_q.size() ; i++) {
-        int l = 0;
-        for(unsigned long s = 1 ; splits[i] > s ; s*=10, l++);
-        d += fmt::format("/{:0{}}", split_q[i], l);
-    }
-    return d;
-}/*}}}*/
-
-static std::string relation_cache_find_filepath_inner(std::string const & d, unsigned long qq)/*{{{*/
-{
-    std::string filepath;
-    DIR * dir = opendir(d.c_str());
-    DIE_ERRNO_DIAG(dir == nullptr, "opendir(%s)", d.c_str());
-    for(struct dirent * ent ; (ent = readdir(dir)) != nullptr ; ) {
-        unsigned long q0, q1;
-        if (sscanf(ent->d_name, "%lu-%lu", &q0, &q1) != 2) continue;
-        if (qq < q0 || qq >= q1) continue;
-        filepath = d + "/" + ent->d_name;
-        break;
-    }
-    closedir(dir);
-
-    return filepath;
-}/*}}}*/
-
-static std::string relation_cache_find_filepath(std::string const & cache_path, std::vector<unsigned long> const & splits, cxx_mpz q)/*{{{*/
-{
-    std::vector<std::string> searched;
-
-    /* write q in the variable basis given by the splits */
-    cxx_mpz oq = q;
-    std::vector<unsigned long> split_q = splits;
-    for(unsigned int i = splits.size() ; i-- ; ) {
-        split_q[i] = mpz_fdiv_ui(q, splits[i]);
-        mpz_fdiv_q_ui(q, q, splits[i]);
-    }
-    if (mpz_cmp_ui(q, 0) != 0) {
-        fmt::print(stderr, "# q is too large for relation cache\n", oq);
-        exit(EXIT_FAILURE);
-    }
-
-    std::string d = cache_path + relation_cache_subdir_name(splits, split_q);
-
-    std::string filepath = relation_cache_find_filepath_inner(d, split_q.back());
-
-    if (filepath.empty() && split_q.size() > 1) {
-        searched.push_back(d);
-
-        /* Try the previous directory, if qranges cross the
-         * boundaries at powers of ten */
-        split_q[split_q.size() - 2] -= 1;
-        split_q[split_q.size() - 1] += splits[splits.size() - 1];
-        d = cache_path + relation_cache_subdir_name(splits, split_q);
-        filepath = relation_cache_find_filepath_inner(d, split_q.back());
-    }
-
-    if (filepath.empty()) {
-        searched.push_back(d);
-        fmt::print(stderr, "# no file found in relation cache for q={} (searched directories: {})\n", q, join(searched, " "));
-        exit(EXIT_FAILURE);
-    }
-
-    return filepath;
-}
-/*}}}*/
-
 static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
 {
-    std::vector<unsigned long> splits;
-
-    try {
-        /* recover the list of splits from the config file */
-        json dirinfo;
-        if (!(std::ifstream(las.relation_cache + "/dirinfo.json") >> dirinfo))
-            throw std::exception();
-        for(size_t i = 0 ; i < dirinfo["splits"].size() ; i++) {
-            splits.push_back((long) dirinfo["splits"][i]);
-        }
-    } catch (std::exception const & e) {
-        fmt::print(stderr, "# Cannot read relation cache, or dirinfo.json in relation cache\n");
-        exit(EXIT_FAILURE);
-    }
-
     /* the inner mechanism of the descent loop entails breaking early on
      * when a relation is found. This doesn't interact well with what
      * we're doing here.
@@ -1405,7 +1326,7 @@ static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
         verbose_fmt_print(0, 2, "# Sieving {}; I={}; J={};\n",
                 Q, 1U << conf.logI, J);
 
-        std::string const filepath = relation_cache_find_filepath(las.relation_cache, splits, doing.p);
+        std::string const filepath = las.rel_cache.find_filepath(doing.p);
 
         std::ifstream rf(filepath);
         DIE_ERRNO_DIAG(!rf, "open(%s)", filepath.c_str());
@@ -1460,9 +1381,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     cxx_param_list pl;
     cado_sighandlers_install();
 
-    declare_usage(pl);
-    configure_switches(pl);
-    configure_aliases(pl);
+    configure(pl);
 
     argv++, argc--;
     for( ; argc ; ) {
@@ -1606,7 +1525,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
      * Nevertheless, this strategies stuff can easily become the dominant
      * factor in cached relations processing.
      */
-    if (!las.relation_cache.empty()) {
+    if (las.rel_cache.active()) {
         quick_subjob_loop_using_cache(las);
         return EXIT_SUCCESS;
     }

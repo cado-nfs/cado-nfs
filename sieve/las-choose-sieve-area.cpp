@@ -36,8 +36,6 @@ static bool choose_sieve_area(las_info const & las,
     std::unique_ptr<sieve_range_adjust> Adj;
 
     {
-        auto tt = ptimer->trace(0, chronograms::SKEWGAUSS());
-
         /* Our business: find an appropriate siever_config, that is
          * appropriate for this special-q. Different special-q's may lead to
          * different siever_config's, it is allowed.
@@ -77,8 +75,6 @@ static bool choose_sieve_area(las_info const & las,
     Adj->Q.sublat.m = conf.sublat_bound;
 
     {
-        auto tt = ptimer->trace(0, chronograms::ADJUST());
-
         /* Try strategies for adopting the sieving range */
 
         int const should_discard = !Adj->sieve_info_adjust_IJ();
@@ -191,6 +187,7 @@ bool choose_sieve_area(las_info const & las,
         uint32_t & J)
 {
     timetree_t & timer(aux_p->rt.timer);
+    auto tt = timer.trace(aux_p->subjob_id * las.number_of_threads_per_subjob(), chronograms::QLATTICE());
     return choose_sieve_area(las, &timer, doing, conf, Q, J);
 }
 
@@ -203,9 +200,13 @@ bool choose_sieve_area(las_info const & las,
         uint32_t & J)
 {
     timetree_t & timer(aux_p->rt.timer);
+    auto tt = timer.trace(aux_p->subjob_id * las.number_of_threads_per_subjob(), chronograms::QLATTICE());
     return choose_sieve_area(las, &timer, doing, conf, Q, J);
 }
 
+/* these two do not receive a timer, and no ADJUST timer is recorded at
+ * all. Everything goes into the parent DUPCHECK timer.
+ */
 template<>
 bool choose_sieve_area(las_info const & las,
         special_q_task const & doing,

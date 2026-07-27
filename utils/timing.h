@@ -31,14 +31,21 @@ static inline uint64_t cputicks()
 }
 #endif
 
-extern uint64_t microseconds (void);
-extern uint64_t microseconds_thread (void);
-extern unsigned long milliseconds (void);
-extern unsigned long milliseconds_thread (void);
-extern double seconds (void);
-extern double seconds_thread (void);
+extern uint64_t nanoseconds();
+extern uint64_t nanoseconds_thread ();
+extern uint64_t wct_nanoseconds ();
+
+extern uint64_t microseconds ();
+extern uint64_t microseconds_thread ();
+
+extern unsigned long milliseconds ();
+extern unsigned long milliseconds_thread ();
+
+extern double seconds ();
+extern double seconds_thread ();
+extern double wct_seconds ();
+
 extern void seconds_user_sys (double *);
-extern double wct_seconds (void);
 extern void print_timing_and_memory (FILE*, double, double);
 extern void thread_seconds_user_sys(double *);
 

@@ -52,7 +52,6 @@ set (sources
         numbertheory/all_valuations_above_p.cpp
         mpz_mat_accessors.cpp
         badideals.cpp
-        json.cpp
         indexed_relation.cpp
         cado-sighandlers.cpp
         mmap_allocator.cpp
