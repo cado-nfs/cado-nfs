@@ -161,6 +161,7 @@ void timetree_t::display_chart() const
     using json = nlohmann::json;
 
     json J;
+    J["format"] = 20260727;
     J["win_start"] = time_min;
     J["win_end"] = time_max;
     J["categories"] = chronograms::bubble_info::kind_names;

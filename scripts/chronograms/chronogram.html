@@ -204,19 +204,27 @@ document.addEventListener("DOMContentLoaded", () => {
   function loadJSON(jsonText) {
     try {
       const data = JSON.parse(jsonText);
+
       TRACE_DATA = data.events;
-
-      winStart = data.win_start / 1e9;
-      winEnd = data.win_end / 1e9;
-
-      // Convert integer nanoseconds [start_ns, dur_ns, ...] to seconds in-place
-      for (const threadId in TRACE_DATA) {
-        const events = TRACE_DATA[threadId];
-        for (let i = 0; i < events.length; i++) {
-          events[i][0] /= 1e9;
-          events[i][1] /= 1e9;
-          events[i][2] /= 1e9;
-        }
+      if ("format" in data) {
+          const expected_format = 20260727
+          if (data.format != expected_format) {
+              alert(`Data format not understood (got ${data.format}, expected ${expected_format})`)
+          }
+          /* convert everything to seconds */
+          winStart = data.win_start / 1e9;
+          winEnd = data.win_end / 1e9;
+          for (const threadId in TRACE_DATA) {
+            const events = TRACE_DATA[threadId];
+            for (let i = 0; i < events.length; i++) {
+              events[i][0] /= 1e9;
+              events[i][1] /= 1e9;
+              events[i][2] /= 1e9;
+            }
+          }
+      } else {
+          winStart = data.win_start
+          winEnd = data.win_end
       }
       totalSpan = winEnd - winStart;
 
