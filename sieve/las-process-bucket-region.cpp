@@ -790,8 +790,9 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             /* We must make sure that we join the async threads at some
              * point, otherwise we'll leak memory. It seems more appropriate
              * to batch-join only, so this is done at the las_subjob level */
-            worker->get_pool().add_task_lambda([wc_p=wc_p, aux_p=aux_p, cur=std::move(cur)](worker_thread * worker) mutable {
-                        detached_cofac(worker, *wc_p, *aux_p, std::move(cur));
+            auto cur_ptr = std::make_shared<cofac_standalone>(std::move(cur));
+            worker->get_pool().add_task_lambda([wc_p=wc_p, aux_p=aux_p, cur_ptr](worker_thread * worker) {
+                        detached_cofac(worker, *wc_p, *aux_p, std::move(*cur_ptr));
                     }, 0, thread_pool::QUEUE_ECM);
         } else {
             /* We must proceed synchronously for the descent */

@@ -3,9 +3,9 @@
 #include <cstddef>
 #include <cstdint>
 
-#include <chrono>
 #include <condition_variable>
 #include <exception>
+#include <functional>
 #include <mutex>
 #include <queue>
 #include <thread>
@@ -45,7 +45,6 @@ bool worker_thread::is_synchronous() const
 thread_pool::thread_pool(size_t const nr_threads, double & store_wait_time,
                          size_t const nr_queues, bool sync_thread_pool)
     : tasks(nr_queues)
-    , results(nr_queues)
     , exceptions(nr_queues)
     , created(nr_queues, 0)
     , joined(nr_queues, 0)
@@ -71,8 +70,6 @@ thread_pool::~thread_pool()
     threads.clear();
     for (auto const & T: tasks)
         ASSERT_ALWAYS_NOTHROW(T.empty());
-    for (auto const & R: results)
-        ASSERT_ALWAYS_NOTHROW(R.empty());
     for (auto const & E: exceptions)
         ASSERT_ALWAYS_NOTHROW(E.empty());
     store_wait_time += cumulated_wait_time;
@@ -89,7 +86,18 @@ void thread_pool::thread_work_on_tasks(worker_thread & I)
             break;
 
         tt += seconds_thread();
-        task(&I);
+        try {
+            task(&I);
+        } catch (...) {
+            std::scoped_lock guard(pool_mutex);
+            exceptions[queue].push(std::current_exception());
+        }
+
+        {
+            auto lock = get_lock();
+            joined[queue]++;
+            tasks[queue].task_done.notify_all();
+        }
         tt -= seconds_thread();
     }
     tt += seconds_thread();
@@ -105,6 +113,36 @@ bool thread_pool::all_task_queues_empty() const
     return true;
 }
 
+void thread_pool::enqueue_task(std::function<void(worker_thread*)> task_fn, int id, size_t queue, double cost) 
+{
+    if (is_synchronous()) {
+        created[queue]++;
+        try {
+            task_fn(threads.data());
+        } catch (...) {
+            const std::scoped_lock guard(pool_mutex);
+            exceptions[queue].push(std::current_exception());
+        }
+        joined[queue]++;
+        return;
+    }
+
+    ASSERT_ALWAYS(queue < tasks.size());
+
+    auto lock = get_lock();
+    ASSERT_ALWAYS(!kill_threads);
+
+    tasks[queue].push(thread_task(std::move(task_fn), id, cost));
+    created[queue]++;
+
+    size_t i = queue;
+    if (tasks[i].nr_threads_waiting == 0) {
+        for (i = 0; i < tasks.size() && tasks[i].nr_threads_waiting == 0; i++) {}
+    }
+    if (i < tasks.size())
+        tasks[i].not_empty.notify_one();
+}
+
 void thread_pool::add_task(task_function_t func, task_parameters * params,
                            int const id, size_t const queue, double cost)
 {
@@ -118,28 +156,8 @@ void thread_pool::drain_queue(size_t const queue, bool blocking)
 {
     auto lock = get_lock();
     for (size_t const cr = created[queue]; joined[queue] < cr;) {
-        if (results[queue].empty()) {
-            if (!blocking) break;
-            tasks[queue].not_empty.wait(lock);
-            continue;
-        }
-
-        if (!blocking && results[queue].front().wait_for(std::chrono::seconds(0)) != std::future_status::ready)
-            break;
-
-
-        auto fut = std::move(results[queue].front());
-        results[queue].pop();
-        joined[queue]++;
-
-        lock.unlock();
-        try {
-            fut.get();
-        } catch (...) {
-            std::scoped_lock guard(pool_mutex);
-            exceptions[queue].push(std::current_exception());
-        }
-        lock.lock();
+        if (!blocking) break;
+        tasks[queue].task_done.wait(lock);
     }
 }
 
@@ -176,7 +194,7 @@ thread_task thread_pool::get_task(size_t & preferred_queue)
 
 void thread_pool::drain_all_queues()
 {
-    for (size_t queue = 0; queue < results.size(); ++queue) {
+    for (size_t queue = 0; queue < created.size(); ++queue) {
         drain_queue(queue);
     }
 }

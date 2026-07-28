@@ -7,6 +7,7 @@
 #include <thread>
 #include <deque>
 #include <string>
+#include <utility>
 
 #include "fmt/base.h"
 #include "fmt/format.h"
@@ -31,12 +32,12 @@ int main(int argc, char const * argv[])
 
   for (unsigned long i = 0; i < iter; i++) {
     const size_t queue = i % 2;
-    auto fut = pool.add_task_lambda([message](worker_thread*, int id) {
-                auto s = fmt::format("This is thread {}, passed id {}: {}",
-                        std::this_thread::get_id(), id, message);
+    auto fut = pool.add_future_task(queue, 0.0, [message](worker_thread*) {
+                auto s = fmt::format("This is thread {}: {}",
+                        std::this_thread::get_id(), message);
                 fmt::print("{}\n", s);
                 return s.size();
-                }, 0, queue, 0.0);
+                });
 
     results.push_back(std::move(fut));
   }

@@ -1554,7 +1554,7 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
         if (chunk.empty())
             return false;
 
-        auto fut = pool.add_task_lambda([&poly, chunk = std::move(chunk)](worker_thread*) mutable {
+        auto fut = pool.add_future_task(thread_pool::QUEUE_GENERIC, 0, [&poly, chunk = std::move(chunk)](worker_thread*) mutable {
             for (auto & fb_cur : chunk) {
                 fb_cur.nr_roots = 1;
                 auto R = fb_linear_root(poly, fb_cur.q);
@@ -1565,7 +1565,7 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
                 fb_cur.invq = compute_invq(fb_cur.q);
             }
             return std::move(chunk);
-        }, 0, thread_pool::QUEUE_GENERIC);
+        });
 
         futures.push_back(std::move(fut));
         return true;

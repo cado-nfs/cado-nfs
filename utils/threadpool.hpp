@@ -10,6 +10,7 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -64,6 +65,7 @@ class tasks_queue
   public:
     std::mutex mx;
     std::condition_variable not_empty;
+    std::condition_variable task_done;
     size_t nr_threads_waiting = 0;
     tasks_queue() = default;
 };
@@ -108,7 +110,6 @@ private:
     std::vector<tasks_queue> tasks;
 
     // Type-erased completion handles (std::future<void>) for drain_queue tracking
-    std::vector<std::queue<std::future<void>>> results;
     std::vector<std::queue<std::exception_ptr>> exceptions;
 
     std::vector<size_t> created;
@@ -122,51 +123,7 @@ private:
     bool all_task_queues_empty() const;
 
     // Universal enqueuer supporting any return type R
-    template <typename F>
-    auto enqueue_task(F&& task_fn, int id, size_t queue, double cost) 
-    {
-        using R = std::invoke_result_t<F, worker_thread*>;
-
-        // User packaged task returning std::future<R>
-        auto user_pkg = std::make_shared<std::packaged_task<R(worker_thread*)>>(
-            std::forward<F>(task_fn)
-        );
-        std::future<R> user_fut = user_pkg->get_future();
-
-        // Completion packaged task returning std::future<void> for drain_queue
-        auto pool_pkg = std::make_shared<std::packaged_task<void(worker_thread*)>>(
-            [user_pkg](worker_thread* w) {
-                (*user_pkg)(w);
-            }
-        );
-        std::future<void> pool_fut = pool_pkg->get_future();
-
-        if (is_synchronous()) {
-            created[queue]++;
-            (*pool_pkg)(threads.data());
-            results[queue].push(std::move(pool_fut));
-            return user_fut;
-        }
-
-        auto lock = get_lock();
-        ASSERT_ALWAYS(!kill_threads);
-
-        tasks[queue].push(thread_task(
-            [pool_pkg](worker_thread* w) { (*pool_pkg)(w); },
-            id, cost
-        ));
-        created[queue]++;
-        results[queue].push(std::move(pool_fut));
-
-        size_t i = queue;
-        if (tasks[i].nr_threads_waiting == 0) {
-            for (i = 0; i < tasks.size() && tasks[i].nr_threads_waiting == 0; i++) {}
-        }
-        if (i < tasks.size())
-            tasks[i].not_empty.notify_one();
-
-        return user_fut;
-    }
+    void enqueue_task(std::function<void(worker_thread*)> task_fn, int id, size_t queue, double cost);
 
 public:
     bool is_synchronous() const { return sync_mode; }
@@ -211,17 +168,20 @@ public:
 
     // Unified add_task_lambda: supports any return type R, and signatures (worker*, int) or (worker*)
     template<typename T>
-    auto add_task_lambda(T f, const int id = 0, const size_t queue = 0, double cost = 0.0)
+    auto add_task_lambda(T && f, const int id = 0, const size_t queue = 0, double cost = 0.0)
     {
+        std::function<void(worker_thread*)> task_fn;
+
         if constexpr (std::is_invocable_v<T, worker_thread*, int>) {
-            return enqueue_task([f = std::move(f), id](worker_thread* w) mutable {
-                return f(w, id);
-            }, id, queue, cost);
+            task_fn = [f = std::forward<T>(f), id](worker_thread* w) {
+                f(w, id);
+            };
         } else {
-            return enqueue_task([f = std::move(f)](worker_thread* w) mutable {
-                return f(w);
-            }, id, queue, cost);
+            task_fn = [f = std::forward<T>(f)](worker_thread* w) {
+                f(w);
+            };
         }
+        enqueue_task(task_fn, id, queue, cost);
     }
 
     // add_shared_task
@@ -243,6 +203,25 @@ public:
 
     // Legacy function pointer overload
     void add_task(task_function_t func, task_parameters * params, int id, size_t queue = 0, double cost = 0.0);
+
+    template <typename F>
+    auto add_future_task(size_t queue, double cost, F&& task_fn)
+    {
+        using R = std::invoke_result_t<F, worker_thread*>;
+
+        auto pkg = std::make_shared<std::packaged_task<R(worker_thread*)>>(
+                std::forward<F>(task_fn)
+                );
+        std::future<R> fut = pkg->get_future();
+
+        // Enqueue as a fire-and-forget task that invokes the packaged task
+        add_task_lambda([pkg](worker_thread* w) {
+                (*pkg)(w);
+                }, 0, queue, cost);
+
+        return fut;
+    }
+
 };
 
 #endif  /* CADO_THREADPOOL_HPP */
