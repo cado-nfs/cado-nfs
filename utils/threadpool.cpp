@@ -8,8 +8,7 @@
 #include <queue>   // for queue, priority_queue
 #include <vector>
 #include <utility>
-
-#include <pthread.h>
+#include <thread>
 
 #include "clonable-exception.hpp" // for clonable_exception
 #include "macros.h"
@@ -44,28 +43,15 @@ worker_thread::worker_thread(thread_pool & _pool, size_t const _preferred_queue,
     , preferred_queue(several_threads ? _preferred_queue : SIZE_MAX)
 {
     if (!several_threads) {
-        // the "pthread" member is uninitialized, but that is fine since
+        // the "thread" member is uninitialized, but that is fine since
         // it's only used in the dtor anyway, under the condition that
         // preferred_queue != SIZE_MAX.
         // coverity[uninit_member]
         return;
     }
-    int const rc = pthread_create(
-        &thread, nullptr, thread_pool::thread_work_on_tasks_static, this);
-    ASSERT_ALWAYS(rc == 0);
-}
-
-worker_thread::~worker_thread()
-{
-    if (preferred_queue == SIZE_MAX)
-        return;
-    int const rc = pthread_join(thread, nullptr);
-    // timer.self will be essentially lost here. the best thing to do is to
-    // create a phony task which collects the busy wait times for all
-    // threads, at regular intervals, so that timer.self will be
-    // insignificant.
-    // pool.timer += timer;
-    ASSERT_ALWAYS_NOTHROW(rc == 0);
+    thread = std::jthread([this]() {
+        pool.thread_work_on_tasks(*this);
+    });
 }
 
 int worker_thread::rank() const
@@ -170,7 +156,7 @@ thread_pool::~thread_pool()
             T.not_empty.notify_all();
     }
     drain_all_queues();
-    threads.clear(); /* does pthread_join */
+    threads.clear();
     for (auto const & T: tasks)
         ASSERT_ALWAYS_NOTHROW(T.empty());
     for (auto const & R: results)
@@ -178,13 +164,6 @@ thread_pool::~thread_pool()
     for (auto const & E: exceptions)
         ASSERT_ALWAYS_NOTHROW(E.empty());
     store_wait_time += cumulated_wait_time;
-}
-
-void * thread_pool::thread_work_on_tasks_static(void * arg)
-{
-    auto * I = static_cast<worker_thread *>(arg);
-    I->pool.thread_work_on_tasks(*I);
-    return nullptr;
 }
 
 void thread_pool::thread_work_on_tasks(worker_thread & I)

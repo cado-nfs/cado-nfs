@@ -9,8 +9,7 @@
 #include <vector>
 #include <utility>
 #include <functional>
-
-#include <pthread.h>
+#include <thread>
 
 #include "utils_cxx.hpp"
 
@@ -42,15 +41,9 @@ class thread_pool;
 class worker_thread {
   friend class thread_pool;
   thread_pool &pool;
-  pthread_t thread;
+  std::jthread thread;
   const size_t preferred_queue;
 public:
-  worker_thread(worker_thread const &) = delete;
-  worker_thread& operator=(worker_thread const &) = delete;
-
-  // move is ok
-  worker_thread(worker_thread&&) = default;
-  // worker_thread& operator=(worker_thread&&) = default;
   int rank() const;
   int nthreads() const;
   /* It doesn't seem that unholy to me to have a thread access the pool
@@ -59,7 +52,6 @@ public:
    */
   thread_pool & get_pool() { return pool; }
   worker_thread(thread_pool &, size_t, bool = true);
-  ~worker_thread();
   bool is_synchronous() const;
 };
 
@@ -101,7 +93,6 @@ class thread_pool : private NonCopyable {
         bool kill_threads; /* If true, hands out kill tasks once work queues are empty */
         double & store_wait_time;
 
-        static void * thread_work_on_tasks_static(void *worker);
         void thread_work_on_tasks(worker_thread &);
         thread_task get_task(size_t& queue);
         void add_result(size_t queue, task_result *result);
