@@ -3,15 +3,16 @@
 
 #include <cstddef>
 
+#include <exception>
+#include <functional>
+#include <future>
 #include <memory>
 #include <mutex>
-#include <type_traits>
-#include <vector>
-#include <utility>
-#include <functional>
-#include <thread>
 #include <queue>
-#include <exception>
+#include <thread>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 #include "utils_cxx.hpp"
 
@@ -73,7 +74,7 @@ class thread_pool : private NonCopyable {
 
         // Helper returning a locked unique_lock in async mode, or an unlocked one in sync mode
         std::unique_lock<std::mutex> get_lock() const {
-            std::unique_lock<std::mutex> lock(pool_mutex, std::defer_lock);
+            std::unique_lock lock(pool_mutex, std::defer_lock);
             if (!sync_mode)
                 lock.lock();
             return lock;
@@ -81,8 +82,10 @@ class thread_pool : private NonCopyable {
 
         std::vector<worker_thread> threads;
         std::vector<tasks_queue> tasks;
-        std::vector<results_queue> results;
+
+        std::vector<std::queue<std::future<task_result*>>> results;
         std::vector<std::queue<std::exception_ptr>> exceptions;
+
         std::vector<size_t> created;
         std::vector<size_t> joined;
 
@@ -95,7 +98,7 @@ class thread_pool : private NonCopyable {
         void add_exception(size_t queue, std::exception_ptr e);
         bool all_task_queues_empty() const;
 
-        void enqueue_task(std::function<task_result*(worker_thread*)> task_fn, int id, size_t queue, double cost);
+        std::future<task_result*> enqueue_task(std::function<task_result*(worker_thread*)> task_fn, int id, size_t queue, double cost);
 
     public:
         bool is_synchronous() const { return sync_mode; }
@@ -111,34 +114,32 @@ class thread_pool : private NonCopyable {
                 size_t nr_queues = 1, bool sync_thread_pool = false);
         ~thread_pool();
         task_result *get_result(size_t queue = 0, bool blocking = true);
-        void drain_queue(size_t queue, void (*f)(task_result*) = nullptr);
+        void drain_queue(size_t queue);
         void drain_all_queues();
-        std::exception_ptr get_exception(size_t queue = 0);
+
         template<typename T>
         std::vector<T> get_exceptions(size_t const queue = 0) {
             auto lock = get_lock();
-            std::vector<T> result;
+            std::vector<T> res;
             std::queue<std::exception_ptr> remaining;
 
             while (!exceptions[queue].empty()) {
-                auto ex_ptr = exceptions[queue].front();
+                auto ex_ptr = std::move(exceptions[queue].front());
                 exceptions[queue].pop();
 
                 try {
                     if (ex_ptr)
                         std::rethrow_exception(ex_ptr);
                 } catch (const T& e) {
-                    result.push_back(e);
+                    res.push_back(e);
                 } catch (...) {
-                    remaining.push(ex_ptr);
+                    remaining.push(std::move(ex_ptr));
                 }
             }
 
-            // Preserve any exceptions that were not of type T
             exceptions[queue] = std::move(remaining);
-            return result;
+            return res;
         }
-        void rethrow_exceptions(size_t queue = 0);
 
         /* {{{ add_task is the simplest interface. It does not even specify who has
          * ownership of the params object. Two common cases can be envisioned.
@@ -169,7 +170,7 @@ class thread_pool : private NonCopyable {
          *    }
          */
         template<typename T>
-        void add_task_lambda(T f, const int id = 0, const size_t queue = 0, double cost = 0.0)
+        auto add_task_lambda(T f, const int id = 0, const size_t queue = 0, double cost = 0.0)
         {
             std::function<task_result*(worker_thread*)> task_fn;
 
@@ -185,7 +186,7 @@ class thread_pool : private NonCopyable {
                 };
             }
 
-            enqueue_task(std::move(task_fn), id, queue, cost);
+            return enqueue_task(std::move(task_fn), id, queue, cost);
         }
         /* }}} */
 
@@ -215,7 +216,7 @@ class thread_pool : private NonCopyable {
             }
         /* }}} */
 
-        /* {{{ add_shared_task - wraps std::shared_ptr inside a lambda */
+        // add_shared_task
         template<typename T>
             using shared_task = std::shared_ptr<T>;
 
@@ -225,13 +226,12 @@ class thread_pool : private NonCopyable {
             }
 
         template<typename T>
-            void add_shared_task(shared_task<T> const & task_ptr, const int id = 0, const size_t queue = 0, double cost = 0.0)
+            auto add_shared_task(shared_task<T> const & task_ptr, const int id = 0, const size_t queue = 0, double cost = 0.0)
             {
-                add_task_lambda([task_ptr](worker_thread* w, int task_id) {
+                return add_task_lambda([task_ptr](worker_thread* w, int task_id) {
                         (*task_ptr)(w, task_id);
                         }, id, queue, cost);
             }
-        /* }}} */
 };
 
 #endif  /* CADO_THREADPOOL_HPP */

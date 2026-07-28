@@ -171,19 +171,13 @@ void thread_pool::thread_work_on_tasks(worker_thread & I)
         thread_task task = get_task(queue);
         if (task.is_terminal())
             break;
-        try {
-            tt += seconds_thread();
-            task_result * result = task(&I);
-            tt -= seconds_thread();
-            add_result(queue, result ? result : new task_result());
-        } catch (...) {
-            tt -= seconds_thread();
-            add_exception(queue, std::current_exception());
-            add_result(queue, new task_result()); // Keep task count synchronized
-        }
+
+        tt += seconds_thread();
+        task(&I);
+        tt -= seconds_thread();
     }
     tt += seconds_thread();
-    std::lock_guard<std::mutex> const dummy(mm_cumulated_wait_time);
+    std::scoped_lock const dummy(mm_cumulated_wait_time);
     cumulated_wait_time += tt;
 }
 
@@ -195,28 +189,36 @@ bool thread_pool::all_task_queues_empty() const
     return true;
 }
 
-void thread_pool::enqueue_task(std::function<task_result*(worker_thread*)> task_fn,
-                               int const id, size_t const queue, double cost)
+std::future<task_result*> thread_pool::enqueue_task(std::function<task_result*(worker_thread*)> task_fn,
+        int const id, size_t const queue, double cost)
 {
+    auto pkg = std::make_shared<std::packaged_task<task_result*(worker_thread*)>>(
+            std::move(task_fn)
+            );
+
+    std::future<task_result*> fut = pkg->get_future();
+
     if (is_synchronous()) {
         created[queue]++;
-        try {
-            task_result * result = task_fn(threads.data());
-            results[queue].push(result ? result : new task_result());
-        } catch (...) {
-            add_exception(queue, std::current_exception());
-            results[queue].push(new task_result());
-        }
-        return;
+        (*pkg)(threads.data());
+        results[queue].push(std::move(fut));
+        return fut;
     }
 
     ASSERT_ALWAYS(queue < tasks.size());
 
     auto lock = get_lock();
-
     ASSERT_ALWAYS(!kill_threads);
-    tasks[queue].push(thread_task(std::move(task_fn), id, cost));
+
+    tasks[queue].push(thread_task(
+                [pkg](worker_thread* w) -> task_result* {
+                (*pkg)(w);
+                return nullptr;
+                },
+                id, cost
+                ));
     created[queue]++;
+    results[queue].push(std::move(fut));
 
     size_t i = queue;
     if (tasks[i].nr_threads_waiting == 0) {
@@ -224,6 +226,8 @@ void thread_pool::enqueue_task(std::function<task_result*(worker_thread*)> task_
     }
     if (i < tasks.size())
         tasks[i].not_empty.notify_one();
+
+    return fut;
 }
 
 void thread_pool::add_task(task_function_t func, task_parameters * params,
@@ -235,6 +239,51 @@ void thread_pool::add_task(task_function_t func, task_parameters * params,
     enqueue_task(std::move(task_fn), id, queue, cost);
 }
 
+task_result * thread_pool::get_result(size_t const queue, bool const blocking)
+{
+    ASSERT_ALWAYS(queue < results.size());
+
+    auto lock = get_lock();
+    if (!blocking && results[queue].empty()) {
+        return nullptr;
+    }
+
+    while (results[queue].empty())
+        tasks[queue].not_empty.wait(lock);
+
+    auto fut = std::move(results[queue].front());
+    results[queue].pop();
+    joined[queue]++;
+
+    // Unlock during fut.get() so other threads can manipulate queues while waiting
+    lock.unlock();
+    return fut.get(); // Returns task_result* or rethrows captured exception!
+}
+
+void thread_pool::drain_queue(size_t const queue)
+{
+    auto lock = get_lock();
+    for (size_t const cr = created[queue]; joined[queue] < cr;) {
+        while (results[queue].empty())
+            tasks[queue].not_empty.wait(lock);
+
+        auto fut = std::move(results[queue].front());
+        results[queue].pop();
+        joined[queue]++;
+
+        lock.unlock();
+        try {
+            task_result * result = fut.get(); // Throws if the worker task threw an exception!
+            delete result;
+        } catch (...) {
+            // Worker threw an exception! Route std::current_exception() to exceptions[queue]
+            // so get_exceptions() can harvest it right after drain_queue().
+            std::lock_guard<std::mutex> guard(pool_mutex);
+            exceptions[queue].push(std::current_exception());
+        }
+        lock.lock();
+    }
+}
 thread_task thread_pool::get_task(size_t & preferred_queue)
 {
     ASSERT(!is_synchronous());
@@ -270,79 +319,6 @@ thread_task thread_pool::get_task(size_t & preferred_queue)
     }
 
     return task;
-}
-
-void thread_pool::add_result(size_t const queue, task_result * const result)
-{
-    ASSERT(!is_synchronous()); // synchronous case: see add_task
-    ASSERT_ALWAYS(queue < results.size());
-    auto lock = get_lock();
-    results[queue].push(result);
-    results[queue].not_empty.notify_one();
-}
-
-void thread_pool::add_exception(size_t const queue, std::exception_ptr e)
-{
-    ASSERT(!is_synchronous());
-    ASSERT_ALWAYS(queue < results.size());
-    auto lock = get_lock();
-    exceptions[queue].push(std::move(e));
-    results[queue].not_empty.notify_one();
-}
-
-std::exception_ptr thread_pool::get_exception(size_t const queue)
-{
-    ASSERT_ALWAYS(queue < exceptions.size());
-    auto lock = get_lock();
-    if (!exceptions[queue].empty()) {
-        auto e = exceptions[queue].front();
-        exceptions[queue].pop();
-        return e;
-    }
-    return nullptr;
-}
-
-void thread_pool::rethrow_exceptions(size_t const queue)
-{
-    if (auto e = get_exception(queue))
-        std::rethrow_exception(e);
-}
-
-/* Get a result from the specified results queue. If no result is available,
-   waits with blocking=true, and returns nullptr with blocking=false. */
-task_result * thread_pool::get_result(size_t const queue, bool const blocking)
-{
-    task_result * result;
-    ASSERT_ALWAYS(queue < results.size());
-
-    /* works both in synchronous and non-synchronous case */
-    auto lock = get_lock();
-    if (!blocking && results[queue].empty()) {
-        result = nullptr;
-    } else {
-        while (results[queue].empty())
-            results[queue].not_empty.wait(lock);
-        result = results[queue].front();
-        results[queue].pop();
-        joined[queue]++;
-    }
-    return result;
-}
-
-void thread_pool::drain_queue(size_t const queue, void (*f)(task_result *))
-{
-    /* works both in synchronous and non-synchronous case */
-    auto lock = get_lock();
-    for (size_t const cr = created[queue]; joined[queue] < cr;) {
-        while (results[queue].empty())
-            results[queue].not_empty.wait(lock);
-        task_result * result = results[queue].front();
-        results[queue].pop();
-        joined[queue]++;
-        if (f)
-            f(result);
-        delete result;
-    }
 }
 
 void thread_pool::drain_all_queues()

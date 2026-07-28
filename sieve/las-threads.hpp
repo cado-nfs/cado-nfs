@@ -26,7 +26,7 @@ template <typename T>
 class reservation_array_base {
     mutable std::mutex my_lock;
     protected:
-    std::unique_lock<std::mutex> get_lock() const { return std::unique_lock(my_lock); }
+    auto get_lock() const { return std::unique_lock(my_lock); }
     public:
     static constexpr int level = T::level;
     using update_t = T::update_t;
