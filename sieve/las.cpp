@@ -1156,7 +1156,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
              * decide on the relevance of creating a new output object */
 
             /* (non-blocking) join results from detached cofac */
-            for(task_result * r ; (r = pool.get_result(thread_pool::QUEUE_ECM, false)) ; delete r);
+            pool.drain_queue(thread_pool::QUEUE_ECM, false);
 
             nq++;
 
