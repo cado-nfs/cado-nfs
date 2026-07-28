@@ -7,6 +7,8 @@
 #include <mutex>
 #include <queue>   // for queue, priority_queue
 #include <vector>
+#include <utility>
+
 #include <pthread.h>
 
 #include "clonable-exception.hpp" // for clonable_exception
@@ -82,25 +84,20 @@ bool worker_thread::is_synchronous() const
 class thread_task
 {
   public:
-    task_function_t func = nullptr;
-    task_parameters * parameters = nullptr;
+    std::function<task_result*(worker_thread*)> func;
     int id = 0;
     double cost = 0.0; // costly tasks are scheduled first.
 
-    bool is_terminal() const { return func == nullptr; }
+    bool is_terminal() const { return !func; }
 
-    thread_task(task_function_t _func, task_parameters * _parameters, int _id,
-                double _cost)
-        : func(_func)
-        , parameters(_parameters)
-        , id(_id)
-        , cost(_cost)
-    {
-    }
-    explicit thread_task(bool) {}
-    task_result * operator()(worker_thread * w) const
-    {
-        return (*func)(w, parameters, id);
+    thread_task() = default;
+    thread_task(std::function<task_result*(worker_thread*)> f, int id, double cost)
+        : func(std::move(f)), id(id), cost(cost) {}
+    explicit thread_task(bool) {} // Terminal signal task
+
+    task_result* operator()(worker_thread* w) const {
+        if (func) return func(w);
+        return nullptr;
     }
 };
 
@@ -234,42 +231,45 @@ bool thread_pool::all_task_queues_empty() const
     return true;
 }
 
-void thread_pool::add_task(task_function_t func, task_parameters * params,
-                           int const id, size_t const queue, double cost)
+void thread_pool::enqueue_task(std::function<task_result*(worker_thread*)> task_fn,
+                               int const id, size_t const queue, double cost)
 {
     if (is_synchronous()) {
-        /* Execute the function right away, simulate the action of a
-         * secondary thread fetching it from the task queue */
         created[queue]++;
         try {
-            task_result * result = func(threads.data(), params, id);
+            task_result * result = task_fn(threads.data());
             if (result != nullptr)
                 results[queue].push(result);
         } catch (clonable_exception const & e) {
             exceptions[queue].push(e.clone());
-            /* We do this in the asynchronous case. It isn't clear that
-             * we need to do the same in the syncronous case. */
             results[queue].push(nullptr);
         }
         return;
     }
+
     ASSERT_ALWAYS(queue < tasks.size());
 
     auto lock = get_lock();
 
     ASSERT_ALWAYS(!kill_threads);
-    tasks[queue].push(thread_task(func, params, id, cost));
+    tasks[queue].push(thread_task(std::move(task_fn), id, cost));
     created[queue]++;
 
-    /* Find a queue with waiting threads, starting with "queue" */
     size_t i = queue;
     if (tasks[i].nr_threads_waiting == 0) {
-        for (i = 0; i < tasks.size() && tasks[i].nr_threads_waiting == 0; i++) {
-        }
+        for (i = 0; i < tasks.size() && tasks[i].nr_threads_waiting == 0; i++) {}
     }
-    /* If any queue with waiting threads was found, wake up one of them */
     if (i < tasks.size())
         tasks[i].not_empty.notify_one();
+}
+
+void thread_pool::add_task(task_function_t func, task_parameters * params,
+                           int const id, size_t const queue, double cost)
+{
+    auto task_fn = [func, params, id](worker_thread* w) -> task_result* {
+        return func(w, params, id);
+    };
+    enqueue_task(std::move(task_fn), id, queue, cost);
 }
 
 thread_task thread_pool::get_task(size_t & preferred_queue)
@@ -337,7 +337,7 @@ task_result * thread_pool::get_result(size_t const queue, bool const blocking)
 
     /* works both in synchronous and non-synchronous case */
     auto lock = get_lock();
-    if (!blocking and results[queue].empty()) {
+    if (!blocking && results[queue].empty()) {
         result = nullptr;
     } else {
         while (results[queue].empty())

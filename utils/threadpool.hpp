@@ -1,16 +1,18 @@
 #ifndef CADO_THREADPOOL_HPP
 #define CADO_THREADPOOL_HPP
 
-#include <cstddef>       // for size_t, NULL
+#include <cstddef>
 
-#include <memory>         // for shared_ptr, make_shared
-#include <mutex>          // for mutex
-#include <type_traits>    // for is_base_of
-#include <vector>         // for vector
+#include <memory>
+#include <mutex>
+#include <type_traits>
+#include <vector>
+#include <utility>
+#include <functional>
 
-#include <pthread.h>      // for pthread_cond_broadcast, pthread_cond_destroy
+#include <pthread.h>
 
-#include "utils_cxx.hpp"  // for call_dtor, NonCopyable
+#include "utils_cxx.hpp"
 
 struct clonable_exception;
 
@@ -105,6 +107,9 @@ class thread_pool : private NonCopyable {
         void add_result(size_t queue, task_result *result);
         void add_exception(size_t queue, clonable_exception * e);
         bool all_task_queues_empty() const;
+
+        void enqueue_task(std::function<task_result*(worker_thread*)> task_fn, int id, size_t queue, double cost);
+
     public:
         bool is_synchronous() const { return sync_mode; }
         double cumulated_wait_time = 0;
@@ -119,9 +124,9 @@ class thread_pool : private NonCopyable {
                 size_t nr_queues = 1, bool sync_thread_pool = false);
         ~thread_pool();
         task_result *get_result(size_t queue = 0, bool blocking = true);
-        void drain_queue(const size_t queue, void (*f)(task_result*) = NULL);
+        void drain_queue(size_t queue, void (*f)(task_result*) = NULL);
         void drain_all_queues();
-        clonable_exception * get_exception(const size_t queue = 0);
+        clonable_exception * get_exception(size_t queue = 0);
         template<typename T>
             T * get_exception(const size_t queue = 0) {
                 return dynamic_cast<T*>(get_exception(queue));
@@ -146,7 +151,7 @@ class thread_pool : private NonCopyable {
          * 
          * In the latter case, the id field is only of limited use.
          */
-        void add_task(task_function_t func, task_parameters * params, const int id, const size_t queue = 0, double cost = 0.0);
+        void add_task(task_function_t func, task_parameters * params, int id, size_t queue = 0, double cost = 0.0);
         /* }}} */
 
         /* {{{ add_task_lambda.
@@ -164,32 +169,25 @@ class thread_pool : private NonCopyable {
          *            pool.add_task_lambda([&foo](worker_thread*) { frob(foo); });
          *    }
          */
-
-    private:
         template<typename T>
-            struct task_parameters_lambda : public task_parameters {
-                T f;
-                explicit task_parameters_lambda(T const& f) : f(f) {}
-            };
+        void add_task_lambda(T f, const int id = 0, const size_t queue = 0, double cost = 0.0)
+        {
+            std::function<task_result*(worker_thread*)> task_fn;
 
-    public:
-        template<typename T>
-            void add_task_lambda(T f, const int id = 0, const size_t queue = 0, double cost = 0.0)
-            {
-                // Support lambdas accepting either (worker_thread*, int) or just (worker_thread*)
-                auto wrapper = [](worker_thread * worker, task_parameters * _param, int task_id) -> task_result* {
-                    auto clean_param = call_dtor([_param]() { delete _param; });
-                    auto* p = static_cast<task_parameters_lambda<T>*>(_param);
-                    if constexpr (std::is_invocable_v<T, worker_thread*, int>) {
-                        p->f(worker, task_id);
-                    } else {
-                        p->f(worker);
-                    }
+            if constexpr (std::is_invocable_v<T, worker_thread*, int>) {
+                task_fn = [f = std::move(f), id](worker_thread* w) -> task_result* {
+                    f(w, id);
                     return new task_result;
                 };
-
-                add_task(wrapper, new task_parameters_lambda<T>(f), id, queue, cost);
+            } else {
+                task_fn = [f = std::move(f)](worker_thread* w) -> task_result* {
+                    f(w);
+                    return new task_result;
+                };
             }
+
+            enqueue_task(std::move(task_fn), id, queue, cost);
+        }
         /* }}} */
 
         /* {{{ add task_class.
@@ -218,29 +216,7 @@ class thread_pool : private NonCopyable {
             }
         /* }}} */
 
-#if 1
-        /* {{{ add_shared_task -- NOT SATISFACTORY. Do not use.
-         *
-         * This last interface is an attempt at being more useful. We would
-         * like to solve the ownership conflict that lurks in the design of
-         * add_task. Here we explicitly say that ownership of the T object is
-         * shared between the caller which creates it, and the (one or several)
-         * task(s) that are to use it. The caller does not have to join all
-         * threads before the object of type shared_ptr<T> goes out of scope,
-         * since the pool queue will still have enough referenced items to
-         * guarantee that the object stays alive.
-         *
-         * Here, proper use of the id field can lead to efficient data sharing,
-         * albeit at the expense of the shared_ptr management.
-         *
-         * Alas, since the thread_task objects only have raw pointers to the
-         * parameter object, there's not much we can do but create an extra
-         * level of indirection, which kinds of defeats the purpose...
-         *
-         * The next step toward making it more useful would be to convert
-         * thread_task to also embed shared_ptr's.
-         */
-
+        /* {{{ add_shared_task - wraps std::shared_ptr inside a lambda */
         template<typename T>
             using shared_task = std::shared_ptr<T>;
 
@@ -252,15 +228,11 @@ class thread_pool : private NonCopyable {
         template<typename T>
             void add_shared_task(shared_task<T> const & task_ptr, const int id = 0, const size_t queue = 0, double cost = 0.0)
             {
-                // Capturing task_ptr by value inside the lambda manages reference counts automatically
                 add_task_lambda([task_ptr](worker_thread* w, int task_id) {
                         (*task_ptr)(w, task_id);
                         }, id, queue, cost);
             }
         /* }}} */
-#endif
-
-
 };
 
 #endif  /* CADO_THREADPOOL_HPP */
