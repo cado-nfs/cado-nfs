@@ -1711,7 +1711,6 @@ utils/cado_popen.cpp
 utils/cado_popen.hpp
 utils/cado_subrange_streambuf.hpp
 utils/cado_type_traits.hpp
-utils/clonable-exception.hpp
 utils/coeff_proxy.hpp
 utils/crc.c
 utils/crc.h

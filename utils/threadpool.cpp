@@ -9,8 +9,10 @@
 #include <vector>
 #include <utility>
 #include <thread>
+#include <exception>
+#include <functional>
+#include <tuple>
 
-#include "clonable-exception.hpp" // for clonable_exception
 #include "macros.h"
 #include "threadpool.hpp"
 #include "timing.h" // for seconds_thread
@@ -78,30 +80,25 @@ class thread_task
 
     thread_task() = default;
     thread_task(std::function<task_result*(worker_thread*)> f, int id, double cost)
-        : func(std::move(f)), id(id), cost(cost) {}
+        : func(std::move(f))
+        , id(id)
+        , cost(cost)
+    {}
     explicit thread_task(bool) {} // Terminal signal task
 
     task_result* operator()(worker_thread* w) const {
         if (func) return func(w);
         return nullptr;
     }
-};
 
-struct thread_task_cmp {
-    bool operator()(thread_task const & x, thread_task const & y) const
+    bool operator<(thread_task const & y) const
     {
-        if (x.cost < y.cost)
-            return true;
-        if (x.cost > y.cost)
-            return false;
-        // if costs are equal, compare ids (they should be distinct)
-        return x.id < y.id;
+        return std::tie(cost, id) < std::tie(y.cost, y.id);
     }
 };
 
 class tasks_queue
-    : public std::priority_queue<thread_task, std::vector<thread_task>,
-                                 thread_task_cmp>
+    : public std::priority_queue<thread_task, std::vector<thread_task>>
     , private NonCopyable
 {
   public:
@@ -113,14 +110,6 @@ class tasks_queue
 
 class results_queue
     : public std::queue<task_result *>
-    , private NonCopyable
-{
-  public:
-    std::condition_variable not_empty;
-};
-
-class exceptions_queue
-    : public std::queue<clonable_exception *>
     , private NonCopyable
 {
   public:
@@ -186,18 +175,14 @@ void thread_pool::thread_work_on_tasks(worker_thread & I)
             tt += seconds_thread();
             task_result * result = task(&I);
             tt -= seconds_thread();
-            if (result != nullptr)
-                add_result(queue, result);
-        } catch (clonable_exception const & e) {
+            add_result(queue, result ? result : new task_result());
+        } catch (...) {
             tt -= seconds_thread();
-            add_exception(queue, e.clone());
-            /* We need to wake the listener... */
-            add_result(queue, nullptr);
+            add_exception(queue, std::current_exception());
+            add_result(queue, new task_result()); // Keep task count synchronized
         }
     }
     tt += seconds_thread();
-    /* tt is now the wall-clock time spent really within this function,
-     * waiting for mutexes and condition variables...  */
     std::lock_guard<std::mutex> const dummy(mm_cumulated_wait_time);
     cumulated_wait_time += tt;
 }
@@ -217,11 +202,10 @@ void thread_pool::enqueue_task(std::function<task_result*(worker_thread*)> task_
         created[queue]++;
         try {
             task_result * result = task_fn(threads.data());
-            if (result != nullptr)
-                results[queue].push(result);
-        } catch (clonable_exception const & e) {
-            exceptions[queue].push(e.clone());
-            results[queue].push(nullptr);
+            results[queue].push(result ? result : new task_result());
+        } catch (...) {
+            add_exception(queue, std::current_exception());
+            results[queue].push(new task_result());
         }
         return;
     }
@@ -297,14 +281,31 @@ void thread_pool::add_result(size_t const queue, task_result * const result)
     results[queue].not_empty.notify_one();
 }
 
-void thread_pool::add_exception(size_t const queue, clonable_exception * e)
+void thread_pool::add_exception(size_t const queue, std::exception_ptr e)
 {
-    ASSERT(!is_synchronous()); // synchronous case: see add_task
+    ASSERT(!is_synchronous());
     ASSERT_ALWAYS(queue < results.size());
     auto lock = get_lock();
-    exceptions[queue].push(e);
-    // do we use it ?
+    exceptions[queue].push(std::move(e));
     results[queue].not_empty.notify_one();
+}
+
+std::exception_ptr thread_pool::get_exception(size_t const queue)
+{
+    ASSERT_ALWAYS(queue < exceptions.size());
+    auto lock = get_lock();
+    if (!exceptions[queue].empty()) {
+        auto e = exceptions[queue].front();
+        exceptions[queue].pop();
+        return e;
+    }
+    return nullptr;
+}
+
+void thread_pool::rethrow_exceptions(size_t const queue)
+{
+    if (auto e = get_exception(queue))
+        std::rethrow_exception(e);
 }
 
 /* Get a result from the specified results queue. If no result is available,
@@ -349,22 +350,4 @@ void thread_pool::drain_all_queues()
     for (size_t queue = 0; queue < results.size(); ++queue) {
         drain_queue(queue);
     }
-}
-
-/* get an exception from the specified exceptions queue. This is
- * obviously non-blocking, because exceptions are exceptional. So when no
- * exception is there, we return nullptr. When there is one, we return a
- * pointer to a newly allocated copy of it.
- */
-clonable_exception * thread_pool::get_exception(size_t const queue)
-{
-    clonable_exception * e = nullptr;
-    ASSERT_ALWAYS(queue < exceptions.size());
-    /* works both in synchronous and non-synchronous case */
-    auto lock = get_lock();
-    if (!exceptions[queue].empty()) {
-        e = exceptions[queue].front();
-        exceptions[queue].pop();
-    }
-    return e;
 }

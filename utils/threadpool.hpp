@@ -10,14 +10,10 @@
 #include <utility>
 #include <functional>
 #include <thread>
+#include <queue>
+#include <exception>
 
 #include "utils_cxx.hpp"
-
-struct clonable_exception;
-
-/* C++11 already has classes for mutex and condition_variable */
-/* All the synchronization stuff could be moved to the implementation if
-   thread_pool used monitor as a dynamically allocated object. Tempting. */
 
 /* Base for classes that hold parameters for worker functions */
 class task_parameters {
@@ -86,7 +82,7 @@ class thread_pool : private NonCopyable {
         std::vector<worker_thread> threads;
         std::vector<tasks_queue> tasks;
         std::vector<results_queue> results;
-        std::vector<exceptions_queue> exceptions;
+        std::vector<std::queue<std::exception_ptr>> exceptions;
         std::vector<size_t> created;
         std::vector<size_t> joined;
 
@@ -96,7 +92,7 @@ class thread_pool : private NonCopyable {
         void thread_work_on_tasks(worker_thread &);
         thread_task get_task(size_t& queue);
         void add_result(size_t queue, task_result *result);
-        void add_exception(size_t queue, clonable_exception * e);
+        void add_exception(size_t queue, std::exception_ptr e);
         bool all_task_queues_empty() const;
 
         void enqueue_task(std::function<task_result*(worker_thread*)> task_fn, int id, size_t queue, double cost);
@@ -115,22 +111,34 @@ class thread_pool : private NonCopyable {
                 size_t nr_queues = 1, bool sync_thread_pool = false);
         ~thread_pool();
         task_result *get_result(size_t queue = 0, bool blocking = true);
-        void drain_queue(size_t queue, void (*f)(task_result*) = NULL);
+        void drain_queue(size_t queue, void (*f)(task_result*) = nullptr);
         void drain_all_queues();
-        clonable_exception * get_exception(size_t queue = 0);
+        std::exception_ptr get_exception(size_t queue = 0);
         template<typename T>
-            T * get_exception(const size_t queue = 0) {
-                return dynamic_cast<T*>(get_exception(queue));
-            }
-        template<typename T>
-            std::vector<T> get_exceptions(const size_t queue = 0) {
-                std::vector<T> res;
-                for(T * e ; (e = get_exception<T>(queue)) != NULL; ) {
-                    res.push_back(*e);
-                    delete e;
+        std::vector<T> get_exceptions(size_t const queue = 0) {
+            auto lock = get_lock();
+            std::vector<T> result;
+            std::queue<std::exception_ptr> remaining;
+
+            while (!exceptions[queue].empty()) {
+                auto ex_ptr = exceptions[queue].front();
+                exceptions[queue].pop();
+
+                try {
+                    if (ex_ptr)
+                        std::rethrow_exception(ex_ptr);
+                } catch (const T& e) {
+                    result.push_back(e);
+                } catch (...) {
+                    remaining.push(ex_ptr);
                 }
-                return res;
             }
+
+            // Preserve any exceptions that were not of type T
+            exceptions[queue] = std::move(remaining);
+            return result;
+        }
+        void rethrow_exceptions(size_t queue = 0);
 
         /* {{{ add_task is the simplest interface. It does not even specify who has
          * ownership of the params object. Two common cases can be envisioned.
