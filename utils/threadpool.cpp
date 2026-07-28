@@ -146,8 +146,7 @@ class exceptions_queue
 
 thread_pool::thread_pool(size_t const nr_threads, double & store_wait_time,
                          size_t const nr_queues, bool sync_thread_pool)
-    : monitor_or_synchronous(sync_thread_pool)
-    , tasks(nr_queues)
+    : tasks(nr_queues)
     , results(nr_queues)
     , exceptions(nr_queues)
     , created(nr_queues, 0)
@@ -168,10 +167,10 @@ thread_pool::~thread_pool()
 {
     drain_all_queues();
     {
-        my_unique_lock const u(*this);
+        auto lock = get_lock();
         kill_threads = true;
         for (auto & T: tasks)
-            broadcast(T.not_empty); /* Wakey wakey, time to die */
+            T.not_empty.notify_all();
     }
     drain_all_queues();
     threads.clear(); /* does pthread_join */
@@ -256,7 +255,7 @@ void thread_pool::add_task(task_function_t func, task_parameters * params,
     }
     ASSERT_ALWAYS(queue < tasks.size());
 
-    my_unique_lock const u(*this);
+    auto lock = get_lock();
 
     ASSERT_ALWAYS(!kill_threads);
     tasks[queue].push(thread_task(func, params, id, cost));
@@ -270,14 +269,14 @@ void thread_pool::add_task(task_function_t func, task_parameters * params,
     }
     /* If any queue with waiting threads was found, wake up one of them */
     if (i < tasks.size())
-        signal(tasks[i].not_empty);
+        tasks[i].not_empty.notify_one();
 }
 
 thread_task thread_pool::get_task(size_t & preferred_queue)
 {
     ASSERT(!is_synchronous());
 
-    my_unique_lock u(*this);
+    auto lock = get_lock();
 
     while (!kill_threads && all_task_queues_empty()) {
         /* No work -> tell this thread to wait until work becomes available.
@@ -285,7 +284,7 @@ thread_task thread_pool::get_task(size_t & preferred_queue)
            The while() protects against spurious wake-ups that can fire even if
            the queue is still empty. */
         tasks[preferred_queue].nr_threads_waiting++;
-        wait(tasks[preferred_queue].not_empty, u);
+        tasks[preferred_queue].not_empty.wait(lock);
         tasks[preferred_queue].nr_threads_waiting--;
     }
     thread_task task(true);
@@ -314,19 +313,19 @@ void thread_pool::add_result(size_t const queue, task_result * const result)
 {
     ASSERT(!is_synchronous()); // synchronous case: see add_task
     ASSERT_ALWAYS(queue < results.size());
-    my_unique_lock const u(*this);
+    auto lock = get_lock();
     results[queue].push(result);
-    signal(results[queue].not_empty);
+    results[queue].not_empty.notify_one();
 }
 
 void thread_pool::add_exception(size_t const queue, clonable_exception * e)
 {
     ASSERT(!is_synchronous()); // synchronous case: see add_task
     ASSERT_ALWAYS(queue < results.size());
-    my_unique_lock const u(*this);
+    auto lock = get_lock();
     exceptions[queue].push(e);
     // do we use it ?
-    signal(results[queue].not_empty);
+    results[queue].not_empty.notify_one();
 }
 
 /* Get a result from the specified results queue. If no result is available,
@@ -337,12 +336,12 @@ task_result * thread_pool::get_result(size_t const queue, bool const blocking)
     ASSERT_ALWAYS(queue < results.size());
 
     /* works both in synchronous and non-synchronous case */
-    my_unique_lock u(*this);
+    auto lock = get_lock();
     if (!blocking and results[queue].empty()) {
         result = nullptr;
     } else {
         while (results[queue].empty())
-            wait(results[queue].not_empty, u);
+            results[queue].not_empty.wait(lock);
         result = results[queue].front();
         results[queue].pop();
         joined[queue]++;
@@ -353,10 +352,10 @@ task_result * thread_pool::get_result(size_t const queue, bool const blocking)
 void thread_pool::drain_queue(size_t const queue, void (*f)(task_result *))
 {
     /* works both in synchronous and non-synchronous case */
-    my_unique_lock u(*this);
+    auto lock = get_lock();
     for (size_t const cr = created[queue]; joined[queue] < cr;) {
         while (results[queue].empty())
-            wait(results[queue].not_empty, u);
+            results[queue].not_empty.wait(lock);
         task_result * result = results[queue].front();
         results[queue].pop();
         joined[queue]++;
@@ -383,7 +382,7 @@ clonable_exception * thread_pool::get_exception(size_t const queue)
     clonable_exception * e = nullptr;
     ASSERT_ALWAYS(queue < exceptions.size());
     /* works both in synchronous and non-synchronous case */
-    my_unique_lock const u(*this);
+    auto lock = get_lock();
     if (!exceptions[queue].empty()) {
         e = exceptions[queue].front();
         exceptions[queue].pop();

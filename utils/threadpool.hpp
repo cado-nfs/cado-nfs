@@ -1,18 +1,15 @@
 #ifndef CADO_THREADPOOL_HPP
 #define CADO_THREADPOOL_HPP
 
-#include <cerrno>        // for EBUSY
 #include <cstddef>       // for size_t, NULL
 
 #include <memory>         // for shared_ptr, make_shared
 #include <mutex>          // for mutex
 #include <type_traits>    // for is_base_of
 #include <vector>         // for vector
-#include <condition_variable>
 
 #include <pthread.h>      // for pthread_cond_broadcast, pthread_cond_destroy
 
-#include "macros.h"       // for ASSERT_ALWAYS
 #include "utils_cxx.hpp"  // for call_dtor, NonCopyable
 
 struct clonable_exception;
@@ -20,46 +17,6 @@ struct clonable_exception;
 /* C++11 already has classes for mutex and condition_variable */
 /* All the synchronization stuff could be moved to the implementation if
    thread_pool used monitor as a dynamically allocated object. Tempting. */
-
-class monitor {
-protected:
-  std::mutex m;
-public:
-  struct my_unique_lock : public std::unique_lock<std::mutex> {
-      explicit my_unique_lock(monitor & m) : std::unique_lock<std::mutex>(m.m) {}
-  };
-  // void enter() {m.lock();}
-  // void leave() {m.unlock();}
-  static void signal(std::condition_variable &cond) {cond.notify_one();}
-  static void broadcast(std::condition_variable &cond){cond.notify_all();}
-  static void wait(std::condition_variable &cond, my_unique_lock & u) {cond.wait(u);}
-};
-
-class monitor_or_synchronous : public monitor {
-    bool sync = false;
-    public:
-    struct my_unique_lock : public std::unique_lock<std::mutex> {
-        explicit my_unique_lock(monitor_or_synchronous & m)
-            : std::unique_lock<std::mutex>(m.m, std::defer_lock_t())
-        {
-            if (!m.sync) lock();
-        }
-    };
-    explicit monitor_or_synchronous(bool sync = false)
-        : sync(sync)
-    {}
-    ATTRIBUTE_NODISCARD bool is_synchronous() const { return sync; }
-    // void enter() { if (!sync) monitor::enter();}
-    // void leave() { if (!sync) monitor::leave();}
-    void signal(std::condition_variable &cond) const { if (!sync) monitor::signal(cond); }
-    void broadcast(std::condition_variable &cond) const { if (!sync) monitor::broadcast(cond);}
-    void wait(std::condition_variable &cond, my_unique_lock & u) const {
-        if (sync)
-            ASSERT_ALWAYS(0);
-        else
-            cond.wait(u);
-    }
-};
 
 /* Base for classes that hold parameters for worker functions */
 class task_parameters {
@@ -106,7 +63,7 @@ public:
 
 typedef task_result *(*task_function_t)(worker_thread * worker, task_parameters *, int id);
 
-class thread_pool : private monitor_or_synchronous, private NonCopyable {
+class thread_pool : private NonCopyable {
     public:
         /* queue 0: main
          * queue 1: ECM
@@ -120,6 +77,17 @@ class thread_pool : private monitor_or_synchronous, private NonCopyable {
 
     private:
         friend class worker_thread;
+
+        bool sync_mode = false;
+        mutable std::mutex pool_mutex;
+
+        // Helper returning a locked unique_lock in async mode, or an unlocked one in sync mode
+        std::unique_lock<std::mutex> get_lock() const {
+            std::unique_lock<std::mutex> lock(pool_mutex, std::defer_lock);
+            if (!sync_mode)
+                lock.lock();
+            return lock;
+        }
 
         std::vector<worker_thread> threads;
         std::vector<tasks_queue> tasks;
@@ -138,12 +106,12 @@ class thread_pool : private monitor_or_synchronous, private NonCopyable {
         void add_exception(size_t queue, clonable_exception * e);
         bool all_task_queues_empty() const;
     public:
-        // bool is_synchronous() const { return monitor_or_synchronous::is_synchronous(); }
+        bool is_synchronous() const { return sync_mode; }
         double cumulated_wait_time = 0;
         std::mutex mm_cumulated_wait_time;
 
         size_t size() {
-            my_unique_lock const u(*this);
+            auto lock = get_lock();
             return threads.size();
         }
 
@@ -200,7 +168,7 @@ class thread_pool : private monitor_or_synchronous, private NonCopyable {
         template<typename T>
             struct task_parameters_lambda : public task_parameters {
                 T f;
-                task_parameters_lambda(T const& f) : f(f) {}
+                explicit task_parameters_lambda(T const& f) : f(f) {}
             };
         template<typename T>
             static
@@ -269,12 +237,12 @@ class thread_pool : private monitor_or_synchronous, private NonCopyable {
         template<typename T>
             struct shared_task : public std::shared_ptr<T>, public task_parameters {
                 using super = std::shared_ptr<T>;
-                shared_task(super c) : super(c) {}
+                explicit shared_task(super c) : super(c) {}
                 T& operator*() { return *(super&)(*this); }
                 T const & operator*() const { return *(super const&)(*this); }
             };
         template<typename T, typename... Args>
-            static shared_task<T> make_shared_task(Args&&... args) { return shared_task<T>(std::make_shared<T>(args...)); }
+            static shared_task<T> make_shared_task(Args&&... args) { return shared_task<T>(std::make_shared<T>(std::forward<Args>(args)...)); }
 
     private:
         template<typename T>

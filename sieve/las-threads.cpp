@@ -56,10 +56,10 @@ reservation_array_base<T>::allocate_buckets(las_memory_accessor & memory, int n_
 template <typename T>
 T & reservation_array<T, false>::inner_reserve()
 {
-    typename super::monitor::my_unique_lock u(*this);
+    auto lock = super::get_lock();
 
     while (available_buckets.empty())
-        super::monitor::wait(cv, u);
+        cv.wait(lock);
 
     auto [ ratio, i ] = available_buckets.top();
     available_buckets.pop();
@@ -76,10 +76,10 @@ T & reservation_array<T, false>::inner_reserve()
 
 template <typename T>
 void reservation_array<T, false>::release(T &BA) {
-    const typename super::monitor::my_unique_lock u(*this);
+    auto lock = super::get_lock();
     const double ratio = BA.average_full();
     available_buckets.emplace(ratio, super::rank(BA));
-    super::monitor::signal(cv);
+    cv.notify_one();
 }
 
 /* Reserve the required number of bucket arrays. For shorthint BAs, we
