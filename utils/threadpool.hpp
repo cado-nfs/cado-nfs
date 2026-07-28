@@ -164,24 +164,31 @@ class thread_pool : private NonCopyable {
          *            pool.add_task_lambda([&foo](worker_thread*) { frob(foo); });
          *    }
          */
+
     private:
         template<typename T>
             struct task_parameters_lambda : public task_parameters {
                 T f;
                 explicit task_parameters_lambda(T const& f) : f(f) {}
             };
-        template<typename T>
-            static
-            task_result * do_task_parameters_lambda(worker_thread * worker, task_parameters * _param, int id) {
-                auto clean_param = call_dtor([_param]() { delete _param; });
-                static_cast<task_parameters_lambda<T>*>(_param)->f(worker, id);
-                return new task_result;
-            }
+
     public:
         template<typename T>
-            void add_task_lambda(T f, const int id, const size_t queue = 0, double cost = 0.0)
+            void add_task_lambda(T f, const int id = 0, const size_t queue = 0, double cost = 0.0)
             {
-                add_task(thread_pool::do_task_parameters_lambda<T>, new task_parameters_lambda<T>(f), id, queue, cost);
+                // Support lambdas accepting either (worker_thread*, int) or just (worker_thread*)
+                auto wrapper = [](worker_thread * worker, task_parameters * _param, int task_id) -> task_result* {
+                    auto clean_param = call_dtor([_param]() { delete _param; });
+                    auto* p = static_cast<task_parameters_lambda<T>*>(_param);
+                    if constexpr (std::is_invocable_v<T, worker_thread*, int>) {
+                        p->f(worker, task_id);
+                    } else {
+                        p->f(worker);
+                    }
+                    return new task_result;
+                };
+
+                add_task(wrapper, new task_parameters_lambda<T>(f), id, queue, cost);
             }
         /* }}} */
 
@@ -235,31 +242,25 @@ class thread_pool : private NonCopyable {
          */
 
         template<typename T>
-            struct shared_task : public std::shared_ptr<T>, public task_parameters {
-                using super = std::shared_ptr<T>;
-                explicit shared_task(super c) : super(c) {}
-                T& operator*() { return *(super&)(*this); }
-                T const & operator*() const { return *(super const&)(*this); }
-            };
-        template<typename T, typename... Args>
-            static shared_task<T> make_shared_task(Args&&... args) { return shared_task<T>(std::make_shared<T>(std::forward<Args>(args)...)); }
+            using shared_task = std::shared_ptr<T>;
 
-    private:
-        template<typename T>
-            static task_result * call_shared_task(worker_thread * worker, task_parameters * _param, int id) {
-                auto clean_param = call_dtor([_param]() { delete _param; });
-                auto * param = static_cast<thread_pool::shared_task<T>*>(_param);
-                (**param)(worker, id);
-                return new task_result;
+        template<typename T, typename... Args>
+            static shared_task<T> make_shared_task(Args&&... args) {
+                return std::make_shared<T>(std::forward<Args>(args)...);
             }
-    public:
+
         template<typename T>
-            void add_shared_task(shared_task<T> const & f, const int id, const size_t queue = 0, double cost = 0.0)
+            void add_shared_task(shared_task<T> const & task_ptr, const int id = 0, const size_t queue = 0, double cost = 0.0)
             {
-                add_task(thread_pool::call_shared_task<T>, new shared_task<T>(f), id, queue, cost);
+                // Capturing task_ptr by value inside the lambda manages reference counts automatically
+                add_task_lambda([task_ptr](worker_thread* w, int task_id) {
+                        (*task_ptr)(w, task_id);
+                        }, id, queue, cost);
             }
         /* }}} */
 #endif
+
+
 };
 
 #endif  /* CADO_THREADPOOL_HPP */
