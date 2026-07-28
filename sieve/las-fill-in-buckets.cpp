@@ -669,7 +669,7 @@ static void downsort_aux(fb_factorbase::slicing const & fbs, nfs_work & ws,
     // What comes from already downsorted data above:
     for (auto const & BA_in: BA_ins) {
         pool.add_task_lambda(
-            [&, side, w](worker_thread * worker, int bucket_index) {
+            [&, side, w, bucket_index](worker_thread * worker) {
                 int const id = worker->rank();
                 nfs_aux::thread_data & taux(aux.th[id]);
                 timetree_t & timer(aux.get_timer(worker));
@@ -687,7 +687,7 @@ static void downsort_aux(fb_factorbase::slicing const & fbs, nfs_work & ws,
                         // wss.reserve_BA<LEVEL, my_longhint_t>().access(),
                         BA_in, bucket_index, taux.w);
             },
-            bucket_index, thread_pool::QUEUE_GENERIC);
+            0, thread_pool::QUEUE_GENERIC);
     }
 }
 
@@ -798,7 +798,7 @@ static void downsort_tree_inner(
              */
             for (auto const & BA_in: BA_ins) {
                 pool.add_task_lambda(
-                    [&, side, w](worker_thread * worker, int bucket_index) {
+                    [&, side, w, bucket_index](worker_thread * worker) {
                         int const id = worker->rank();
                         nfs_aux::thread_data & taux(aux.th[id]);
                         timetree_t & timer(aux.get_timer(worker));
@@ -820,7 +820,7 @@ static void downsort_tree_inner(
                                             taux.w);
                         //wss.template release_BA<LEVEL, my_longhint_t>(BA_out);
                     },
-                    bucket_index, thread_pool::QUEUE_GENERIC);
+                    0, thread_pool::QUEUE_GENERIC);
             }
             // What comes from already downsorted data above. We put this in
             // an external function because we need the code to be elided or
@@ -903,7 +903,7 @@ static void downsort_tree_inner(
             if (wss.no_fb())
                 continue;
             pool.add_task_lambda(
-                [=, &ws, &aux](worker_thread * worker, int) {
+                [=, &ws, &aux](worker_thread * worker) {
                     int const id = worker->rank();
                     timetree_t & timer(aux.get_timer(worker));
                     ENTER_THREAD_TIMER(timer);

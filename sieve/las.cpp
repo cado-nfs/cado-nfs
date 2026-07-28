@@ -771,7 +771,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
         for(int side = 0 ; side < nsides ; side++) {
             nfs_work::side_data  const& wss(ws.sides[side]);
             if (wss.no_fb()) continue;
-            pool.add_task_lambda([&ws,aux_p,&Q,side](worker_thread * worker,int){
+            pool.add_task_lambda([&ws,aux_p,&Q,side](worker_thread * worker){
                     int const id = worker->rank();
                     timetree_t & timer(aux_p->get_timer(worker));
                     ENTER_THREAD_TIMER(timer);

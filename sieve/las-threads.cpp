@@ -38,7 +38,7 @@ reservation_array_base<T>::allocate_buckets(las_memory_accessor & memory, int n_
       auto & B(BAs[i]);
       /* Arrange so that the largest allocations are done first ! */
       const auto cost = (double) (ratio/n * BUCKET_REGIONS[T::level] * n_bucket * sizeof(typename T::update_t));
-      pool.add_task_lambda([=,&B,&aux,&memory](worker_thread * worker,int){
+      pool.add_task_lambda([=,&B,&aux,&memory](worker_thread * worker){
             timetree_t & timer(aux.th[worker->rank()].timer);
             ENTER_THREAD_TIMER(timer);
 #ifndef DISABLE_TIMINGS

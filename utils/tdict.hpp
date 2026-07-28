@@ -551,8 +551,8 @@ namespace chronograms {
     struct BOTCHED {};
 
     struct SSS   { int side; int level; };
-    struct FIB   { int side; int level; size_t B; size_t slice; };
-    struct DS    { int side; int level; int B; };
+    struct FIB   { int side; int level; uint32_t B; size_t slice; };
+    struct DS    { int side; int level; uint32_t B; };
     struct PCLAT { int side; int level; size_t slice; };
     struct PBR   { int M; size_t B; };
 
