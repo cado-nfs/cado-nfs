@@ -791,7 +791,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
              * point, otherwise we'll leak memory. It seems more appropriate
              * to batch-join only, so this is done at the las_subjob level */
             auto cur_ptr = std::make_shared<cofac_standalone>(std::move(cur));
-            worker->get_pool().add_task_lambda([wc_p=wc_p, aux_p=aux_p, cur_ptr](worker_thread * worker) {
+            worker->get_pool().add_task([wc_p=wc_p, aux_p=aux_p, cur_ptr](worker_thread * worker) {
                         detached_cofac(worker, *wc_p, *aux_p, std::move(*cur_ptr));
                     }, 0, thread_pool::QUEUE_ECM);
         } else {
@@ -957,7 +957,7 @@ void process_many_bucket_regions(
             for(unsigned int side = 0 ; side < ws.sides.size() ; side++) {
                 nfs_work::side_data  const& wss(ws.sides[side]);
                 if (wss.no_fb()) continue;
-                pool.add_task_lambda([=,&ws](worker_thread * worker, int){
+                pool.add_task([=,&ws](worker_thread * worker, int){
                         timetree_t & timer(aux_p->get_timer(worker));
                         ENTER_THREAD_TIMER(timer);
                         MARK_TIMER_FOR_SIDE(timer, side);

@@ -143,15 +143,6 @@ void thread_pool::enqueue_task(std::function<void(worker_thread*)> task_fn, int 
         tasks[i].not_empty.notify_one();
 }
 
-void thread_pool::add_task(task_function_t func, task_parameters * params,
-                           int const id, size_t const queue, double cost)
-{
-    enqueue_task([func, params, id](worker_thread* w) {
-        task_result* res = func(w, params, id);
-        delete res;
-    }, id, queue, cost);
-}
-
 void thread_pool::drain_queue(size_t const queue, bool blocking)
 {
     auto lock = get_lock();

@@ -160,7 +160,7 @@ void fill_in_buckets_prepare_plattices(
         P.slices.foreach([&](auto const & sl) {
                 for(auto const & s : sl) {
                     using E = std::remove_reference_t<decltype(s)>::entry_t;
-                    pool.add_task_lambda([side, &ws, &aux, &Q, &V, &s](worker_thread * w) {
+                    pool.add_task([side, &ws, &aux, &Q, &V, &s](worker_thread * w) {
                             make_lattice_bases<T::level, E>(w, side, ws, aux, Q, V, s);
                             },
                             0, thread_pool::QUEUE_GENERIC);
@@ -170,37 +170,6 @@ void fill_in_buckets_prepare_plattices(
 }
 
 /* {{{ */
-template <int LEVEL> class fill_in_buckets_parameters : public task_parameters
-{
-  public:
-    nfs_work & ws;
-    nfs_aux & aux;
-    ALGO::special_q_data const & Q;
-    int const side;
-    fb_slice_interface const * slice;
-    plattices_vector_t * plattices_vector; // content changed during fill-in
-    plattices_dense_vector_t * plattices_dense_vector; // for sublat
-    uint32_t const first_region0_index;
-    where_am_I w;
-
-    fill_in_buckets_parameters(nfs_work & _ws, nfs_aux & aux,
-                               ALGO::special_q_data const & Q, int const _side,
-                               fb_slice_interface const * _slice,
-                               plattices_vector_t * _platt,
-                               plattices_dense_vector_t * _dplatt,
-                               uint32_t const _reg0, where_am_I const & w)
-        : ws(_ws)
-        , aux(aux)
-        , Q(Q)
-        , side(_side)
-        , slice(_slice)
-        , plattices_vector(_platt)
-        , plattices_dense_vector(_dplatt)
-        , first_region0_index(_reg0)
-        , w(w)
-    {
-    }
-};
 
 /* short of a better solution. I know some exist, but it seems way
  * overkill to me.
@@ -240,22 +209,25 @@ PREPARE_TEMPLATE_INST_NAMES(downsort_tree, " (dispatcher only)");
 // For internal levels, the fill-in is not exactly the same as for
 // top-level, since the plattices have already been precomputed.
 template <int LEVEL, typename TARGET_HINT>
-static task_result *
+static void
 fill_in_buckets_one_slice_internal(worker_thread * worker,
-                                   task_parameters * _param, int)
+        nfs_work & ws,
+        nfs_aux & aux,
+        ALGO::special_q_data const & Q,
+        int side,
+        fb_slice_interface *,
+        plattices_vector_t * plattices_vector,
+        plattices_dense_vector_t *,
+        uint32_t const first_region0_index)
 {
     static_assert(!TARGET_HINT::is_long_v);
-    auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
 
     /* Import some contextual stuff */
     int const id = worker->rank();
-    nfs_aux::thread_data & taux(param->aux.th[id]);
-    timetree_t & timer(param->aux.get_timer(worker));
+    nfs_aux::thread_data & taux(aux.th[id]);
+    timetree_t & timer(aux.get_timer(worker));
     ENTER_THREAD_TIMER(timer);
-    nfs_work & ws(param->ws);
-    ALGO::special_q_data const & Q(param->Q);
     where_am_I & w(taux.w);
-    int const side = param->side;
     nfs_work::side_data & wss(ws.sides[side]);
 
     MARK_TIMER_FOR_SIDE(timer, side);
@@ -266,10 +238,9 @@ fill_in_buckets_one_slice_internal(worker_thread * worker,
     CHILD_TIMER(timer,
                 TEMPLATE_INST_NAME(fill_in_buckets_one_slice_internal, LEVEL));
 
-    w = param->w;
-    WHERE_AM_I_UPDATE(w, side, param->side);
-    WHERE_AM_I_UPDATE(w, i, param->plattices_vector->get_index());
-    WHERE_AM_I_UPDATE(w, N, param->first_region0_index);
+    WHERE_AM_I_UPDATE(w, side, side);
+    WHERE_AM_I_UPDATE(w, i, plattices_vector->get_index());
+    WHERE_AM_I_UPDATE(w, N, first_region0_index);
 
     try {
         auto acquired = wss.reserve_BA<LEVEL, TARGET_HINT>();
@@ -277,7 +248,7 @@ fill_in_buckets_one_slice_internal(worker_thread * worker,
                     side,
                     LEVEL,
                     wss.rank_BA(acquired.access()),
-                    param->plattices_vector->get_index()));
+                    plattices_vector->get_index()));
             
         /* Get an unused bucket array that we can write to */
         /* clearly, reserve_BA() possibly throws. As it turns out,
@@ -286,15 +257,12 @@ fill_in_buckets_one_slice_internal(worker_thread * worker,
          */
         fill_in_buckets_lowlevel<LEVEL, TARGET_HINT>(
                 acquired.access(),
-                ws, Q, *param->plattices_vector,
-                param->first_region0_index, w);
+                ws, Q, *plattices_vector,
+                first_region0_index, w);
     } catch (buckets_are_full & e) {
-        e.side = param->side;
-        delete param;
+        e.side = side;
         throw e;
     }
-    delete param;
-    return new task_result;
 }
 
 // At top level.
@@ -428,9 +396,6 @@ static void fill_in_buckets_one_side(nfs_work & ws, nfs_aux & aux,
     /* We're just pushing tasks, here. */
     BOOKKEEPING_TIMER(timer);
 
-    fill_in_buckets_parameters<LEVEL> const model(ws, aux, Q, side, NULL, NULL,
-                                                  NULL, 0, w);
-
     auto const & BA_ins = wss.bucket_arrays<LEVEL, TARGET_HINT>();
 
     verbose_fmt_print(0, 3,
@@ -446,18 +411,28 @@ static void fill_in_buckets_one_side(nfs_work & ws, nfs_aux & aux,
 
     fb_factorbase::slicing::part const & P = wss.fbs->get_part(LEVEL);
 
+
     if (!Q.sublat.m) {
         size_t pushed = 0;
         P.foreach_slice([&, side](auto const & s) {
-                    slice_index_t const idx = s.get_index();
-                    ASSERT_ALWAYS(P.first_slice_index + pushed == idx);
-                    using entry_t = std::decay_t<decltype(s)>::entry_t;
-                    pool.add_task_lambda([&, side](worker_thread * worker) {
-                            fill_in_buckets_toplevel_wrapper<LEVEL, entry_t, TARGET_HINT>(worker, side, ws, aux, Q, nullptr, s);
-                            },
-                            0, thread_pool::QUEUE_GENERIC, s.get_weight());
-                    pushed++;
-                    });
+                /* XXX I think that this is the proper way to duplicate
+                 * the parent where_am_I into something that the client
+                 * will possibly modify. We used to do that with the
+                 * parameters struct.
+                 */
+                auto w_copy = std::make_shared<where_am_I>(w);
+                slice_index_t const idx = s.get_index();
+                ASSERT_ALWAYS(P.first_slice_index + pushed == idx);
+                using entry_t = std::decay_t<decltype(s)>::entry_t;
+                pool.add_task([&, w_copy, side](worker_thread * worker) {
+                        int const id = worker->rank();
+                        nfs_aux::thread_data & taux(aux.th[id]);
+                        taux.w = *w_copy;
+                        fill_in_buckets_toplevel_wrapper<LEVEL, entry_t, TARGET_HINT>(worker, side, ws, aux, Q, nullptr, s);
+                        },
+                        0, thread_pool::QUEUE_GENERIC, s.get_weight());
+                pushed++;
+                });
     } else {
         /* This creates a task meant to call
          * fill_in_buckets_toplevel_sublat_wrapper */
@@ -473,15 +448,19 @@ static void fill_in_buckets_one_side(nfs_work & ws, nfs_aux & aux,
         ASSERT_ALWAYS(Vpre.size() == P.nslices());
         size_t pushed = 0;
         P.foreach_slice([&, side](auto const & s) {
-                    slice_index_t const idx = s.get_index();
-                    ASSERT_ALWAYS(P.first_slice_index + pushed == idx);
-                    plattices_dense_vector_t & pre(Vpre[idx]);
-                    using entry_t = std::decay_t<decltype(s)>::entry_t;
-                    pool.add_task_lambda([&, side](worker_thread * worker) {
-                            fill_in_buckets_toplevel_sublat_wrapper<LEVEL, entry_t,
-                                                                TARGET_HINT>(worker, side, ws, aux, Q, &pre, s);
-                            }, 0, thread_pool::QUEUE_GENERIC, s.get_weight());
-                    pushed++;
+                auto w_copy = std::make_shared<where_am_I>(w);
+                slice_index_t const idx = s.get_index();
+                ASSERT_ALWAYS(P.first_slice_index + pushed == idx);
+                plattices_dense_vector_t & pre(Vpre[idx]);
+                using entry_t = std::decay_t<decltype(s)>::entry_t;
+                pool.add_task([&, w_copy, side](worker_thread * worker) {
+                        int const id = worker->rank();
+                        nfs_aux::thread_data & taux(aux.th[id]);
+                        taux.w = *w_copy;
+                        fill_in_buckets_toplevel_sublat_wrapper<LEVEL, entry_t,
+                        TARGET_HINT>(worker, side, ws, aux, Q, &pre, s);
+                        }, 0, thread_pool::QUEUE_GENERIC, s.get_weight());
+                pushed++;
                 });
     }
 }
@@ -514,7 +493,8 @@ inline void fib_one_side(nfs_work & ws, Args&& ...args)
 }
 
 void fill_in_buckets_toplevel_multiplex(nfs_work & ws, nfs_aux & aux,
-        ALGO::special_q_data const & Q, thread_pool & pool, int side, where_am_I & w)
+        ALGO::special_q_data const & Q, thread_pool & pool, int side,
+        where_am_I & w)
 {
     // per se, we're not doing anything here.
     // CHILD_TIMER(timer, __func__);
@@ -574,7 +554,7 @@ static void downsort_aux(fb_factorbase::slicing const & fbs, nfs_work & ws,
 
     // What comes from already downsorted data above:
     for (auto const & BA_in: BA_ins) {
-        pool.add_task_lambda(
+        pool.add_task(
             [&, side, w, bucket_index](worker_thread * worker) {
                 int const id = worker->rank();
                 nfs_aux::thread_data & taux(aux.th[id]);
@@ -703,7 +683,7 @@ static void downsort_tree_inner(
              * achieve that.
              */
             for (auto const & BA_in: BA_ins) {
-                pool.add_task_lambda(
+                pool.add_task(
                     [&, side, w, bucket_index](worker_thread * worker) {
                         int const id = worker->rank();
                         nfs_aux::thread_data & taux(aux.th[id]);
@@ -766,11 +746,12 @@ static void downsort_tree_inner(
             }
 
             for (auto & it: lattices) {
-                pool.add_task(
-                        fill_in_buckets_one_slice_internal<LEVEL, my_shorthint_t>,
-                        new fill_in_buckets_parameters<LEVEL> {
-                        ws, aux, Q, side, (fb_slice_interface *)NULL, &it, NULL,
-                        first_region0_index, const_ref(w)},
+                pool.add_task([&, side, first_region0_index, plattices_vector=&it](worker_thread * worker) {
+                        int const id = worker->rank();
+                        nfs_aux::thread_data & taux(aux.th[id]);
+                        taux.w = w;
+                        fill_in_buckets_one_slice_internal<LEVEL, my_shorthint_t>(worker, ws, aux, Q, side, nullptr, plattices_vector, nullptr, first_region0_index);
+                        },
                         0, thread_pool::QUEUE_GENERIC, it.get_weight());
             }
         }
@@ -808,7 +789,7 @@ static void downsort_tree_inner(
             nfs_work::side_data const & wss(ws.sides[side]);
             if (wss.no_fb())
                 continue;
-            pool.add_task_lambda(
+            pool.add_task(
                 [=, &ws, &aux](worker_thread * worker) {
                     int const id = worker->rank();
                     timetree_t & timer(aux.get_timer(worker));

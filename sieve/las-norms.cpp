@@ -1138,7 +1138,7 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(thread_pool * pool, mat<
             global_sum += sum;
         };
         if (pool) {
-            pool->add_task_lambda(f, 0, thread_pool::QUEUE_GENERIC, 0);
+            pool->add_task(f, 0, thread_pool::QUEUE_GENERIC, 0);
         } else {
             f(nullptr);
         }

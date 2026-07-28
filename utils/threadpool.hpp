@@ -18,16 +18,6 @@
 #include "utils_cxx.hpp"
 #include "macros.h"
 
-class task_parameters {
-public:
-    virtual ~task_parameters() = default;
-};
-
-class task_result {
-public:
-    virtual ~task_result() = default;
-};
-
 class worker_thread;
 class thread_pool;
 
@@ -83,8 +73,6 @@ public:
     worker_thread(thread_pool &, size_t, bool = true);
     bool is_synchronous() const;
 };
-
-using task_function_t = task_result *(*)(worker_thread * worker, task_parameters *, int id);
 
 class thread_pool : private NonCopyable {
 public:
@@ -166,9 +154,8 @@ public:
         return res;
     }
 
-    // Unified add_task_lambda: supports any return type R, and signatures (worker*, int) or (worker*)
     template<typename T>
-    auto add_task_lambda(T && f, const int id = 0, const size_t queue = 0, double cost = 0.0)
+    auto add_task(T && f, const int id = 0, const size_t queue = 0, double cost = 0.0)
     {
         std::function<void(worker_thread*)> task_fn;
 
@@ -196,13 +183,10 @@ public:
     template<typename T>
     auto add_shared_task(shared_task<T> const & task_ptr, const int id = 0, const size_t queue = 0, double cost = 0.0)
     {
-        return add_task_lambda([task_ptr](worker_thread* w, int task_id) {
-            return (*task_ptr)(w, task_id);
+        return add_task([task_ptr](worker_thread* w, int id) {
+            return (*task_ptr)(w, id);
         }, id, queue, cost);
     }
-
-    // Legacy function pointer overload
-    void add_task(task_function_t func, task_parameters * params, int id, size_t queue = 0, double cost = 0.0);
 
     template <typename F>
     auto add_future_task(size_t queue, double cost, F&& task_fn)
@@ -215,7 +199,7 @@ public:
         std::future<R> fut = pkg->get_future();
 
         // Enqueue as a fire-and-forget task that invokes the packaged task
-        add_task_lambda([pkg](worker_thread* w) {
+        add_task([pkg](worker_thread* w) {
                 (*pkg)(w);
                 }, 0, queue, cost);
 
