@@ -303,21 +303,22 @@ fill_in_buckets_one_slice_internal(worker_thread * worker,
 // Hence the ugly de-templatization.
 // At some point, the code should be re-organized, I'm afraid.
 template <int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
-static task_result *
-fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED,
-                                 task_parameters * _param, int)
+static void
+fill_in_buckets_toplevel_wrapper(worker_thread * worker,
+        int side,
+        nfs_work & ws,
+        nfs_aux & aux,
+        ALGO::special_q_data const & Q,
+        plattices_dense_vector_t * plattices_dense_vector,
+        fb_slice<FB_ENTRY_TYPE> const & slice)
 {
     static_assert(!TARGET_HINT::is_long_v);
-    auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
 
     /* Import some contextual stuff */
     int const id = worker->rank();
-    nfs_aux::thread_data & taux(param->aux.th[id]);
-    timetree_t & timer(param->aux.get_timer(worker));
-    nfs_work & ws(param->ws);
-    ALGO::special_q_data const & Q(param->Q);
+    nfs_aux::thread_data & taux(aux.th[id]);
+    timetree_t & timer(aux.get_timer(worker));
     where_am_I & w(taux.w);
-    int const side = param->side;
     nfs_work::side_data & wss(ws.sides[side]);
 
     ENTER_THREAD_TIMER(timer);
@@ -334,51 +335,48 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED,
                                                           tdict_slot_for_fibt);
 #endif
 
-    WHERE_AM_I_UPDATE(w, side, param->side);
-    WHERE_AM_I_UPDATE(w, i, param->slice->get_index());
+    WHERE_AM_I_UPDATE(w, side, side);
+    WHERE_AM_I_UPDATE(w, i, slice.get_index());
     WHERE_AM_I_UPDATE(w, N, 0);
 
     try {
         /* Get an unused bucket array that we can write to */
         // bucket_array_t<LEVEL, TARGET_HINT> &;
-        ASSERT(param->slice);
-        auto const * sl = dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice);
-        ASSERT_ALWAYS(sl != NULL);
         auto acquired = wss.reserve_BA<LEVEL, TARGET_HINT>();
         auto tt = timer.trace(worker->rank(), chronograms::FIB(
                     side,
                     LEVEL,
                     wss.rank_BA(acquired.access()),
-                    param->slice->get_index()));
+                    slice.get_index()));
 
         fill_in_buckets_toplevel<LEVEL, FB_ENTRY_TYPE, TARGET_HINT>(
                 acquired.access(),
-                ws, *sl, Q, param->plattices_dense_vector, w);
-        delete param;
-        return new task_result;
+                ws, slice, Q, plattices_dense_vector, w);
+        return;
     } catch (buckets_are_full & e) {
-        e.side = param->side;
-        delete param;
+        e.side = side;
         throw e;
     }
 }
 /* same for sublat */
 template <int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
-static task_result *
+static void
 fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker,
-                                        task_parameters * _param, int)
+        int side,
+        nfs_work & ws,
+        nfs_aux & aux,
+        ALGO::special_q_data const & Q,
+        plattices_dense_vector_t * plattices_dense_vector,
+        fb_slice<FB_ENTRY_TYPE> const & slice
+        )
 {
     static_assert(!TARGET_HINT::is_long_v);
-    auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
 
     /* Import some contextual stuff */
     int const id = worker->rank();
-    nfs_aux::thread_data & taux(param->aux.th[id]);
-    timetree_t & timer(param->aux.get_timer(worker));
-    nfs_work & ws(param->ws);
-    ALGO::special_q_data const & Q(param->Q);
+    nfs_aux::thread_data & taux(aux.th[id]);
+    timetree_t & timer(aux.get_timer(worker));
     where_am_I & w(taux.w);
-    int const side = param->side;
     nfs_work::side_data & wss(ws.sides[side]);
 
     ENTER_THREAD_TIMER(timer);
@@ -395,99 +393,28 @@ fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker,
                                                           tdict_slot_for_fibt);
 #endif
 
-    WHERE_AM_I_UPDATE(w, side, param->side);
-    WHERE_AM_I_UPDATE(w, i, param->slice->get_index());
+    WHERE_AM_I_UPDATE(w, side, side);
+    WHERE_AM_I_UPDATE(w, i, slice.get_index());
     WHERE_AM_I_UPDATE(w, N, 0);
 
     try {
         /* Get an unused bucket array that we can write to */
-        ASSERT(param->slice);
         auto acquired = wss.reserve_BA<LEVEL, TARGET_HINT>();
         auto tt = timer.trace(worker->rank(), chronograms::FIB(
                     side,
                     LEVEL,
                     wss.rank_BA(acquired.access()),
-                    param->slice->get_index()));
+                    slice.get_index()));
         fill_in_buckets_toplevel_sublat<LEVEL, FB_ENTRY_TYPE>(
                 acquired.access(),
                 ws, Q,
-                *dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice),
-                param->plattices_dense_vector, w);
-        delete param;
-        return new task_result;
+                plattices_dense_vector,
+                slice, w);
     } catch (buckets_are_full & e) {
-        e.side = param->side;
-        delete param;
+        e.side = side;
         throw e;
     }
 }
-
-/* Whether or not we want fill_in_buckets_one_slice to be templatized
- * both for LEVEL and n is not clear. At some point, we're doing code
- * bloat for almost nothing.
- *
- * Now given the code below, it's easy enough to arrange so that we go
- * back to the virtual base fb_slice_interface.
- */
-template <int LEVEL, typename TARGET_HINT> struct push_slice_to_task_list {
-    thread_pool & pool;
-    fill_in_buckets_parameters<LEVEL> model;
-    push_slice_to_task_list(thread_pool & pool,
-                            fill_in_buckets_parameters<LEVEL> const & m)
-        : pool(pool)
-        , model(m)
-    {
-    }
-    size_t pushed = 0;
-    template <typename T> void operator()(T const & s)
-    {
-        auto * param = new fill_in_buckets_parameters<LEVEL>(model);
-        param->slice = &s;
-        using entry_t = typename T::entry_t;
-        task_function_t f =
-            fill_in_buckets_toplevel_wrapper<LEVEL, entry_t, TARGET_HINT>;
-        pool.add_task(f, param, 0, thread_pool::QUEUE_GENERIC, s.get_weight());
-        pushed++;
-    }
-};
-template <int LEVEL, typename TARGET_HINT>
-struct push_slice_to_task_list_saving_precomp {
-    thread_pool & pool;
-    fb_factorbase::slicing::part const & P;
-    fill_in_buckets_parameters<LEVEL> model;
-    /* precomp_plattice_dense_t == std::vector<plattices_dense_vector_t> */
-    typename precomp_plattice_dense_t<LEVEL>::type & Vpre;
-    size_t pushed = 0;
-    push_slice_to_task_list_saving_precomp(
-        thread_pool & pool, fb_factorbase::slicing::part const & P,
-        fill_in_buckets_parameters<LEVEL> const & m,
-        typename precomp_plattice_dense_t<LEVEL>::type & Vpre)
-        : pool(pool)
-        , P(P)
-        , model(m)
-        , Vpre(Vpre)
-    {
-    }
-    template <typename T> void operator()(T const & s)
-    {
-        /* we're pushing the global index, relative to all fb parts */
-        slice_index_t const idx = s.get_index();
-        ASSERT_ALWAYS((size_t)idx == pushed);
-
-        plattices_dense_vector_t & pre(Vpre[idx]);
-
-        auto * param = new fill_in_buckets_parameters<LEVEL>(model);
-        param->slice = &s;
-        param->plattices_dense_vector = &pre;
-
-        using entry_t = typename T::entry_t;
-        task_function_t f =
-            fill_in_buckets_toplevel_sublat_wrapper<LEVEL, entry_t,
-                                                    TARGET_HINT>;
-        pool.add_task(f, param, 0, thread_pool::QUEUE_GENERIC, s.get_weight());
-        pushed++;
-    }
-};
 
 template <int LEVEL, typename TARGET_HINT>
 static void fill_in_buckets_one_side(nfs_work & ws, nfs_aux & aux,
@@ -517,16 +444,24 @@ static void fill_in_buckets_one_side(nfs_work & ws, nfs_aux & aux,
      * easily.
      */
 
+    fb_factorbase::slicing::part const & P = wss.fbs->get_part(LEVEL);
+
     if (!Q.sublat.m) {
-        /* This creates a task meant to call
-         * fill_in_buckets_toplevel_wrapper */
-        push_slice_to_task_list<LEVEL, TARGET_HINT> F(pool, model);
-        wss.fbs->get_part(LEVEL).foreach_slice(F);
+        size_t pushed = 0;
+        P.foreach_slice([&, side](auto const & s) {
+                    slice_index_t const idx = s.get_index();
+                    ASSERT_ALWAYS(P.first_slice_index + pushed == idx);
+                    using entry_t = std::decay_t<decltype(s)>::entry_t;
+                    pool.add_task_lambda([&, side](worker_thread * worker) {
+                            fill_in_buckets_toplevel_wrapper<LEVEL, entry_t, TARGET_HINT>(worker, side, ws, aux, Q, nullptr, s);
+                            },
+                            0, thread_pool::QUEUE_GENERIC, s.get_weight());
+                    pushed++;
+                    });
     } else {
         /* This creates a task meant to call
          * fill_in_buckets_toplevel_sublat_wrapper */
         auto & Vpre(wss.precomp_plattice_dense.get<LEVEL>());
-        fb_factorbase::slicing::part const & P = wss.fbs->get_part(LEVEL);
 
         /* This way we can spare the need to expose the copy contructor
          * of the container's value_type */
@@ -536,9 +471,18 @@ static void fill_in_buckets_one_side(nfs_work & ws, nfs_aux & aux,
         }
 
         ASSERT_ALWAYS(Vpre.size() == P.nslices());
-        push_slice_to_task_list_saving_precomp<LEVEL, TARGET_HINT> F(
-            pool, P, model, Vpre);
-        P.foreach_slice(F);
+        size_t pushed = 0;
+        P.foreach_slice([&, side](auto const & s) {
+                    slice_index_t const idx = s.get_index();
+                    ASSERT_ALWAYS(P.first_slice_index + pushed == idx);
+                    plattices_dense_vector_t & pre(Vpre[idx]);
+                    using entry_t = std::decay_t<decltype(s)>::entry_t;
+                    pool.add_task_lambda([&, side](worker_thread * worker) {
+                            fill_in_buckets_toplevel_sublat_wrapper<LEVEL, entry_t,
+                                                                TARGET_HINT>(worker, side, ws, aux, Q, &pre, s);
+                            }, 0, thread_pool::QUEUE_GENERIC, s.get_weight());
+                    pushed++;
+                });
     }
 }
 

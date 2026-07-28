@@ -131,8 +131,8 @@ static void fill_in_buckets_toplevel_sublat(
     bucket_array_t<LEVEL, TARGET_HINT> &,
     nfs_work &,
     siqs_special_q_data const &,
-    fb_slice<FB_ENTRY_TYPE> const &,
     plattices_dense_vector_t *,
+    fb_slice<FB_ENTRY_TYPE> const &,
     where_am_I &)
 {
     throw std::runtime_error("sublat is not supported in SIQS");

@@ -98,8 +98,9 @@ template <int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
 static void fill_in_buckets_toplevel_sublat(
     bucket_array_t<LEVEL, TARGET_HINT> & orig_BA, nfs_work & ws,
     qlattice_basis const & Q,
+    plattices_dense_vector_t * p_precomp_slice,
     fb_slice<FB_ENTRY_TYPE> const & slice,
-    plattices_dense_vector_t * p_precomp_slice, where_am_I & w)
+    where_am_I & w)
 {
     int const logI = ws.conf.logI;
 
