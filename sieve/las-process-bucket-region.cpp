@@ -782,8 +782,6 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             continue; /* we deal with all cofactors at the end of subjob */
         }
 
-        auto * D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
-
         /* It is probably not a very good idea to make one task out of
          * _each_ (a,b) pair that is to be cofactored...
          */
@@ -792,16 +790,15 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             /* We must make sure that we join the async threads at some
              * point, otherwise we'll leak memory. It seems more appropriate
              * to batch-join only, so this is done at the las_subjob level */
-            // worker->get_pool().get_result(thread_pool::QUEUE_ECM, false);
-            worker->get_pool().add_task(detached_cofac, D, N, thread_pool::QUEUE_ECM); /* id N, queue 1 */
+            worker->get_pool().add_task_lambda([wc_p=wc_p, aux_p=aux_p, cur=std::move(cur)](worker_thread * worker) mutable {
+                        detached_cofac(worker, *wc_p, *aux_p, std::move(cur));
+                    }, 0, thread_pool::QUEUE_ECM);
         } else {
             /* We must proceed synchronously for the descent */
-            std::unique_ptr<detached_cofac_result> res(
-                    dynamic_cast<detached_cofac_result*>(
-                    detached_cofac(worker, D, N)));
+            auto rel = detached_cofac(worker, *wc_p, *aux_p, std::move(cur));
 
-            if (res->rel_p) {
-                ws.las.tree->new_candidate_relation(ws.las, ws.task, *res->rel_p);
+            if (rel) {
+                ws.las.tree->new_candidate_relation(ws.las, ws.task, rel);
                 break;
             }
         }

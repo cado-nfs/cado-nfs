@@ -123,46 +123,8 @@ discard_power_for_bucket_sieving<fb_entry_general>(fb_entry_general const & e)
 /***********************************************************************/
 /* multithreaded processing of make_lattice_bases (a.k.a
  * precomp_plattices)
- *
- * This creates one control object per slice, with storage ownership of
- * the control object transfered to the called function. Because we
- * depend on the slice, the type of the object is parameterized by the
- * slice type.
- *
- * We may elect to make the "model" a shared_ptr.
  */
 
-template <int LEVEL>
-struct make_lattice_bases_parameters_base : public task_parameters {
-    int side;
-    nfs_work & ws;
-    nfs_aux & aux;
-    ALGO::special_q_data const & Q;
-    precomp_plattice_t<LEVEL> & V;
-    make_lattice_bases_parameters_base(int side, nfs_work & ws,
-            nfs_aux & aux,
-            ALGO::special_q_data const & Q,
-            precomp_plattice_t<LEVEL> & V)
-        : side(side)
-        , ws(ws)
-        , aux(aux)
-        , Q(Q)
-        , V(V)
-    {
-    }
-};
-template <int LEVEL, class FB_ENTRY_TYPE>
-struct make_lattice_bases_parameters
-    : public make_lattice_bases_parameters_base<LEVEL> {
-    using super = make_lattice_bases_parameters_base<LEVEL>;
-    fb_slice<FB_ENTRY_TYPE> const & slice;
-    make_lattice_bases_parameters(super const & model,
-                                  fb_slice<FB_ENTRY_TYPE> const & slice)
-        : super(model)
-        , slice(slice)
-    {
-    }
-};
 
 #ifdef SIQS_SIEVE
 #include "siqs-fill-in-buckets.inl"
@@ -179,9 +141,9 @@ void fill_in_buckets_prepare_plattices(
         cado::multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS-1> & precomp_plattice)
 {
     /* this will *not* do anything for level==ws.toplevel, by design */
-    precomp_plattice.foreach([&](auto & precomp_plattice) {
+    precomp_plattice.foreach([&](auto & V) {
         /* T is precomp_plattice_t<n> for some level n */
-        using T = std::remove_reference_t<decltype(precomp_plattice)>;
+        using T = std::remove_reference_t<decltype(V)>;
         if (T::level >= ws.toplevel)
             return;
 
@@ -193,15 +155,15 @@ void fill_in_buckets_prepare_plattices(
          * It would be nice to have a way to notify that all threads here are
          * done with their job.
          */
-        precomp_plattice.clear();
-        precomp_plattice.resize(P.nslices());
-        make_lattice_bases_parameters_base<T::level> const model {side, ws, aux, Q, precomp_plattice};
+        V.clear();
+        V.resize(P.nslices());
         P.slices.foreach([&](auto const & sl) {
                 for(auto const & s : sl) {
                     using E = std::remove_reference_t<decltype(s)>::entry_t;
-                    auto param = new make_lattice_bases_parameters<T::level, E>(model, s);
-                    task_function_t f = make_lattice_bases<T::level, E>;
-                    pool.add_task(f, param, 0, thread_pool::QUEUE_GENERIC);
+                    pool.add_task_lambda([side, &ws, &aux, &Q, &V, &s](worker_thread * w) {
+                            make_lattice_bases<T::level, E>(w, side, ws, aux, Q, V, s);
+                            },
+                            0, thread_pool::QUEUE_GENERIC);
                 }
         });
     });
