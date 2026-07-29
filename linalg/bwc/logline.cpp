@@ -119,10 +119,11 @@ void logline_decl_usage(cxx_param_list & pl)
 
 int logline_interpret_parameters(cxx_param_list & pl)
 {
-    int thr[10];
-    int const n = param_list_parse_int_list(pl, "logline_threshold", thr, 10, ",");
-    for(int i = 0 ; i < n ; i++) {
-        logline_thresholds[i] = thr[i];
+    std::vector<size_t> thr;
+    if (pl.parse("logline_threshold", thr, ",")) {
+        for(size_t i = 0 ; i < std::min(thr.size(), size_t(10)) ; i++) {
+            logline_thresholds[i] = thr[i];
+        }
     }
     pl.parse("logline_timings", logline_timings);
     pl.parse("logline_report_wct", logline_report_wct);

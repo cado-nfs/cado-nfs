@@ -229,7 +229,7 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
      * is also inserted in the list of check stops (this addition used to
      * be done here).
      */
-    bw->number_of_check_stops = param_list_parse_int_list(pl, "check_stops", bw->check_stops, MAX_NUMBER_OF_CHECK_STOPS, ",");
+    pl.parse("check_stops", bw->check_stops, ",");
 
     if (bw->verbose && bw->can_print)
         pl.display_debug(stderr);
@@ -239,7 +239,7 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
 static int bw_common_init_defaults(struct bw_params * bw)/*{{{*/
 {
     /*** defaults ***/
-    memset(bw, 0, sizeof(*bw));
+    *bw = bw_params {};
     bw->interval = 0;
     bw->can_print = 1;
     bw->ys[0] = bw->ys[1] = -1;

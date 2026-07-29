@@ -281,7 +281,7 @@ static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * ar
     ASSERT_ALWAYS(bw->end % bw->interval == 0);
 
     /* easier to deal with a copy on the stack */
-    std::vector<int> check_stops(bw->check_stops, bw->check_stops + bw->number_of_check_stops);
+    std::vector<int> check_stops = bw->check_stops;
 
     /* see #30025 -- we want a sensible default */
     if (check_stops.empty()) {

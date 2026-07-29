@@ -208,6 +208,46 @@ template<typename T, typename U> struct parser<std::pair<T, U>> {// {{{
     }
 };
 // }}}
+template<typename K, typename V> struct parser<std::map<K, V>> {// {{{
+    bool operator()(std::string const & s, std::map<K, V> & value, std::string const & pair_sep = ",", std::string const & kv_sep = ":") const
+    {
+        std::map<K, V> res;
+        for(auto const & t : split(s, pair_sep)) {
+            if (t.empty()) continue;
+            auto toks = split(t, kv_sep);
+            if (toks.size() != 2)
+                return false;
+            K k {};
+            V v {};
+            if (!parse(toks[0], k) || !parse(toks[1], v))
+                return false;
+            res[std::move(k)] = std::move(v);
+        }
+        value = std::move(res);
+        return true;
+    }
+};
+// }}}
+template<typename K, typename V> struct parser<std::unordered_map<K, V>> {// {{{
+    bool operator()(std::string const & s, std::unordered_map<K, V> & value, std::string const & pair_sep = ",", std::string const & kv_sep = ":") const
+    {
+        std::unordered_map<K, V> res;
+        for(auto const & t : split(s, pair_sep)) {
+            if (t.empty()) continue;
+            auto toks = split(t, kv_sep);
+            if (toks.size() != 2)
+                return false;
+            K k {};
+            V v {};
+            if (!parse(toks[0], k) || !parse(toks[1], v))
+                return false;
+            res[std::move(k)] = std::move(v);
+        }
+        value = std::move(res);
+        return true;
+    }
+};
+// }}}
 template<> struct parser<bool> {// {{{
     bool operator()(std::string const & s, bool & b) const {
         if (s == "1" || s == "true" || s == "True" || s == "yes" || s == "on") {
@@ -917,28 +957,6 @@ static inline int param_list_parse_intxint(cxx_param_list & pl, const char * key
 {
     return param_list_parse_int_and_int(pl, key, x, "x");
 }
-static inline int param_list_parse_int_list(cxx_param_list & pl, const char * key, int * x, size_t n, const char * sep)
-{
-    /* XXX param_list_parse_*_list gives a _maximum_ size, and expects
-     * the number of parsed items as return value */
-    std::vector<int> a;
-    if (!pl.parse(key, a, sep))
-        return 0;
-    ASSERT_ALWAYS(a.size() <= n);
-    std::ranges::copy(a, x);
-    return static_cast<int>(a.size());
-}
-static inline int param_list_parse_uint_list(cxx_param_list & pl, const char * key, unsigned int * x, size_t n, const char * sep)
-{
-    /* XXX param_list_parse_*_list gives a _maximum_ size, and expects
-     * the number of parsed items as return value */
-    std::vector<unsigned int> a;
-    if (!pl.parse(key, a, sep))
-        return 0;
-    ASSERT_ALWAYS(a.size() <= n);
-    std::ranges::copy(a, x);
-    return static_cast<int>(a.size());
-}
 template<typename T>
 T param_list_parse(cxx_param_list & pl, std::string const & key)
 {
@@ -1036,10 +1054,6 @@ static inline int param_list_update_cmdline(cxx_param_list & pl,
     int * argc, char const *** argv)
 {
     return pl.update_cmdline(*argc, *argv);
-}
-static inline size_t param_list_get_list_count(cxx_param_list & pl, const char * key)
-{
-    return pl.get_list_count(key);
 }
 using cado::params::collect_command_line;
 using cado::params::parameter_error;

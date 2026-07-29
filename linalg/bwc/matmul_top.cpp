@@ -1098,12 +1098,12 @@ matmul_top_data::matmul_top_data(
 {
     matmul_top_data & mmt = *this;
 
-    int const nbals = param_list_get_list_count(pl, "balancing");
+    int const nbals = pl.get_list_count("balancing");
     int multimat = 0;
     int nmatrices = pl.lookup_old("matrix") != nullptr;
     pl.parse("multi_matrix", multimat);
     if (multimat)
-        nmatrices = param_list_get_list_count(pl, "matrix");
+        nmatrices = pl.get_list_count("matrix");
     const char * random_description = pl.lookup_old("random_matrix");
     const char * static_random_matrix = pl.lookup_old("static_random_matrix");
 

@@ -38,6 +38,7 @@
 #include "misc.h"
 #include "params.hpp"
 #include "timing.h"
+#include "utils_cxx.hpp"
 
 /* {{{ all_splits_of
  * Given n>=1 return the list of all integers k (1<=k<=n) such
@@ -294,43 +295,15 @@ struct lingen_tuner : public lingen_tuner_base {
             return has(key) ? at(key) : UINT_MAX;
         }
         tuning_thresholds_t(cxx_param_list & pl, std::ostream& os, lingen_platform const & P) {/*{{{*/
-            auto const tlist = pl.parse<std::string>("tuning_thresholds");
-            if (tlist.empty()) return;
-            for(size_t pos = 0 ; pos != std::string::npos ; ) {
-                size_t const next = tlist.find(',', pos);
-                std::string tok;
-                if (next == std::string::npos) {
-                    tok = tlist.substr(pos);
-                    pos = next;
-                } else {
-                    tok = tlist.substr(pos, next - pos);
-                    pos = next + 1;
-                }
-                auto error = [&tok](std::string const& reason) {
-                    std::string const base = fmt::format(
-                            "tuning_thresholds is bad:"
-                            " pair \"{}\" ", tok);
-                    throw std::invalid_argument(base + reason);
-                };
-
-                size_t const colon = tok.find(':');
-                if (colon == std::string::npos)
-                    error("has no colon");
-
-                std::string algorithm = tok.substr(0, colon);
+            std::map<std::string, unsigned int> m;
+            if (!pl.parse("tuning_thresholds", m, ",", ":"))
+                return;
+            for(auto const & [algorithm, dst] : m) {
                 if (std::ranges::find(thresholds_verbs, algorithm) == thresholds_verbs.end()) {
-                    std::ostringstream os;
-                    for(auto const & x : thresholds_verbs)
-                        os << " " << x;
-                    error(fmt::format(
-                                "uses unrecognized key \"{}\""
-                                " (recognized keys:{})",
-                                algorithm, os.str()));
+                    pl.fail("tuning_thresholds is bad: uses unrecognized key \"{}\" (recognized keys: {})",
+                            algorithm, join(thresholds_verbs, " "));
                 }
-
-                unsigned int & dst(getref(algorithm));
-                if (!(std::istringstream(tok.substr(colon + 1)) >> dst))
-                    error("has no understandable integer threshold");
+                getref(algorithm) = dst;
             }
             if (has(collective) && P.r == 1) {
                 const char * what = "interpreted as \"recursive\"";

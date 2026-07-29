@@ -128,8 +128,7 @@ struct bw_params {
      * The interval specified by the interval parameter is automatically
      * counted as a check stop, unless skip_online_checks is true.
      */
-    int number_of_check_stops;
-    int check_stops[MAX_NUMBER_OF_CHECK_STOPS];
+    std::vector<int> check_stops;
 
     int original_argc;
     char const ** original_argv;
