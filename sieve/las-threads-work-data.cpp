@@ -10,13 +10,13 @@
 #include "fmt/base.h"
 
 #include "bucket.hpp"
-#include "ecm/batch.hpp"
 #include "las-config.hpp"
 #include "las-bkmult.hpp"
 #include "las-info.hpp"
 #include "las-memory.hpp"
 #include "las-threads-work-data.hpp"
 #include "multityped_array.hpp"
+#include "las-special-q-task.hpp"
 #include "macros.h"
 #include "threadpool.hpp"
 #include "verbose.hpp"
@@ -295,45 +295,6 @@ double nfs_work::check_buckets_max_full_toplevel(int level) const
 
 }
 
-#if 0
-template <typename HINT>
-double nfs_work::check_buckets_max_full(int level)
-    requires (HINT::allowed_at_toplevel)
-{
-    static_assert(MAX_TOPLEVEL == 3);
-
-#if MAX_TOPLEVEL >= 3
-    if (level == 3)
-        return buckets_max_full<3, HINT>();
-#endif
-#if MAX_TOPLEVEL >= 2
-    if (level == 2)
-        return buckets_max_full<2, HINT>();
-#endif
-    if (level == 1)
-        return buckets_max_full<1, HINT>();
-    ASSERT_ALWAYS(0);
-}
-template <typename HINT>
-double nfs_work::check_buckets_max_full(int level)
-    requires (!(HINT::allowed_at_toplevel))
-{
-    static_assert(MAX_TOPLEVEL == 3);
-
-#if MAX_TOPLEVEL >= 3
-    if (level == 2)
-        return buckets_max_full<2, HINT>();
-#endif
-
-#if MAX_TOPLEVEL >= 2
-    if (level == 1)
-        return buckets_max_full<1, HINT>();
-#endif
-
-    ASSERT_ALWAYS(0);
-}
-#endif
-
 template double nfs_work::buckets_max_full<1, shorthint_t>() const;
 template double nfs_work::buckets_max_full<1, emptyhint_t>() const;
 
@@ -352,13 +313,6 @@ template double nfs_work::buckets_max_full<2, logphint_t>() const;
 #endif
 
 static_assert(MAX_TOPLEVEL == 3);
-
-#if 0
-template double nfs_work::check_buckets_max_full<shorthint_t>(int) const;
-template double nfs_work::check_buckets_max_full<emptyhint_t>(int) const;
-template double nfs_work::check_buckets_max_full<longhint_t>(int) const;
-template double nfs_work::check_buckets_max_full<logphint_t>(int) const;
-#endif
 
 void nfs_work::compute_toplevel_and_buckets()
 {
