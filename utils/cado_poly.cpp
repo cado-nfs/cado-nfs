@@ -69,10 +69,8 @@ cxx_cado_poly::cxx_cado_poly(cxx_cado_poly::plist const &, cxx_param_list & pl)
     }
 
     /* Parse value of N. Two keys possible: n or None. Return 0 if not found. */
-    if (!pl.parse("n", n) &&
-            !pl.parse("N", n) &&
-            !param_list_parse_mpz(pl, NULL, n))
-        throw std::runtime_error("Error, no value for N in cado_poly_set_plist\n");
+    if (!pl.parse("n", n) && !pl.parse("N", n) && !pl.parse("", n))
+        pl.fail("Error, no value for N in cado_poly_set_plist\n");
 
     for (int side = 0; side < nsides(); side++)
         if ((*this)[side]->deg < 0)

@@ -219,6 +219,14 @@ cado_define_test(polyselect_add_score
     EXPECT_SHA1 27954264d0ab7e6bf8bbc07a8376ff9c63649ba8
     TARGET_DEPENDENCIES score)
 
+cado_define_test(polyselect_add_score_n_stripped
+    PROGRAM
+        $<TARGET_FILE:score>
+        -Bf 1e+04 -Bg 2e+05 -area 5e+10
+        ${CADO_NFS_SOURCE_DIR}/tests/misc/c60.poly.n_stripped
+    EXPECT_SHA1 27954264d0ab7e6bf8bbc07a8376ff9c63649ba8
+    TARGET_DEPENDENCIES score)
+
 cado_define_test(polyselect_add_skewness
     PROGRAM
         $<TARGET_FILE:skewness>

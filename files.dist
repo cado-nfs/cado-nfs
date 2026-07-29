@@ -1305,6 +1305,7 @@ tests/misc/F7.poly
 tests/misc/Makefile
 tests/misc/c59_nonlinear.poly
 tests/misc/c60.poly
+tests/misc/c60.poly.n_stripped
 tests/misc/c60.rels1
 tests/misc/c60.rels2
 tests/misc/d130.poly

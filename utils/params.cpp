@@ -513,11 +513,6 @@ void cxx_param_list::print_command_line(FILE * stream) const
     }
 }
 
-
-
-
-
-
 size_t cxx_param_list::get_list_count(std::string const & key, std::string const & sep)
 {
     if (auto const * t = has(drop_one_or_two_leading_dashes(key)))
@@ -576,9 +571,11 @@ int cxx_param_list::read(FILE *f, bool stop_on_empty_line)
         // A DIGIT* as something that goes with the "NULL" token in the
         // pl dictionary. That looks like a pretty obscure hack, in fact.
         // Do we ever use it ?
+        //
+        // We can at least trigger its use with an ad hoc polynomial...
         l = 0;
         if (!isalpha((int)(unsigned char)p[l]) && p[l] != '_' && p[l] != '-') {
-            ASSERT_ALWAYS(0);
+            // ASSERT_ALWAYS(0);
             add_key("", line, origin::FROM_FILE);
             continue;
         }
