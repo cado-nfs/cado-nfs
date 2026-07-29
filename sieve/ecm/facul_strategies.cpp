@@ -985,11 +985,13 @@ facul_strategies::facul_strategies (
         max_ncurves = std::max(max_ncurves, ncurves[side]);
     }
 
+    verbose_output_start_batch();
     verbose_fmt_print(0, 2, "# Using default strategy for the cofactorization:");
     for (unsigned int i = 0; i < ncurves.size(); i++) {
         verbose_fmt_print(0, 2, " ncurves{}={}", i, ncurves[i]);
     }
     verbose_fmt_print(0, 2, "\n");
+    verbose_output_end_batch();
 
     /* prepare the chain of methods that we want to use in order to
      * factor a number, irrespective of its side.

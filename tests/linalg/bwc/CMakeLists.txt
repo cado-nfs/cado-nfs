@@ -1004,6 +1004,7 @@ add_subdirectory (flint-fft)
 
 cado_define_test(linalg_determinant
     PROVIDE_TEMPORARY_WDIR_ARG wdir
+    AVOID_CONCURRENT 4
     SCRIPT
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl
         :determinant thr=2 nullspace=right
