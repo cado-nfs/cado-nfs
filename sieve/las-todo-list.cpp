@@ -41,15 +41,15 @@ void todo_list_base::configure_switches(cxx_param_list & pl)
 
 void todo_list_base::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "sqside", "put special-q on this side");
-    param_list_decl_usage(pl, "seed", "Use this seed for random state seeding (currently used only by --random-sample)");
-    param_list_decl_usage(pl, "random-sample", "Sample this number of special-q's at random, within the range [q0,q1[");
-    param_list_decl_usage(pl, "nq", "Process this number of special-q's and stop");
-    param_list_decl_usage(pl, "todo", "provide file with a list of special-q to sieve instead of qrange");
-    param_list_decl_usage(pl, "allow-compsq", "allows composite special-q");
-    param_list_decl_usage(pl, "qfac-min", "factors of q must be at least that");
-    param_list_decl_usage(pl, "qfac-max", "factors of q must be at most that");
-    param_list_decl_usage(pl, "print-todo-list", "only print the special-q's to be sieved");
+    pl.declare_usage("sqside", "put special-q on this side");
+    pl.declare_usage("seed", "Use this seed for random state seeding (currently used only by --random-sample)");
+    pl.declare_usage("random-sample", "Sample this number of special-q's at random, within the range [q0,q1[");
+    pl.declare_usage("nq", "Process this number of special-q's and stop");
+    pl.declare_usage("todo", "provide file with a list of special-q to sieve instead of qrange");
+    pl.declare_usage("allow-compsq", "allows composite special-q");
+    pl.declare_usage("qfac-min", "factors of q must be at least that");
+    pl.declare_usage("qfac-max", "factors of q must be at most that");
+    pl.declare_usage("print-todo-list", "only print the special-q's to be sieved");
 }
 
 todo_list_base::todo_list_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
@@ -240,9 +240,9 @@ void todo_list_base::print_todo_list(cxx_param_list const & pl, int nthreads) co
 
 void las_todo_list::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "q0",   "left bound of special-q range");
-    param_list_decl_usage(pl, "q1",   "right bound of special-q range");
-    param_list_decl_usage(pl, "rho",  "sieve only root r mod q0");
+    pl.declare_usage("q0",   "left bound of special-q range");
+    pl.declare_usage("q1",   "right bound of special-q range");
+    pl.declare_usage("rho",  "sieve only root r mod q0");
     todo_list_base::declare_usage(pl);
 }
 
@@ -528,9 +528,9 @@ std::string las_todo_list::string_repr() const
 /******************************************************************************/
 void siqs_todo_list::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "qidx0",   "left bound of special-q range");
-    param_list_decl_usage(pl, "qidx1",   "right bound of special-q range");
-    param_list_decl_usage(pl, "qfac-nfac", "number of factors of q");
+    pl.declare_usage("qidx0",   "left bound of special-q range");
+    pl.declare_usage("qidx1",   "right bound of special-q range");
+    pl.declare_usage("qfac-nfac", "number of factors of q");
     todo_list_base::declare_usage(pl);
 }
 

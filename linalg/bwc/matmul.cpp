@@ -30,38 +30,38 @@
 
 void matmul_decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "mm_impl",
+    pl.declare_usage("mm_impl",
             "name of the lower layer matmul implementation");
-    param_list_decl_usage(pl, "mm_store_transposed",
+    pl.declare_usage("mm_store_transposed",
             "override the default setting for the matrix storage ordering");
 
-    param_list_decl_usage(pl, "l1_cache_size",
+    pl.declare_usage("l1_cache_size",
             "internal, for mm_impl=bucket and mm_impl=sliced");
-    param_list_decl_usage(pl, "l2_cache_size",
+    pl.declare_usage("l2_cache_size",
             "internal, for mm_impl=bucket");
-    param_list_decl_usage(pl, "cache_line_size",
+    pl.declare_usage("cache_line_size",
             "internal");
 #if 0
-    param_list_decl_usage(pl, "mm_threaded_nthreads",
+    pl.declare_usage("mm_threaded_nthreads",
             "internal, for mm_impl=threaded");
-    param_list_decl_usage(pl, "mm_threaded_sgroup_size",
+    pl.declare_usage("mm_threaded_sgroup_size",
             "internal, for mm_impl=threaded");
-    param_list_decl_usage(pl, "mm_threaded_offset1",
+    pl.declare_usage("mm_threaded_offset1",
             "internal, for mm_impl=threaded");
-    param_list_decl_usage(pl, "mm_threaded_offset2",
+    pl.declare_usage("mm_threaded_offset2",
             "internal, for mm_impl=threaded");
-    param_list_decl_usage(pl, "mm_threaded_offset3",
+    pl.declare_usage("mm_threaded_offset3",
             "internal, for mm_impl=threaded");
-    param_list_decl_usage(pl, "mm_threaded_densify_tolerance",
+    pl.declare_usage("mm_threaded_densify_tolerance",
             "internal, for mm_impl=threaded");
 #endif
 
-    param_list_decl_usage(pl, "matmul_bucket_methods",
+    pl.declare_usage("matmul_bucket_methods",
             "internal, for mm_impl=bucket");
 
-    param_list_decl_usage(pl, "local_cache_copy_dir",
+    pl.declare_usage("local_cache_copy_dir",
             "path to a local directory where a secondary copy of the cache will be saved");
-    param_list_decl_usage(pl, "no_save_cache",
+    pl.declare_usage("no_save_cache",
             "skip saving the cache file to disk");
 }
 

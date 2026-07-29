@@ -1354,9 +1354,9 @@ int main(int argc, char const * argv[])
     parallelizing_info_decl_usage(pl);
     matmul_top_decl_usage(pl);
     /* declare local parameters and switches */
-    param_list_decl_usage(pl, "rhs",
+    pl.declare_usage("rhs",
             "file with the right-hand side vectors for inhomogeneous systems mod p (only the header is read by this program, while the actual contents are recovered from the V*.0 files)");
-    param_list_decl_usage(pl, "rhscoeffs",
+    pl.declare_usage("rhscoeffs",
             "for the solution vector(s), this corresponds to the contribution(s) on the columns concerned by the rhs");
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);

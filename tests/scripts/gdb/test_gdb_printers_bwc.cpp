@@ -25,7 +25,7 @@ int main(int argc, char const * argv[])
 
     bw_common_init(bw, &argc, &argv);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     if constexpr (!is_binary) {
         if (!param_list_parse(pl, "prime", p))

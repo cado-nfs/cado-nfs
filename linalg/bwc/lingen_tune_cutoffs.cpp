@@ -47,8 +47,8 @@ using namespace std;
 
 void lingen_tune_cutoffs_decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "B",        "minimum end of bench span window");
-    param_list_decl_usage(pl, "catchsig", "enable intercepting ^C");
+    pl.declare_usage("B",        "minimum end of bench span window");
+    pl.declare_usage("catchsig", "enable intercepting ^C");
 }
 
 void lingen_tune_cutoffs_lookup_parameters(cxx_param_list & pl)

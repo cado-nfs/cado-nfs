@@ -32,11 +32,11 @@ void lingen_platform::lookup_parameters(cxx_param_list & pl) {
 void lingen_platform::declare_usage(cxx_param_list & pl) {
     /* TODO: this shall supersede mpi= and thr= that are currently
      * parsed from within lingen.cpp */
-    param_list_decl_usage(pl, "max_ram",
+    pl.declare_usage("max_ram",
             "Maximum local memory to be used for transforms and matrices, in GB");
-    param_list_decl_usage(pl, "tuning_thr",
+    pl.declare_usage("tuning_thr",
             "Number of threads to be used for tuning only (if different from real thr=)");
-    param_list_decl_usage(pl, "tuning_mpi",
+    pl.declare_usage("tuning_mpi",
             "Number of mpi jobs to be used for tuning only (if different from real mpi=)");
 }
 

@@ -116,12 +116,12 @@ using namespace std;
 
 static void badideals_declare_usage(cxx_param_list & pl)/*{{{*/
 {
-    param_list_decl_usage(pl, "badideals", "badideals file");
-    param_list_decl_usage(pl, "badidealinfo", "badidealinfo file");
-    param_list_decl_usage(pl, "polystr", "polynomial (string)");
-    param_list_decl_usage(pl, "poly", "polynomial file");
-    param_list_decl_usage(pl, "seed", "random seed");
-    param_list_decl_usage(pl, "ell", "ell (for computing default number of maps ; not used for bad ideals)");
+    pl.declare_usage("badideals", "badideals file");
+    pl.declare_usage("badidealinfo", "badidealinfo file");
+    pl.declare_usage("polystr", "polynomial (string)");
+    pl.declare_usage("poly", "polynomial file");
+    pl.declare_usage("seed", "random seed");
+    pl.declare_usage("ell", "ell (for computing default number of maps ; not used for bad ideals)");
 }/*}}}*/
 
 // coverity[root_function]
@@ -133,9 +133,9 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
 
     badideals_declare_usage(pl);
-    param_list_configure_alias(pl, "polystr", "f");
+    pl.configure_alias("polystr", "f");
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     cxx_gmp_randstate state;
 

@@ -69,7 +69,7 @@ int main(int argc, char const * argv[])
     cxx_gmp_randstate state;
 
     declare_usage(pl);
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     /* print command-line arguments */
     param_list_print_command_line (stdout, pl);

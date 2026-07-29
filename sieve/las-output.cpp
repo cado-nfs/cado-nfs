@@ -102,12 +102,12 @@ void las_output::configure_switches(cxx_param_list & pl)
 
 void las_output::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "v",    "verbose mode, also prints sieve-area checksums");
-    param_list_decl_usage(pl, "out",  "filename where relations are written, instead of stdout");
+    pl.declare_usage("v",    "verbose mode, also prints sieve-area checksums");
+    pl.declare_usage("out",  "filename where relations are written, instead of stdout");
 #ifdef TRACE_K
-    param_list_decl_usage(pl, "traceout", "Output file for trace output, default: stderr");
+    pl.declare_usage("traceout", "Output file for trace output, default: stderr");
 #endif
-    param_list_decl_usage(pl, "stats-stderr", "print stats to stderr in addition to stdout/out file");
+    pl.declare_usage("stats-stderr", "print stats to stderr in addition to stdout/out file");
 }
 /*}}}*/
 

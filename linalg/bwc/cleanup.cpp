@@ -21,7 +21,7 @@ int main(int argc, char const * argv[])
 
     unsigned int ncols = 0;
     const char * outfile = NULL;
-    param_list_process_command_line(pl, &argc, &argv, true);
+    pl.process_command_line(argc, argv, true);
     outfile = param_list_lookup_string(pl, "out");
     param_list_parse_uint(pl, "ncols", &ncols);
     if (pl.warn_unused())

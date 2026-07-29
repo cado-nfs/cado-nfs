@@ -273,8 +273,8 @@ int main(int argc, char const * argv[])
 
     bw_common_decl_usage(pl);
     /* {{{ declare local parameters and switches */
-    param_list_decl_usage(pl, "ffile", "generator file");
-    param_list_decl_usage(pl, "charpoly-degree", "degree of the characteristic "
+    pl.declare_usage("ffile", "generator file");
+    pl.declare_usage("charpoly-degree", "degree of the characteristic "
                                                  "polynomial");
     /* }}} */
 

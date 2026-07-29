@@ -647,21 +647,21 @@ static void blockmatrix_column_reduce(blockmatrix & m, unsigned int max_rows_to_
 static void
 declare_usage (cxx_param_list & pl)
 {
-  param_list_decl_usage (pl, "purged", "output-from-purge file");
-  param_list_decl_usage (pl, "index",  "index file");
-  param_list_decl_usage (pl, "out",    "output file");
-  param_list_decl_usage (pl, "heavyblock", "heavyblock output file");
-  param_list_decl_usage (pl, "poly",   "polynomial file");
-  param_list_decl_usage (pl, "nchar",  "number of characters");
-  param_list_decl_usage (pl, "lpb0",   "large prime bound on side 0");
-  param_list_decl_usage (pl, "lpb1",   "large prime bound on side 1");
-  param_list_decl_usage (pl, "t",      "number of threads");
-  param_list_decl_usage (pl, "ker",    "input kernel file");
-  param_list_decl_usage (pl, "nratchars", "number of characters on rational "
+  pl.declare_usage("purged", "output-from-purge file");
+  pl.declare_usage("index",  "index file");
+  pl.declare_usage("out",    "output file");
+  pl.declare_usage("heavyblock", "heavyblock output file");
+  pl.declare_usage("poly",   "polynomial file");
+  pl.declare_usage("nchar",  "number of characters");
+  pl.declare_usage("lpb0",   "large prime bound on side 0");
+  pl.declare_usage("lpb1",   "large prime bound on side 1");
+  pl.declare_usage("t",      "number of threads");
+  pl.declare_usage("ker",    "input kernel file");
+  pl.declare_usage("nratchars", "number of characters on rational "
                                           "side");
-  param_list_decl_usage(pl, "large-ab", "enable support for a and b larger than"
+  pl.declare_usage("large-ab", "enable support for a and b larger than"
                                         "64 bits");
-  param_list_decl_usage (pl, "only-sign-chars", "use only the sign character "
+  pl.declare_usage("only-sign-chars", "use only the sign character "
                                                 "on each side");
 }
 
@@ -695,7 +695,7 @@ int main(int argc, char const * argv[])
 
     cado::filter_io_details::configure(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     purgedname = param_list_lookup_string(pl, "purged");
     indexname = param_list_lookup_string(pl, "index");

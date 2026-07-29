@@ -459,14 +459,14 @@ void makefb_with_powers(FILE* outfile, mpz_poly_srcptr F, unsigned long lim,
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "poly", "polynomial file");
-    param_list_decl_usage(pl, "lim", "factor base bound");
-    param_list_decl_usage(pl, "maxbits", "(optional) maximal number of "
+    pl.declare_usage("poly", "polynomial file");
+    pl.declare_usage("lim", "factor base bound");
+    pl.declare_usage("maxbits", "(optional) maximal number of "
             "bits of powers");
-    param_list_decl_usage(pl, "out", "(optional) name of the output file");
-    param_list_decl_usage(pl, "side", "(optional) create factor base for given side. "
+    pl.declare_usage("out", "(optional) name of the output file");
+    pl.declare_usage("side", "(optional) create factor base for given side. "
                         "By default, use the unique algebraic side.");
-    param_list_decl_usage(pl, "t", "number of threads");
+    pl.declare_usage("t", "number of threads");
     verbose_decl_usage(pl);
 }
 

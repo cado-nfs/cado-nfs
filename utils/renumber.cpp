@@ -1186,8 +1186,8 @@ void renumber_t::more_info(std::ostream & os) const
 
 void renumber_t::builder_declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "renumber", "output file for renumbering table");
-    param_list_decl_usage(pl, "renumber_format", "format of the renumbering table (\"flat\")");
+    pl.declare_usage("renumber", "output file for renumbering table");
+    pl.declare_usage("renumber_format", "format of the renumbering table (\"flat\")");
 }
 
 void renumber_t::builder_lookup_parameters(cxx_param_list & pl)

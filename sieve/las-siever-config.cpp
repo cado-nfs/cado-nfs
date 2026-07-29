@@ -33,28 +33,28 @@ template<sieve_method Algo>
 void siever_config::declare_usage(cxx_param_list & pl)
 {
     if constexpr (std::is_same_v<Algo, NFS>) {
-        param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J, with J <= 2^(I-1) ; -I x is equivalent to -A (2*x-1)");
-        param_list_decl_usage(pl, "A",    "set sieving region to (at most) 2^A");
+        pl.declare_usage("I",    "set sieving region to 2^I times J, with J <= 2^(I-1) ; -I x is equivalent to -A (2*x-1)");
+        pl.declare_usage("A",    "set sieving region to (at most) 2^A");
     } else {
-        param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J;");
+        pl.declare_usage("I",    "set sieving region to 2^I times J;");
     }
 
     siever_side_config::declare_usage(pl);
 
-    param_list_decl_usage(pl, "tdthresh", "trial-divide primes p/r <= ththresh (r=number of roots)");
-    param_list_decl_usage(pl, "skipped", "primes below this bound are not sieved at all");
-    param_list_decl_usage(pl, "bkthresh", "bucket-sieve primes p >= bkthresh (default 2^I)");
+    pl.declare_usage("tdthresh", "trial-divide primes p/r <= ththresh (r=number of roots)");
+    pl.declare_usage("skipped", "primes below this bound are not sieved at all");
+    pl.declare_usage("bkthresh", "bucket-sieve primes p >= bkthresh (default 2^I)");
 #if MAX_TOPLEVEL >= 2
-    param_list_decl_usage(pl, "bkthresh1", "2-level bucket-sieve primes in [bkthresh1,lim] (default=lim, meaning inactive)");
+    pl.declare_usage("bkthresh1", "2-level bucket-sieve primes in [bkthresh1,lim] (default=lim, meaning inactive)");
 #endif
 #if MAX_TOPLEVEL >= 3
-    param_list_decl_usage(pl, "bkthresh2", "3-level bucket-sieve primes in [bkthresh2,lim] (default=lim, meaning inactive)");
+    pl.declare_usage("bkthresh2", "3-level bucket-sieve primes in [bkthresh2,lim] (default=lim, meaning inactive)");
 #endif
     static_assert(MAX_TOPLEVEL == 3);
-    param_list_decl_usage(pl, "bkmult", "multiplier to use for taking margin in the bucket allocation\n");
-    param_list_decl_usage(pl, "unsievethresh", "Unsieve all p > unsievethresh where p|gcd(a,b)");
+    pl.declare_usage("bkmult", "multiplier to use for taking margin in the bucket allocation\n");
+    pl.declare_usage("unsievethresh", "Unsieve all p > unsievethresh where p|gcd(a,b)");
     if constexpr (std::is_same_v<Algo, NFS>) {
-        param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
+        pl.declare_usage("adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
     }
 }
 
@@ -316,12 +316,12 @@ siever_config siever_config_pool::get_config_for_q(special_q_task const & doing)
 void 
 siever_config_pool::declare_usage(cxx_param_list & pl)/*{{{*/
 {
-    param_list_decl_usage(pl, "hint-table", "filename with per-special q sieving data");
+    pl.declare_usage("hint-table", "filename with per-special q sieving data");
     if (dlp_descent)
-        param_list_decl_usage(pl, "descent-hint-table", "Alias to hint-table");
-    param_list_decl_usage(pl, "fuzzy-descent", "Allow descent steps to start over with fuzzier and fuzzier parameters, with no limit");
-    param_list_decl_usage(pl, "descent-max-increase-A", "When retrying steps in the descent, limit the increase of A to this value"); //  (default %d)", max_increase_logA_default);
-    param_list_decl_usage(pl, "descent-max-increase-lpb", "When retrying steps in the descent, limit the increase of lpb to this value"); //  (default %d)", max_increase_lpb_default);
+        pl.declare_usage("descent-hint-table", "Alias to hint-table");
+    pl.declare_usage("fuzzy-descent", "Allow descent steps to start over with fuzzier and fuzzier parameters, with no limit");
+    pl.declare_usage("descent-max-increase-A", "When retrying steps in the descent, limit the increase of A to this value"); //  (default %d)", max_increase_logA_default);
+    pl.declare_usage("descent-max-increase-lpb", "When retrying steps in the descent, limit the increase of lpb to this value"); //  (default %d)", max_increase_lpb_default);
 }
 /*}}}*/
 

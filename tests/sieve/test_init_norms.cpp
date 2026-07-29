@@ -138,9 +138,9 @@ int main(int argc, char const * argv[])
 
     declare_usage(pl);
     pl.declare_usage("log-bucket-region", "set bucket region to 2^x");
-    param_list_configure_alias(pl, "log-bucket-region", "B");
+    pl.configure_alias("log-bucket-region", "B");
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     cxx_cado_poly cpoly(pl);
 

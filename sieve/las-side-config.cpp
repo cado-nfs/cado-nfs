@@ -13,20 +13,20 @@
 
 void siever_side_config::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "lim", "sieving bounds per side");
-    param_list_decl_usage(pl, "lpb", "large prime bounds per side, in bits");
-    param_list_decl_usage(pl, "mfb", "post-sieve cofactor bounds per side, in bits");
-    param_list_decl_usage(pl, "lambda", "post-sieve qualification multipliers per side");
-    param_list_decl_usage(pl, "powlim", "limits on powers sieved per side");
-    param_list_decl_usage(pl, "ncurves", "cofactoring effort (number of curves) per side");
-    param_list_decl_usage(pl, "fb", "factor base files per side");
+    pl.declare_usage("lim", "sieving bounds per side");
+    pl.declare_usage("lpb", "large prime bounds per side, in bits");
+    pl.declare_usage("mfb", "post-sieve cofactor bounds per side, in bits");
+    pl.declare_usage("lambda", "post-sieve qualification multipliers per side");
+    pl.declare_usage("powlim", "limits on powers sieved per side");
+    pl.declare_usage("ncurves", "cofactoring effort (number of curves) per side");
+    pl.declare_usage("fb", "factor base files per side");
 }
 
 void batch_side_config::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "batchfile", "prime product tree files per side");
-    param_list_decl_usage(pl, "batchmfb", "cofactor bounds, per side, to be considered after batch cofactorization. After primes below 2^batchlpbX have been extracted, cofactors below this bound will go through ecm. Defaults to lpbX.");
-    param_list_decl_usage(pl, "batchlpb", "large prime bounds, per side, to be considered by batch cofactorization. Primes between limX and 2^batchlpbX will be extracted by product trees. Defaults to lpbX.");
+    pl.declare_usage("batchfile", "prime product tree files per side");
+    pl.declare_usage("batchmfb", "cofactor bounds, per side, to be considered after batch cofactorization. After primes below 2^batchlpbX have been extracted, cofactors below this bound will go through ecm. Defaults to lpbX.");
+    pl.declare_usage("batchlpb", "large prime bounds, per side, to be considered by batch cofactorization. Primes between limX and 2^batchlpbX will be extracted by product trees. Defaults to lpbX.");
 }
 
 #define DISPATCH_PARAMETER2(type, name, argname, dfl, policy) do {	\

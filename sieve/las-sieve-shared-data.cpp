@@ -27,7 +27,7 @@ void sieve_shared_data::declare_usage(cxx_param_list & pl)
 {
     cxx_cado_poly::declare_usage(pl);
     siever_side_config::declare_usage(pl);
-    param_list_decl_usage(pl, "fbc",  "factor base cache file");
+    pl.declare_usage("fbc",  "factor base cache file");
 }
 
 void sieve_shared_data::lookup_parameters(cxx_param_list & pl, int nsides)

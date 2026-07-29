@@ -36,11 +36,11 @@
 
 void cpubinding_decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "input-topology-file",
+    pl.declare_usage("input-topology-file",
             "simulated topology, only for testing");
-    param_list_decl_usage(pl, "input-topology-string",
+    pl.declare_usage("input-topology-string",
             "simulated topology, only for testing");
-    param_list_decl_usage(pl, "cpubinding", "path to a cpubinding.conf file, or explicit CPU binding string");
+    pl.declare_usage("cpubinding", "path to a cpubinding.conf file, or explicit CPU binding string");
 }
 
 void cpubinding_lookup_parameters(cxx_param_list & pl)

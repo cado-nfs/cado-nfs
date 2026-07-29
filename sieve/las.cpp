@@ -100,8 +100,8 @@
 static void configure_aliases(cxx_param_list & pl)
 {
     las_info::configure_aliases(pl);
-    param_list_configure_alias(pl, "log-bucket-region", "B");
-    param_list_configure_alias(pl, "log-bucket-region-step", "Bi");
+    pl.configure_alias("log-bucket-region", "B");
+    pl.configure_alias("log-bucket-region-step", "Bi");
     las_output::configure_aliases(pl);
     tdict::configure_aliases(pl);
 }

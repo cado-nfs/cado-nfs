@@ -71,9 +71,9 @@ where_am_I & where_am_I::operator=(where_am_I const & x) {
 
 void where_am_I::decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "traceab", "Relation to trace, in a,b format");
-    param_list_decl_usage(pl, "traceij", "Relation to trace, in i,j format");
-    param_list_decl_usage(pl, "traceNx", "Relation to trace, in N,x format");
+    pl.declare_usage("traceab", "Relation to trace, in a,b format");
+    pl.declare_usage("traceij", "Relation to trace, in i,j format");
+    pl.declare_usage("traceNx", "Relation to trace, in N,x format");
 }
 
 /* The trivial calls for when TRACE_K is *not* defined are inlines in

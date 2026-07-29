@@ -66,11 +66,11 @@ int main(int argc, char const * argv[])
     parallelizing_info_init();
 
     parallelizing_info_decl_usage(pl);
-    param_list_decl_usage(pl, "v", "turn on some demo logging");
+    pl.declare_usage("v", "turn on some demo logging");
 
     param_list_configure_switch(pl, "v", &verbose);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     parallelizing_info_lookup_parameters(pl);
 

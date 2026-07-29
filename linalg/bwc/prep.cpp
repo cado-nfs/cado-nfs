@@ -732,7 +732,7 @@ int main(int argc, char const * argv[])
     parallelizing_info_decl_usage(pl);
     matmul_top_decl_usage(pl);
     /* declare local parameters and switches */
-    param_list_decl_usage(pl, "rhs",
+    pl.declare_usage("rhs",
                           "file with the right-hand side vectors for "
                           "inhomogeneous systems mod p");
 

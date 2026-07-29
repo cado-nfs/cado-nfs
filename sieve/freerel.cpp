@@ -144,14 +144,14 @@ void freerel_data_t::operator()(renumber_t & R, p_r_values_t p, index_t idx, ren
 static void
 declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "poly", "input polynomial file");
-    param_list_decl_usage(pl, "lpb0", "large primes bound on side 0");
-    param_list_decl_usage(pl, "lpb1", "large primes bound on side 1");
+    pl.declare_usage("poly", "input polynomial file");
+    pl.declare_usage("lpb0", "large primes bound on side 0");
+    pl.declare_usage("lpb1", "large primes bound on side 1");
     param_list_decl_usage(pl,
                           "lpbs",
                           "large primes bounds (comma-separated list) "
                           "(for MNFS)");
-    param_list_decl_usage(pl, "t", "number of threads");
+    pl.declare_usage("t", "number of threads");
     param_list_decl_usage(pl,
                           "dl",
                           "Add ideals for the leading "

@@ -810,16 +810,16 @@ void * pi_load_generic(parallelizing_info_ptr pi, unsigned long key, unsigned lo
 
 void parallelizing_info_decl_usage(cxx_param_list & pl)/*{{{*/
 {
-    param_list_decl_usage(pl, "mpi", "number of MPI nodes across which the execution will span, with mesh dimensions");
-    param_list_decl_usage(pl, "thr", "number of threads (on each node) for the program, with mesh dimensions");
-    param_list_decl_usage(pl, "interleaving", "whether we should start two interleaved sets of threads. Only supported by some programs, has no effect on others.");
-    param_list_decl_usage(pl, "only_mpi", "replace threads by distinct MPI jobs");
-    param_list_decl_usage(pl, "debug-parallel-bwc", "enable heavy debugging messages for desperate cases");
+    pl.declare_usage("mpi", "number of MPI nodes across which the execution will span, with mesh dimensions");
+    pl.declare_usage("thr", "number of threads (on each node) for the program, with mesh dimensions");
+    pl.declare_usage("interleaving", "whether we should start two interleaved sets of threads. Only supported by some programs, has no effect on others.");
+    pl.declare_usage("only_mpi", "replace threads by distinct MPI jobs");
+    pl.declare_usage("debug-parallel-bwc", "enable heavy debugging messages for desperate cases");
 
 #if defined(HAVE_HWLOC)
     cpubinding_decl_usage(pl);
 #else
-    param_list_decl_usage(pl, "cpubinding", "(ignored, no sufficient sotftware support)");
+    pl.declare_usage("cpubinding", "(ignored, no sufficient sotftware support)");
 #endif
 }
 /*}}}*/

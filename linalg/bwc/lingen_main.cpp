@@ -42,49 +42,49 @@ static cxx_gmp_randstate rstate;
 
 static void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
 {
-    param_list_decl_usage(pl, "ascii",
+    pl.declare_usage("ascii",
             "read and write data in ascii");
-    param_list_decl_usage(pl, "timings",
+    pl.declare_usage("timings",
             "provide timings on all output lines");
-    param_list_decl_usage(pl, "tune",
+    pl.declare_usage("tune",
             "activate tuning mode");
-    param_list_decl_usage(pl, "allow_zero_on_rhs",
+    pl.declare_usage("allow_zero_on_rhs",
             "do not cry if the generator corresponds to a zero contribution on the RHS vectors");
 
     /* we must be square ! */
-    param_list_decl_usage(pl, "mpi", "number of MPI nodes across which the execution will span, with mesh dimensions");
-    param_list_decl_usage(pl, "thr", "number of threads (on each node) for the program, with mesh dimensions");
+    pl.declare_usage("mpi", "number of MPI nodes across which the execution will span, with mesh dimensions");
+    pl.declare_usage("thr", "number of threads (on each node) for the program, with mesh dimensions");
 
-    param_list_decl_usage(pl, "nrhs",
+    pl.declare_usage("nrhs",
             "number of columns that correspond to rhs vectors");
-    param_list_decl_usage(pl, "rhs",
+    pl.declare_usage("rhs",
             "file with rhs vectors (only the header is read)");
 
-    param_list_decl_usage(pl, "afile",
+    pl.declare_usage("afile",
             "input sequence file");
-    param_list_decl_usage(pl, "input_length",
+    pl.declare_usage("input_length",
             "input sequence length (defaults to auto-detect)");
-    param_list_decl_usage(pl, "random-input-with-length",
+    pl.declare_usage("random-input-with-length",
             "use surrogate for input");
-    param_list_decl_usage(pl, "split-input-file",
+    pl.declare_usage("split-input-file",
             "work with split files on input");
-    param_list_decl_usage(pl, "split-output-file",
+    pl.declare_usage("split-output-file",
             "work with split files on output");
-    param_list_decl_usage(pl, "random_seed",
+    pl.declare_usage("random_seed",
             "seed the random generator");
-    param_list_decl_usage(pl, "ffile",
+    pl.declare_usage("ffile",
             "output generator file");
 
 #if 0
-    param_list_decl_usage(pl, "lingen_mpi_threshold",
+    pl.declare_usage("lingen_mpi_threshold",
             "use MPI matrix operations above this size");
-    param_list_decl_usage(pl, "lingen_threshold",
+    pl.declare_usage("lingen_threshold",
             "use recursive algorithm above this size");
 #endif
 
     param_list_configure_switch(pl, "--tune", &global_flag_tune);
     param_list_configure_switch(pl, "--ascii", &global_flag_ascii);
-    param_list_configure_alias(pl, "seed", "random_seed");
+    pl.configure_alias("seed", "random_seed");
 
 }/*}}}*/
 

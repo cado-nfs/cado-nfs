@@ -46,28 +46,28 @@
 
 void matmul_top_decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "matrix",
+    pl.declare_usage("matrix",
             "the matrix file (binary)");
-    param_list_decl_usage(pl, "balancing",
+    pl.declare_usage("balancing",
             "the matrix balancing file, as computed by mf_bal");
-    param_list_decl_usage(pl, "random_matrix",
+    pl.declare_usage("random_matrix",
             "characteristics of a random matrix to be used for staged runs.");
-    param_list_decl_usage(pl, "static_random_matrix",
+    pl.declare_usage("static_random_matrix",
             "(unset or set to something arbitrary): indicate that the matrix is fake, and that there is no need to bother with the generation of vectors");
 
-    param_list_decl_usage(pl, "rebuild_cache",
+    pl.declare_usage("rebuild_cache",
             "force rebuilding matrix caches");
-    param_list_decl_usage(pl, "export_cachelist",
+    pl.declare_usage("export_cachelist",
             "print the per-node needed cache files and exit");
-    param_list_decl_usage(pl, "save_submatrices",
+    pl.declare_usage("save_submatrices",
             "after dispatching, save a copy of the local uncompressed matrix before creating the cache file");
-    param_list_decl_usage(pl, "sequential_cache_build",
+    pl.declare_usage("sequential_cache_build",
             "build the cache files sequentially on each node");
-    param_list_decl_usage(pl, "sequential_cache_read",
+    pl.declare_usage("sequential_cache_read",
             "read the cache files sequentially on each node");
-    param_list_decl_usage(pl, "balancing_options",
+    pl.declare_usage("balancing_options",
             "options to pass to the balancing subprogram (see mf_bal_adjust_from_option_string)");
-    param_list_decl_usage(pl, "multi_matrix",
+    pl.declare_usage("multi_matrix",
             "whether to chain several matrices (experimental)");
     balancing_decl_usage(pl);
     matmul_decl_usage(pl);

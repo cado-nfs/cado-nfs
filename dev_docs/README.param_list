@@ -77,7 +77,7 @@ pattern.
     /* switches, if any. See below */
     /* aliases, if any. See below */
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
     /* If you want to do some other things with the arguments that haven't
      * been eaten at all, pass "true" as the last parameter above, then
      * act on the remaining argc and argv.
@@ -140,10 +140,10 @@ with specifying a pointer to the switch value, which must have type int.
 
 
 Aliases:
-    param_list_configure_alias(pl, "--pad", "--square");
+    pl.configure_alias("--pad", "--square");
     // --> means that the switch --pad may be aliased as --square
 
-    param_list_configure_alias(pl, "out", "output-name");
+    pl.configure_alias("out", "output-name");
     // means that --out, -out, out=, and so on, may be aliased as
     // --output-name, etc.
 

@@ -67,12 +67,12 @@ public:
         return number_of_subjobs_total() * nthreads_per_subjob;
     }
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage(pl, "t", "Number of threads and subjobs. Use -t help for extended documentation");
+        pl.declare_usage("t", "Number of threads and subjobs. Use -t help for extended documentation");
 #ifdef HAVE_HWLOC
-        param_list_decl_usage(pl, "job-memory", "Estimated memory per subjobs, used for job placement (see -t help) (in gigabytes, floating point values allowed)");
-        param_list_decl_usage(pl, "memory-margin", "Keep this amount of RAM free for the rest of the world (see -t help) (in gigabytes, floating point values allowed)");
+        pl.declare_usage("job-memory", "Estimated memory per subjobs, used for job placement (see -t help) (in gigabytes, floating point values allowed)");
+        pl.declare_usage("memory-margin", "Keep this amount of RAM free for the rest of the world (see -t help) (in gigabytes, floating point values allowed)");
 #else
-        param_list_decl_usage(pl, "job-memory", "(unused, needs hwloc)\n");
+        pl.declare_usage("job-memory", "(unused, needs hwloc)\n");
 #endif
     }
     las_parallel_desc();

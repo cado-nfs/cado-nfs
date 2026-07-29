@@ -74,7 +74,7 @@ struct rhs_writer {// {{{
     rhs_writer(random_matrix_process_data const &, cxx_param_list &);
 
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage(pl, "rhs", "rhs output (comma-separated <nrhs>,<prime>,<filename>[,<nullspace_direction>])");
+        pl.declare_usage("rhs", "rhs output (comma-separated <nrhs>,<prime>,<filename>[,<nullspace_direction>])");
     }
 };
 // }}}
@@ -127,9 +127,9 @@ struct random_matrix_process_data {
     std::unique_ptr<FILE, delete_FILE> cw, rw;
 
     static void configure_aliases(cxx_param_list & pl) {
-        param_list_configure_alias(pl, "output", "o");
-        param_list_configure_alias(pl, "density", "d");
-        param_list_configure_alias(pl, "seed", "s");
+        pl.configure_alias("output", "o");
+        pl.configure_alias("density", "d");
+        pl.configure_alias("seed", "s");
     }
 
     static void configure_switches(cxx_param_list & pl) {
@@ -140,16 +140,16 @@ struct random_matrix_process_data {
     static void process_arguments(cxx_param_list & pl, int argc, char * argv[]);
 
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage(pl, "nrows", "number of rows");
-        param_list_decl_usage(pl, "ncols", "number of cols");
-        param_list_decl_usage(pl, "density", "desired density per row");
-        param_list_decl_usage(pl, "seed", "seed");
-        param_list_decl_usage(pl, "c", "add coefficients");
-        param_list_decl_usage(pl, "output", "output file name");
-        param_list_decl_usage(pl, "binary", "output in binary");
-        param_list_decl_usage(pl, "kleft", "ensure at least a left kernel of dimension d");
-        param_list_decl_usage(pl, "kright", "ditto for right kernel");
-        param_list_decl_usage(pl, "freq", "output row and column weight matrices");
+        pl.declare_usage("nrows", "number of rows");
+        pl.declare_usage("ncols", "number of cols");
+        pl.declare_usage("density", "desired density per row");
+        pl.declare_usage("seed", "seed");
+        pl.declare_usage("c", "add coefficients");
+        pl.declare_usage("output", "output file name");
+        pl.declare_usage("binary", "output in binary");
+        pl.declare_usage("kleft", "ensure at least a left kernel of dimension d");
+        pl.declare_usage("kright", "ditto for right kernel");
+        pl.declare_usage("freq", "output row and column weight matrices");
         rhs_writer::declare_usage(pl);
     }
 
@@ -966,8 +966,8 @@ int main(int argc, char const * argv[])
     random_matrix_process_data::configure_switches(pl);
     random_matrix_process_data::configure_aliases(pl);
 
-    param_list_decl_usage(pl, "v", "turn verbosity on");
-    param_list_decl_usage(pl, "Z", "avoid zero columns");
+    pl.declare_usage("v", "turn verbosity on");
+    pl.declare_usage("Z", "avoid zero columns");
     param_list_configure_switch(pl, "v", nullptr);
     param_list_configure_switch(pl, "Z", nullptr);
 

@@ -33,11 +33,11 @@ struct cxx_cado_poly : public std::vector<cxx_mpz_poly>
 
     static void configure_switches(cxx_param_list &) {}
     static void configure_aliases(cxx_param_list & pl) {
-        param_list_configure_alias(pl, "skew", "S");
+        pl.configure_alias("skew", "S");
     }
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage(pl, "poly", "polynomial file");
-        param_list_decl_usage(pl, "skew", "skewness");
+        pl.declare_usage("poly", "polynomial file");
+        pl.declare_usage("skew", "skewness");
     }
 
     cxx_cado_poly() = default;

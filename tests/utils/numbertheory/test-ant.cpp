@@ -33,14 +33,14 @@
 
 static void decl_usage(cxx_param_list & pl)/*{{{*/
 {
-    param_list_decl_usage(pl, "test", "which test to run");
-    param_list_decl_usage(pl, "prime", "prime");
-    param_list_decl_usage(pl, "poly", "polynomial (std::string)");
-    param_list_decl_usage(pl, "out", "output file");
-    param_list_decl_usage(pl, "batch", "batch input file with test vectors and expected results");
-    param_list_decl_usage(pl, "seed", "seed used for random picks");
-    param_list_decl_usage(pl, "elements", "(valuations-of-ideal) ideal generators (comma-separated list of polynomials in x)");
-    param_list_decl_usage(pl, "bound", "(maximal-order) prime limit");
+    pl.declare_usage("test", "which test to run");
+    pl.declare_usage("prime", "prime");
+    pl.declare_usage("poly", "polynomial (std::string)");
+    pl.declare_usage("out", "output file");
+    pl.declare_usage("batch", "batch input file with test vectors and expected results");
+    pl.declare_usage("seed", "seed used for random picks");
+    pl.declare_usage("elements", "(valuations-of-ideal) ideal generators (comma-separated list of polynomials in x)");
+    pl.declare_usage("bound", "(maximal-order) prime limit");
 }/*}}}*/
 
 static int do_p_maximal_order(cxx_param_list & pl) /*{{{*/
@@ -747,11 +747,11 @@ int main(int argc, char const * argv[])
 {
     cxx_param_list pl;
 
-    param_list_configure_alias(pl, "prime", "p");
+    pl.configure_alias("prime", "p");
 
     decl_usage(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     auto testname = pl.parse_mandatory<std::string>("test");
 

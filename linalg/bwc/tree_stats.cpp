@@ -34,7 +34,7 @@ void tree_stats::interpret_parameters(cxx_param_list & pl)
 
 void tree_stats::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "tree_stats_max_nesting", "max nesting level of small steps to display within lingen");
+    pl.declare_usage("tree_stats_max_nesting", "max nesting level of small steps to display within lingen");
 }
 
 double tree_stats::level_stats::projected_time()

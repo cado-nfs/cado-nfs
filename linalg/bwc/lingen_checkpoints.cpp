@@ -50,11 +50,11 @@ int lingen_checkpoint<is_binary>::save_gathered = 0;
 template<bool is_binary>
 void lingen_checkpoint<is_binary>::decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "checkpoint-directory",
+    pl.declare_usage("checkpoint-directory",
             "where to save checkpoints");
-    param_list_decl_usage(pl, "checkpoint-threshold",
+    pl.declare_usage("checkpoint-threshold",
             "threshold for saving checkpoints");
-    param_list_decl_usage(pl, "lingen_checkpoint_save_gathered",
+    pl.declare_usage("lingen_checkpoint_save_gathered",
             "save global checkpoints files, instead of per-job files");
 }
 

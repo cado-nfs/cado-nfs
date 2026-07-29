@@ -212,9 +212,9 @@ struct lingen_tuner_base {
         int quiet = 0;
         const char * tuning_log_filename = nullptr;
         static void declare_usage(cxx_param_list & pl) {/*{{{*/
-            param_list_decl_usage(pl, "tuning_log_filename",
+            pl.declare_usage("tuning_log_filename",
                     "Output tuning log to this file\n");
-            param_list_decl_usage(pl, "tuning_quiet",
+            pl.declare_usage("tuning_quiet",
                     "Silence tuning log\n");
         }/*}}}*/
         static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
@@ -230,13 +230,13 @@ struct lingen_tuner_base {
     static void declare_usage(cxx_param_list & pl) {/*{{{*/
         lingen_platform::declare_usage(pl);
         output_info::declare_usage(pl);
-        param_list_decl_usage(pl, "tuning_schedule_filename",
+        pl.declare_usage("tuning_schedule_filename",
                 "Save (and re-load if it exists) tuning schedule from this file");
-        param_list_decl_usage(pl, "tuning_timing_cache_filename",
+        pl.declare_usage("tuning_timing_cache_filename",
                 "Save (and re-load) timings for individual transforms in this file\n");
-        param_list_decl_usage(pl, "basecase-keep-until",
+        pl.declare_usage("basecase-keep-until",
                 "When tuning, stop measuring basecase timing when it exceeds the time of the recursive algorithm (counting its leaf calls) by this factor\n");
-        param_list_decl_usage(pl, "tuning_thresholds",
+        pl.declare_usage("tuning_thresholds",
                 "comma-separated list of threshols, given in the form <algorithm>:<threshold> value. Recognized values for <algorithm> are a subset of recursive,gfp_plain,flint,cantor,gf2x_plain. Thresholds are integers corresponding to the input size of E\n");
     }/*}}}*/
     static void lookup_parameters(cxx_param_list & pl) {/*{{{*/

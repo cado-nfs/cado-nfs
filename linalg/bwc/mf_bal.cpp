@@ -236,16 +236,16 @@ static void read_mfile_header(balancing & bal, std::string const & mfile, int wi
 
 void mf_bal_decl_usage(cxx_param_list & pl)
 {
-   param_list_decl_usage(pl, "mfile", "matrix file (can also be given freeform)");
-   param_list_decl_usage(pl, "rwfile", "row weight file (defaults to <mfile>.rw)");
-   param_list_decl_usage(pl, "cwfile", "col weight file (defaults to <mfile>.cw)");
-   param_list_decl_usage(pl, "out", "output file name (defaults to stdout)");
-   param_list_decl_usage(pl, "quiet", "be quiet");
-   param_list_decl_usage(pl, "rectangular", "accept rectangular matrices (for block Lanczos)");
-   param_list_decl_usage(pl, "withcoeffs", "expect a matrix with explicit coefficients (not just 1s)");
-   param_list_decl_usage(pl, "rowperm", "permute rows in priority (defaults to auto)");
-   param_list_decl_usage(pl, "colperm", "permute columns in priority (defaults to auto)");
-   param_list_decl_usage(pl, "skip_decorrelating_permutation", "solve for the matrix M instead of the matrix P*M with P a fixed stirring matrix");
+   pl.declare_usage("mfile", "matrix file (can also be given freeform)");
+   pl.declare_usage("rwfile", "row weight file (defaults to <mfile>.rw)");
+   pl.declare_usage("cwfile", "col weight file (defaults to <mfile>.cw)");
+   pl.declare_usage("out", "output file name (defaults to stdout)");
+   pl.declare_usage("quiet", "be quiet");
+   pl.declare_usage("rectangular", "accept rectangular matrices (for block Lanczos)");
+   pl.declare_usage("withcoeffs", "expect a matrix with explicit coefficients (not just 1s)");
+   pl.declare_usage("rowperm", "permute rows in priority (defaults to auto)");
+   pl.declare_usage("colperm", "permute columns in priority (defaults to auto)");
+   pl.declare_usage("skip_decorrelating_permutation", "solve for the matrix M instead of the matrix P*M with P a fixed stirring matrix");
 }
 
 void mf_bal_configure_switches(cxx_param_list & pl, struct mf_bal_args * mba)

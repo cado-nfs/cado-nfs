@@ -106,13 +106,13 @@ void logline_unserialize(double tt)
 
 void logline_decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "logline_threshold",
+    pl.declare_usage("logline_threshold",
             "print log lines of verbosity level i only for sizes greater than i-th item in this comma-separated list");
-    param_list_decl_usage(pl, "logline_timings",
+    pl.declare_usage("logline_timings",
             "print timings with log lines");
-    param_list_decl_usage(pl, "logline_report_wct",
+    pl.declare_usage("logline_report_wct",
             "print wct taken by each step marked by log lines");
-    param_list_decl_usage(pl, "logline_print_all_mpi_nodes",
+    pl.declare_usage("logline_print_all_mpi_nodes",
             "enable logline printing on all MPI nodes");
 
 }
