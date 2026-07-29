@@ -2536,7 +2536,7 @@ int main(int argc, char const ** argv)
 
     // printf("# [%2.2lf] A is f_d^%zu*f_hat'(alpha_hat)*prod(f_d a - b alpha_hat)\n", WCT, nab + (nab &1));
 
-    ab_source_init(glob.ab, pl.lookup("depfile").c_str(),
+    ab_source_init(glob.ab, pl.has("depfile")->c_str(),
             glob.rank, 0, MPI_COMM_WORLD);
 
     // note that for rsa768, this estimation takes only 10 minutes, so
