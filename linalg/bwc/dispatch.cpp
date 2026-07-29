@@ -143,8 +143,8 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
 
     unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
-    const char * sanity_check_vector = param_list_lookup_string(pl, "sanity_check_vector");
-    int const only_export = param_list_lookup_string(pl, "export_cachelist") != nullptr;
+    const char * sanity_check_vector = pl.lookup_old("sanity_check_vector");
+    bool const only_export = pl.has("export_cachelist");
 
     // in no situation shall we try to do our sanity check if we've just
     // been told to export our cache list. Note also that this sanity
@@ -275,7 +275,7 @@ int main(int argc, char const * argv[])
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters: none here (so far). */
 
-    ASSERT_ALWAYS(param_list_lookup_string(pl, "ys"));
+    ASSERT_ALWAYS(pl.has("ys"));
     ASSERT_ALWAYS(!pl.has("solutions"));
 
     if (pl.warn_unused()) {
@@ -288,7 +288,7 @@ int main(int argc, char const * argv[])
     if (bw->ys[0] < 0) { fprintf(stderr, "no ys value set\n"); exit(1); }
 
     /* Forcibly disable interleaving here */
-    param_list_remove_key(pl, "interleaving");
+    pl.remove_key("interleaving");
 
     pi_go(dispatch_prog, pl, 0);
 

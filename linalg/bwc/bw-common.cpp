@@ -232,7 +232,7 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
     bw->number_of_check_stops = param_list_parse_int_list(pl, "check_stops", bw->check_stops, MAX_NUMBER_OF_CHECK_STOPS, ",");
 
     if (bw->verbose && bw->can_print)
-        param_list_display (pl, stderr);
+        pl.display_debug(stderr);
 }
 /*}}}*/
 

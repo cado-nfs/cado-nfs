@@ -1,15 +1,15 @@
 #ifndef CADO_LAS_PARALLEL_HPP
 #define CADO_LAS_PARALLEL_HPP
-// IWYU pragma: no_include <bits/exception.h>
-#include "cado_config.h"     // for HAVE_HWLOC
-#include <exception> // IWYU pragma: keep  // for exception
-#include <memory>            // for shared_ptr
-#include <string>            // for string
-#include <sstream>           // IWYU pragma: keep
-#include "macros.h"          // for GNUC_VERSION_ATMOST, MAYBE_UNUSED
-#include "params.hpp"           // for param_list_decl_usage, cxx_param_list
+
+#include "cado_config.h"
+#include <exception>
+#include <memory>
+#include <string>
+#include <sstream>
+#include "macros.h"
+#include "params.hpp"
 #ifdef HAVE_HWLOC
-#include "hwloc-aux.hpp"  // cxx_hwloc_nodeset
+#include "hwloc-aux.hpp"
 #endif
 
 class las_parallel_desc {

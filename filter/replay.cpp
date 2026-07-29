@@ -21,29 +21,30 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cinttypes>        // for PRIu64, PRIu32, PRIx64
-#include <cstdint>          // for uint64_t, uint32_t, UINT32_MAX
+#include <cinttypes>
+#include <cstdint>
 
 #include <string>
 
 #include "fmt/base.h"
 
-#include "purgedfile.h"      // for purgedfile_read_firstline
-#include "typedefs.h"        // for index_t, ideal_merge_t, index_signed_t
+#include "purgedfile.h"
+#include "typedefs.h"
 #include "filter_config.h"
-#include "filter_io.hpp"  // earlyparsed_relation_ptr
-#include "fix-endianness.h" // fwrite32_little
-#include "gzip.h"       // fopen_maybe_compressed
-#include "misc.h"       // derived_filename
-#include "params.hpp"     // param_list_parse_*
+#include "filter_io.hpp"
+#include "fix-endianness.h"
+#include "gzip.h"
+#include "misc.h"
+#include "params.hpp"
 #include "sparse.h"
-#include "stats.h"      // stats_data_t
-#include "timing.h"     // seconds
-#include "verbose.hpp"    // verbose_decl_usage
-#include "portability.h" // strdup  // IWYU pragma: keep
+#include "stats.h"
+#include "timing.h"
+#include "verbose.hpp"
+#include "portability.h"
 #include "macros.h"
 #include "merge_replay_matrix.h"
 #include "runtime_numeric_cast.hpp"

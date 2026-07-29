@@ -59,7 +59,7 @@
 static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
 
-    int const fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
+    int const fake = pl.has("random_matrix") || pl.has("static_random_matrix");
 
     ASSERT_ALWAYS(!pi->interleaved);
 
@@ -406,7 +406,7 @@ int main(int argc, char const * argv[])
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
 
-    param_list_remove_key(pl, "interleaving");
+    pl.remove_key("interleaving");
 
     bw_common_interpret_parameters(bw, pl);
     parallelizing_info_lookup_parameters(pl);

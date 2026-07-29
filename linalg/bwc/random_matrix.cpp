@@ -105,7 +105,7 @@ static void generic_params_process_loop(cxx_param_list & pl,
 
     int t_argc = argv.size();
     const char ** t_argv = argv.data();
-    param_list_process_command_line(pl, &t_argc, &t_argv, false);
+    pl.process_command_line(t_argc, t_argv, false);
 }
 /* }}} */
 

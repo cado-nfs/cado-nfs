@@ -1394,8 +1394,8 @@ index_t renumber_t::build(bool for_dl, hook * f)
 
 index_t renumber_t::build(cxx_param_list & pl, bool for_dl, hook * f)
 {
-    const char * renumberfilename = param_list_lookup_string(pl, "renumber");
-    const char * format_string = param_list_lookup_string(pl, "renumber_format");
+    const char * renumberfilename = pl.lookup_old("renumber");
+    const char * format_string = pl.lookup_old("renumber_format");
 
     if (format_string == nullptr) {
         set_format(format_flat);

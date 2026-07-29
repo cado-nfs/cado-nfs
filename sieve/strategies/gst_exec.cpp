@@ -317,11 +317,7 @@ int main(int argc, char const * argv[])
                 int const lim_is_prime = 2 * fbb0 - 1;
                 tabular_decomp tab_decomp;
                 if (r0 >= lim_is_prime) {
-                    char const * name_file_decomp;
-                    if ((name_file_decomp = param_list_lookup_string(
-                             pl, "decomp")) == nullptr)
-                        pl.fail("Error: parameter -decomp is mandatory\n");
-                    std::ifstream is(name_file_decomp);
+                    std::ifstream is(pl.parse_mandatory<std::string>("decomp"));
                     is >> tab_decomp;
                     if (is.fail())
                         ASSERT_ALWAYS(0);

@@ -310,7 +310,7 @@ int main(int argc, char const * argv[])
     pl.configure_switch("--withcoeffs");
 
     for(;argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) continue;
+        if (pl.update_cmdline(argc, argv)) continue;
         if (argv[0][0] != '-' && wild == 0) {
             mfile = argv[0];
             wild++;

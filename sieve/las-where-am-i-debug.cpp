@@ -104,7 +104,7 @@ void where_am_I::interpret_parameters(cxx_param_list & pl)
 
 #ifdef SUPPORT_LARGE_Q
     std::pair<cxx_mpz, cxx_mpz> r;
-    have_trace_ab = param_list_parse(pl, "traceab", r);
+    have_trace_ab = pl.parse("traceab", r);
     if (have_trace_ab) {
         ab.a = r.first;
         ab.b = r.second;

@@ -147,8 +147,7 @@ struct check_data {
 
 static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
-    int fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
-    fake = fake || param_list_lookup_string(pl, "static_random_matrix") != nullptr;
+    int fake = pl.has("random_matrix") || pl.has("static_random_matrix");
     if (fake) bw->skip_online_checks = 1;
     int const tcan_print = bw->can_print && pi->m->trank == 0;
     struct timing_data timing[1];
@@ -372,7 +371,7 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
     A->free(xymats);
 
     int want_full_report = 0;
-    param_list_parse_int(pl, "full_report", &want_full_report);
+    pl.parse("full_report", want_full_report);
     matmul_top_report(mmt, 1.0, want_full_report);
 
     return nullptr;
@@ -400,7 +399,7 @@ int main(int argc, char const * argv[])
     /* interpret our parameters */
     if (bw->ys[0] < 0) { fmt::print(stderr, "no ys value set\n"); exit(1); }
 
-    ASSERT_ALWAYS(param_list_lookup_string(pl, "ys"));
+    ASSERT_ALWAYS(pl.has("ys"));
     ASSERT_ALWAYS(!pl.has("solutions"));
 
     if (pl.warn_unused()) {

@@ -69,9 +69,9 @@ void lingen_checkpoint<is_binary>::lookup_parameters(cxx_param_list & pl)
 template<bool is_binary>
 void lingen_checkpoint<is_binary>::interpret_parameters(cxx_param_list & pl)
 {
-    param_list_parse(pl, "checkpoint-directory", default_directory);
-    param_list_parse(pl, "checkpoint-threshold", threshold);
-    param_list_parse(pl, "lingen_checkpoint_save_gathered", save_gathered);
+    pl.parse("checkpoint-directory", default_directory);
+    pl.parse("checkpoint-threshold", threshold);
+    pl.parse("lingen_checkpoint_save_gathered", save_gathered);
 
 
     int rank;

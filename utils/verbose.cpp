@@ -89,7 +89,7 @@ void verbose_interpret_parameters(cxx_param_list & pl)
         }
     }
 
-    const char * v = param_list_lookup_string(pl, "verbose_flags");
+    const char * v = pl.lookup_old("verbose_flags");
     if (!v) return;
 
     char * w = strdup(v);

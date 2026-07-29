@@ -480,7 +480,6 @@ main (int argc, char const *argv[])
   int maxbits = 1;  // disable powers by default
   int side = -1;
   unsigned long lim = ULONG_MAX;
-  char const *argv0 = argv[0];
   unsigned long nb_threads = 1;
 
   declare_usage(pl);

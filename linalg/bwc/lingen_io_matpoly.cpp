@@ -50,7 +50,7 @@ void lingen_io_matpoly<is_binary>::lookup_parameters(cxx_param_list & pl)
 template<bool is_binary>
 void lingen_io_matpoly<is_binary>::interpret_parameters(cxx_param_list & pl)
 {
-    param_list_parse_uint(pl, "io-block-size", &block_size);
+    pl.parse("io-block-size", block_size);
 }
 
 /* {{{ matpoly_write

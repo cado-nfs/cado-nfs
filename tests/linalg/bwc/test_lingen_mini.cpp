@@ -126,8 +126,6 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
     cxx_param_list pl2;
 
-    char const * argv0 = argv[0];
-
     declare_usage(pl);
     lingen_tuning_decl_usage(pl);
     lingen_checkpoint<is_binary>::decl_usage(pl);
@@ -137,9 +135,8 @@ int main(int argc, char const * argv[])
     std::vector<std::string> E_files;
 
     for (argc--, argv++; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
+        if (pl.update_cmdline(argc, argv))
             continue;
-        }
 
         if (has_suffix(argv[0], ".aux")) {
             E_files.emplace_back(argv[0]);

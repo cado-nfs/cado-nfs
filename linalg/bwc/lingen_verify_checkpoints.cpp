@@ -692,9 +692,8 @@ int main(int argc, char const * argv[])
 
     pl.configure_switch("-v");
     for (argc--, argv++; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
+        if (pl.update_cmdline(argc, argv))
             continue;
-        }
         if (strcmp(argv[0], "--") == 0) {
             argc--, argv++;
             if (argc == 2 || argc == 3) {

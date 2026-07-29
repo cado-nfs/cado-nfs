@@ -48,7 +48,7 @@ static void bw_rank_check(matmul_top_data & mmt, cxx_param_list & pl)
                r);
     }
     int skip = 0;
-    param_list_parse_int(pl, "skip_bw_early_rank_check", &skip);
+    pl.parse("skip_bw_early_rank_check", skip);
     if (bw->m + r < mmt.n0[0]) {
         fmt::print(
             stderr,
@@ -340,7 +340,7 @@ struct prep_object {
 
         /* First create all RHS vectors -- these are just splits of the big
          * RHS block. Those files get created together. */
-        char const * rhs_name = param_list_lookup_string(pl, "rhs");
+        char const * rhs_name = pl.lookup_old("rhs");
 
         if (!rhs_name)
             return 0;
@@ -739,7 +739,7 @@ int main(int argc, char const * argv[])
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
 
     /* This program does not support interleaving */
-    param_list_remove_key(pl, "interleaving");
+    pl.remove_key("interleaving");
 
     bw_common_interpret_parameters(bw, pl);
     parallelizing_info_lookup_parameters(pl);

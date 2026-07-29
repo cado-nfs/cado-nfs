@@ -34,9 +34,9 @@ int main(int argc, char const * argv[])
 
     pl.process_command_line(argc, argv, false);
 
-    param_list_parse(pl, "p0", p0);
-    param_list_parse(pl, "p1", p1);
-    param_list_parse(pl, "n", n);
+    pl.parse("p0", p0);
+    pl.parse("p1", p1);
+    pl.parse("n", n);
 
     if (pl.warn_unused())
         pl.fail("Unused parameters are given");

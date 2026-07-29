@@ -68,7 +68,7 @@ static void test_cado_poly_sanitychecks_static()
     cxx_param_list pl;
     const char ** t_argv = argv;
     int t_argc = argc;
-    param_list_process_command_line(pl, &t_argc, &t_argv, false);
+    pl.process_command_line(t_argc, t_argv, false);
     cxx_cado_poly cpoly(cxx_cado_poly::plist {}, pl);
     cxx_mpz_poly G;
     int const ret = cpoly.check_mapping(G, cpoly.n);
@@ -80,7 +80,7 @@ static void test_cado_poly_sanitycheck_file(const char * file)
     FILE * f = fopen(file, "r");
     ASSERT_ALWAYS(f);
     cxx_param_list pl;
-    param_list_read_stream(pl, f, false);
+    pl.read(f, false);
     cxx_cado_poly cpoly(cxx_cado_poly::plist {}, pl);
     cxx_mpz_poly G;
     int const ret = cpoly.check_mapping(G, cpoly.n);

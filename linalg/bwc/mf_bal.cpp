@@ -247,7 +247,7 @@ void mf_bal_decl_usage(cxx_param_list & pl)
    pl.declare_usage("skip_decorrelating_permutation", "solve for the matrix M instead of the matrix P*M with P a fixed stirring matrix");
 }
 
-void mf_bal_configure_switches(cxx_param_list & pl, struct mf_bal_args * mba)
+void mf_bal_configure_switches(cxx_param_list & pl)
 {
     pl.configure_switch("--quiet");
     // pl.configure_switch("--display-correlation");
@@ -262,7 +262,7 @@ void mf_bal_parse_cmdline(struct mf_bal_args * mba, cxx_param_list & pl, int * p
     (*p_argv)++,(*p_argc)--;
     for(;(*p_argc);) {
         const char * q;
-        if (param_list_update_cmdline(pl, p_argc, p_argv)) continue;
+        if (pl.update_cmdline(*p_argc, *p_argv)) continue;
 
         if ((*p_argv)[0][0] != '-' && wild == 0 && (q = strchr((*p_argv)[0],'x')) != NULL) {
             mba->nh = atoi((*p_argv)[0]);
@@ -364,7 +364,7 @@ void mf_bal_adjust_from_option_string(struct mf_bal_args * mba, const char * opt
     cxx_param_list pl2;
 
     mf_bal_decl_usage(pl2);
-    mf_bal_configure_switches(pl2, mba);
+    mf_bal_configure_switches(pl2);
     mf_bal_parse_cmdline(mba, pl2, &n_argc, &n_argv);
     mf_bal_interpret_parameters(mba, pl2);
 }

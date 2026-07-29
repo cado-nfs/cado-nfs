@@ -199,13 +199,13 @@ int main(int argc, char const * argv[])
     gmp_randseed_ui(rstate, seed);
 
     std::vector<int> sides;
-    if (!param_list_parse(pl, "norm-sides", sides)) {
+    if (!pl.parse("norm-sides", sides)) {
         for(int side = 0 ; side < cpoly.nsides() ; side++)
             sides.push_back(side);
     }
 
     std::vector<std::string> impls;
-    if (!param_list_parse(pl, "norm-impls", impls)) {
+    if (!pl.parse("norm-impls", impls)) {
         impls.emplace_back("reference");
         impls.emplace_back("smart");
     }

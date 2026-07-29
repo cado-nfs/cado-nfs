@@ -1,7 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstdio>
-#include <cstring>
 
 #include "mf_bal.hpp"
 #include "params.hpp"
@@ -27,10 +26,10 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
 
     mf_bal_decl_usage(pl);
-    mf_bal_configure_switches(pl, &mba);
+    mf_bal_configure_switches(pl);
     mf_bal_parse_cmdline(&mba, pl, &argc, &argv);
     mf_bal_interpret_parameters(&mba, pl);
-    param_list_print_command_line (stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
     mf_bal(&mba);

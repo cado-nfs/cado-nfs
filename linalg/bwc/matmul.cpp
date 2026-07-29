@@ -137,7 +137,7 @@ std::shared_ptr<matmul_interface> matmul_interface::create(arith_generic * x,
         int optimized_direction)
 {
     if (impl.empty()) {
-        const char * tmp = param_list_lookup_string(pl, "mm_impl");
+        const char * tmp = pl.lookup_old("mm_impl");
 
         if (tmp) return create(x, nr, nc, locfile, tmp, pl, optimized_direction);
 
@@ -153,7 +153,7 @@ std::shared_ptr<matmul_interface> matmul_interface::create(arith_generic * x,
     stem.dim[0] = nr;
     stem.dim[1] = nc;
     stem.locfile = locfile;
-    param_list_parse(pl, "no_save_cache", stem.no_save_cache);
+    pl.parse("no_save_cache", stem.no_save_cache);
 
     std::shared_ptr<matmul_interface> mm;
 
@@ -215,7 +215,7 @@ std::shared_ptr<matmul_interface> matmul_interface::create(arith_generic * x,
                 mm->store_transposed ? "T" : "");
     }
 
-    const char * local_cache_copy_dir = param_list_lookup_string(pl, "local_cache_copy_dir");
+    const char * local_cache_copy_dir = pl.lookup_old("local_cache_copy_dir");
     if (local_cache_copy_dir && !mm->cachefile_name.empty()) {
         struct stat sbuf[1];
         int const rc = stat(local_cache_copy_dir, sbuf);

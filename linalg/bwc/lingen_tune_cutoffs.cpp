@@ -1268,8 +1268,8 @@ void lingen_tune_cutoffs(bw_dimensions<is_binary> & d, MPI_Comm comm MAYBE_UNUSE
     setvbuf(stdout, nullptr, _IONBF, 0);
     setvbuf(stderr, nullptr, _IONBF, 0);
 
-    param_list_parse(pl, "B", bench_atleast_uptothis);
-    param_list_parse(pl, "catchsig", catchsig);
+    pl.parse("B", bench_atleast_uptothis);
+    pl.parse("catchsig", catchsig);
 
     typename matpoly<is_binary>::arith_hard * ab = & d.ab;
     unsigned int const m = d.m;

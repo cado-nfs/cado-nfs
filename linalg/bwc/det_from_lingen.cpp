@@ -284,7 +284,7 @@ int main(int argc, char const * argv[])
 
     /* {{{ interpret our parameters */
     std::string ffile;
-    param_list_parse(pl, "ffile", ffile);
+    pl.parse("ffile", ffile);
     if (ffile.empty()) {
         fmt::print(stderr, "Error, -ffile must be a nonempty string\n");
         pl.print_usage(stderr);
@@ -292,7 +292,7 @@ int main(int argc, char const * argv[])
     }
 
     unsigned int charpoly_deg = UINT_MAX;
-    param_list_parse(pl, "charpoly-degree", charpoly_deg);
+    pl.parse("charpoly-degree", charpoly_deg);
     if (charpoly_deg == UINT_MAX) {
         fmt::print(stderr, "Error, -charpoly-degree must be specified\n");
         pl.print_usage(stderr);

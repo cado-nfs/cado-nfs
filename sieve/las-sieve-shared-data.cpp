@@ -44,7 +44,7 @@ sieve_shared_data::side_data::side_data(int side,
                                         cxx_param_list& pl,
                                         int nthreads)
   : f(cpoly[side])
-  , fb(cpoly, side, pl, param_list_lookup_string(pl, "fbc"), nthreads)
+  , fb(cpoly, side, pl, pl.lookup_old("fbc"), nthreads)
 {}
 
 
@@ -62,7 +62,7 @@ sieve_shared_data::sieve_shared_data( /*{{{*/
         cxx_param_list & pl)
     : cpoly(cpoly)
     , sides{(size_t) cpoly.nsides()}
-    , cofactfilename { param_list_lookup_string (pl, "file-cofact") }
+    , cofactfilename { pl.lookup_old("file-cofact") }
 {
 }
 void sieve_shared_data::load_factor_base(cxx_param_list & pl, int nthreads) /*{{{*/

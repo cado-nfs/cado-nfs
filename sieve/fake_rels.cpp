@@ -502,7 +502,6 @@ int main(int argc, char const * argv[])
   cxx_param_list pl;
   cxx_cado_poly cpoly;
   int sqside = -1;
-  const char *argv0 = argv[0];
   int lpb[2] = {0, 0};
   uint64_t q0 = 0;
   uint64_t q1 = 0;
@@ -525,7 +524,7 @@ int main(int argc, char const * argv[])
       /* Could also be a file */
       FILE *f;
       if ((f = fopen(argv[0], "r")) != nullptr) {
-          param_list_read_stream(pl, f, 0);
+          pl.read(f, false);
           fclose(f);
           argv++,argc--;
           continue;

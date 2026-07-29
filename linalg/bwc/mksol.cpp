@@ -33,7 +33,7 @@
 
 static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
-    int const fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
+    int const fake = pl.has("random_matrix") || pl.has("static_random_matrix");
     if (fake) bw->skip_online_checks = 1;
     int const tcan_print = bw->can_print && pi->m->trank == 0;
     struct timing_data timing[1];
@@ -534,7 +534,7 @@ int main(int argc, char const * argv[])
     /* interpret our parameters: none here (so far). */
 
     ASSERT_ALWAYS(!pl.has("ys"));
-    ASSERT_ALWAYS(param_list_lookup_string(pl, "solutions"));
+    ASSERT_ALWAYS(pl.has("solutions"));
 
     if (pl.warn_unused()) {
         int rank;

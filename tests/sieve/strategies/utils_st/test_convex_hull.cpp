@@ -72,7 +72,7 @@ int main(int argc, char const * argv[])
     pl.process_command_line(argc, argv, false);
 
     /* print command-line arguments */
-    param_list_print_command_line (stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
 

@@ -39,22 +39,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #include "cado_poly.hpp"
 #include "fstream_maybe_compressed.hpp"
-#include "macros.h"
 #include "mpz_poly.h"
 #include "omp_proxy.h"
 #include "params.hpp"
 #include "renumber.hpp"
 #include "typedefs.h"
 #include "verbose.hpp"
-
-static char const * argv0;
-
-static void
-usage(cxx_param_list & pl, char const * argv0)
-{
-    pl.print_usage(stderr);
-    exit(EXIT_FAILURE);
-}
 
 struct freerel_data_t : public renumber_t::hook {
     ofstream_maybe_compressed sink;
@@ -147,13 +137,11 @@ declare_usage(cxx_param_list & pl)
     pl.declare_usage("poly", "input polynomial file");
     pl.declare_usage("lpb0", "large primes bound on side 0");
     pl.declare_usage("lpb1", "large primes bound on side 1");
-    param_list_decl_usage(pl,
-                          "lpbs",
+    pl.declare_usage("lpbs",
                           "large primes bounds (comma-separated list) "
                           "(for MNFS)");
     pl.declare_usage("t", "number of threads");
-    param_list_decl_usage(pl,
-                          "dl",
+    pl.declare_usage("dl",
                           "Add ideals for the leading "
                           "coeffs of the polynomials (for DL)");
 
@@ -163,7 +151,6 @@ declare_usage(cxx_param_list & pl)
 int
 main(int argc, char const * argv[])
 {
-    argv0 = argv[0];
     cxx_param_list pl;
     cxx_cado_poly cpoly;
     int for_dl = 0;
@@ -175,22 +162,8 @@ main(int argc, char const * argv[])
     renumber_t::builder_declare_usage(pl);
     pl.configure_switch_old("dl", &for_dl);
 
-    argv++, argc--;
-    if (argc == 0)
-        usage(pl, argv0);
-    for (; argc;) {
-        if (pl.update_cmdline(argc, argv))
-            continue;
-        FILE* f;
-        if ((f = fopen(argv[0], "r")) != nullptr) {
-            param_list_read_stream(pl, f, 0);
-            fclose(f);
-            argv++, argc--;
-            continue;
-        }
-        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        usage(pl, argv0);
-    }
+    pl.process_command_line(argc, argv);
+
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
     pl.print_command_line(stdout);
@@ -215,27 +188,22 @@ main(int argc, char const * argv[])
 
 
     if (pl.warn_unused())
-        usage(pl, argv0);
+        pl.fail("Not all arguments were parsed");
 
     if (polyfilename == nullptr) {
-        fmt::print(stderr, "Error, missing -poly command line argument\n");
-        usage(pl, argv0);
+        pl.fail("Error, missing -poly command line argument\n");
     }
     if (!pl.has("renumber")) {
-        fmt::print(stderr, "Error, missing -renumber command line argument\n");
-        usage(pl, argv0);
+        pl.fail("Error, missing -renumber command line argument\n");
     }
     if (!cpoly.read(polyfilename)) {
-        fmt::print(stderr, "Error reading polynomial file\n");
-        exit(EXIT_FAILURE);
+        pl.fail("Error reading polynomial file\n");
     }
 
     std::vector<unsigned int> lpb(cpoly.nsides(), 0);
 
     if (!pl.parse_per_side("lpb", lpb, cpoly.nsides(), cado::params::copy_previous_side())) {
-        fmt::print(stderr,
-                "Error, could not obtain values for the lpb bounds (or not for all polynomials)\n");
-        usage(pl, argv0);
+        pl.fail("Error, could not obtain values for the lpb bounds (or not for all polynomials)\n");
     }
 
     /* }}} */

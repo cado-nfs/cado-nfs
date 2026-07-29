@@ -1470,11 +1470,12 @@ int main (int argc0, char const * argv0[])/*{{{*/
 
     argv++, argc--;
     for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
+        if (pl.update_cmdline(argc, argv))
+            continue;
         /* Could also be a file */
         FILE * f = fopen(argv[0], "r");
         if (f) {
-            param_list_read_stream(pl, f, 0);
+            pl.read(f, false);
             fclose(f);
             argv++,argc--;
             continue;

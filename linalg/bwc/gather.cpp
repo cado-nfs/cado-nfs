@@ -1073,7 +1073,7 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
         return nullptr;
     }
 
-    rhs R(mmt, param_list_lookup_string(pl, "rhs"), sol_range);
+    rhs R(mmt, pl.lookup_old("rhs"), sol_range);
 
     if (tcan_print)
         fmt::print("Trying to build solutions {}..{}\n", sol_range[0], sol_range[1]);
@@ -1361,7 +1361,7 @@ int main(int argc, char const * argv[])
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
 
-    param_list_remove_key(pl, "interleaving");
+    pl.remove_key("interleaving");
 
     bw_common_interpret_parameters(bw, pl);
     parallelizing_info_lookup_parameters(pl);
@@ -1369,7 +1369,7 @@ int main(int argc, char const * argv[])
     /* interpret our parameters */
 
     ASSERT_ALWAYS(!pl.has("ys"));
-    ASSERT_ALWAYS(param_list_lookup_string(pl, "solutions"));
+    ASSERT_ALWAYS(pl.has("solutions"));
 
     pl.lookup("rhs");
     pl.lookup("rhscoeffs");

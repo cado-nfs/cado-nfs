@@ -37,8 +37,8 @@ cxx_cado_poly::cxx_cado_poly(cxx_cado_poly::plist const &, cxx_param_list & pl)
         if (!pl.has(tag))
             break;
         /* sure, we could probably use the result of the string lookup.
-         * Well, that's not how param_list_parse_mpz_poly works.
-         * Note that param_list_parse_mpz_poly in itself supports two
+         * Well, that's not how param_list::parse<cxx_mpz_poly> works.
+         * Note that param_list::parse<cxx_mpz_poly> in itself supports two
          * distinct formats: comma-separated lists of coefficients, or
          * algebraic expressions.
          */
