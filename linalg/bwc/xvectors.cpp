@@ -20,7 +20,7 @@
 
 std::vector<uint32_t>
 setup_x_random(unsigned int m, unsigned int nx, unsigned int nr,
-               parallelizing_info_ptr pi, cxx_gmp_randstate & rstate,
+               parallelizing_info & pi, cxx_gmp_randstate & rstate,
                std::vector<unsigned int> const & forced)
 {
     std::vector<uint32_t> xs(nx * m);
@@ -39,7 +39,7 @@ setup_x_random(unsigned int m, unsigned int nx, unsigned int nr,
      * converge to a commmon point of view on the data.
      */
     // job 0 thread 0 decides for everybody.
-    if (pi->m->trank == 0 && pi->m->jrank == 0) {
+    if (pi.m.trank == 0 && pi.m.jrank == 0) {
         /* Some parts here deserve a comment. First, we want to make sure
          * that none of the m vectors that we generate has duplicate
          * non-zero positions (see below).
@@ -79,29 +79,29 @@ setup_x_random(unsigned int m, unsigned int nx, unsigned int nr,
             }
         }
     }
-    pi_bcast(xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
+    pi.m.bcast(xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, 0, 0);
 
     return xs;
 }
 
 std::vector<uint32_t> load_x(unsigned int m, unsigned int & nx,
-                                   parallelizing_info_ptr pi)
+                                   parallelizing_info & pi)
 {
     std::ifstream is;
 
     /* pretty much the same deal as above */
-    if (pi->m->trank == 0 && pi->m->jrank == 0) {
+    if (pi.m.trank == 0 && pi.m.jrank == 0) {
         is.open("X");
         FATAL_ERROR_CHECK(!is, "Cannot open X for reading");
         is >> nx;
         FATAL_ERROR_CHECK(!is, "short read in file X");
     }
-    pi_bcast(&nx, 1, BWC_PI_UNSIGNED, 0, 0, pi->m);
+    pi.m.bcast(&nx, 1, BWC_PI_UNSIGNED, 0, 0);
 #ifdef __COVERITY__
     __coverity_mark_pointee_as_sanitized__(pnx, LOOP_BOUND);
 #endif
     std::vector<uint32_t> xs(nx * m);
-    if (pi->m->trank == 0 && pi->m->jrank == 0) {
+    if (pi.m.trank == 0 && pi.m.jrank == 0) {
         for (unsigned int i = 0, k = 0; i < m; i++) {
             for (unsigned int j = 0; j < nx; j++, k++) {
                 is >> xs[k];
@@ -115,37 +115,38 @@ std::vector<uint32_t> load_x(unsigned int m, unsigned int & nx,
             }
         }
     }
-    pi_bcast(xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
+    pi.m.bcast(xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, 0, 0);
 
     return xs;
 }
 
 std::vector<uint32_t> set_x_fake(unsigned int m, unsigned int & nx,
-                                       parallelizing_info_ptr pi)
+                                       parallelizing_info & pi)
 {
     /* Don't bother. */
     nx = 3;
     std::vector<uint32_t> xs(nx * m);
     for (unsigned int i = 0; i < nx * m; i++)
         xs[i] = i;
-    serialize(pi->m);
+    serialize(pi.m);
     return xs;
 }
 
 void save_x(std::vector<uint32_t> const & xs, unsigned int m, unsigned int nx,
-            parallelizing_info_ptr pi)
+            parallelizing_info & pi)
 {
     /* Here, we expect that the data is already available to everybody, so
      * no synchronization is necessary.
      */
-    if (pi->m->trank == 0 && pi->m->jrank == 0) {
-        ASSERT_ALWAYS(xs.size() == m * nx);
-        // write the X vector
-        std::ofstream fx("X");
-        FATAL_ERROR_CHECK(!fx, "Cannot open X for writing");
-        fx << nx << "\n";
-        for (unsigned int i = 0; i < m; i++) {
-            fx << join(xs.data() + i * nx, xs.data() + (i + 1) * nx, " ") << "\n";
+    if (pi.m.trank == 0 && pi.m.jrank == 0) {
+        std::ofstream os("X");
+        FATAL_ERROR_CHECK(!os, "Cannot open X for writing");
+        os << nx << "\n";
+        for (unsigned int i = 0, k = 0; i < m; i++) {
+            for (unsigned int j = 0; j < nx; j++, k++) {
+                os << xs[k] << " ";
+            }
+            os << "\n";
         }
     }
 }

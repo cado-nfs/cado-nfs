@@ -46,11 +46,11 @@
 
 static int exitcode = 0;
 
-static std::vector<bwc_iteration_range> prelude(parallelizing_info_ptr pi)/*{{{*/
+static std::vector<bwc_iteration_range> prelude(parallelizing_info & pi)/*{{{*/
 {
-    int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
+    int const leader = pi.m.jrank == 0 && pi.m.trank == 0;
     std::vector<bwc_iteration_range> iteration_ranges;
-    serialize_threads(pi->m);
+    serialize_threads(pi.m);
 
     if (leader) {
         std::map<bwc_iteration_range, std::vector<bwc_S_file>> by_iter;
@@ -112,15 +112,14 @@ static std::vector<bwc_iteration_range> prelude(parallelizing_info_ptr pi)/*{{{*
         }
     }
 
-    serialize(pi->m);
+    serialize(pi.m);
     unsigned long s = iteration_ranges.size();
-    pi_bcast(&s, 1, BWC_PI_UNSIGNED_LONG, 0, 0, pi->m);
+    pi.m.bcast(&s, 1, BWC_PI_UNSIGNED_LONG, 0, 0);
     if (!leader)
         iteration_ranges.assign(s, {});
-    pi_bcast(iteration_ranges.data(),
-            s * sizeof(decltype(iteration_ranges)::value_type), BWC_PI_BYTE,
-            0, 0, pi->m);
-    serialize(pi->m);
+    pi.m.bcast(iteration_ranges.data(),
+            s * sizeof(bwc_iteration_range), BWC_PI_BYTE, 0, 0);
+    serialize(pi.m);
     return iteration_ranges;
 }/*}}}*/
 
@@ -142,11 +141,11 @@ static void fprint_signed(FILE * f, arith_generic * A, arith_generic::elt const 
 static std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, unsigned int maxidx, int want_nonzero)/*{{{*/
 {
     arith_generic * A = y.abase;
-    parallelizing_info_ptr pi = y.pi;
+    parallelizing_info & pi = *y.pi;
 
     std::vector<unsigned int> myz;
 
-    if (pi->wr[y.d]->trank == 0 && pi->wr[y.d]->jrank == 0) {
+    if (pi.wr[y.d].trank == 0 && pi.wr[y.d].jrank == 0) {
         for(unsigned int i = 0 ; i < maxidx ; i++) {
             if (y.i0 <= i && i < y.i1) {
                 if (!!want_nonzero == !A->is_zero(A->vec_item(y.v, i - y.i0))) {
@@ -156,7 +155,7 @@ static std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, 
         }
 
         /* in fact, a single gather at node 0 thread 0 would do */
-        parallelizing_info_experimental::allgather(myz, pi->wr[!y.d]);
+        parallelizing_info_experimental::allgather(myz, pi.wr[!y.d]);
     }
 
     parallelizing_info_experimental::broadcast(myz, pi);    /* And broadcast that to everyone as well. */
@@ -176,8 +175,8 @@ static std::vector<unsigned int> indices_of_nonzero_values(mmt_vec & y, unsigned
 
 static std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{*/
 {
-    parallelizing_info_ptr pi = mmt.pi;
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    parallelizing_info & pi = mmt.pi;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
 
     std::vector<unsigned int> allz;
 
@@ -310,9 +309,9 @@ struct rhs /*{{{*/ {
     {
         if (!rhs_name) return;
 
-        parallelizing_info_ptr pi = mmt.pi;
-        int const tcan_print = bw->can_print && pi->m->trank == 0;
-        int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
+        parallelizing_info & pi = mmt.pi;
+        int const tcan_print = bw->can_print && pi.m.trank == 0;
+        int const leader = pi.m.jrank == 0 && pi.m.trank == 0;
 
         /* This is just for a check -- in truth, it might be that the
          * code here works correctly for inhomogeneous characteristic 2,
@@ -411,7 +410,7 @@ struct rhs /*{{{*/ {
     {
         if (!nrhs) return;
 
-        parallelizing_info_ptr pi = mmt.pi;
+        parallelizing_info & pi = mmt.pi;
         arith_generic * A = mmt.abase;
         ASSERT_ALWAYS(y.abase == A);
         unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
@@ -492,7 +491,7 @@ static std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int max
 static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vector_pair & ymy, rhs const & R)
 {
     arith_generic * A = mmt.abase;
-    parallelizing_info_ptr pi = mmt.pi;
+    parallelizing_info & pi = mmt.pi;
 
     mmt_vec & y = ymy[0];
 
@@ -501,13 +500,13 @@ static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vect
     int hamming_out = -1;
     std::tie(input_is_zero, pad_is_zero) = check_zero_and_padding(y, mmt.n0[bw->dir]);
     if (!input_is_zero) {
-        serialize(pi->m);
+        serialize(pi.m);
         mmt_vec_apply_T(mmt, y);
-        serialize(pi->m);
+        serialize(pi.m);
         mmt_vec_twist(mmt, y);
         matmul_top_mul(mmt, ymy.vectors(), nullptr);
         mmt_vec_untwist(mmt, y);
-        serialize(pi->m);
+        serialize(pi.m);
         /* Add the contributions from the right-hand side vectors, to see
          * whether that makes the sum equal to zero */
         if (R) {
@@ -522,7 +521,7 @@ static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vect
          * course, so we don't heave the same headache as above */
         int is_zero = A->vec_is_zero(
                 mmt_my_own_subvec(y), mmt_my_own_size_in_items(y));
-        pi_allreduce(nullptr, &is_zero, 1, BWC_PI_INT, BWC_PI_MIN, pi->m);
+        pi_allreduce(nullptr, &is_zero, 1, BWC_PI_INT, BWC_PI_MIN, pi.m);
 
         hamming_out = is_zero ? 0 : mmt_vec_hamming_weight(y);
     }
@@ -533,18 +532,18 @@ static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vect
  * and my */
 static std::tuple<int, int, int> expanded_test(matmul_top_data & mmt, mmt_vector_pair & ymy, mmt_vec const & y_saved, rhs const& R)
 {
-    parallelizing_info_ptr pi = mmt.pi;
+    parallelizing_info & pi = mmt.pi;
     mmt_vec & y = ymy[0];
     mmt_vec & my = ymy[ymy.size()-1];
     mmt_full_vec_set(y, y_saved);
     auto res = test_one_vector(mmt, ymy, R);
 
     /* Need to get the indices with respect to !bw->dir...  */
-    serialize(pi->m);
+    serialize(pi.m);
     mmt_apply_identity(my, y);
     mmt_vec_allreduce(my);
     mmt_vec_unapply_T(mmt, my);
-    serialize(pi->m);
+    serialize(pi.m);
     return res;
 }
 
@@ -554,7 +553,7 @@ static std::tuple<int, int, int> expanded_test(matmul_top_data & mmt, mmt_vector
 class parasite_fixer {/*{{{*/
     matmul_top_data & mmt;
     arith_generic * A;
-    parallelizing_info_ptr pi;
+    parallelizing_info & pi;
 
     // using pre_matrix_t = std::map<std::pair<unsigned int, unsigned int>, cxx_mpz>;
 
@@ -1009,12 +1008,12 @@ class parasite_fixer {/*{{{*/
     }/*}}}*/
 };/*}}}*/
 
-static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * gather_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
-    ASSERT_ALWAYS(!pi->interleaved);
+    ASSERT_ALWAYS(!pi.interleaved);
 
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
-    int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
+    int const leader = pi.m.jrank == 0 && pi.m.trank == 0;
 
     bwc_solution_range sol_range { bw->solutions[0], bw->solutions[1], };
     int const char2 = mpz_cmp_ui(bw->p, 2) == 0;

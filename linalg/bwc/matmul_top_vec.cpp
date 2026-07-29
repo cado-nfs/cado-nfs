@@ -524,7 +524,7 @@ int mmt_vec_load(mmt_vec & v, std::string const & filename_pattern, unsigned int
             fflush(stdout);
         }
         pi_file_handle f;
-        int const ok = pi_file_open(f, v.pi, v.d, filename.c_str(), "rb");
+        int const ok = pi_file_open(f, *v.pi, v.d, filename.c_str(), "rb");
         /* "ok" is globally consistent after pi_file_open */
         if (!ok) {
             if (v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
@@ -597,7 +597,7 @@ int mmt_vec_save(mmt_vec & v, std::string const & filename_pattern, unsigned int
             fflush(stdout);
         }
         pi_file_handle f;
-        int ok = pi_file_open(f, v.pi, v.d, tmpfilename.c_str(), "wb");
+        int ok = pi_file_open(f, *v.pi, v.d, tmpfilename.c_str(), "wb");
         /* "ok" is globally consistent after pi_file_open */
         if (!ok) {
             if (v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
@@ -683,8 +683,8 @@ void mmt_vec_set_random_through_file(mmt_vec & v, std::string const & filename_p
     ASSERT_ALWAYS(filename_pattern.find("{}-{}") != std::string::npos);
 
     arith_generic * A = v.abase;
-    parallelizing_info_ptr pi = v.pi;
-    int const tcan_print = v.pi->m->trank == 0 && v.pi->m->jrank == 0;
+    parallelizing_info * pi = v.pi;
+    int const tcan_print = v.pi->m.trank == 0 && v.pi->m.jrank == 0;
 
     int const char2 = v.abase->is_characteristic_two();
     int const splitwidth = char2 ? 64 : 1;

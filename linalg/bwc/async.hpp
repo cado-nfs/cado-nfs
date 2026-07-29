@@ -47,9 +47,9 @@ void timing_set_timer_items(struct timing_data * t, int i, size_t count);
 void timing_clear(struct timing_data * t);
 void timing_next_timer(struct timing_data * t);
 
-void timing_check(parallelizing_info pi, struct timing_data * t, int iter, int print);
+void timing_check(parallelizing_info & pi, struct timing_data * t, int iter, int print);
 void timing_update_ticks(struct timing_data * t, int iter);
-void timing_disp_collective_oneline(parallelizing_info pi, struct timing_data * timing, int iter, int print, const char * stage);
-void timing_final_tally(parallelizing_info pi, struct timing_data * timing, int print, const char * stage);
+void timing_disp_collective_oneline(parallelizing_info & pi, struct timing_data * timing, int iter, int print, const char * stage);
+void timing_final_tally(parallelizing_info & pi, struct timing_data * timing, int print, const char * stage);
 
 #endif	/* CADO_ASYNC_HPP */

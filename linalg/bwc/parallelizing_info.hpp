@@ -100,8 +100,8 @@ struct pthread_things {
     my_pthread_barrier_t b[1];
 
     pthread_mutex_t m[1];
-    char * desc;
-    void * utility_ptr;
+    std::string desc;
+    void * utility_ptr = nullptr;
     // int count;
 };
 /* }}} */
@@ -115,54 +115,83 @@ struct pi_log_entry {
 #define PI_LOG_BOOK_ENTRIES     32
 struct pi_log_book {
     struct pi_log_entry t[PI_LOG_BOOK_ENTRIES];
-    int hsize;  // history size -- only a count, once the things wraps.
-    int next;   // next free pointer.
+    int hsize = 0;  // history size -- only a count, once the things wraps.
+    int next = 0;   // next free pointer.
 };
 /* }}} */
 /* }}} */
 
-struct parallelizing_info_s;
+struct parallelizing_info;
 
-struct pi_comm_s;
-typedef struct pi_comm_s * pi_comm_ptr;
-typedef const struct pi_comm_s * pi_comm_srcptr;
+struct pi_datatype_s;
+using pi_datatype = pi_datatype_s;
+using pi_datatype_ptr = pi_datatype *;
 
-struct pi_comm_s { /* {{{ */
+struct pi_op_s;
+using pi_op = pi_op_s;
+using pi_op_ptr = pi_op *;
+
+struct pi_comm { /* {{{ */
     /* njobs : number of mpi jobs concerned by this logical group */
     /* ncores : number of threads concerned by this logical group */
-    unsigned int njobs;
-    unsigned int ncores;
+    unsigned int njobs = 0;
+    unsigned int ncores = 0;
 
     /* product njobs * ncores */
-    unsigned int totalsize;
-    unsigned int jrank;
-    unsigned int trank;
-    MPI_Comm pals;
+    unsigned int totalsize = 0;
+    unsigned int jrank = 0;
+    unsigned int trank = 0;
+    MPI_Comm pals = 0;
 
-    struct pthread_things * th;
+    struct pthread_things * th = nullptr;
 #ifdef  CONCURRENCY_DEBUG
-    int th_count;
+    int th_count = 0;
 #endif
-    struct pi_log_book * log_book;
+    struct pi_log_book * log_book = nullptr;
 
     /* This is the communicator in "the other direction". If this pointer
      * is not NULL, then there are exactly this->xwr->ncores such that
      * this->trank == 0
      */
-    pi_comm_ptr xwr;
+    pi_comm * xwr = nullptr;
+
+    pi_comm * operator->() { return this; }
+    const pi_comm * operator->() const { return this; }
+    operator pi_comm *() { return this; }
+    operator const pi_comm *() const { return this; }
+
+    void thread_bcast(void * sendbuf, size_t count, pi_datatype_ptr datatype, unsigned int root);
+    void thread_allreduce(void * sendbuf, void * recvbuf, size_t count, pi_datatype_ptr datatype, pi_op_ptr op);
+    int thread_data_eq(void * buffer, size_t count, pi_datatype_ptr datatype);
+
+    void bcast(void * sendbuf, size_t count, pi_datatype_ptr datatype, unsigned int jroot, unsigned int troot);
+    void allreduce(void * sendbuf, void * recvbuf, size_t count, pi_datatype_ptr datatype, pi_op_ptr op);
+    void allgather(void * sendbuf, size_t sendcount, pi_datatype_ptr sendtype, void * recvbuf, size_t recvcount, pi_datatype_ptr recvtype);
+    int data_eq(void * buffer, size_t count, pi_datatype_ptr datatype);
+
+    void abort(int err);
+    int serialize_comm(const char * file, unsigned int line);
+    int serialize_threads_comm(const char * file, unsigned int line);
+
+    void log_init();
+    void log_clear();
+    void log_print();
+
+    void * shared_malloc(size_t size);
+    void * shared_malloc_set_zero(size_t size);
+    void shared_free(void * ptr);
 };
-typedef struct pi_comm_s pi_comm[1];
-/* }}} */
+using pi_comm_ptr = pi_comm *;
+using pi_comm_srcptr = const pi_comm *;
 /* }}} */
 
 /* {{{ interleaving two pi structures. */
-struct pi_interleaving_s {
-    int idx;                    /* 0 or 1 */
-    my_pthread_barrier_t * b;   /* not a 1-sized array on purpose --
+struct pi_interleaving {
+    int idx = 0;                    /* 0 or 1 */
+    my_pthread_barrier_t * b = nullptr;   /* not a 1-sized array on purpose --
                                    being next to index, it can't ! */
 };
-typedef struct pi_interleaving_s pi_interleaving[1];
-typedef struct pi_interleaving_s * pi_interleaving_ptr;
+using pi_interleaving_ptr = pi_interleaving *;
 /* }}} */
 
 /* {{{ This arbitrary associative array is meant to be very global, even
@@ -174,28 +203,39 @@ typedef lock_guarded_container<std::map<std::pair<unsigned long, unsigned long>,
 
 /* {{{ global parallelizing_info handle */
 #define PI_NAMELEN      32
-struct parallelizing_info_s {
+struct parallelizing_info {
     // row-wise, column-wise.
     pi_comm wr[2];
     // main.
     pi_comm m;
-    pi_interleaving_ptr interleaved;
-    pi_dictionary * dict;
-    char nodename[PI_NAMELEN];
-    char nodeprefix[PI_NAMELEN];
-    char nodenumber_s[PI_NAMELEN];
+    pi_interleaving_ptr interleaved = nullptr;
+    pi_dictionary * dict = nullptr;
+    std::string nodename;
+    std::string nodeprefix;
+    std::string nodenumber;
     /* This pointer is identical on all threads. It is non-null only in
      * case we happen to have sufficiently recent gcc, together with
      * sufficiently recent hwloc */
-    void * cpubinding_info;
-    std::array<int, 2> thr_orig;/* when only_mpi is 1, this is what the
+    void * cpubinding_info = nullptr;
+    std::array<int, 2> thr_orig {{0, 0}};/* when only_mpi is 1, this is what the
                                    thr parameter was set to originally.
                                    Otherwise we have {0,0} here. */
-};
 
-typedef struct parallelizing_info_s parallelizing_info[1];
-typedef struct parallelizing_info_s * parallelizing_info_ptr;
-typedef const struct parallelizing_info_s * parallelizing_info_srcptr;
+    parallelizing_info * operator->() { return this; }
+    const parallelizing_info * operator->() const { return this; }
+    operator parallelizing_info *() { return this; }
+    operator const parallelizing_info *() const { return this; }
+
+    void hello();
+    void log_print_all() const;
+    void grid_print(char * buf, size_t siz, int print);
+    void store_generic(unsigned long k1, unsigned long k2, void * val);
+    void * load_generic(unsigned long k1, unsigned long k2);
+
+    void interleaving_flip();
+    void interleaving_enter();
+    void interleaving_leave();
+};
 /* }}} */
 
 /* {{{ collective operations and user-defined types */
@@ -206,7 +246,9 @@ struct pi_datatype_s {
     arith_generic * abase;
     size_t item_size;
 };
-typedef struct pi_datatype_s * pi_datatype_ptr;
+using pi_datatype = pi_datatype_s;
+using pi_datatype_ptr = pi_datatype *;
+
 extern pi_datatype_ptr BWC_PI_INT;
 extern pi_datatype_ptr BWC_PI_DOUBLE;
 extern pi_datatype_ptr BWC_PI_BYTE;
@@ -224,7 +266,9 @@ struct pi_op_s {
     void (*f_custom)(arith_generic::elt const *, arith_generic::elt *, size_t, pi_datatype_ptr) = NULL;
     pi_op_s(MPI_Op s) : stock(s) {}
 };
-typedef struct pi_op_s * pi_op_ptr;
+using pi_op = pi_op_s;
+using pi_op_ptr = pi_op *;
+
 extern struct pi_op_s BWC_PI_MIN[1];
 extern struct pi_op_s BWC_PI_MAX[1];
 extern struct pi_op_s BWC_PI_SUM[1];
@@ -235,29 +279,36 @@ extern struct pi_op_s BWC_PI_BOR[1];
 /* we define new datatypes in a way which diverts from the mpi calling
  * interface, because that interface is slightly awkward for our needs */
 
-extern pi_datatype_ptr pi_alloc_arith_datatype(parallelizing_info_ptr pi, arith_generic * abase);
-extern void pi_free_arith_datatype(parallelizing_info_ptr pi, pi_datatype_ptr ptr);
+extern pi_datatype_ptr pi_alloc_arith_datatype(parallelizing_info & pi, arith_generic * abase);
+extern void pi_free_arith_datatype(parallelizing_info & pi, pi_datatype_ptr ptr);
 
 /* This _only_ works if the datatype has been registered with
  * pi_alloc_arith_datatype
  */
 extern arith_generic * pi_arith_datatype_get_abase(MPI_Datatype datatype);
 
-
-
 /* }}} */
 
 /* {{{ I/O layer */
-struct pi_file_handle_s {
-    char * name;        /* just for reference. I doubt we'll need them */
-    char * mode;
-    FILE * f;   /* meaningful only at root */
-    parallelizing_info_ptr pi;
-    int inner;
-    int outer;
+struct pi_file_handle {
+    std::string name;        /* just for reference. I doubt we'll need them */
+    std::string mode;
+    FILE * f = nullptr;   /* meaningful only at root */
+    parallelizing_info * pi = nullptr;
+    int inner = 0;
+    int outer = 0;
+
+    operator pi_file_handle *() { return this; }
+    operator const pi_file_handle *() const { return this; }
+
+    int open(parallelizing_info & pi, int inner, const char * name, const char * mode);
+    int close();
+    size_t write(void * buf, size_t size, size_t sizeondisk);
+    size_t read(void * buf, size_t size, size_t sizeondisk);
+    size_t write_chunk(void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos);
+    size_t read_chunk(void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos);
 };
-typedef struct pi_file_handle_s pi_file_handle[1];
-typedef struct pi_file_handle_s * pi_file_handle_ptr;
+using pi_file_handle_ptr = pi_file_handle *;
 /* }}} */
 
 extern void parallelizing_info_init();
@@ -276,14 +327,14 @@ extern void parallelizing_info_lookup_parameters(cxx_param_list & pl);
  * nhc, nvc are the same for threads (cores).
  */
 extern void pi_go(
-        void *(&&fcn)(parallelizing_info_ptr, cxx_param_list & pl, void * arg),
+        void *(&&fcn)(parallelizing_info &, cxx_param_list & pl, void * arg),
         cxx_param_list & pl,
         void * arg);
 
-extern void pi_hello(parallelizing_info_ptr pi);
+extern void pi_hello(parallelizing_info & pi);
 
 /* I/O functions */
-extern int pi_file_open(pi_file_handle_ptr f, parallelizing_info_ptr pi, int inner, const char * name, const char * mode);
+extern int pi_file_open(pi_file_handle_ptr f, parallelizing_info & pi, int inner, const char * name, const char * mode);
 extern int pi_file_close(pi_file_handle_ptr f);
 /* sizeondisk is the size which should be on disk. It may be shorter than
  * the sum of the individual sizes, in case of padding */
@@ -336,25 +387,25 @@ extern int pi_data_eq(void * buffer,
 /* These two interfaces are experimental only */
 
 namespace parallelizing_info_experimental {
-    void broadcast(std::vector<unsigned int>& v, parallelizing_info_ptr pi);
+    void broadcast(std::vector<unsigned int>& v, parallelizing_info & pi);
     void allgather(std::vector<unsigned int>& v, pi_comm_ptr wr);
-    void broadcast(std::set<unsigned int>& v, parallelizing_info_ptr pi);
+    void broadcast(std::set<unsigned int>& v, parallelizing_info & pi);
     void allgather(std::set<unsigned int>& v, pi_comm_ptr wr);
 }
 
 /* prints the given string in a ascii-form matrix. */
-extern void grid_print(parallelizing_info_ptr pi, char * buf, size_t siz, int print);
+extern void grid_print(parallelizing_info & pi, char * buf, size_t siz, int print);
 
-#define serialize(w)   serialize__(w, __FILE__, __LINE__)
+#define serialize(w)   (w)->serialize_comm(__FILE__, __LINE__)
 extern int serialize__(pi_comm_ptr, const char *, unsigned int);
-#define serialize_threads(w)   serialize_threads__(w, __FILE__, __LINE__)
+#define serialize_threads(w)   (w)->serialize_threads_comm(__FILE__, __LINE__)
 extern int serialize_threads__(pi_comm_ptr, const char *, unsigned int);
 
 /* stuff related to log entry printing */
 extern void pi_log_init(pi_comm_ptr);
 extern void pi_log_clear(pi_comm_ptr);
 extern void pi_log_op(pi_comm_ptr, const char * fmt, ...);
-extern void pi_log_print_all(parallelizing_info_ptr);
+extern void pi_log_print_all(parallelizing_info & pi);
 extern void pi_log_print(pi_comm_ptr);
 
 /* These are the calls for interleaving. The 2n threads are divided into
@@ -367,12 +418,12 @@ extern void pi_log_print(pi_comm_ptr);
  * _enter and _leave are called from pi_go, so although they are exposed,
  * one does not have to know about them.
  */
-extern void pi_interleaving_flip(parallelizing_info_ptr);
-extern void pi_interleaving_enter(parallelizing_info_ptr);
-extern void pi_interleaving_leave(parallelizing_info_ptr);
+extern void pi_interleaving_flip(parallelizing_info &);
+extern void pi_interleaving_enter(parallelizing_info &);
+extern void pi_interleaving_leave(parallelizing_info &);
 
-extern void pi_store_generic(parallelizing_info_ptr, unsigned long, unsigned long, void *);
-extern void * pi_load_generic(parallelizing_info_ptr, unsigned long, unsigned long);
+extern void pi_store_generic(parallelizing_info &, unsigned long, unsigned long, void *);
+extern void * pi_load_generic(parallelizing_info &, unsigned long, unsigned long);
 
 /* shared_malloc is like malloc, except that the pointer returned will be
  * equal on all threads (proper access will deserve proper locking of

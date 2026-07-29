@@ -130,15 +130,15 @@ static void mmt_vec_check_equal_0n_inv_permuted(mmt_vec const & v, size_t items,
 
 /* This only does a multiplication */
 
-static void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
+static void * tst_prog(parallelizing_info & pi, cxx_param_list & pl,
                        void * arg MAYBE_UNUSED)
 {
-    ASSERT_ALWAYS(!pi->interleaved);
+    ASSERT_ALWAYS(!pi.interleaved);
 
     if (verbose) {
-        pi_log_init(pi->m);
-        pi_log_init(pi->wr[0]);
-        pi_log_init(pi->wr[1]);
+        pi_log_init(pi.m);
+        pi_log_init(pi.wr[0]);
+        pi_log_init(pi.wr[1]);
     }
 
     cxx_gmp_randstate rstate;

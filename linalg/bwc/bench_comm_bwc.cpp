@@ -12,14 +12,14 @@
 #include "arith-generic.hpp"
 #include "macros.h"
 
-static void * bench_comm_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * bench_comm_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     bool fake = pl.has("random_matrix") || pl.has("static_random_matrix");
     if (fake) bw->skip_online_checks = 1;
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
 
     int const ys[2] = { bw->ys[0], bw->ys[1], };
-    if (pi->interleaved) {
+    if (pi.interleaved) {
         fprintf(stderr, "bench_bwc does not work in the interleaved setting\n");
         exit(EXIT_FAILURE);
     }
@@ -28,13 +28,13 @@ static void * bench_comm_prog(parallelizing_info_ptr pi, cxx_param_list & pl, vo
 
     matmul_top_data mmt(A.get(), pi, pl, bw->dir);
 
-    serialize(pi->m);
+    serialize(pi.m);
     matmul_top_comm_bench(mmt, bw->dir);
 
     if (tcan_print) {
         printf("Done bench.\n");
     }
-    serialize(pi->m);
+    serialize(pi.m);
 
     return nullptr;
 }

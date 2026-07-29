@@ -56,14 +56,14 @@
  * (T): This assumes that nullspace=right. If nullspace=left, replace M by trsp(M).
  */
 
-static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
 
     int const fake = pl.has("random_matrix") || pl.has("static_random_matrix");
 
-    ASSERT_ALWAYS(!pi->interleaved);
+    ASSERT_ALWAYS(!pi.interleaved);
 
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
 
     int const withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;

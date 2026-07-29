@@ -32,7 +32,7 @@
 #include "utils_cxx.hpp"
 
 
-blstate::blstate(parallelizing_info_ptr pi, cxx_param_list & pl)
+blstate::blstate(parallelizing_info & pi, cxx_param_list & pl)
     : A(arith_generic::instance(bw->p, bw->ys[1]-bw->ys[0]))
     , mmt(A.get(), pi, pl, bw->dir)
     , AxA(arith_cross_generic::instance(A.get(), A.get()))
@@ -93,13 +93,13 @@ void blstate::load( unsigned int iter)
     unsigned int const i0 = iter % 3;
     unsigned int const i1 = (iter+3-1) % 3;
     unsigned int const i2 = (iter+3-2) % 3;
-    parallelizing_info_ptr pi = mmt.pi;
+    parallelizing_info & pi = mmt.pi;
 
     auto filename_base = fmt::format("blstate.{}.", iter);
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
     if (tcan_print) { fmt::print("Loading {}* ...", filename_base); fflush(stdout); }
 
-    if (pi->m->jrank == 0 && pi->m->trank == 0) {
+    if (pi.m.jrank == 0 && pi.m.trank == 0) {
         auto tmp = filename_base + "control";
         auto f = fopen_helper(tmp, "rb");
         bit_vector_read_from_stream(D[i1], f.get());
@@ -134,13 +134,13 @@ void blstate::save(unsigned int iter)
     unsigned int const i0 = iter % 3;
     unsigned int const i1 = (iter+3-1) % 3;
     unsigned int const i2 = (iter+3-2) % 3;
-    parallelizing_info_ptr pi = mmt.pi;
+    parallelizing_info & pi = mmt.pi;
 
     auto filename_base = fmt::format("blstate.{}", iter);
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
     if (tcan_print) { fmt::print("Saving {}.* ...", filename_base); fflush(stdout); }
 
-    if (pi->m->jrank == 0 && pi->m->trank == 0) {
+    if (pi.m.jrank == 0 && pi.m.trank == 0) {
         auto tmp = filename_base + ".control";
         auto f = fopen_helper(tmp, "wb");
         bit_vector_write_to_stream(D[i1], f.get());
@@ -258,7 +258,7 @@ void blstate::save_result( unsigned int iter)
     mat64 m0, m1, m2;
     int r;
     unsigned int const i0 = iter % 3;
-    parallelizing_info_ptr pi = mmt.pi;
+    parallelizing_info & pi = mmt.pi;
 
     /* bw->dir=0: mmt.n0[bw->dir] = number of rows */
     /* bw->dir=1: mmt.n0[bw->dir] = number of columns */
@@ -357,11 +357,11 @@ void blstate::save_result( unsigned int iter)
 }
 
 
-int blstate::operator()(parallelizing_info_ptr pi)
+int blstate::operator()(parallelizing_info & pi)
 {
     int exit_code = 0;
 
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
     struct timing_data timing[1];
 
     size_t const nelts_for_nnmat = bw->n * (bw->n / A->simd_groupsize());
@@ -671,7 +671,7 @@ int blstate::operator()(parallelizing_info_ptr pi)
 
 static int exit_code = 0;
 
-static void * bl_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * bl_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     /* so many features we do not support ! */
     ASSERT_ALWAYS(bw->m == bw->n);

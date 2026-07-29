@@ -34,7 +34,7 @@ using namespace fmt::literals;
 
 struct check_data {
     matmul_top_data & mmt;
-    parallelizing_info_ptr pi;
+    parallelizing_info & pi;
     int nchecks;
     arith_generic * A;
     std::unique_ptr<arith_generic> Ac;
@@ -145,17 +145,17 @@ struct check_data {
     }
 };
 
-static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * krylov_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     int fake = pl.has("random_matrix") || pl.has("static_random_matrix");
     if (fake) bw->skip_online_checks = 1;
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
     struct timing_data timing[1];
 
     int ys[2] = { bw->ys[0], bw->ys[1], };
-    if (pi->interleaved) {
+    if (pi.interleaved) {
         ASSERT_ALWAYS((bw->ys[1]-bw->ys[0]) % 2 == 0);
-        ys[0] = bw->ys[0] + pi->interleaved->idx * (bw->ys[1]-bw->ys[0])/2;
+        ys[0] = bw->ys[0] + pi.interleaved->idx * (bw->ys[1]-bw->ys[0])/2;
         ys[1] = ys[0] + (bw->ys[1]-bw->ys[0])/2;
     }
 

@@ -73,7 +73,7 @@ struct matmul_top_matrix {
 
 struct matmul_top_data {
     arith_generic * abase;
-    parallelizing_info_ptr pi;
+    parallelizing_info & pi;
     pi_datatype_ptr pitype;
     /* These n[] and n0[] correspond to the dimensions of the product
      *
@@ -93,7 +93,7 @@ struct matmul_top_data {
     std::vector<matmul_top_matrix> matrices;
     matmul_top_data(
         arith_generic * abase,
-        parallelizing_info_ptr pi,
+        parallelizing_info & pi,
         cxx_param_list & pl,
         int optimized_direction);
     ~matmul_top_data();

@@ -315,8 +315,8 @@ struct random_matrix_ddata : public matrix_column_distribution {
         F.offset = 32;
         return F;
     }
-    void adjust(random_matrix_process_data const & r, parallelizing_info_srcptr pi, unsigned long padded_nrows, unsigned long padded_ncols);
-    void adjust_force_kernel(random_matrix_process_data const & r, parallelizing_info_srcptr pi, unsigned long padded_nrows, unsigned long padded_ncols, int kernel_left, int kernel_right);
+    void adjust(random_matrix_process_data const & r, const parallelizing_info * pi, unsigned long padded_nrows, unsigned long padded_ncols);
+    void adjust_force_kernel(random_matrix_process_data const & r, const parallelizing_info * pi, unsigned long padded_nrows, unsigned long padded_ncols, int kernel_left, int kernel_right);
     void info(FILE * out) const;
 
     /* probability mass function */
@@ -368,7 +368,7 @@ struct random_matrix_ddata : public matrix_column_distribution {
     /* get random matrices, _AND_ fill the stats */
     matrix_u32 get_byrows(cxx_gmp_randstate & rstate);
     matrix_u32 get_bycolumns(cxx_gmp_randstate & rstate);
-    matrix_u32 get_u32(parallelizing_info_ptr pi,
+    matrix_u32 get_u32(parallelizing_info & pi,
             cxx_param_list & pl,
             unsigned long data_nrows, unsigned long data_ncols,
             unsigned long padded_nrows, unsigned long padded_ncols,
@@ -428,17 +428,17 @@ void random_matrix_ddata::info(FILE * out) const
  * Note that the on-the-fly random_matrix setup omits the balancing
  * permutations, so that all padding rows are on the last blocks.
  */
-void random_matrix_ddata::adjust_force_kernel(random_matrix_process_data const & R, parallelizing_info_srcptr pi, unsigned long padded_nrows, unsigned long padded_ncols, int kernel_left, int kernel_right)
+void random_matrix_ddata::adjust_force_kernel(random_matrix_process_data const & R, const parallelizing_info * pi, unsigned long padded_nrows, unsigned long padded_ncols, int kernel_left, int kernel_right)
 {
-    print = pi ? pi->m->jrank == 0 && pi->m->trank == 0 : true;
+    print = pi ? pi->m.jrank == 0 && pi->m.trank == 0 : true;
     /* Adapt to the parallelizing_info structure : divide */
     /* note that padding has to still be padding. */
-    nrows = (R.nrows - kernel_right) / (pi ? pi->wr[1]->totalsize : 1);
-    ncols = (R.ncols - kernel_left) / (pi ? pi->wr[0]->totalsize : 1);
+    nrows = (R.nrows - kernel_right) / (pi ? pi->wr[1].totalsize : 1);
+    ncols = (R.ncols - kernel_left) / (pi ? pi->wr[0].totalsize : 1);
 
 #define ADJUST(pi, items, comm, ker) do {				\
     if (pi) {								\
-        unsigned int const rk = (comm)->jrank * (comm)->ncores + (comm)->trank;	\
+        unsigned int const rk = (comm).jrank * (comm).ncores + (comm).trank;	\
         if (rk * padded_n ## items >= R.n ## items - (ker)) {		\
             n ## items = 0;						\
         } else if ((rk+1) * padded_n ## items >= R.n ## items - (ker)) {	\
@@ -465,7 +465,7 @@ void random_matrix_ddata::adjust_force_kernel(random_matrix_process_data const &
     /* sets the scale parameter so that the expected row weight matches
      * our desired density target */
     scale = density / q(double(ncols));
-    spread = pi ? pi->wr[0]->totalsize : 1;
+    spread = pi ? pi->wr[0].totalsize : 1;
     mean = q(double(ncols));
     sdev = sqrt(mean * mean - qq(double(ncols)));
     maxcoeff = R.maxcoeff;
@@ -491,7 +491,7 @@ void random_matrix_ddata::adjust_force_kernel(random_matrix_process_data const &
     }
 }
 
-void random_matrix_ddata::adjust(random_matrix_process_data const & r, parallelizing_info_srcptr pi, unsigned long padded_nrows, unsigned long padded_ncols)
+void random_matrix_ddata::adjust(random_matrix_process_data const & r, const parallelizing_info * pi, unsigned long padded_nrows, unsigned long padded_ncols)
 {
     adjust_force_kernel(r, pi, padded_nrows, padded_ncols, 0, 0);
 }
@@ -558,11 +558,11 @@ int32_t random_matrix_ddata::generate_coefficient(cxx_gmp_randstate & rstate, un
 }
 
 #ifndef WANT_MAIN
-void random_matrix_fill_fake_balancing_header(balancing & bal, parallelizing_info_ptr pi, const char * rtmp)
+void random_matrix_fill_fake_balancing_header(balancing & bal, parallelizing_info & pi, const char * rtmp)
 {
     random_matrix_process_data const r(rtmp);
-    bal.nh = pi->wr[1]->totalsize;
-    bal.nv = pi->wr[0]->totalsize;
+    bal.nh = pi->wr[1].totalsize;
+    bal.nv = pi->wr[0].totalsize;
     bal.nrows = r.nrows;
     bal.ncols = r.ncols;
     bal.ncoeffs = 0; /* FIXME ; what should I do ? */
@@ -784,7 +784,7 @@ matrix_u32 random_matrix_ddata::get_bycolumns(cxx_gmp_randstate & rstate)
 }
 
 
-matrix_u32 random_matrix_get_u32(parallelizing_info_ptr pi, cxx_param_list & pl, unsigned long data_nrows, unsigned long data_ncols, unsigned long padded_nrows, unsigned long padded_ncols, bool withcoeffs, bool transpose)
+matrix_u32 random_matrix_get_u32(parallelizing_info & pi, cxx_param_list & pl, unsigned long data_nrows, unsigned long data_ncols, unsigned long padded_nrows, unsigned long padded_ncols, bool withcoeffs, bool transpose)
 {
     const char * rtmp = pl.lookup_old("random_matrix");
     ASSERT_ALWAYS(rtmp);
@@ -800,17 +800,17 @@ matrix_u32 random_matrix_get_u32(parallelizing_info_ptr pi, cxx_param_list & pl,
     ASSERT_ALWAYS(!r.rhs.n);
 
     random_matrix_ddata F;
-    F.adjust(r, pi, data_nrows, data_ncols);
+    F.adjust(r, &pi, data_nrows, data_ncols);
 
     if (F.print) {
-        printf("Each of the %u jobs on %u nodes creates a matrix with %lu rows %lu cols, and %.2f coefficients per row on average. Seed for rank 0 is %lu.\n",
-                pi->m->totalsize, pi->m->njobs,
+        fmt::print("Each of the {} jobs on {} nodes creates a matrix with {} rows {} cols, and {:.2f} coefficients per row on average. Seed for rank 0 is {}.\n",
+                pi->m.totalsize, pi->m.njobs,
                 F.nrows, F.ncols,
-                (double) r.density / pi->wr[0]->totalsize, r.seed);
+                (double) r.density / pi->wr[0].totalsize, r.seed);
     }
 
     cxx_gmp_randstate rstate;
-    gmp_randseed_ui(rstate, r.seed + pi->m->jrank * pi->m->ncores + pi->m->trank);
+    gmp_randseed_ui(rstate, r.seed + pi->m.jrank * pi->m.ncores + pi->m.trank);
 
     if (transpose) {
         auto mat = F.get_bycolumns(rstate);

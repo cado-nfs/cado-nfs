@@ -20,7 +20,7 @@ struct matmul_top_data;
 
 struct mmt_vec {
     arith_generic * abase = nullptr;
-    parallelizing_info_ptr pi = nullptr;
+    parallelizing_info * pi = nullptr;
     int d = -1;
     pi_datatype_ptr pitype = nullptr;
 

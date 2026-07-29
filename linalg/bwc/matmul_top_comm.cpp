@@ -908,7 +908,7 @@ void matmul_top_comm_bench(matmul_top_data & mmt, int d)
                         if (xr->trank == w && wr->trank == 0) {
                             char buf[16];
                             printf("%s %2d/%d, %s: %2d in %.1fs ; one: %.2fs (xput: %s/s)\n",
-                                    wr->th->desc,
+                                    wr->th->desc.c_str(),
                                     xr->jrank * xr->ncores + xr->trank,
                                     xr->totalsize,
                                     text[s],

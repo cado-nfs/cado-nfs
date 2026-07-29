@@ -68,7 +68,7 @@ static T integrate(std::vector<T> & v) /*{{{*/
 }/*}}}*/
 
 struct dispatcher {/*{{{*/
-    parallelizing_info_ptr pi;
+    parallelizing_info & pi;
     std::string mfile;
     std::string bfile;
     std::string check_vector_filename;
@@ -85,30 +85,30 @@ struct dispatcher {/*{{{*/
     MPI_Comm reader_comm {};
 
     struct reader_map_data {/*{{{*/
-        parallelizing_info_ptr pi;
+        parallelizing_info & pi;
         std::vector<int> map;
         std::vector<int> index;
         bool is_reader(unsigned int i) const { return map[i]; }
         size_t nreaders;
 
-        bool is_reader() const { return map[pi->m->jrank]; }
+        bool is_reader() const { return map[pi.m.jrank]; }
         size_t size() const { return nreaders; }
 
-        reader_map_data(parallelizing_info_ptr pi, bool reader_flag)
+        reader_map_data(parallelizing_info & pi, bool reader_flag)
             : pi(pi)
-            , map(pi->m->njobs, 0)
+            , map(pi.m.njobs, 0)
         {
-            map[pi->m->jrank] = reader_flag;
+            map[pi->m.jrank] = reader_flag;
 #ifdef RELY_ON_MPI_THREAD_MULTIPLE
             if (!has_mpi_thread_multiple()) {
-                if (pi->m->jrank > 0)
-                    map[pi->m->jrank] = 0;
+                if (pi->m.jrank > 0)
+                    map[pi->m.jrank] = 0;
                 else
-                    ASSERT_ALWAYS(map[pi->m->jrank]);
+                    ASSERT_ALWAYS(map[pi->m.jrank]);
             }
 #endif
 
-            MPI_Allgather(MPI_IN_PLACE, 0, 0, map.data(), 1, MPI_INT, pi->m->pals);
+            MPI_Allgather(MPI_IN_PLACE, 0, 0, map.data(), 1, MPI_INT, pi->m.pals);
 
             /* copy */
             // NOLINTBEGIN
@@ -126,7 +126,7 @@ struct dispatcher {/*{{{*/
 
     struct endpoint_thread_data {
         dispatcher const & D;
-        parallelizing_info_ptr pi;
+        parallelizing_info & pi;
         matrix_u32 ** args_per_thread;
 
         /* used in pass 1 for the weights per row */
@@ -168,7 +168,7 @@ struct dispatcher {/*{{{*/
 
     struct reader_thread_data {
         dispatcher const & D;
-        parallelizing_info_ptr pi;
+        parallelizing_info & pi;
         endpoint_thread_data & E;
 
         /* MPI send from readers to endpoints */
@@ -212,7 +212,7 @@ struct dispatcher {/*{{{*/
     void main();
     void stats();
 
-    dispatcher(parallelizing_info_ptr pi,/*{{{*/
+    dispatcher(parallelizing_info & pi,/*{{{*/
             cxx_param_list & pl,
             matrix_u32 ** args_per_thread,
             std::string const & mfile,
@@ -237,10 +237,10 @@ struct dispatcher {/*{{{*/
         // nodes have read access from the matrix.
 
 
-        if (pi->m->jrank == 0) {
+        if (pi->m.jrank == 0) {
             fmt::print("Beginning balancing with {} readers for file {}\n",
                     nreaders(), mfile);
-            for(unsigned int i = 0 ; i < pi->m->njobs ; i++) {
+            for(unsigned int i = 0 ; i < pi->m.njobs ; i++) {
                 if (reader_map.is_reader(i))
                     fmt::print("Job {} is reader number {}\n", i, reader_map.index[i]);
             }
@@ -248,7 +248,7 @@ struct dispatcher {/*{{{*/
         ASSERT_ALWAYS(nreaders());
         MPI_Comm_split(MPI_COMM_WORLD,
                 reader_map.is_reader(),
-                int(pi->m->jrank),
+                int(pi->m.jrank),
                 &reader_comm);
 
         balancing_init(bal);
@@ -258,16 +258,16 @@ struct dispatcher {/*{{{*/
          * but cuting hair might well end up costing more memory (if we
          * have FLAG_REPLICATE for instance).
          */
-        if (pi->m->jrank == 0)
+        if (pi->m.jrank == 0)
             balancing_read_header(bal, bfile);
-        MPI_Bcast(&bal, sizeof(balancing), MPI_BYTE, 0, pi->m->pals);
+        MPI_Bcast(&bal, sizeof(balancing), MPI_BYTE, 0, pi->m.pals);
         /* Make sure that we didn't inadvertently copy a pointer from a
          * node to the others! */
         ASSERT_ALWAYS(bal.rowperm == nullptr);
         ASSERT_ALWAYS(bal.colperm == nullptr);
 
-        nhjobs = pi->wr[1]->njobs;
-        nvjobs = pi->wr[0]->njobs;
+        nhjobs = pi->wr[1].njobs;
+        nvjobs = pi->wr[0].njobs;
         rows_chunk_big = bal.trows / nhjobs;
         cols_chunk_big = bal.tcols / nvjobs;
         rows_chunk_small = bal.trows / bal.nh;
@@ -297,7 +297,7 @@ struct dispatcher {/*{{{*/
  *      arg->p
  */
 matrix_u32 balancing_get_matrix_u32(
-        parallelizing_info_ptr pi,
+        parallelizing_info & pi,
         cxx_param_list & pl,
         std::string const & mfile,
         std::string const & bfile,
@@ -310,11 +310,11 @@ matrix_u32 balancing_get_matrix_u32(
 
     matrix_u32 m;
 
-    pi_shared_array<matrix_u32 *> const args_per_thread(pi->m, pi->m->ncores);
-    args_per_thread[pi->m->trank] = &m;
+    pi_shared_array<matrix_u32 *> const args_per_thread(pi->m, pi->m.ncores);
+    args_per_thread[pi->m.trank] = &m;
     serialize_threads(pi->m);
 
-    if (pi->m->trank == 0) {
+    if (pi->m.trank == 0) {
         dispatcher D(pi, pl, args_per_thread.get(), mfile, bfile, withcoeffs, transpose_while_dispatching);
         D.main();
         D.stats();

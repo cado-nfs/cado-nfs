@@ -155,7 +155,7 @@ static void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * i
     /* {std::istream * is} is actually nullptr if pi->m->jrank != 0 */
 
     arith_generic * A = rhs_vecs[0].abase;
-    parallelizing_info_ptr pi = rhs_vecs[0].pi;
+    parallelizing_info & pi = *rhs_vecs[0].pi;
     int const d = rhs_vecs[0].d;
     auto i1 = rhs_vecs[0].i1;
     auto i0 = rhs_vecs[0].i0;
@@ -257,7 +257,7 @@ static void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * i
 }
 
 struct prep_object {
-    parallelizing_info_ptr pi;
+    parallelizing_info & pi;
     int const tcan_print;
     int const char2;
     int const splitwidth;
@@ -272,9 +272,9 @@ struct prep_object {
     std::vector<uint32_t> xvecs;
     std::vector<unsigned int> Z;
 
-    prep_object(parallelizing_info_ptr pi, cxx_param_list & pl)
+    prep_object(parallelizing_info & pi, cxx_param_list & pl)
         : pi(pi)
-        , tcan_print(bw->can_print && pi->m->trank == 0)
+        , tcan_print(bw->can_print && pi.m.trank == 0)
         , char2(mpz_cmp_ui(bw->p, 2) == 0)
         , splitwidth(char2 ? 64 : 1)
         , A_multiplex(bw->n / splitwidth)
@@ -286,7 +286,7 @@ struct prep_object {
     {
         /* Interleaving does not make sense for this program. So the second
          * block of threads just leave immediately */
-        ASSERT_ALWAYS(!pi->interleaved);
+        ASSERT_ALWAYS(!pi.interleaved);
 
         // Doing the ``hello world'' test is a very good way of testing the
         // global mpi/pthreads setup. So despite its apparent irrelevance, I
@@ -335,7 +335,7 @@ struct prep_object {
      */
     unsigned int load_and_prepare_rhs_vectors(cxx_param_list & pl)
     { // {{{
-        parallelizing_info_ptr pi = mmt.pi;
+        parallelizing_info & pi = mmt.pi;
         arith_generic * A = mmt.abase;
 
         /* First create all RHS vectors -- these are just splits of the big
@@ -438,8 +438,8 @@ struct prep_object {
     { // {{{
         /* Create purely random vectors for V */
         size_t const splitwidth = y.abase->simd_groupsize();
-        parallelizing_info_ptr pi = y.pi;
-        int const tcan_print = bw->can_print && pi->m->trank == 0;
+        parallelizing_info & pi = *y.pi;
+        int const tcan_print = bw->can_print && pi.m.trank == 0;
 
         for (unsigned int j = nrhs; j < (unsigned int)bw->n; j += splitwidth) {
             auto pat = bwc_V_file::pattern(0);
@@ -712,7 +712,7 @@ struct prep_object {
     } // }}}
 };
 
-static void * prep_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
+static void * prep_prog(parallelizing_info & pi, cxx_param_list & pl,
                  void * arg MAYBE_UNUSED)
 {
     prep_object P(pi, pl);

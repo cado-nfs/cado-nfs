@@ -49,7 +49,7 @@ struct blstate {
      * In order to compute the vector for step n + 1, the data to be used
      * is V[*], L[*], and D[n0, n1]
      */
-    blstate(parallelizing_info_ptr pi, cxx_param_list & pl);
+    blstate(parallelizing_info & pi, cxx_param_list & pl);
     blstate(blstate const&) = delete;
     blstate& operator=(blstate const&) = delete;
     ~blstate();
@@ -57,7 +57,7 @@ struct blstate {
     void load(unsigned int iter);
     void save(unsigned int iter);
     void save_result(unsigned int iter);
-    int operator()(parallelizing_info_ptr pi);
+    int operator()(parallelizing_info & pi);
 };
 
 #endif	/* LINALG_BWC_BLOCKLANCZOS_HPP_ */

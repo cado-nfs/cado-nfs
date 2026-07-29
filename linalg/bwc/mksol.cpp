@@ -31,17 +31,17 @@
 #include "bwc_filenames.hpp"
 #include "utils_cxx.hpp"
 
-static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     int const fake = pl.has("random_matrix") || pl.has("static_random_matrix");
     if (fake) bw->skip_online_checks = 1;
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
     struct timing_data timing[1];
 
     unsigned int solutions[2] = { bw->solutions[0], bw->solutions[1], };
-    if (pi->interleaved) {
+    if (pi.interleaved) {
         ASSERT_ALWAYS((bw->solutions[1]-bw->solutions[0]) % 2 == 0);
-        solutions[0] = bw->solutions[0] + pi->interleaved->idx * (bw->solutions[1]-bw->solutions[0])/2;
+        solutions[0] = bw->solutions[0] + pi.interleaved->idx * (bw->solutions[1]-bw->solutions[0])/2;
         solutions[1] = solutions[0] + (bw->solutions[1]-bw->solutions[0])/2;
     }
 

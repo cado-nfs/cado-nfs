@@ -33,7 +33,7 @@ static void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
 
 #if 0
     /* this should be equivalent to the other branch */
-    if (!mmt_vec_is_shared(y) || y.pi->wr[y.d]->trank == 0) {
+    if (!mmt_vec_is_shared(y) || y.pi->wr[y.d].trank == 0) {
         for(unsigned int i = y.i0 ; i < y.i1 && i < unpadded ; i++) {
             arith_generic::elt * dst = y.abase->vec_subvec(y.v, i - y.i0);
             uint64_t value = DUMMY_VECTOR_COORD_VALUE(i);
@@ -46,7 +46,7 @@ static void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
     }
     serialize_threads(y.pi->wr[y.d]);
 #else
-    for(unsigned int j = 0 ; j < y.pi->wr[y.d]->njobs ; j++) {
+    for(unsigned int j = 0 ; j < y.pi->wr[y.d].njobs ; j++) {
         for(size_t di = 0 ; di < mmt_my_own_size_in_items(y) ; di++) {
             size_t const i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
             if (i >= unpadded)
@@ -69,7 +69,7 @@ static void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
 
 #if 0
     /* this should be equivalent to the other branch */
-    if (!mmt_vec_is_shared(y) || y.pi->wr[y.d]->trank == 0) {
+    if (!mmt_vec_is_shared(y) || y.pi->wr[y.d].trank == 0) {
         for(unsigned int i = y.i0 ; i < y.i1 && i < unpadded ; i++) {
             arith_generic::elt * dst = y.abase->vec_subvec(y.v, i - y.i0);
             uint64_t value = DUMMY_VECTOR_COORD_VALUE2(i);
@@ -82,7 +82,7 @@ static void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
     }
     serialize_threads(y.pi->wr[y.d]);
 #else
-    for(unsigned int j = 0 ; j < y.pi->wr[y.d]->njobs ; j++) {
+    for(unsigned int j = 0 ; j < y.pi->wr[y.d].njobs ; j++) {
         for(size_t di = 0 ; di < mmt_my_own_size_in_items(y) ; di++) {
             size_t const i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
             if (i >= unpadded)
@@ -99,20 +99,17 @@ static void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
     y.consistency = 2;
 }
 
-static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * dispatch_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
+    bool fake = pl.has("random_matrix") || pl.has("static_random_matrix");
+    if (fake) bw->skip_online_checks = 1;
 
-    int const ys[2] = { bw->ys[0], bw->ys[1], };
-    /*
-     * Hmm. Interleaving doesn't make a lot of sense for this program,
-     * right ? Furthermore, it gets in the way for the sanity checks. We
-     * tend to always receive ys=0..64 as an argument.
-    if (pi->interleaved) {
-        ASSERT_ALWAYS((bw->ys[1]-bw->ys[0]) % 2 == 0);
-        ys[0] = bw->ys[0] + pi->interleaved->idx * (bw->ys[1]-bw->ys[0])/2;
+    int ys[2] = { bw->ys[0], bw->ys[1], };
+    if (pi.interleaved) {
+        ASSERT_ALWAYS((bw->ys[1] - bw->ys[0]) % 2 == 0);
+        ys[0] = bw->ys[0] + pi.interleaved->idx * (bw->ys[1]-bw->ys[0])/2;
         ys[1] = ys[0] + (bw->ys[1]-bw->ys[0])/2;
     }
-    */
 
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
     std::unique_ptr<arith_cross_generic> AxA(arith_cross_generic::instance(A.get(), A.get()));
@@ -174,7 +171,7 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
         mmt_vec_save(y, "Hx{}-{}", unpadded, 0);
 
         // compare if files are equal.
-        if (pi->m->jrank == 0 && pi->m->trank == 0) {
+        if (pi->m.jrank == 0 && pi->m.trank == 0) {
             char cmd[1024];
             int rc = snprintf(cmd, 80, "diff -q %s Hx0-64", sanity_check_vector);
             ASSERT_ALWAYS(rc>=0);
@@ -213,7 +210,7 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
                 A->vec_subvec(my.v, offset_c),
                 A->vec_subvec(y.v, offset_v),
                 how_many);
-        pi_allreduce(nullptr, dp0, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM, pi->m);
+        pi->m.allreduce(nullptr, dp0, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM);
 
         /* now we can throw away Hx */
 
@@ -237,9 +234,9 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
                 A->vec_subvec(my.v, offset_c),
                 A->vec_subvec(y.v, offset_v),
                 how_many);
-        pi_allreduce(nullptr, dp1, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM, pi->m);
+        pi->m.allreduce(nullptr, dp1, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM);
         int const diff = memcmp(dp0, dp1, A->vec_elt_stride(A->simd_groupsize()));
-        if (pi->m->jrank == 0 && pi->m->trank == 0) {
+        if (pi->m.jrank == 0 && pi->m.trank == 0) {
             if (diff) {
                 printf("%s : failed\n", checkname);
                 fprintf(stderr, "aborting on sanity check failure.\n");
