@@ -57,12 +57,12 @@ struct mgmsqrt {
     std::vector<std::pair<relation_ab, int>> abs;
 
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage(pl, "prec", "initial precision");
-        param_list_decl_usage(pl, "ideals", "ideal indices (and valuations)");
-        param_list_decl_usage(pl, "renumber", "renumber table");
-        param_list_decl_usage(pl, "ab", "(a,b) pairs (and exponents)");
-        param_list_decl_usage(pl, "e", "root order");
-        param_list_decl_usage(pl, "side", "side");
+        pl.declare_usage("prec", "initial precision");
+        pl.declare_usage("ideals", "ideal indices (and valuations)");
+        pl.declare_usage("renumber", "renumber table");
+        pl.declare_usage("ab", "(a,b) pairs (and exponents)");
+        pl.declare_usage("e", "root order");
+        pl.declare_usage("side", "side");
     }
 
     explicit mgmsqrt(cxx_param_list & pl)
@@ -117,9 +117,9 @@ int main(int argc, char const * argv[])
     configure_aliases(pl);
     */
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
-    param_list_print_command_line(stdout, pl);
+    pl.print_command_line(stdout);
 
     mgmsqrt MTY(pl);
 

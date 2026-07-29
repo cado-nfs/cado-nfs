@@ -2466,30 +2466,30 @@ int main(int argc, char const ** argv)
 
     cxx_param_list pl;
     int cache=0;
-    // param_list_configure_switch(pl, "-v", &verbose);
-    param_list_configure_switch(pl, "--cache", &cache);
-    param_list_configure_switch(pl, "--rcache", &rcache);
-    param_list_configure_switch(pl, "--wcache", &wcache);
-    // param_list_configure_switch(pl, "--size-guess", &size_guess);
+    // pl.configure_switch("-v");
+    pl.configure_switch_old("--cache", &cache);
+    pl.configure_switch_old("--rcache", &rcache);
+    pl.configure_switch_old("--wcache", &wcache);
+    // pl.configure_switch("--size-guess");
     
-    param_list_process_command_line(pl, &argc, &argv, true);
+    pl.process_command_line(argc, argv, true);
     int wild = 0;
     for (; argc;) {
         if (argv[0][0] != '-' && wild == 0) {
-            param_list_add_key(pl, "depfile", argv[0], PARAMETER_FROM_CMDLINE);
+            pl.add_key("depfile", argv[0], cado::params::origin::FROM_CMDLINE);
             wild++;
             argv++, argc--;
             continue;
         }
         if (argv[0][0] != '-' && wild == 1) {
-            param_list_add_key(pl, "ratdepfile", argv[0], PARAMETER_FROM_CMDLINE);
+            pl.add_key("ratdepfile", argv[0], cado::params::origin::FROM_CMDLINE);
             wild++;
             argv++, argc--;
             continue;
         }
         if (argv[0][0] != '-' && wild == 2) {
-            param_list_add_key(pl, "polyfile", argv[0],
-                    PARAMETER_FROM_CMDLINE);
+            pl.add_key("polyfile", argv[0],
+                    cado::params::origin::FROM_CMDLINE);
             wild++;
             argv++, argc--;
             continue;
@@ -2499,24 +2499,24 @@ int main(int argc, char const ** argv)
 
     if (cache)  rcache = wcache = 1;
 
-    param_list_parse_double(pl, "print_delay", &print_delay);
-    param_list_parse_double(pl, "ram", &ram_gb);
+    param_list_parse(pl, "print_delay", print_delay);
+    param_list_parse(pl, "ram", ram_gb);
 
-    param_list_parse_int(pl, "verbose", &verbose);
-    param_list_configure_switch(pl, "--cache", &cache);
-    param_list_parse_int(pl, "ncores", &glob.ncores);
-    param_list_parse_int(pl, "r", &asked_r);
-    param_list_parse_int(pl, "lll_maxdim", &glob.lll_maxdim);
+    param_list_parse(pl, "verbose", verbose);
+    pl.configure_switch_old("--cache", &cache);
+    param_list_parse(pl, "ncores", glob.ncores);
+    param_list_parse(pl, "r", asked_r);
+    param_list_parse(pl, "lll_maxdim", glob.lll_maxdim);
 
-    if (param_list_lookup_string(pl, "depfile") == NULL)
+    if (!pl.has("depfile"))
         pl.fail("missing argument -depfile");
-    if (param_list_lookup_string(pl, "ratdepfile") == NULL)
+    if (!pl.has("ratdepfile"))
         pl.fail("missing argument -ratdepfile");
-    if (param_list_lookup_string(pl, "polyfile") == NULL)
+    if (!pl.has("polyfile"))
         pl.fail("missing argument -polyfile");
     /* }}} */
 
-    ret = glob.cpoly.read(param_list_lookup_string(pl, "polyfile"));
+    ret = glob.cpoly.read(pl.lookup("polyfile"));
     /* This assumes that we have a rational side 0 and an algebraic side 1*/
     ASSERT_ALWAYS(glob.cpoly.get_ratside() == 0);
     glob.n = glob.cpoly[1]->deg;
@@ -2536,13 +2536,13 @@ int main(int argc, char const ** argv)
 
     // printf("# [%2.2lf] A is f_d^%zu*f_hat'(alpha_hat)*prod(f_d a - b alpha_hat)\n", WCT, nab + (nab &1));
 
-    ab_source_init(glob.ab, param_list_lookup_string(pl, "depfile"),
+    ab_source_init(glob.ab, pl.lookup("depfile").c_str(),
             glob.rank, 0, MPI_COMM_WORLD);
 
     // note that for rsa768, this estimation takes only 10 minutes, so
     // it's not a big trouble.
     unsigned long toto;
-    if (!param_list_parse_ulong(pl, "sqrt_coeffs_bits", &toto)) {
+    if (!param_list_parse(pl, "sqrt_coeffs_bits", toto)) {
         if (glob.rank == 0) {
             estimate_nbits_sqrt(&glob.nbits_sqrt, glob.ab); //, size_guess);
         }

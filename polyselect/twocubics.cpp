@@ -468,21 +468,21 @@ int main(int argc, char const * argv[])
 
   declare_usage(pl);
 
-  param_list_configure_switch (pl, "-v", &main_data->verbose);
-  param_list_configure_switch (pl, "-q", &quiet);
-  param_list_configure_alias(pl, "degree", "-d");
-  param_list_configure_alias(pl, "incr", "-i");
-  param_list_configure_alias(pl, "n", "-N");
+  pl.configure_switch_old("-v", &main_data->verbose);
+  pl.configure_switch_old("-q", &quiet);
+  pl.configure_alias("degree", "-d");
+  pl.configure_alias("incr", "-i");
+  pl.configure_alias("n", "-N");
 
   if (argc == 1)
     usage (argv0[0], NULL, pl);
 
   /* Add this as a default */
-  param_list_add_key(pl, "degree", "3", PARAMETER_FROM_FILE);
+  pl.add_key("degree", "3", cado::params::origin::FROM_FILE);
 
   argv++, argc--;
   for ( ; argc; ) {
-    if (param_list_update_cmdline (pl, &argc, &argv)) continue;
+    if (pl.update_cmdline(argc, argv)) continue;
     fprintf (stderr, "Unhandled parameter %s\n", argv[0]);
     usage (argv0[0], NULL, pl);
   }
