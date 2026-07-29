@@ -305,7 +305,7 @@ int main(int argc, char const * argv[])
         exit(EXIT_FAILURE);
     }
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         param_list_print_usage(pl, bw->original_argv[0], stderr);
         exit(EXIT_FAILURE);
     }

@@ -188,7 +188,7 @@ static void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
      * supposed to.  */
     {
         balancing bb;
-        char const * bname = param_list_lookup_string(pl, "balancing");
+        char const * bname = pl.lookup_old("balancing");
         balancing_init(bb);
 
         if (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0) {
@@ -532,22 +532,22 @@ int main(int argc, char const * argv[])
 
     bw_common_decl_usage(pl);
     parallelizing_info_decl_usage(pl);
-    param_list_decl_usage(pl, "v", "turn on some demo logging");
+    pl.declare_usage("v", "turn on some demo logging");
     matmul_top_decl_usage(pl);
 
     /* declare local parameters and switches. */
-    param_list_configure_switch(pl, "v", &verbose);
+    pl.configure_switch_old("v", &verbose);
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
 
-    param_list_remove_key(pl, "interleaving");
+    pl.remove_key("interleaving");
 
     bw_common_interpret_parameters(bw, pl);
     parallelizing_info_lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
 
-    if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
+    if (pl.warn_unused()) {
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 

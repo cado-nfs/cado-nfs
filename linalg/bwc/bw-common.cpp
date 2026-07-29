@@ -100,8 +100,8 @@ const char * bw_common_usage_string()
 void bw_common_parse_cmdline(struct bw_params * bw, cxx_param_list & pl, int * p_argc, char const *** p_argv)/*{{{*/
 {
     bw->wct_base = wct_seconds();
-    param_list_configure_switch(pl, "-v", &bw->verbose);
-    param_list_process_command_line(pl, p_argc, p_argv, true);
+    pl.configure_switch_old("-v", &bw->verbose);
+    pl.process_command_line(*p_argc, *p_argv, true);
 }
 /*}}}*/
 
@@ -115,15 +115,15 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
          * we don't explicitly flush... (even though we clearly marked
          * stdout as not buffered...)
          */
-        param_list_print_command_line(stderr, pl);
+        pl.print_command_line(stderr);
         fflush(stderr);
-        param_list_print_command_line(stdout, pl);
+        pl.print_command_line(stdout);
         fflush(stdout);
     }
 
     const char * tmp;
 
-    if ((tmp = param_list_lookup_string(pl, "wdir")) != NULL) {
+    if ((tmp = pl.lookup_old("wdir")) != NULL) {
         /* We now do mkdir -p beforehand on all jobs. Note that at the
          * point where the current function is being called, we're not
          * multithreaded yet */
@@ -134,19 +134,19 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
         }
     }
 
-    param_list_parse_int(pl, "seed", &bw->seed);
-    param_list_parse_int(pl, "interval", &bw->interval);
-    param_list_parse_int_and_int(pl, "ys", bw->ys, "..");
-    param_list_parse_uint_and_uint(pl, "solutions", bw->solutions, "-");
-    param_list_parse_int(pl, "start", &bw->start);
-    param_list_parse_int(pl, "end", &bw->end);
-    param_list_parse_int(pl, "skip_online_checks", &bw->skip_online_checks);
-    param_list_parse_int(pl, "keep_rolling_checkpoints", &bw->keep_rolling_checkpoints);
-    param_list_parse_int(pl, "keep_checkpoints_younger_than", &bw->keep_checkpoints_younger_than);
-    param_list_parse_int(pl, "checkpoint_precious", &bw->checkpoint_precious);
+    pl.parse("seed", bw->seed);
+    pl.parse("interval", bw->interval);
+    pl.parse("ys", bw->ys, "..");
+    pl.parse("solutions", bw->solutions, "-");
+    pl.parse("start", bw->start);
+    pl.parse("end", bw->end);
+    pl.parse("skip_online_checks", bw->skip_online_checks);
+    pl.parse("keep_rolling_checkpoints", bw->keep_rolling_checkpoints);
+    pl.parse("keep_checkpoints_younger_than", bw->keep_checkpoints_younger_than);
+    pl.parse("checkpoint_precious", bw->checkpoint_precious);
 
     int yes_i_insist = 0;
-    param_list_parse_int(pl, "yes_i_insist", &yes_i_insist);
+    pl.parse("yes_i_insist", yes_i_insist);
 
     if (bw->skip_online_checks && bw->keep_rolling_checkpoints) {
         fprintf(stderr, "The combination of skip_online_checks and keep_rolling_checkpoints is a dangerous match.");
@@ -157,13 +157,13 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
         fprintf(stderr, " Proceeding anyway\n");
     }
 
-    param_list_lookup_string(pl, "skip_bw_early_rank_check");
+    pl.lookup("skip_bw_early_rank_check");
 
     mpz_init_set_ui(bw->p, 2);
-    param_list_parse_mpz(pl, "prime", bw->p);
+    pl.parse("prime", bw->p);
     int nullspace_forced = 0;
 
-    if ((tmp = param_list_lookup_string(pl, "nullspace")) != NULL) {
+    if ((tmp = pl.lookup_old("nullspace")) != NULL) {
         char * tmp_l = strdup(tmp);
         for(unsigned int i = 0 ; i < strlen(tmp_l) ; i++) {
             char c = tmp[i];
@@ -184,7 +184,7 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
     } else {
         /* Default is right nullspace for p>2, and left for p==2 */
         bw->dir = mpz_cmp_ui(bw->p, 2) != 0;
-        param_list_add_key(pl, "nullspace", bw_dirtext[bw->dir], PARAMETER_FROM_FILE);
+        pl.add_key("nullspace", bw_dirtext[bw->dir], cado::params::origin::FROM_FILE);
     }
 
     if ((mpz_cmp_ui(bw->p, 2) == 0) != (bw->dir == 0)) {
@@ -210,14 +210,14 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
     
     int okm=0, okn=0;
     int mn;
-    if (param_list_parse_int(pl, "mn", &mn)) {
+    if (pl.parse("mn", mn)) {
         bw->m=mn;
         bw->n=mn;
         okm++;
         okn++;
     }
-    okm += param_list_parse_int(pl, "m", &bw->m);
-    okn += param_list_parse_int(pl, "n", &bw->n);
+    okm += pl.parse("m", bw->m);
+    okn += pl.parse("n", bw->n);
     if (!okm || !okn) {
         fprintf(stderr, "parameter m and/or n is missing\n");
         param_list_print_usage(pl, bw->original_argv[0], stderr);

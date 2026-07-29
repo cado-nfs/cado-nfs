@@ -65,7 +65,7 @@ int main(int argc, char const * argv[])
 
     parallelizing_info_lookup_parameters(pl);
 
-    param_list_warn_unused(pl);
+    pl.warn_unused();
 
     pi_go(test_code, pl, NULL);
 

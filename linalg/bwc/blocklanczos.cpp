@@ -714,7 +714,7 @@ int main(int argc, char const * argv[])
     /* interpret our parameters */
     if (bw->ys[0] < 0) { fmt::print(stderr, "no ys value set\n"); exit(1); }
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);

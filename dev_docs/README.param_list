@@ -121,7 +121,7 @@ pattern.
      * considered for issuance of a warning. Unused parameters found in
      * config files are considered normal and trigger nothing.
      */
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         usage();
     }
     param_list_clear(pl);
@@ -332,7 +332,7 @@ The param_list_parse_* functions should be easily understood.
 Eventually, it is possible to make sure that all command-line parameters
 were used, and warn otherwise:
 
-  if (param_list_warn_unused(pl)) {
+  if (pl.warn_unused()) {
       usage();
   }
 

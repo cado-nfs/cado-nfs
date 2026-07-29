@@ -196,9 +196,9 @@ int main(int argc, char const * argv[])
         pl.fail("Error, missing -renumber command line argument\n");
     if (renumberfilename != nullptr && build)
         pl.fail("Error, --build and -renumber are exclusive\n");
-    if (!pl.lookup_old("lpbs") && build)
+    if (!pl.has("lpbs") && build)
         pl.fail("Error, --build requires -lpbs\n");
-    if (pl.lookup_old("lpbs") && !build)
+    if (pl.has("lpbs") && !build)
         pl.fail("Error, --lpbs is only valid with --build\n");
 
     if (!cpoly.read(polyfilename)) {
@@ -212,8 +212,7 @@ int main(int argc, char const * argv[])
         double const wtt = wct_seconds();
         double const tt = seconds();
         std::vector<unsigned int> lpb(tab.get_nb_polys(), 0);
-        param_list_parse_uint_list(pl, "lpbs", lpb.data(), tab.get_nb_polys(),
-                                   ",");
+        pl.parse("lpbs", lpb, ",");
         tab.set_lpb(lpb);
         tab.build(pl, for_dl);
 

@@ -1586,7 +1586,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     sieve_shared_data::lookup_parameters(pl, las.cpoly.nsides());
     batch_side_config::lookup_parameters(pl, las.cpoly.nsides());
 
-    param_list_warn_unused(pl);
+    pl.warn_unused();
 
     /* In the random-sample + relation cache case, we're going to proceed
      * through a special case, as this will spare us the need to load the

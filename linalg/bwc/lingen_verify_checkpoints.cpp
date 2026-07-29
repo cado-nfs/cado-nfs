@@ -763,7 +763,7 @@ int main(int argc, char const * argv[])
         }
     }
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }

@@ -77,7 +77,7 @@ int main(int argc, char const * argv[])
     if (verbose)
         param_list_display (pl, stderr);
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Unused parameters are given");
 
     pi_go(program, pl, nullptr);

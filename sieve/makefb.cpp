@@ -554,7 +554,7 @@ main (int argc, char const *argv[])
       }
   }
 
-  param_list_warn_unused(pl);
+  pl.warn_unused();
 
   makefb_with_powers (outputfile, cpoly[side], lim, maxbits, nb_threads);
 

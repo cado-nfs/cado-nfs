@@ -551,7 +551,7 @@ int main(int argc, char const * argv[])
     param_list_parse_uint(pl, "len1", &len1);
     param_list_parse_uint(pl, "len2", &len2);
     param_list_parse_ulong(pl, "seed", &seed);
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         exit(EXIT_FAILURE);
     if constexpr (is_binary) {
         if (m & 63) {

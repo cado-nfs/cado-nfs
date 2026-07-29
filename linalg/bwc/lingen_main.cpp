@@ -498,7 +498,7 @@ static int wrapped_main(int argc, char const *argv[])
     lingen_checkpoint<is_binary>::interpret_parameters(pl);
     lingen_io_matpoly<is_binary>::interpret_parameters(pl);
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);

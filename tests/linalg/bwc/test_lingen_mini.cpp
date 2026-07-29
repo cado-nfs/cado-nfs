@@ -154,7 +154,7 @@ int main(int argc, char const * argv[])
     lingen_tuning_lookup_parameters(pl);
     lingen_checkpoint<is_binary>::interpret_parameters(pl);
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }

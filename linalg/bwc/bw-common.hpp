@@ -155,7 +155,7 @@ void bw_common_decl_usage(cxx_param_list &);
     // bw_common_cheat_parameter_lookup(pl);
     // more interpret_parameters functions.
 
-    param_list_warn_unused(pl);
+    pl.warn_unused();
 
     // program !
 

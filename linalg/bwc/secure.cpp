@@ -412,7 +412,7 @@ int main(int argc, char const * argv[])
     parallelizing_info_lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);

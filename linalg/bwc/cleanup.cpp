@@ -24,7 +24,7 @@ int main(int argc, char const * argv[])
     param_list_process_command_line(pl, &argc, &argv, true);
     outfile = param_list_lookup_string(pl, "out");
     param_list_parse_uint(pl, "ncols", &ncols);
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Unused parameters are given");
     if (ncols == 0)
         pl.fail("Missing argument -ncols");

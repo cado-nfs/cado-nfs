@@ -75,8 +75,8 @@ static int do_cpubinding_tests(const char * cpubinding_conf)
         idx++;
 
         cxx_param_list pl2;
-        param_list_add_key(pl2, "cpubinding", cpubinding_conf, PARAMETER_FROM_CMDLINE);
-        param_list_add_key(pl2, "input-topology-string", line + pos + pos2, PARAMETER_FROM_CMDLINE);
+        pl2.add_key("cpubinding", cpubinding_conf, cado::params::origin::FROM_CMDLINE);
+        pl2.add_key("input-topology-string", line + pos + pos2, cado::params::origin::FROM_CMDLINE);
 
         char * msg;
         void * cc = cpubinding_get_info(&msg, pl2, t[0], t[1]);
@@ -102,27 +102,27 @@ int main(int argc, char const * argv[])
     const char * cpubinding_conf = nullptr;
     cxx_param_list pl;
 
-    param_list_configure_alias(pl, "input-topology-file", "-i");
-    param_list_configure_alias(pl, "input-topology-string", "-s");
-    param_list_configure_alias(pl, "cpubinding", "-c");
-    param_list_configure_switch(pl, "-v", &verbose);
+    pl.configure_alias("input-topology-file", "-i");
+    pl.configure_alias("input-topology-string", "-s");
+    pl.configure_alias("cpubinding", "-c");
+    pl.configure_switch_old("-v", &verbose);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
-    int seen_i = param_list_lookup_string(pl, "input-topology-file") != nullptr;
-    int seen_s = param_list_lookup_string(pl, "input-topology-string") != nullptr;
+    bool seen_i = pl.has("input-topology-file");
+    bool seen_s = pl.has("input-topology-string");
 
     if (seen_i && seen_s) {
         fprintf(stderr, "Cannot have both -i and -s\n");
         exit(1);
     }
 
-    cpubinding_conf = param_list_lookup_string(pl, "cpubinding");
+    cpubinding_conf = pl.lookup_old("cpubinding");
 
     unsigned int thr[2] = {1,1};
-    int parsed_thr = param_list_parse_uint_and_uint(pl, "thr", thr, "x");
+    bool parsed_thr = pl.parse("thr", thr, "x");
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         usage();
     }
 

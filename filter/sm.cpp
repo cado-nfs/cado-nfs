@@ -299,9 +299,9 @@ int main(int argc, char const ** argv)
      * computed later by sm_side_info_init */
     std::vector<int> nsm_arg(cpoly.nsides(), -1);
     /* Read number of sm to be printed from command line */
-    param_list_parse_int_args_per_side(pl, "nsm", nsm_arg.data(),
-                                       cpoly.nsides(),
-                                       ARGS_PER_SIDE_DEFAULT_AS_IS);
+    std::vector<int> v;
+    if (pl.parse_per_side("nsm", v, cpoly.nsides(), -1))
+        nsm_arg = v;
 
     std::vector<mpz_poly_srcptr> F(cpoly.nsides());
 

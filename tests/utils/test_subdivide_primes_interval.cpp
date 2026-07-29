@@ -38,7 +38,7 @@ int main(int argc, char const * argv[])
     param_list_parse(pl, "p1", p1);
     param_list_parse(pl, "n", n);
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Unused parameters are given");
 
     std::vector<unsigned long> splits = subdivide_primes_interval(p0, p1, n);

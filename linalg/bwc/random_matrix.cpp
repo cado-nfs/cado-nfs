@@ -1031,7 +1031,7 @@ int main(int argc, char const * argv[])
     /* }}} */
 
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("some arguments left unused");
 
     random_matrix_ddata F;

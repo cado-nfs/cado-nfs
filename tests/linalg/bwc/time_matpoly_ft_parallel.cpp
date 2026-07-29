@@ -144,7 +144,7 @@ int main(int argc, char const * argv[])
 
     lingen_platform const P(MPI_COMM_WORLD, pl);
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         exit(EXIT_FAILURE);
     if constexpr (is_binary) {
         if (m & 63) {

@@ -38,7 +38,7 @@ int main(int argc, char const * argv[])
 
     param_list_parse(pl, "m", m);
     param_list_parse(pl, "n", n);
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         exit(EXIT_FAILURE);
 
     matpoly<is_binary>::arith_hard K(p, 1U);
