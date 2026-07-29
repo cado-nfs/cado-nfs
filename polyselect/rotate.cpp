@@ -26,18 +26,18 @@ static void usage(const char *argv, const char *missing, cxx_param_list & pl)
         fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
                 missing);
     }
-    param_list_print_usage(pl, argv, stderr);
+    pl.print_usage(stderr);
     exit(EXIT_FAILURE);
 }
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "area", "sieving area (bound on a,b?) used for the computation of MurphyE");
-    param_list_decl_usage(pl, "I", "width of the I,J rectangle used for the computation of MurphyE");
-    param_list_decl_usage(pl, "Bf", "smoothness bound on side 1, used for the computation of MurphyE");
-    param_list_decl_usage(pl, "Bg", "smoothness bound on side 0, used for the computation of MurphyE");
-    param_list_decl_usage(pl, "skew", "skewness (default to automatic)\n");
-    param_list_decl_usage(pl, "B", "alpha bound used for the computation of alpha");
+    pl.declare_usage("area", "sieving area (bound on a,b?) used for the computation of MurphyE");
+    pl.declare_usage("I", "width of the I,J rectangle used for the computation of MurphyE");
+    pl.declare_usage("Bf", "smoothness bound on side 1, used for the computation of MurphyE");
+    pl.declare_usage("Bg", "smoothness bound on side 0, used for the computation of MurphyE");
+    pl.declare_usage("skew", "skewness (default to automatic)\n");
+    pl.declare_usage("B", "alpha bound used for the computation of alpha");
 }
 
 
@@ -62,7 +62,7 @@ int main(int argc, char const * argv[])
     argv++, argc--;
     for (int wild = 0; argc; )
     {
-        if (param_list_update_cmdline(pl, &argc, &argv))
+        if (pl.update_cmdline(argc, argv))
             continue;
         if (wild == 0) {
             polyfilename = *argv;
@@ -81,18 +81,18 @@ int main(int argc, char const * argv[])
         }
     }
 
-    param_list_parse_double(pl, "area", &area);
-    param_list_parse_double(pl, "Bf", &bound_f);
-    param_list_parse_double(pl, "Bg", &bound_g);
-    param_list_parse_double(pl, "skew", &skew);
-    param_list_parse_int(pl, "I", &I);
+    pl.parse("area", area);
+    pl.parse("Bf", bound_f);
+    pl.parse("Bg", bound_g);
+    pl.parse("skew", skew);
+    pl.parse("I", I);
     {
         unsigned long B;
-        if (param_list_parse_ulong(pl, "B", &B))
+        if (pl.parse("B", B))
             set_alpha_bound (B);
     }
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         usage (argv0[0], NULL, pl);
 
     if (I != 0)

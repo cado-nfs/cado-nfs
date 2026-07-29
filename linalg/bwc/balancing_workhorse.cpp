@@ -37,13 +37,13 @@
  */
 void balancing_decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "sanity_check_vector",
+    pl.declare_usage("sanity_check_vector",
             "while dispatching the matrix, store a fixed matrix times vector product in the given file");
 }
 
 void balancing_lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "sanity_check_vector");
+    pl.lookup("sanity_check_vector");
 }
 
 #ifdef RELY_ON_MPI_THREAD_MULTIPLE
@@ -229,8 +229,7 @@ struct dispatcher {/*{{{*/
         , endpoint(*this, args_per_thread)
         , reader(*this, endpoint)
     {
-        const char * tmp = param_list_lookup_string(pl, "sanity_check_vector");
-        if (tmp) check_vector_filename = tmp;
+        if (auto const * tmp = pl.has("sanity_check_vector")) check_vector_filename = *tmp;
         // Assume we are reading an N-rows matrix.  Assume we have n0*n1
         // nodes, t0*t1 threads.
         //

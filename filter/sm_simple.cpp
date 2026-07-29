@@ -94,12 +94,12 @@ static void my_sm(char const * outfile, char const * infile,
 
 static void declare_usage(cxx_param_list& pl)
 {
-    param_list_decl_usage(pl, "poly", "(required) poly file");
-    param_list_decl_usage(pl, "inp",
+    pl.declare_usage("poly", "(required) poly file");
+    pl.declare_usage("inp",
                           "(required) input file containing relations");
-    param_list_decl_usage(pl, "out", "output file");
-    param_list_decl_usage(pl, "ell", "(required) group order");
-    param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-portability.h)");
+    pl.declare_usage("out", "output file");
+    pl.declare_usage("ell", "(required) group order");
+    pl.declare_usage("sm-mode", "SM mode (see sm-portability.h)");
     verbose_decl_usage(pl);
 }
 
@@ -121,23 +121,22 @@ int main(int argc, char const * argv[])
     /* read params */
     declare_usage(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     /* Read poly filename from command line */
-    if ((polyfile = param_list_lookup_string(pl, "poly")) == NULL)
+    if ((polyfile = pl.lookup_old("poly")) == NULL)
         pl.fail("Error: parameter -poly is mandatory\n");
 
     /* Read purged filename from command line */
-    if ((infile = param_list_lookup_string(pl, "inp")) == NULL)
+    if ((infile = pl.lookup_old("inp")) == NULL)
         pl.fail("Error: parameter -inp is mandatory\n");
 
     /* Read outfile filename from command line ; defaults to stdout. */
-    outfile = param_list_lookup_string(pl, "out");
+    outfile = pl.lookup_old("out");
 
     /* Read ell from command line (assuming radix 10) */
     mpz_init(ell);
-    if (!param_list_parse_mpz(pl, "ell", ell))
-        pl.fail("Error: parameter -ell is mandatory\n");
+    pl.parse_mandatory("ell", ell);
 
     /* Init polynomial */
     cpoly.read(polyfile);
@@ -147,13 +146,13 @@ int main(int argc, char const * argv[])
     for (int side = 0; side < cpoly.nsides(); side++)
         F[side] = cpoly[side];
 
-    char const * sm_mode_string = param_list_lookup_string(pl, "sm-mode");
+    char const * sm_mode_string = pl.lookup_old("sm-mode");
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Unused parameters are given");
 
     verbose_interpret_parameters(pl);
-    param_list_print_command_line(stdout, pl);
+    pl.print_command_line(stdout);
 
     mpz_init(ell2);
     mpz_mul(ell2, ell, ell);

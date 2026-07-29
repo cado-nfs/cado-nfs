@@ -14,8 +14,8 @@
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "poly", "poly file");
-    param_list_decl_usage(pl, "t", "number of threads");
+    pl.declare_usage("poly", "poly file");
+    pl.declare_usage("t", "number of threads");
 
     siever_side_config::declare_usage(pl);
     batch_side_config::declare_usage(pl);
@@ -33,20 +33,20 @@ main (int argc, char const *argv[])
 
   declare_usage(pl);
 
-  param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
+  pl.process_command_line_and_extra_parameter_files(argc, argv);
 
   verbose_interpret_parameters(pl);
-  param_list_print_command_line(stdout, pl);
+  pl.print_command_line(stdout);
 
   const char * filename;
-  if ((filename = param_list_lookup_string(pl, "poly")) == NULL)
+  if ((filename = pl.lookup_old("poly")) == NULL)
       pl.fail("Error: parameter -poly is mandatory\n");
   if (!cpoly.read(filename)) {
       fprintf (stderr, "Error reading polynomial file %s\n", filename);
       exit (EXIT_FAILURE);
   }
 
-  param_list_parse_ulong(pl, "t"   , &nb_threads);
+  pl.parse("t", nb_threads);
 
   int const nsides = cpoly.nsides();
 

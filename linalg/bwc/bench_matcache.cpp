@@ -92,35 +92,35 @@ struct bench_args {// {{{
     bench_args& operator=(bench_args &&) = delete;
 
     static void configure_aliases(cxx_param_list & pl) {
-        param_list_configure_alias(pl, "--transpose", "-t");
-        param_list_configure_alias(pl, "--rebuild", "-r");
+        pl.configure_alias("--transpose", "-t");
+        pl.configure_alias("--rebuild", "-r");
     }
 
     static void configure_switches(cxx_param_list & pl) {
-        param_list_configure_switch(pl, "--nocheck", nullptr);
-        param_list_configure_switch(pl, "--transpose", nullptr);
-        param_list_configure_switch(pl, "--rebuild", nullptr);
+        pl.configure_switch_old("--nocheck", nullptr);
+        pl.configure_switch_old("--transpose", nullptr);
+        pl.configure_switch_old("--rebuild", nullptr);
     }
 
     bench_args(cxx_param_list & pl, std::vector<std::string> const & mfiles)// {{{
         : pl(pl)
         , mfiles(mfiles)
     {
-        param_list_parse(pl, "prime", prime);
-        param_list_parse(pl, "nthreads", nthreads);
-        if (param_list_parse(pl, "cycles", freq)) {
+        pl.parse("prime", prime);
+        pl.parse("nthreads", nthreads);
+        if (pl.parse("cycles", freq)) {
             unit = "cy/c";
         } else {
             unit = "ns/c";
         }
-        param_list_parse(pl, "nchecks", nchecks);
-        param_list_parse(pl, "tmax", tmax);
-        param_list_parse(pl, "nmax", nmax);
+        pl.parse("nchecks", nchecks);
+        pl.parse("tmax", tmax);
+        pl.parse("nmax", nmax);
 
-        if (param_list_parse_switch(pl, "--nocheck"))
+        if (pl.parse<bool>("--nocheck"))
             nchecks = 0;
 
-        param_list_parse(pl, "impl", impl);
+        pl.parse("impl", impl);
 
         /* The api mandates that we set the desired value for nbys. Here,
          * that's not really our intent, since we really want to bench
@@ -129,13 +129,13 @@ struct bench_args {// {{{
          */
         int nbys = 64;
         /* may leave nbys at the default value ! */
-        param_list_parse(pl, "nbys", nbys);
+        pl.parse("nbys", nbys);
 
         A.reset(arith_generic::instance(prime, nbys));
 
         fmt::print(stderr, "Using implementation \"{}\"\n", impl);
-        transpose = param_list_parse_switch(pl, "--transpose");
-        rebuild   = param_list_parse_switch(pl, "--rebuild");
+        transpose = pl.parse<bool>("--transpose");
+        rebuild   = pl.parse<bool>("--rebuild");
 
         if (mfiles.size() != (size_t) nthreads) {
             fmt::print(stderr, "{} threads requested, but {} files given on the command line.\n", nthreads, mfiles.size());
@@ -220,7 +220,7 @@ void bench_args::display_per_thread_info() const// {{{
 void bench_args::do_simple_matmul_if_requested()// {{{
 {
     std::string srcvecname;
-    if (!param_list_parse(pl, "srcvec", srcvecname))
+    if (!pl.parse("srcvec", srcvecname))
         return;
 
     private_args const & P(p[0]);
@@ -495,7 +495,7 @@ int main(int argc, char const * argv[])
 
     std::vector<std::string> mfiles;
 
-    param_list_process_command_line(pl, &argc, &argv, true);
+    pl.process_command_line(argc, argv, true);
 
     /* process all remaining command line argument as files */
     for( ; argc ; ) {
@@ -515,14 +515,14 @@ int main(int argc, char const * argv[])
 
     bench_args ba(pl, mfiles);
 
-    param_list_lookup_string(pl, "matmul_bucket_methods");
-    param_list_lookup_string(pl, "l1_cache_size");
-    param_list_lookup_string(pl, "l2_cache_size");
-    param_list_lookup_string(pl, "srcvec");
+    pl.lookup("matmul_bucket_methods");
+    pl.lookup("l1_cache_size");
+    pl.lookup("l2_cache_size");
+    pl.lookup("srcvec");
 
 
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         usage();
     }
     /*}}}*/

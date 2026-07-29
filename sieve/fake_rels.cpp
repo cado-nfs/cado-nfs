@@ -477,22 +477,22 @@ static void worker(int tnum, int nt,
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "poly", "polynomial file");
-    param_list_decl_usage(pl, "lpb0", "factor base bound on side 0");
-    param_list_decl_usage(pl, "lpb1", "factor base bound on side 1");
-    param_list_decl_usage(pl, "q0", "lower bound of the qrange");
-    param_list_decl_usage(pl, "q1", "upper bound of the qrange");
-    param_list_decl_usage(pl, "sqside", "side of the special-q");
-    param_list_decl_usage(pl, "sample", "file where to find a sample of relations");
-    param_list_decl_usage(pl, "renumber", "renumber table");
-    param_list_decl_usage(pl, "shrink-factor", "simulate with a matrix that number (integer >= 1) times smaller");
-    param_list_decl_usage(pl, "dl", "dl mode");
-    param_list_decl_usage(pl, "allow-compsq", "(switch) allows composite sq");
-    param_list_decl_usage(pl, "qfac-min", "factors of q must be at least that");
-    param_list_decl_usage(pl, "qfac-max", "factors of q must be at most that");
-    param_list_decl_usage(pl, "seed", "random seed");
-    param_list_decl_usage(pl, "t", "number of threads to use");
-    param_list_decl_usage(pl, "v", "verbose mode");
+    pl.declare_usage("poly", "polynomial file");
+    pl.declare_usage("lpb0", "factor base bound on side 0");
+    pl.declare_usage("lpb1", "factor base bound on side 1");
+    pl.declare_usage("q0", "lower bound of the qrange");
+    pl.declare_usage("q1", "upper bound of the qrange");
+    pl.declare_usage("sqside", "side of the special-q");
+    pl.declare_usage("sample", "file where to find a sample of relations");
+    pl.declare_usage("renumber", "renumber table");
+    pl.declare_usage("shrink-factor", "simulate with a matrix that number (integer >= 1) times smaller");
+    pl.declare_usage("dl", "dl mode");
+    pl.declare_usage("allow-compsq", "(switch) allows composite sq");
+    pl.declare_usage("qfac-min", "factors of q must be at least that");
+    pl.declare_usage("qfac-max", "factors of q must be at most that");
+    pl.declare_usage("seed", "random seed");
+    pl.declare_usage("t", "number of threads to use");
+    pl.declare_usage("v", "verbose mode");
     verbose_decl_usage(pl);
 }
 
@@ -514,13 +514,13 @@ int main(int argc, char const * argv[])
   double shrink_factor = 1; // by default, no shrink
 
   declare_usage(pl);
-  param_list_configure_switch (pl, "-v", &verbose);
-  param_list_configure_switch(pl, "-dl", &dl);
-  param_list_configure_switch(pl, "-allow-compsq", &compsq);
+  pl.configure_switch_old("-v", &verbose);
+  pl.configure_switch_old("-dl", &dl);
+  pl.configure_switch_old("-allow-compsq", &compsq);
 
   argv++, argc--;
   for( ; argc ; ) {
-      if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
+      if (pl.update_cmdline(argc, argv)) { continue; }
 
       /* Could also be a file */
       FILE *f;
@@ -536,55 +536,33 @@ int main(int argc, char const * argv[])
       exit (EXIT_FAILURE);
   }
   verbose_interpret_parameters(pl);
-  param_list_print_command_line(stdout, pl);
+  pl.print_command_line(stdout);
 
-  const char * filename;
-  if ((filename = param_list_lookup_string(pl, "poly")) == nullptr) {
+  const char * filename = pl.lookup_old("poly");
+  if (!filename) {
       fmt::print(stderr, "Error: parameter -poly is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
-  param_list_parse_int(pl, "lpb0", &lpb[0]);
-  if (lpb[0] == 0) {
-      fmt::print(stderr, "Error: parameter -lpb0 is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-  param_list_parse_int(pl, "lpb1", &lpb[1]);
-  if (lpb[1] == 0) {
-      fmt::print(stderr, "Error: parameter -lpb1 is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-
-  param_list_parse_uint64(pl, "q0", &q0);
-  if (q0 == 0) {
-      fmt::print(stderr, "Error: parameter -q0 is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-
-  param_list_parse_uint64(pl, "q1", &q1);
-  if (q1 == 0) {
-      fmt::print(stderr, "Error: parameter -q1 is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
+  pl.parse_mandatory("lpb0", lpb[0]);
+  pl.parse_mandatory("lpb1", lpb[1]);
+  pl.parse_mandatory("q0", q0);
+  pl.parse_mandatory("q1", q1);
   
-  param_list_parse_double(pl, "shrink-factor", &shrink_factor);
+  pl.parse("shrink-factor", shrink_factor);
   if (shrink_factor < 1) {
       fmt::print(stderr, "Error: shrink factor must be an integer >= 1\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
-  param_list_parse_int(pl, "t", &mt);
-  param_list_parse_uint64(pl, "qfac-min", &qfac_min);
-  param_list_parse_uint64(pl, "qfac-max", &qfac_max);
+  pl.parse("t", mt);
+  pl.parse("qfac-min", qfac_min);
+  pl.parse("qfac-max", qfac_max);
 
   unsigned long seed = 171717;
-  param_list_parse_ulong(pl, "seed", &seed);
+  pl.parse("seed", seed);
 
   if (!cpoly.read(filename))
     {
@@ -592,15 +570,15 @@ int main(int argc, char const * argv[])
       exit (EXIT_FAILURE);
     }
 
-  param_list_parse_int(pl, "sqside", &sqside);
+  pl.parse("sqside", sqside);
   if (sqside == -1 || sqside > 2) {
       fmt::print(stderr, "Error: sqside must be 0 or 1\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
-  const char * renumberfile;
-  if ((renumberfile = param_list_lookup_string(pl, "renumber")) == nullptr) {
+  const char * renumberfile = pl.lookup_old("renumber");
+  if (!renumberfile) {
       fmt::print(stderr, "Error: parameter -renumber is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
@@ -620,8 +598,8 @@ int main(int argc, char const * argv[])
   }
 
   // read sample file
-  const char * samplefile;
-  if ((samplefile = param_list_lookup_string(pl, "sample")) == nullptr) {
+  const char * samplefile = pl.lookup_old("sample");
+  if (!samplefile) {
       fmt::print(stderr, "Error: parameter -sample is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
@@ -647,7 +625,7 @@ int main(int argc, char const * argv[])
   fmt::print ("# Done reading sample file\n");
   fflush (stdout);
 
-  param_list_warn_unused(pl);
+  pl.warn_unused();
 
   // Two index ranges, one for each side
   fmt::print ("# Start preparing index ranges\n");

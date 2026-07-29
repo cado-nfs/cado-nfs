@@ -301,25 +301,25 @@ main (int argc, char const * argv[])
     /* used for counting time in different processes */
     timingstats_dict_t stats;
 
-    param_list_process_command_line(pl, &argc, &argv, true);
+    pl.process_command_line(argc, argv, true);
 
     dup1_process D(pl);
     verbose_interpret_parameters(pl);
     cado::filter_io_details::interpret_parameters(pl);
 
     /* print command-line arguments */
-    param_list_print_command_line (stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
     std::string outfmt;
     pl.parse("outfmt", outfmt);
 
-    const char * outdir = param_list_lookup_string(pl, "out");
-    const char * prefix_files = param_list_lookup_string(pl, "prefix");
+    const char * outdir = pl.lookup_old("out");
+    const char * prefix_files = pl.lookup_old("prefix");
 
     const filelist input(pl, argc, argv);
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Error, unused parameters are given\n");
     if (!prefix_files)
         pl.fail("Error, missing -prefix command line argument\n");

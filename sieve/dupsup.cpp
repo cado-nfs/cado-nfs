@@ -51,24 +51,24 @@ read_sq_comment(special_q & doing, const char *line)
  */
 static void declare_usage(cxx_param_list & pl)
 {
-  param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
-  param_list_decl_usage(pl, "poly", "polynomial file");
-  param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J");
-  param_list_decl_usage(pl, "A",    "set sieving region to 2^A");
-  param_list_decl_usage(pl, "skew", "skewness");
-  param_list_decl_usage(pl, "dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
-  param_list_decl_usage(pl, "dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
-  param_list_decl_usage(pl, "sqside", "side of special-q (default=1)");
+  pl.declare_usage("path_antebuffer", "path to antebuffer program");
+  pl.declare_usage("poly", "polynomial file");
+  pl.declare_usage("I",    "set sieving region to 2^I times J");
+  pl.declare_usage("A",    "set sieving region to 2^A");
+  pl.declare_usage("skew", "skewness");
+  pl.declare_usage("dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
+  pl.declare_usage("dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
+  pl.declare_usage("sqside", "side of special-q (default=1)");
   /* those are typical from las invocations, we wish to keep them
    * accepted */
-  param_list_decl_usage(pl, "out",  "filename where relations are written, instead of stdout");
+  pl.declare_usage("out",  "filename where relations are written, instead of stdout");
   siever_side_config::declare_usage(pl);
-  param_list_decl_usage(pl, "fb",   "(unused)");
-  param_list_decl_usage(pl, "fbc",  "(unused)");
-  param_list_decl_usage(pl, "q0",   "(unused)");
-  param_list_decl_usage(pl, "q1",   "(unused)");
-  param_list_decl_usage(pl, "nq",   "(unused)");
-  param_list_decl_usage(pl, "v",    "(unused)");
+  pl.declare_usage("fb",   "(unused)");
+  pl.declare_usage("fbc",  "(unused)");
+  pl.declare_usage("q0",   "(unused)");
+  pl.declare_usage("q1",   "(unused)");
+  pl.declare_usage("nq",   "(unused)");
+  pl.declare_usage("v",    "(unused)");
   verbose_decl_usage(pl);
   las_info::declare_usage(pl);
 }
@@ -80,30 +80,30 @@ main (int argc, char const * argv[])
     cxx_param_list pl;
     declare_usage(pl);
 
-    param_list_configure_switch(pl, "-v", nullptr);
+    pl.configure_switch_old("-v", nullptr);
 
-    param_list_process_command_line(pl, &argc, &argv, true);
+    pl.process_command_line(argc, argv, true);
 
     verbose_interpret_parameters(pl);
-    param_list_print_command_line (stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
     if (argc == 0)
       pl.fail("Error, provide freeform file names\n");
 
-    param_list_lookup_string(pl, "fb0");
-    param_list_lookup_string(pl, "fb1");
-    param_list_lookup_string(pl, "fbc");
-    param_list_lookup_string(pl, "q0");
-    param_list_lookup_string(pl, "q1");
-    param_list_lookup_string(pl, "nq");
-    const char * outputname = param_list_lookup_string(pl, "out");
+    pl.lookup("fb0");
+    pl.lookup("fb1");
+    pl.lookup("fbc");
+    pl.lookup("q0");
+    pl.lookup("q1");
+    pl.lookup("nq");
+    const char * outputname = pl.lookup_old("out");
 
     las_info las(pl, NFS{});
 
     las.prepare_sieve_shared_data(pl);
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
       pl.fail("Unused parameters are given\n");
 
     FILE * output = stdout;

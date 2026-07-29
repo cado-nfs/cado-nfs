@@ -689,14 +689,14 @@ static void sm_append(FILE * in, FILE * out,
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "poly", "(required) poly file");
-    param_list_decl_usage(pl, "ell", "(required) group order");
-    param_list_decl_usage(pl, "nsm", "number of SMs to use per side");
-    param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-portability.h)");
-    param_list_decl_usage(pl, "in", "data input (defaults to stdin)");
-    param_list_decl_usage(pl, "out", "data output (defaults to stdout)");
-    param_list_decl_usage(pl, "b", "batch size for loop");
-    param_list_decl_usage(pl, "t", "number of threads (exclusive with MPI!)");
+    pl.declare_usage("poly", "(required) poly file");
+    pl.declare_usage("ell", "(required) group order");
+    pl.declare_usage("nsm", "number of SMs to use per side");
+    pl.declare_usage("sm-mode", "SM mode (see sm-portability.h)");
+    pl.declare_usage("in", "data input (defaults to stdin)");
+    pl.declare_usage("out", "data output (defaults to stdout)");
+    pl.declare_usage("b", "batch size for loop");
+    pl.declare_usage("t", "number of threads (exclusive with MPI!)");
     verbose_decl_usage(pl);
 }
 
@@ -718,16 +718,15 @@ int main(int argc, char const * argv[])
 
     declare_usage(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     /* Read poly filename from command line */
-    if ((polyfile = param_list_lookup_string(pl, "poly")) == nullptr)
+    if ((polyfile = pl.lookup_old("poly")) == nullptr)
         pl.fail("Error: parameter -poly is mandatory\n");
 
     /* Read ell from command line (assuming radix 10) */
     mpz_init(ell);
-    if (!param_list_parse_mpz(pl, "ell", ell))
-        pl.fail("Error: parameter -ell is mandatory\n");
+    pl.parse_mandatory("ell", ell);
 
     /* Init polynomial */
     cpoly.read(polyfile);
@@ -744,8 +743,8 @@ int main(int argc, char const * argv[])
 
     FILE * in = rank ? nullptr : stdin;
     FILE * out = rank ? nullptr : stdout;
-    char const * infilename = param_list_lookup_string(pl, "in");
-    char const * outfilename = param_list_lookup_string(pl, "out");
+    char const * infilename = pl.lookup_old("in");
+    char const * outfilename = pl.lookup_old("out");
 
     if (!rank && infilename) {
         in = fopen_maybe_compressed(infilename, "r");
@@ -756,20 +755,20 @@ int main(int argc, char const * argv[])
         ASSERT_ALWAYS(out != nullptr);
     }
 
-    param_list_parse_uint(pl, "b", &batch_size);
+    pl.parse("b", batch_size);
 
     verbose_interpret_parameters(pl);
 
-    char const * sm_mode_string = param_list_lookup_string(pl, "sm-mode");
+    char const * sm_mode_string = pl.lookup_old("sm-mode");
 
     int nthr = 1;
-    param_list_parse(pl, "t", nthr);
+    pl.parse("t", nthr);
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Unused parameters are given");
 
     if (!rank)
-        param_list_print_command_line(stdout, pl);
+        pl.print_command_line(stdout);
 
     std::vector<sm_side_info> sm_info;
 

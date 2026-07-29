@@ -18,13 +18,13 @@
 
 void cofactorization_statistics::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "stats-cofact", "write statistics about the cofactorization step in file xxx");
+    pl.declare_usage("stats-cofact", "write statistics about the cofactorization step in file xxx");
 }
 
 //  las_info::{init,clear,print}_cof_stats
 cofactorization_statistics::cofactorization_statistics(cxx_param_list & pl)
 {
-    const char * statsfilename = param_list_lookup_string (pl, "stats-cofact");
+    const char * statsfilename = pl.lookup_old("stats-cofact");
     if (!statsfilename) {
         file = nullptr;
         return;

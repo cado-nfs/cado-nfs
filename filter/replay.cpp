@@ -914,29 +914,29 @@ int main(int argc, char const * argv[])
 
     replay_read_data::configure(pl);
 
-    param_list_configure_switch(pl, "for_msieve", &for_msieve);
+    pl.configure_switch_old("for_msieve", &for_msieve);
     cado::filter_io_details::configure(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     verbose_interpret_parameters(pl);
     cado::filter_io_details::interpret_parameters(pl);
-    param_list_print_command_line (stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
-    const char * hisname = param_list_lookup_string(pl, "his");
-    const char * sparsename = param_list_lookup_string(pl, "out");
-    const char * indexname = param_list_lookup_string(pl, "index");
-    const char * idealsfilename = param_list_lookup_string(pl, "ideals");
+    const char * hisname = pl.lookup_old("his");
+    const char * sparsename = pl.lookup_old("out");
+    const char * indexname = pl.lookup_old("index");
+    const char * idealsfilename = pl.lookup_old("ideals");
 #ifndef FOR_DL
-    param_list_parse_int(pl, "skip", &skip);
+    pl.parse("skip", skip);
 #endif
-    param_list_parse_uint64(pl, "Nmax", &Nmax);
-    const char *path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
+    pl.parse("Nmax", Nmax);
+    const char * path_antebuffer = pl.lookup_old("path_antebuffer");
 
 
     unsigned int nsquare_matrices = 0;
-    param_list_parse_uint(pl, "nsquare_matrices", &nsquare_matrices);
+    pl.parse("nsquare_matrices", nsquare_matrices);
     if (nsquare_matrices)
     {
         printf ("# Will output %u square matri%s\n", nsquare_matrices,
@@ -948,7 +948,7 @@ int main(int argc, char const * argv[])
     replay_read_data rr(pl);
 
     /* Some checks on command line arguments */
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Error, unused parameters are given\n");
 
     if (hisname == NULL)

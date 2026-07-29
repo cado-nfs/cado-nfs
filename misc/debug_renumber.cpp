@@ -23,22 +23,22 @@
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "poly", "input polynomial file");
-    param_list_decl_usage(
-        pl, "renumber",
+    pl.declare_usage("poly", "input polynomial file");
+    pl.declare_usage(
+        "renumber",
         "input file for renumbering table ; exclusive with --build");
-    param_list_decl_usage(
-        pl, "lpbs",
+    pl.declare_usage(
+        "lpbs",
         "large primes bounds (comma-separated list, for --build only)");
-    param_list_decl_usage(pl, "check", "check the renumbering table");
-    param_list_decl_usage(pl, "build",
+    pl.declare_usage("check", "check the renumbering table");
+    pl.declare_usage("build",
                           "build the renumbering table on the fly, instead of "
                           "loading it (requires --lpbs)");
-    param_list_decl_usage(pl, "bench",
+    pl.declare_usage("bench",
                           "bench lookup performance in the renumbering table");
-    param_list_decl_usage(pl, "quiet",
+    pl.declare_usage("quiet",
                           "do not print the renumbering table contents");
-    param_list_decl_usage(pl, "dl", "interpret as DL-related data.");
+    pl.declare_usage("dl", "interpret as DL-related data.");
     verbose_decl_usage(pl);
 }
 
@@ -173,20 +173,20 @@ int main(int argc, char const * argv[])
     declare_usage(pl);
     renumber_t::builder_declare_usage(pl);
 
-    param_list_configure_switch(pl, "check", &check);
-    param_list_configure_switch(pl, "build", &build);
-    param_list_configure_switch(pl, "quiet", &quiet);
-    param_list_configure_switch(pl, "bench", &bench);
-    param_list_configure_switch(pl, "dl", &for_dl);
+    pl.configure_switch_old("check", &check);
+    pl.configure_switch_old("build", &build);
+    pl.configure_switch_old("quiet", &quiet);
+    pl.configure_switch_old("bench", &bench);
+    pl.configure_switch_old("dl", &for_dl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     verbose_interpret_parameters(pl);
-    param_list_print_command_line(stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
-    char const * polyfilename = param_list_lookup_string(pl, "poly");
-    char const * renumberfilename = param_list_lookup_string(pl, "renumber");
+    char const * polyfilename = pl.lookup_old("poly");
+    char const * renumberfilename = pl.lookup_old("renumber");
 
     renumber_t::builder_lookup_parameters(pl);
 
@@ -196,9 +196,9 @@ int main(int argc, char const * argv[])
         pl.fail("Error, missing -renumber command line argument\n");
     if (renumberfilename != nullptr && build)
         pl.fail("Error, --build and -renumber are exclusive\n");
-    if (!param_list_lookup_string(pl, "lpbs") && build)
+    if (!pl.lookup_old("lpbs") && build)
         pl.fail("Error, --build requires -lpbs\n");
-    if (param_list_lookup_string(pl, "lpbs") && !build)
+    if (pl.lookup_old("lpbs") && !build)
         pl.fail("Error, --lpbs is only valid with --build\n");
 
     if (!cpoly.read(polyfilename)) {

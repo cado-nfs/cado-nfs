@@ -412,43 +412,43 @@ static void newAlgo(polyselect_thread_locals_ptr loc)
 static void
 declare_usage(cxx_param_list & pl)
 {
-  param_list_decl_usage(pl, "degree", "polynomial degree (2 or 3, "
+  pl.declare_usage("degree", "polynomial degree (2 or 3, "
                                       "default is 3)");
-  param_list_decl_usage(pl, "n", "(required, alias N) input number");
-  param_list_decl_usage(pl, "P", "(required) deg-1 coeff of g(x) has two prime factors in [P,2P]\n");
+  pl.declare_usage("n", "(required, alias N) input number");
+  pl.declare_usage("P", "(required) deg-1 coeff of g(x) has two prime factors in [P,2P]\n");
 
-  param_list_decl_usage(pl, "admax", "max value for ad (+1)");
-  param_list_decl_usage(pl, "admin", "min value for ad (default 0)");
-  param_list_decl_usage(pl, "incr", "increment of ad (default 60)");
-  param_list_decl_usage(pl, "skewness", "maximun skewness possible "
+  pl.declare_usage("admax", "max value for ad (+1)");
+  pl.declare_usage("admin", "min value for ad (default 0)");
+  pl.declare_usage("incr", "increment of ad (default 60)");
+  pl.declare_usage("skewness", "maximun skewness possible "
                                         "(default N^(1/9))");
-  param_list_decl_usage(pl, "maxtime", "stop the search after maxtime seconds");
+  pl.declare_usage("maxtime", "stop the search after maxtime seconds");
 
   char str[200];
   snprintf (str, 200, "maximum number of special-q's considered\n"
             "               for each ad (default %d)", INT_MAX);
-  param_list_decl_usage(pl, "nq", str);
-  param_list_decl_usage(pl, "keep", "number of polynomials kept (default 10)");
-  param_list_decl_usage(pl, "t", "number of threads to use (default 1)");
-  param_list_decl_usage(pl, "v", "verbose mode");
-  param_list_decl_usage(pl, "q", "quiet mode");
+  pl.declare_usage("nq", str);
+  pl.declare_usage("keep", "number of polynomials kept (default 10)");
+  pl.declare_usage("t", "number of threads to use (default 1)");
+  pl.declare_usage("v", "verbose mode");
+  pl.declare_usage("q", "quiet mode");
   snprintf (str, 200, "sieving area (default %.2e)", AREA);
-  param_list_decl_usage(pl, "area", str);
+  pl.declare_usage("area", str);
   snprintf (str, 200, "algebraic smoothness bound (default %.2e)", BOUND_F);
-  param_list_decl_usage(pl, "Bf", str);
+  pl.declare_usage("Bf", str);
   snprintf (str, 200, "rational smoothness bound (default %.2e)", BOUND_G);
-  param_list_decl_usage(pl, "Bg", str);
+  pl.declare_usage("Bg", str);
   verbose_decl_usage(pl);
 }
 
 static void
-usage (const char *argv, const char * missing, cxx_param_list & pl)
+usage (const char *argv MAYBE_UNUSED, const char * missing, cxx_param_list & pl)
 {
   if (missing) {
     fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
         missing);
   }
-  param_list_print_usage(pl, argv, stderr);
+  pl.print_usage(stderr);
   exit (EXIT_FAILURE);
 }
 
@@ -491,9 +491,9 @@ int main(int argc, char const * argv[])
   ASSERT_ALWAYS (2 <= main_data->d && main_data->d <= 3);
   polyselect_main_data_parse_ad_range(main_data, pl);
   polyselect_main_data_parse_P(main_data, pl);
-  param_list_parse_ulong(pl, "nq", &main_data->nq);
+  pl.parse("nq", main_data->nq);
 
-  param_list_parse_int (pl, "t", &nthreads);
+  pl.parse("t", nthreads);
 #ifdef HAVE_OPENMP
   omp_set_num_threads(nthreads);
 #else
@@ -508,16 +508,16 @@ int main(int argc, char const * argv[])
   /* XXX we have no sopt parameter here */
 
   /* used for computation of E */
-  if (param_list_parse_double (pl, "area", &area) == 0) /* no -area */
+  if (!pl.parse("area", area)) /* no -area */
     area = AREA;
-  if (param_list_parse_double (pl, "Bf", &bound_f) == 0) /* no -Bf */
+  if (!pl.parse("Bf", bound_f)) /* no -Bf */
     bound_f = BOUND_F;
-  if (param_list_parse_double (pl, "Bg", &bound_g) == 0) /* no -Bg */
+  if (!pl.parse("Bg", bound_g)) /* no -Bg */
     bound_g = BOUND_G;
 
 
 
-  if (!param_list_parse_mpz(pl, "skewness", maxS))
+  if (!pl.parse("skewness", maxS))
     mpz_set_ui (maxS, 0);
   else if (mpz_cmp_ui (maxS, 1) < 0)
   {
@@ -526,12 +526,12 @@ int main(int argc, char const * argv[])
     abort();
   }
 
-  if (param_list_warn_unused(pl))
+  if (pl.warn_unused())
     usage (argv0[0], NULL, pl);
 
   /* print command line */
   verbose_interpret_parameters(pl);
-  param_list_print_command_line (stdout, pl);
+  pl.print_command_line(stdout);
 
   /* quiet mode */
   if (quiet == 1)

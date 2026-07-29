@@ -33,9 +33,9 @@ void las_info::configure_switches(cxx_param_list & pl)
 {
     cxx_cado_poly::configure_switches(pl);
     las_todo_list::configure_switches(pl);
-    param_list_configure_switch(pl, "-dup", nullptr);
-    param_list_configure_switch(pl, "-smallset-purge", nullptr);
-    param_list_configure_switch(pl, "-batch", nullptr);
+    pl.configure_switch_old("-dup", nullptr);
+    pl.configure_switch_old("-smallset-purge", nullptr);
+    pl.configure_switch_old("-batch", nullptr);
 }
 
 void las_info::declare_usage(cxx_param_list & pl)
@@ -48,21 +48,21 @@ void las_info::declare_usage(cxx_param_list & pl)
     batch_side_config::declare_usage(pl);
 
 
-    param_list_decl_usage(pl, "galois", "depending on the specified galois automorphism, sieve only part of the q's");
+    pl.declare_usage("galois", "depending on the specified galois automorphism, sieve only part of the q's");
 
-    param_list_decl_usage(pl, "dup", "suppress duplicate relations");
-    param_list_decl_usage(pl, "dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
-    param_list_decl_usage(pl, "dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
+    pl.declare_usage("dup", "suppress duplicate relations");
+    pl.declare_usage("dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
+    pl.declare_usage("dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
 
-    param_list_decl_usage(pl, "smallset-purge", "use experimental 'smallset' code in purge_buckets");
+    pl.declare_usage("smallset-purge", "use experimental 'smallset' code in purge_buckets");
 
-    param_list_decl_usage(pl, "batch", "use batch cofactorization");
-    param_list_decl_usage(pl, "batch-print-survivors", "just print survivors to files with the given basename for an external cofactorization");
-    param_list_decl_usage(pl, "batch-print-survivors-filesize", "write that many survivors per file");
-    param_list_decl_usage(pl, "batch-print-survivors-number-of-printers", "use this number of I/O threads to write survivor files. defaults to 1, and should not be changed except in very unusual cases");
+    pl.declare_usage("batch", "use batch cofactorization");
+    pl.declare_usage("batch-print-survivors", "just print survivors to files with the given basename for an external cofactorization");
+    pl.declare_usage("batch-print-survivors-filesize", "write that many survivors per file");
+    pl.declare_usage("batch-print-survivors-number-of-printers", "use this number of I/O threads to write survivor files. defaults to 1, and should not be changed except in very unusual cases");
 
-    param_list_decl_usage(pl, "relation_cache", "Directory with cache of collected relation for sampling within a known data set. Useful only with --random-sample\n");
-    param_list_decl_usage(pl, "dumpfile", "Dump entire sieve region to file for debugging.");
+    pl.declare_usage("relation_cache", "Directory with cache of collected relation for sampling within a known data set. Useful only with --random-sample\n");
+    pl.declare_usage("dumpfile", "Dump entire sieve region to file for debugging.");
 }
 
 
@@ -105,9 +105,9 @@ void las_info::load_factor_base(cxx_param_list & pl)
 
 template<sieve_method Algo>
 las_info::las_info(cxx_param_list & pl, Algo)
-    : galois(param_list_lookup_string(pl, "galois"))
-    , suppress_duplicates(param_list_parse_switch(pl, "-dup"))
-    , use_smallset_purge(param_list_parse_switch(pl, "-smallset-purge"))
+    : galois(pl.lookup_old("galois"))
+    , suppress_duplicates(pl.parse<bool>("-dup"))
+    , use_smallset_purge(pl.parse<bool>("-smallset-purge"))
     , cpoly(pl)
     , config_pool(pl, cpoly.nsides(), Algo{})
 #ifndef HAVE_HWLOC
@@ -125,7 +125,7 @@ las_info::las_info(cxx_param_list & pl, Algo)
     // ----- general operational flags {{{
 
 
-    if (const char * tmp = param_list_lookup_string(pl, "bkmult")) {
+    if (const char * tmp = pl.lookup_old("bkmult")) {
         bk_multiplier = bkmult_specifier(tmp);
     }
 
@@ -133,7 +133,7 @@ las_info::las_info(cxx_param_list & pl, Algo)
     // }}}
 
 
-    param_list_parse(pl, "relation_cache", relation_cache);
+    pl.parse("relation_cache", relation_cache);
 
     // ----- stuff roughly related to the descent {{{
     descent_helper = nullptr;
@@ -143,11 +143,16 @@ las_info::las_info(cxx_param_list & pl, Algo)
     dupqmin.assign(nsides, ULONG_MAX);
     dupqmax.assign(nsides, ULONG_MAX);
     if (suppress_duplicates) {
-        if (!param_list_parse_per_side<unsigned long>(pl, "dup-qmin", dupqmin.data(), nsides, ARGS_PER_SIDE_DEFAULT_AS_IS)) {
+        std::vector<unsigned long> v;
+        if (pl.parse_per_side("dup-qmin", v, nsides, ULONG_MAX)) {
+            dupqmin = v;
+        } else {
             fprintf(stderr, "Error: -dup-qmin is mandatory with -dup\n");
             exit(EXIT_FAILURE);
         }
-        param_list_parse_per_side<unsigned long>(pl, "dup-qmax", dupqmax.data(), nsides, ARGS_PER_SIDE_DEFAULT_AS_IS);
+        if (pl.parse_per_side("dup-qmax", v, nsides, ULONG_MAX)) {
+            dupqmax = v;
+        }
         /* The command-line value 0 also means ULONG_MAX */
         for (auto & x : dupqmin) if (x == 0) x = ULONG_MAX;
     }
@@ -155,7 +160,7 @@ las_info::las_info(cxx_param_list & pl, Algo)
     /* }}} */
 
     // ----- batch mode {{{
-    batch = param_list_parse_switch(pl, "-batch");
+    batch = pl.parse<bool>("-batch");
 
     if (batch) {
         batch_side_config::parse(pl, bsides, nsides);
@@ -187,17 +192,17 @@ las_info::las_info(cxx_param_list & pl, Algo)
     }
 
 
-    batch_print_survivors.filename = param_list_lookup_string(pl, "batch-print-survivors");
+    batch_print_survivors.filename = pl.lookup_old("batch-print-survivors");
     if (batch_print_survivors.filename) {
         batch_print_survivors.counter = 0;
         batch_print_survivors.number_of_printers = 1;
         batch_print_survivors.filesize = 1000000;
-        param_list_parse_uint64(pl, "batch-print-survivors-filesize", &batch_print_survivors.filesize);
-        param_list_parse_int(pl, "batch-print-survivors-number-of-printers", &batch_print_survivors.number_of_printers);
+        pl.parse("batch-print-survivors-filesize", batch_print_survivors.filesize);
+        pl.parse("batch-print-survivors-number-of-printers", batch_print_survivors.number_of_printers);
     }
     // }}} 
 
-    dump_filename = param_list_lookup_string(pl, "dumpfile");
+    dump_filename = pl.lookup_old("dumpfile");
 }/*}}}*/
 
 template las_info::las_info(cxx_param_list & pl, NFS);

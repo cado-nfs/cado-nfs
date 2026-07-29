@@ -67,21 +67,21 @@ struct freerel_data_t : public renumber_t::hook {
     freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly, std::vector<unsigned int> const & lpb);
     void operator()(renumber_t & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) override;
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage(pl, "out", "output file for free relations");
-        param_list_decl_usage(pl, "pmin", "do not create freerel below this bound");
-        param_list_decl_usage(pl, "pmax", "do not create freerel beyond this bound");
+        pl.declare_usage("out", "output file for free relations");
+        pl.declare_usage("pmin", "do not create freerel below this bound");
+        pl.declare_usage("pmax", "do not create freerel beyond this bound");
     }
     static void lookup_parameters(cxx_param_list & pl) {
-        param_list_lookup_string(pl, "out");
-        param_list_lookup_string(pl, "pmin");
-        param_list_lookup_string(pl, "pmax");
+        pl.lookup("out");
+        pl.lookup("pmin");
+        pl.lookup("pmax");
     }
 };
 
-freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly, std::vector<unsigned int> const & lpb) : sink(param_list_lookup_string(pl, "out"))
+freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly, std::vector<unsigned int> const & lpb) : sink(pl.lookup_old("out"))
 {
-    param_list_parse_ulong(pl, "pmin", &pmin);
-    param_list_parse_ulong(pl, "pmax", &pmax);
+    pl.parse("pmin", pmin);
+    pl.parse("pmax", pmax);
     /* if pmax is not equal to 0 (i.e., was not given on the command line),
      * set pmax to the largest integer that is less than or equal to
      * two of the large prime bounds.
@@ -173,13 +173,13 @@ main(int argc, char const * argv[])
     freerel_data_t::declare_usage(pl);
     verbose_decl_usage(pl);
     renumber_t::builder_declare_usage(pl);
-    param_list_configure_switch(pl, "dl", &for_dl);
+    pl.configure_switch_old("dl", &for_dl);
 
     argv++, argc--;
     if (argc == 0)
         usage(pl, argv0);
     for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv))
+        if (pl.update_cmdline(argc, argv))
             continue;
         FILE* f;
         if ((f = fopen(argv[0], "r")) != nullptr) {
@@ -193,35 +193,35 @@ main(int argc, char const * argv[])
     }
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
-    param_list_print_command_line(stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
     /* }}} */
     /* {{{ interpret cmdline parameters and catch errors */
-    const char * polyfilename = param_list_lookup_string(pl, "poly");
+    const char * polyfilename = pl.lookup_old("poly");
 
     renumber_t::builder_lookup_parameters(pl);
 
     int nthreads = 0;
-    if (param_list_parse_int (pl, "t", &nthreads)) {
+    if (pl.parse("t", nthreads)) {
         fmt::print(stderr, "Warning: the -t argument to freerel is kept for compatibility, but you should rather take it out and let openmp deal with it\n");
         omp_set_num_threads(nthreads);
     }
 
     freerel_data_t::lookup_parameters(pl);
 
-    param_list_lookup_string(pl, "lpb0");
-    param_list_lookup_string(pl, "lpb1");
-    param_list_lookup_string(pl, "lpbs");
+    pl.lookup("lpb0");
+    pl.lookup("lpb1");
+    pl.lookup("lpbs");
 
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         usage(pl, argv0);
 
     if (polyfilename == nullptr) {
         fmt::print(stderr, "Error, missing -poly command line argument\n");
         usage(pl, argv0);
     }
-    if (!param_list_lookup_string(pl, "renumber")) {
+    if (!pl.has("renumber")) {
         fmt::print(stderr, "Error, missing -renumber command line argument\n");
         usage(pl, argv0);
     }
@@ -232,7 +232,7 @@ main(int argc, char const * argv[])
 
     std::vector<unsigned int> lpb(cpoly.nsides(), 0);
 
-    if (!param_list_parse_uint_args_per_side(pl, "lpb", lpb.data(), cpoly.nsides(), ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS)) {
+    if (!pl.parse_per_side("lpb", lpb, cpoly.nsides(), cado::params::copy_previous_side())) {
         fmt::print(stderr,
                 "Error, could not obtain values for the lpb bounds (or not for all polynomials)\n");
         usage(pl, argv0);
@@ -242,7 +242,7 @@ main(int argc, char const * argv[])
 
     std::unique_ptr<freerel_data_t> F;
 
-    if (param_list_lookup_string(pl, "out")) {
+    if (pl.has("out")) {
         F = std::make_unique<freerel_data_t>(pl, cpoly, lpb);
 
         fmt::print("Considering freerels for {} <= p <= {}\n", 

@@ -636,23 +636,23 @@ static void
 declare_usage_basic (cxx_param_list & pl)
 {
   char str[200];
-  param_list_decl_usage(pl, "inputpolys", "root-sieve the size-optimized "
+  pl.declare_usage("inputpolys", "root-sieve the size-optimized "
                                           "polynomials given in this file");
   snprintf (str, 200, "root-sieve effort (default %.0f)", DEFAULT_ROPTEFFORT);
-  param_list_decl_usage(pl, "ropteffort", str);
-  param_list_decl_usage(pl, "t", "number of threads to use (default 1)");
+  pl.declare_usage("ropteffort", str);
+  pl.declare_usage("t", "number of threads to use (default 1)");
   snprintf (str, 200, "sieving area (default %.2e)", AREA);
-  param_list_decl_usage(pl, "area", str);
-  param_list_decl_usage(pl, "I", "I-value (alternative to -area)");
-  param_list_decl_usage(pl, "A", "A-value (alternative to -area)");
+  pl.declare_usage("area", str);
+  pl.declare_usage("I", "I-value (alternative to -area)");
+  pl.declare_usage("A", "A-value (alternative to -area)");
   snprintf (str, 200, "algebraic smoothness bound (default %.2e)", BOUND_F);
-  param_list_decl_usage(pl, "Bf", str);
+  pl.declare_usage("Bf", str);
   snprintf (str, 200, "rational smoothness bound (default %.2e)", BOUND_G);
-  param_list_decl_usage(pl, "Bg", str);
+  pl.declare_usage("Bg", str);
   snprintf (str, 200, "bound for computing alpha (default %d)", ALPHA_BOUND);
-  param_list_decl_usage(pl, "alpha_bound", str);
-  param_list_decl_usage(pl, "v", "verbose mode");
-  param_list_decl_usage(pl, "boundmaxlognorm", "Maximum lognorm. Used to compute"
+  pl.declare_usage("alpha_bound", str);
+  pl.declare_usage("v", "verbose mode");
+  pl.declare_usage("boundmaxlognorm", "Maximum lognorm. Used to compute"
                                                " bounds for rotations for the "
                                                "sieve stage of ropt");
   verbose_decl_usage(pl);
@@ -660,13 +660,13 @@ declare_usage_basic (cxx_param_list & pl)
 
 
 static void
-usage_basic (const char *argv, const char * missing, cxx_param_list & pl)
+usage_basic (const char *argv MAYBE_UNUSED, const char * missing, cxx_param_list & pl)
 {
   if (missing) {
     fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
             missing);
   }
-  param_list_print_usage (pl, argv, stderr);
+  pl.print_usage(stderr);
   exit (EXIT_FAILURE);
 }
 
@@ -695,7 +695,7 @@ static int main_basic (int argc, char const * argv[])
 {
   char const **argv0 = argv;
   const char *polys_filename = NULL;
-  double st0 = seconds ();
+  MAYBE_UNUSED double st0 = seconds ();
   FILE *polys_file = NULL;
   ropt_time tott;
   int A;
@@ -717,41 +717,43 @@ static int main_basic (int argc, char const * argv[])
   /* read params */
   cxx_param_list pl;
   declare_usage_basic(pl);
-  param_list_configure_switch (pl, "-v", &(rparam->verbose));
-  param_list_configure_alias(pl, "alpha_bound", "B");
+  pl.configure_switch_old("-v", &(rparam->verbose));
+  pl.configure_alias("alpha_bound", "B");
 
   if (argc == 1)
     usage_basic (argv0[0], NULL, pl);
 
   argv++, argc--;
   for ( ; argc; ) {
-    if (param_list_update_cmdline (pl, &argc, &argv)) continue;
+    if (pl.update_cmdline(argc, argv)) continue;
     fprintf (stderr, "Unhandled parameter %s\n", argv[0]);
     usage_basic (argv0[0], NULL, pl);
   }
 
   {
       /* parse -t. Set nthreads to zero (automatic) if -t is "auto" */
-      const char * tmp;
-      if ((tmp = param_list_lookup_string(pl, "t")) && strcmp(tmp, "auto") == 0) {
+      auto const * tmp = pl.has("t");
+      if (tmp && *tmp == "auto") {
           nthreads = 0;
       } else {
-          param_list_parse_uint(pl, "t", &nthreads);
+          pl.parse("t", nthreads);
       }
   }
 
-  if (param_list_parse_double (pl, "Bf", &bound_f) == 0) /* no -Bf */
+  if (!pl.parse("Bf", bound_f)) /* no -Bf */
     bound_f = BOUND_F;
-  if (param_list_parse_double (pl, "Bg", &bound_g) == 0) /* no -Bg */
+  if (!pl.parse("Bg", bound_g)) /* no -Bg */
     bound_g = BOUND_G;
   int a;
-  if (param_list_parse_int (pl, "alpha_bound", &a)) /* -B option */
+  if (pl.parse("alpha_bound", a)) /* -B option */
     set_alpha_bound (a);
-  int has_area = param_list_parse_double (pl, "area", &area);
-  int has_A_or_I = param_list_parse_int (pl, "A", &A);
-  if (has_A_or_I == 0 && param_list_parse_int (pl, "I", &A))
+  bool has_area = pl.parse("area", area);
+  bool has_A_or_I = pl.parse("A", A);
+  if (!has_A_or_I && pl.parse("I", A)) {
+    has_A_or_I = true;
     A = 2 * A - 1;
-  if (has_area == 0 && has_A_or_I == 0) /* no -area nor -I/-A */
+  }
+  if (!has_area && !has_A_or_I) /* no -area nor -I/-A */
     area = AREA;
   else if (has_area && has_A_or_I)
     {
@@ -762,18 +764,18 @@ static int main_basic (int argc, char const * argv[])
     area = bound_f * pow (2.0, (double) A);
 
   /* sieving effort that passed to ropt */
-  param_list_parse_double (pl, "ropteffort", &(rparam->effort));
+  pl.parse("ropteffort", rparam->effort);
   /* param for ropt */
-  param_list_parse_double (pl, "boundmaxlognorm", &(rparam->bound_lognorm));
+  pl.parse("boundmaxlognorm", rparam->bound_lognorm);
   /* filename of the file with the list of polynomials to root-sieve */
-  polys_filename = param_list_lookup_string (pl, "inputpolys");
+  polys_filename = pl.lookup_old("inputpolys");
 
-  if (param_list_warn_unused(pl))
+  if (pl.warn_unused())
     usage_basic (argv0[0], NULL, pl);
 
   /* print command line */
   verbose_interpret_parameters(pl);
-  param_list_print_command_line (stdout, pl);
+  pl.print_command_line(stdout);
 
   if (polys_filename == NULL)
     usage_basic (argv0[0], "inputpolys", pl);

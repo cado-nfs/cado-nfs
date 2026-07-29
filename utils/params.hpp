@@ -217,6 +217,14 @@ template<> struct parser<bool> {// {{{
             b = false;
             return true;
         }
+        try {
+            size_t pos = 0;
+            int const v = std::stoi(s, &pos);
+            if (pos == s.size()) {
+                b = (v != 0);
+                return true;
+            }
+        } catch (...) {}
         return false;
     }
 };// }}}
