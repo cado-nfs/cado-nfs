@@ -985,35 +985,6 @@ static inline const char * param_list_lookup_string(cxx_param_list & pl, const c
     return p ? p->c_str() : nullptr;
 }
 
-enum args_per_side_policy_t {
-    ARGS_PER_SIDE_DEFAULT_AS_IS,
-    ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS,
-};
-template<typename T>
-int param_list_parse_per_side(cxx_param_list & pl, std::string const & key0, T * lpb_arg, int n, enum args_per_side_policy_t policy)
-{
-    std::vector<T> v;
-    int r;
-    if (policy == ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS) {
-        r = pl.parse_per_side(key0, v, n, cado::params::copy_previous_side());
-    } else {
-        r = pl.parse_per_side(key0, v, n, lpb_arg[n-1]);
-    }
-    if (r)
-        std::copy(v.begin(), v.end(), lpb_arg);
-    /* XXX param_list_parse_*_per_side expects a size (but it is
-     * particularly badly defined, so we should really not use it IMHO) */
-    return r * n;
-}
-
-static inline int param_list_parse_int_args_per_side(cxx_param_list & pl, std::string const & key0, int * lpb_arg, int n, enum args_per_side_policy_t policy)
-{
-    return param_list_parse_per_side(pl, key0, lpb_arg, n, policy);
-}
-static inline int param_list_parse_uint_args_per_side(cxx_param_list & pl, std::string const & key0, unsigned int * lpb_arg, int n, enum args_per_side_policy_t policy)
-{
-    return param_list_parse_per_side(pl, key0, lpb_arg, n, policy);
-}
 enum parameter_origin { PARAMETER_FROM_FILE, PARAMETER_FROM_CMDLINE };
 static inline void param_list_add_key(cxx_param_list & pl,
         const char * key, const char * value, enum parameter_origin o)
