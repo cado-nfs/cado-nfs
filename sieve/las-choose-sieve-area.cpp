@@ -16,16 +16,14 @@
 #include "las-siever-config.hpp"
 #include "las-special-q-task.hpp"
 #include "mpz_poly.h"
-#include "tdict.hpp"
+#include "cxx_mpz.hpp"
 #include "verbose.hpp"
 #include "threadpool.hpp"
 
 int never_discard = 0;      /* only enabled for las_descent */
 
-template<typename Recorder>
 static bool choose_sieve_area_impl(las_info const & las,
         thread_pool * pool,
-        Recorder const & record,
         special_q_task const & doing,
         siever_config & conf,
         qlattice_basis & Q,
@@ -38,7 +36,7 @@ static bool choose_sieve_area_impl(las_info const & las,
 
     /* This step takes extremely little time */
     {
-        [[maybe_unused]] auto tt = record(chronograms::QLATTICE());
+        [[maybe_unused]] auto tt = thread_pool::trace_on_leader(pool, chronograms::QLATTICE());
         /* Our business: find an appropriate siever_config, that is
          * appropriate for this special-q. Different special-q's may lead to
          * different siever_config's, it is allowed.
@@ -78,7 +76,7 @@ static bool choose_sieve_area_impl(las_info const & las,
     Adj->Q.sublat.m = conf.sublat_bound;
 
     {
-        [[maybe_unused]] auto tt = record(chronograms::QLATTICE());
+        [[maybe_unused]] auto tt = thread_pool::trace_on_leader(pool, chronograms::QLATTICE());
         /* Try strategies for adopting the sieving range */
 
         int const should_discard = !Adj->sieve_info_adjust_IJ();
@@ -155,15 +153,12 @@ static bool choose_sieve_area_impl(las_info const & las,
     return true;
 }
 
-template<typename Recorder>
 static bool choose_sieve_area_impl(las_info const & las,
-        Recorder const & record,
         special_q_task const & doing,
         siever_config & conf,
         siqs_special_q_data & Q,
         uint32_t & J)
 {
-    [[maybe_unused]] auto tt = record(chronograms::QLATTICE());
     conf = las.config_pool.get_config_for_q(doing);
     auto n = doing.sq().prime_factors.size();
     conf.logI = conf.logA-(n-1);
@@ -186,32 +181,24 @@ static bool choose_sieve_area_impl(las_info const & las,
 
 template<>
 bool choose_sieve_area(las_info const & las,
-        std::shared_ptr<nfs_aux> const & aux_p,
         thread_pool & pool,
         special_q_task const & doing,
         siever_config & conf,
         qlattice_basis & Q,
         uint32_t & J)
 {
-    timetree_t & timer(aux_p->rt.timer);
-    int const id = aux_p->subjob_id * las.number_of_threads_per_subjob();
-    auto recorder = [&](auto const & c) { return timer.trace(id, c); };
-    return choose_sieve_area_impl(las, &pool, recorder, doing, conf, Q, J);
+    return choose_sieve_area_impl(las, &pool, doing, conf, Q, J);
 }
 
 template<>
 bool choose_sieve_area(las_info const & las,
-        std::shared_ptr<nfs_aux> const & aux_p,
         thread_pool &,
         special_q_task const & doing,
         siever_config & conf,
         siqs_special_q_data & Q,
         uint32_t & J)
 {
-    timetree_t & timer(aux_p->rt.timer);
-    int const id = aux_p->subjob_id * las.number_of_threads_per_subjob();
-    auto recorder = [&](auto const & c) { return timer.trace(id, c); };
-    return choose_sieve_area_impl(las, recorder, doing, conf, Q, J);
+    return choose_sieve_area_impl(las, doing, conf, Q, J);
 }
 
 /* these two do not receive a timer, and no QLATTICE timer is recorded at
@@ -224,8 +211,7 @@ bool choose_sieve_area(las_info const & las,
         qlattice_basis & Q,
         uint32_t & J)
 {
-    auto gobble = [](auto) { return 0; };
-    return choose_sieve_area_impl(las, nullptr, gobble, doing, conf, Q, J);
+    return choose_sieve_area_impl(las, nullptr, doing, conf, Q, J);
 }
 
 template<>
@@ -235,6 +221,5 @@ bool choose_sieve_area(las_info const & las,
         siqs_special_q_data & Q,
         uint32_t & J)
 {
-    auto gobble = [](auto) { return 0; };
-    return choose_sieve_area_impl(las, gobble, doing, conf, Q, J);
+    return choose_sieve_area_impl(las, doing, conf, Q, J);
 }

@@ -15,7 +15,6 @@ extern int never_discard;
 
 bool choose_sieve_area(
         las_info const & las,
-        std::shared_ptr<nfs_aux> const & aux_p,
         thread_pool & pool,
         special_q_task const &,
         siever_config & conf,

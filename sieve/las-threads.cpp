@@ -14,6 +14,7 @@
 #include "tdict.hpp"
 #include "threadpool.hpp"
 #include "verbose.hpp"
+#include "chronograms.hpp"
 
 class las_memory_accessor; // IWYU pragma: keep
 
@@ -27,7 +28,7 @@ static void run_allocate_buckets(worker_thread * worker, las_memory_accessor & m
     const timetree_t::accounting_sibling dummy(timer, tdict_slot_for_alloc_buckets);
 #endif
     TIMER_CATEGORY(timer, bookkeeping());
-    auto tt = timer.trace(worker->rank(), chronograms::ALLOC {});
+    auto tt = worker->trace(chronograms::ALLOC());
 
     B.allocate_memory(memory, n_bucket, ratio, logI);
 }

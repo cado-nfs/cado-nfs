@@ -9,6 +9,7 @@ endif()
 
 set (sources 
         cado_poly.cpp timing.cpp getprime.c
+        chronograms.cpp
         relation.cpp
         relation-tools.c
         arith/mod_ul.c arith/modredc_ul.c arith/modredc_15ul.c arith/modredc_2ul2.c arith/modul_poly.cpp

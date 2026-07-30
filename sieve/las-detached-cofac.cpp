@@ -41,7 +41,7 @@ static relation detached_cofac_inner(worker_thread * worker,
 
     nfs_aux::rel_hash_t& rel_hash(aux.get_rel_hash());
 
-    auto tt = timer.trace(id, chronograms::ECM());
+    auto tt = worker->trace(chronograms::ECM());
 
     int const nsides = las.cpoly.nsides();
 
@@ -96,7 +96,7 @@ static relation detached_cofac_inner(worker_thread * worker,
         const char * dup_comment = nullptr;
 
         auto dupcheck = [&]() {
-          auto tt = timer.trace(id, chronograms::DUPCHECK());
+          auto tt = worker->trace(chronograms::DUPCHECK());
           return relation_is_duplicate(rel, wc.doing, wc.las);
         };
 

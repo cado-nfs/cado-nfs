@@ -134,7 +134,6 @@ discard_power_for_bucket_sieving<fb_entry_general>(fb_entry_general const & e)
 
 void fill_in_buckets_prepare_plattices(
         nfs_work & ws,
-        nfs_aux & aux,
         ALGO::special_q_data const & Q,
         thread_pool & pool,
         int side,
@@ -157,7 +156,7 @@ void fill_in_buckets_prepare_plattices(
                     // Forward function pointer & arguments directly!
                     pool.add_task(thread_pool::QUEUE_GENERIC, 0.0,
                             make_lattice_bases<T::level, E>,
-                            side, std::ref(ws), std::ref(aux), std::ref(Q), std::ref(V), std::cref(s));
+                            side, std::ref(ws), std::ref(Q), std::ref(V), std::cref(s));
                 }
         });
     });
@@ -238,7 +237,7 @@ fill_in_buckets_one_slice_internal(worker_thread * worker,
 
     try {
         auto acquired = wss.reserve_BA<LEVEL, TARGET_HINT>();
-        auto tt = timer.trace(worker->rank(), chronograms::FIB(
+        auto tt = worker->trace(chronograms::FIB(
                     side,
                     LEVEL,
                     wss.rank_BA(acquired.access()),
@@ -305,7 +304,7 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker,
         /* Get an unused bucket array that we can write to */
         // bucket_array_t<LEVEL, TARGET_HINT> &;
         auto acquired = wss.reserve_BA<LEVEL, TARGET_HINT>();
-        auto tt = timer.trace(worker->rank(), chronograms::FIB(
+        auto tt = worker->trace(chronograms::FIB(
                     side,
                     LEVEL,
                     wss.rank_BA(acquired.access()),
@@ -362,7 +361,7 @@ fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker,
     try {
         /* Get an unused bucket array that we can write to */
         auto acquired = wss.reserve_BA<LEVEL, TARGET_HINT>();
-        auto tt = timer.trace(worker->rank(), chronograms::FIB(
+        auto tt = worker->trace(chronograms::FIB(
                     side,
                     LEVEL,
                     wss.rank_BA(acquired.access()),
@@ -538,7 +537,7 @@ static void downsort_aux(nfs_work & ws,
                 MARK_TIMER_FOR_SIDE(timer, side);
                 taux.w = std::move(w);
                 CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort, LEVEL));
-                auto tt = timer.trace(id, chronograms::DS(side,LEVEL,bucket_index));
+                auto tt = worker->trace(chronograms::DS(side,LEVEL,bucket_index));
                 downsort<LEVEL + 1>(fbs,
                         wss.acquire_BA<LEVEL, my_longhint_t>(wss.rank_BA(BA_in)),
                         BA_in, bucket_index, taux.w);
@@ -669,7 +668,7 @@ static void downsort_tree_inner(
                         ENTER_THREAD_TIMER(timer);
                         MARK_TIMER_FOR_SIDE(timer, side);
                         CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort, LEVEL));
-                        auto tt = timer.trace(id, chronograms::DS(side, LEVEL, bucket_index));
+                        auto tt = worker->trace(chronograms::DS(side, LEVEL, bucket_index));
 
                         downsort<LEVEL + 1>(fbs,
                                 wss.acquire_BA<LEVEL, my_longhint_t>(wss.rank_BA(BA_in)),
@@ -741,12 +740,11 @@ static void downsort_tree_inner(
                     thread_pool::QUEUE_GENERIC,
                     std::numeric_limits<double>::max(),
                     [=](worker_thread * worker, nfs_work & ws, nfs_aux & aux) {
-                        int const id = worker->rank();
                         timetree_t & timer(aux.get_timer(worker));
                         ENTER_THREAD_TIMER(timer);
                         MARK_TIMER_FOR_SIDE(timer, side);
                         SIBLING_TIMER(timer, "prepare small sieve");
-                        auto tt = timer.trace(id, chronograms::SSS(side, 1));
+                        auto tt = worker->trace(chronograms::SSS(side, 1));
 
                         nfs_work::side_data & wss(ws.sides[side]);
                         SIBLING_TIMER(timer, "small sieve start positions");

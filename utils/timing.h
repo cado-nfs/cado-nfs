@@ -37,9 +37,11 @@ extern uint64_t wct_nanoseconds ();
 
 extern uint64_t microseconds ();
 extern uint64_t microseconds_thread ();
+extern uint64_t wct_microseconds ();
 
 extern unsigned long milliseconds ();
 extern unsigned long milliseconds_thread ();
+extern unsigned long wct_milliseconds ();
 
 extern double seconds ();
 extern double seconds_thread ();

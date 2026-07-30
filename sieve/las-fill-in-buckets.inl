@@ -3,27 +3,20 @@
 
 #include "fb-types.hpp"
 #include "fb.hpp"
-#include "las-auxiliary-data.hpp"
 #include "las-plattice.hpp"
 #include "las-qlattice.hpp"
-#include "las-threads.hpp"
-#include "tdict.hpp"
 #include "threadpool.hpp"
+#include "las-threads-work-data.hpp"
 
 template <int LEVEL, class FB_ENTRY_TYPE>
 void make_lattice_bases(
         worker_thread * worker,
         int side,
         nfs_work & ws,
-        nfs_aux & aux,
         qlattice_basis const & Q,
         precomp_plattice_t<LEVEL> & V,
         fb_slice<FB_ENTRY_TYPE> const & slice)
 {
-    int id = worker->rank();
-    nfs_aux::thread_data & taux(aux.th[id]);
-    timetree_t & timer(taux.timer);
-
     int const logI = ws.conf.logI;
     sublat_t const & sublat(Q.sublat);
 
@@ -32,7 +25,7 @@ void make_lattice_bases(
     auto const relative_index = index - index0;
     ASSERT_ALWAYS(relative_index < V.size());
 
-    auto tt = timer.trace(worker->rank(), chronograms::PCLAT { side, LEVEL, index });
+    auto tt = worker->trace(chronograms::PCLAT { side, LEVEL, index });
 
     typename FB_ENTRY_TYPE::transformed_entry_t transformed;
     /* Create a transformed vector and store the index of the fb_slice we

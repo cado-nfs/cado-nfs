@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include <exception>
 #include <functional>
+#include <map>
 #include <mutex>
 #include <thread>
 #include <utility>
@@ -86,7 +87,7 @@ thread_pool::~thread_pool()
 bool thread_pool::all_task_queues_empty() const
 {
     for (size_t q = 0; q < tasks.size(); ++q) {
-        if (joined[q].val.load(std::memory_order_relaxed) < created[q].val.load(std::memory_order_relaxed))
+        if (joined[q].load(std::memory_order_relaxed) < created[q].load(std::memory_order_relaxed))
             return false;
     }
     return true;
@@ -189,8 +190,8 @@ void thread_pool::thread_work_on_tasks(worker_thread & I)
         }
 
         size_t const queue_id = (task.id < 0) ? 0 : static_cast<size_t>(task.id) % tasks.size();
-        size_t const current_joined = joined[queue_id].val.fetch_add(1, std::memory_order_acq_rel) + 1;
-        size_t const target_created = created[queue_id].val.load(std::memory_order_acquire);
+        size_t const current_joined = joined[queue_id].fetch_add(1, std::memory_order_acq_rel) + 1;
+        size_t const target_created = created[queue_id].load(std::memory_order_acquire);
 
         if (current_joined >= target_created) {
             const std::scoped_lock lock(tasks[queue_id].mx);
@@ -211,7 +212,7 @@ void thread_pool::enqueue_task(std::function<void(worker_thread*)> task_fn, size
         tg->created_count.fetch_add(1, std::memory_order_relaxed);
     }
 
-    created[queue].val.fetch_add(1, std::memory_order_relaxed);
+    created[queue].fetch_add(1, std::memory_order_relaxed);
 
     if (is_synchronous()) {
         try {
@@ -221,7 +222,7 @@ void thread_pool::enqueue_task(std::function<void(worker_thread*)> task_fn, size
             const std::scoped_lock guard(exceptions_mutex[queue]);
             exceptions[queue].push(std::current_exception());
         }
-        joined[queue].val.fetch_add(1, std::memory_order_release);
+        joined[queue].fetch_add(1, std::memory_order_release);
         if (tg) {
             tg->notify_joined();
         }
@@ -252,14 +253,14 @@ void thread_pool::drain_queue(size_t const queue, bool blocking)
 {
     if (!blocking) return;
 
-    size_t const target = created[queue].val.load(std::memory_order_acquire);
-    if (joined[queue].val.load(std::memory_order_acquire) >= target)
+    size_t const target = created[queue].load(std::memory_order_acquire);
+    if (joined[queue].load(std::memory_order_acquire) >= target)
         return;
 
     std::unique_lock<std::mutex> lock(tasks[queue].mx);
     tasks[queue].task_done.wait(lock, [this, queue]() {
-        return joined[queue].val.load(std::memory_order_acquire) >=
-               created[queue].val.load(std::memory_order_acquire);
+        return joined[queue].load(std::memory_order_acquire) >=
+               created[queue].load(std::memory_order_acquire);
     });
 }
 
@@ -267,5 +268,15 @@ void thread_pool::drain_all_queues()
 {
     for (size_t queue = 0; queue < tasks.size(); ++queue) {
         drain_queue(queue);
+    }
+}
+void thread_pool::collect_traces(
+        std::map<size_t, std::vector<chronograms::bubble>> & destination,
+        size_t thread_index_offset)
+{
+    for(size_t i = 0 ; i < threads.size() ; i++) {
+        const size_t j = thread_index_offset + i;
+        ASSERT_ALWAYS(!destination.contains(j));
+        destination[j] = std::move(threads[i].chronogram);
     }
 }

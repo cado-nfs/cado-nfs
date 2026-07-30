@@ -758,7 +758,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 
             fill_in_buckets_toplevel_multiplex(ws, aux, Q, pool, side, w);
 
-            fill_in_buckets_prepare_plattices(ws, aux, Q, pool, side, precomp_plattices[side]);
+            fill_in_buckets_prepare_plattices(ws, Q, pool, side, precomp_plattices[side]);
 
         }
 
@@ -781,14 +781,13 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
                         ALGO::special_q_data const & Q,
                         int side)
                     {
-                        int const id = worker->rank();
                         timetree_t & timer(aux.get_timer(worker));
                         ENTER_THREAD_TIMER(timer);
                         MARK_TIMER_FOR_SIDE(timer, side);
 
                         SIBLING_TIMER(timer, "prepare small sieve");
 
-                        auto tt = timer.trace(id, chronograms::SSS(side, ws.toplevel));
+                        auto tt = worker->trace(chronograms::SSS(side, ws.toplevel));
 
                         nfs_work::side_data & wss(ws.sides[side]);
                         // if (wss.no_fb()) return;
@@ -913,7 +912,7 @@ do_one_special_q(
      *
      */
     ALGO::special_q_data Q;
-    if (!choose_sieve_area(las, aux_p, pool, aux.doing, ws.conf, Q, ws.J))
+    if (!choose_sieve_area(las, pool, aux.doing, ws.conf, Q, ws.J))
         return false;
     ws.doing = Q.doing;
 
@@ -922,7 +921,7 @@ do_one_special_q(
     BOOKKEEPING_TIMER(timer_special_q);
 
     {
-        auto tt = timer_special_q.trace(aux.subjob_id * las.number_of_threads_per_subjob(), chronograms::INIT());
+        auto tt = pool.trace_on_leader(chronograms::INIT());
         ws.prepare_for_new_q<ALGO>(las, &aux.doing, Q);
     }
 
@@ -946,7 +945,7 @@ do_one_special_q(
     std::shared_ptr<nfs_work_cofac> wc_p;
 
     {
-        auto tt = timer_special_q.trace(aux.subjob_id * las.number_of_threads_per_subjob(), chronograms::INIT());
+        auto tt = pool.trace_on_leader(chronograms::INIT());
         wc_p = std::make_shared<nfs_work_cofac>(las, ws);
 
         rep.total_logI += ws.conf.logI;
@@ -1134,6 +1133,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
     {
         /* add scoping to control dtor call */
         thread_pool pool(las.number_of_threads_per_subjob(), cumulated_wait_time, thread_pool::NQUEUES, sync_thread_pool);
+        auto dummy = call_dtor([&](){pool.collect_traces(las.chronogram_map, las.number_of_threads_per_subjob() * subjob);});
         nfs_work ws(las, ALGO{});
 
         /* {{{ Doc on todo list handling
@@ -1587,7 +1587,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
         }
         for(auto & t : subjobs) t.join();
 
-        global_rt.timer.display_chart();
+        chronograms::display(las.chronogram_map);
 
         las.tree->display_summary(0, 0);
 

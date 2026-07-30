@@ -860,9 +860,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
     }
 }/*}}}*/
 void process_bucket_region_run::operator()() {/*{{{*/
-
-    int const id = worker->rank();
-    auto tt = timer.trace(id, chronograms::PBR(
+    auto tt = worker->trace(chronograms::PBR(
                 first_region0_index / ws.nb_buckets[1],
                 bucket_relative_index));
 

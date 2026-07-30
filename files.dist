@@ -1905,3 +1905,5 @@ utils/verbose.hpp
 utils/version_info.c.in
 utils/version_info.h
 utils/work_queue.hpp
+utils/chronograms.cpp
+utils/chronograms.hpp

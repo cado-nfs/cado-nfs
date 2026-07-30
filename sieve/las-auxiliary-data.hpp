@@ -176,8 +176,6 @@ class nfs_aux {/*{{{*/
         , qt0(seconds())
         , wct_qt0(wct_seconds())
     {
-        for(auto & t : th)
-            t.timer.thread_index_offset = subjob * nthreads;
     }
 
 

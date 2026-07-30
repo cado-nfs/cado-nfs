@@ -36,6 +36,7 @@
 #include "trialdiv.hpp"
 #include "utils_cxx.hpp"
 #include "relation_cache.hpp"
+#include "chronograms.hpp"
 
 // scan-headers: stop here
 
@@ -241,6 +242,9 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     mutable cofactorization_statistics cofac_stats;
 
     const char *dump_filename;
+
+    /* ---- misc ---- */
+    std::map<size_t, std::vector<chronograms::bubble>> chronogram_map;
 
     /* typicall call order is as follows */
     las_info(cxx_param_list &, sieve_method auto algo);

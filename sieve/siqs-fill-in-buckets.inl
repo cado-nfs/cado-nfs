@@ -1,12 +1,17 @@
 #ifndef CADO_SIQS_FILL_IN_BUCKETS_INL
 #define CADO_SIQS_FILL_IN_BUCKETS_INL
 
+#include <cstdint>
+
+#include "threadpool.hpp"
+#include "las-threads-work-data.hpp"
+#include "las-qlattice.hpp"
+#include "las-plattice.hpp"
 
 template <int LEVEL, class FB_ENTRY_TYPE>
 void make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
         int side,
         nfs_work & ws,
-        nfs_aux &,
         siqs_special_q_data const & Q,
         precomp_plattice_t<LEVEL> & V,
         fb_slice<FB_ENTRY_TYPE> const & slice)

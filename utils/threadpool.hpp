@@ -9,6 +9,7 @@
 #include <exception>
 #include <functional>
 #include <future>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -18,16 +19,12 @@
 #include <utility>
 #include <vector>
 
+#include "chronograms.hpp"
 #include "utils_cxx.hpp"
 
 class worker_thread;
 class thread_pool;
 class task_group;
-
-// Cacheline-aligned atomic counter to eliminate false sharing across CPU sockets
-struct alignas(64) PaddedAtomicSize {
-    std::atomic<size_t> val{0};
-};
 
 class thread_task
 {
@@ -168,8 +165,16 @@ class worker_thread {
     thread_pool &pool;
     std::jthread thread;
     const size_t preferred_queue;
+    std::vector<chronograms::bubble> chronogram;
 
 public:
+    auto trace(chronograms::bubble_info b) {
+        return chronograms::bubble_guard(chronogram, b);
+    }
+    static auto trace(worker_thread * wrk, chronograms::bubble_info b)
+    {
+        return wrk ? wrk->trace(b) : chronograms::bubble_guard::dummy();
+    }
     int rank() const;
     int nthreads() const;
     thread_pool & get_pool() { return pool; }
@@ -204,13 +209,17 @@ private:
     std::vector<std::queue<std::exception_ptr>> exceptions;
 
     // Lock-free atomic counters aligned to 64 bytes
-    std::vector<PaddedAtomicSize> created;
-    std::vector<PaddedAtomicSize> joined;
+    // Cacheline-aligned atomic counter to eliminate false sharing across CPU sockets
+    // note that in c++20, std::atomic<> is value-initialized.
+    struct alignas(64) padded_atomic : std::atomic<size_t> { };
+
+    std::vector<padded_atomic> created;
+    std::vector<padded_atomic> joined;
 
     std::condition_variable work_cv;
     std::atomic<size_t> nr_threads_waiting{0};
-
     std::atomic<size_t> round_robin_counter{0};
+
     bool kill_threads{false};
     double & store_wait_time;
 
@@ -221,6 +230,19 @@ private:
     void enqueue_task(std::function<void(worker_thread*)> task_fn, size_t queue, double cost, task_group * tg = nullptr);
 
 public:
+    auto trace_on_leader(chronograms::bubble_info b)
+    {
+        return threads.front().trace(b);
+    }
+    /* use this when you want to record on a _pointer_, without knowing
+     * if the pointer can be dereferenced.
+     */
+    static auto trace_on_leader(thread_pool * pool, chronograms::bubble_info b)
+    {
+        return pool ? pool->trace_on_leader(b) : chronograms::bubble_guard::dummy();
+    }
+    void collect_traces(std::map<size_t, std::vector<chronograms::bubble>> & destination, size_t thread_index_offset);
+
     bool is_synchronous() const { return sync_mode; }
     double cumulated_wait_time = 0;
     std::mutex mm_cumulated_wait_time;
@@ -236,7 +258,7 @@ public:
 
     template<typename T>
     std::vector<T> get_exceptions(size_t const queue = 0) {
-        std::lock_guard<std::mutex> lock(exceptions_mutex[queue]);
+        const std::scoped_lock lock(exceptions_mutex[queue]);
         std::vector<T> res;
         std::queue<std::exception_ptr> remaining;
 
