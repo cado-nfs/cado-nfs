@@ -26,19 +26,25 @@
   .file-dropzone.dragover { background: #e8f4ff; border-color: #2b8a3e; }
 
   .controls-bar {
-    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
     background: #f8f9fa; padding: 6px 10px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 12px; margin-top: 6px;
   }
   .controls-bar label { cursor: pointer; display: flex; align-items: center; gap: 4px; }
+  .controls-bar input[type="number"] {
+    padding: 2px 4px; font-size: 11px; border: 1px solid #ccc; border-radius: 3px;
+  }
 
   .window-meta { font-size: 11px; color: #666; margin: 6px 0; }
   .legend { display: flex; flex-wrap: wrap; gap: 8px; max-height: 40px; overflow-y: auto; margin-bottom: 6px; }
   .legend-item { display: inline-flex; align-items: center; font-size: 11px; color: #444; }
   .color-box { width: 10px; height: 10px; display: inline-block; margin-right: 4px; border: 1px solid rgba(0,0,0,0.15); }
 
+  /* Information Box guaranteed 2-lines tall to prevent layout jitter */
   #information {
     padding: 6px 10px; background: #1e1e1e; color: #00ff66;
-    font-family: SFMono-Regular, Consolas, monospace; font-size: 12px; border-radius: 3px; min-height: 16px; white-space: pre-wrap;
+    font-family: SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.4;
+    border-radius: 3px; min-height: 2.8em; white-space: pre-wrap; word-break: break-word;
+    box-sizing: border-box;
   }
 
   /* Viewport & Native Scrollbar Container Layout */
@@ -80,14 +86,14 @@
       </div>
     </div>
 
-    <!-- Controls -->
+    <!-- Controls Row 1 -->
     <div class="controls-bar">
       <strong>Delimiters:</strong>
       <label><input type="radio" name="border-opt" value="none" checked="checked" /> Off</label>
       <label><input type="radio" name="border-opt" value="top" /> On</label>
       
       <span style="color:#ccc;">|</span>
-      <strong>Min Duration Filter:</strong>
+      <strong>Min Duration:</strong>
       <select id="duration-filter">
         <option value="0">Show All</option>
         <option value="0.000001">> 1 µs</option>
@@ -115,10 +121,19 @@
         &nbsp;•&nbsp;
         <strong>Ctrl+Scroll:</strong> Zoom Time
         &nbsp;•&nbsp;
-        <strong>Home/End:</strong> Start/End
-        &nbsp;•&nbsp;
         <strong>Shift+Scroll / Arrows:</strong> Threads
       </span>
+    </div>
+
+    <!-- Controls Row 2: Dedicated Manual Viewport Row -->
+    <div class="controls-bar" style="margin-top: 4px;">
+      <strong>Manual Viewport:</strong>
+      <label>t-start (ms): <input type="number" id="input-t-start" step="any" style="width: 75px;" /></label>
+      <label>t-span (ms): <input type="number" id="input-t-span" step="any" style="width: 75px;" /></label>
+      <span style="color:#ccc;">|</span>
+      <label>thr-start: <input type="number" id="input-thr-start" step="any" style="width: 50px;" /></label>
+      <label>thr-span: <input type="number" id="input-thr-span" step="any" style="width: 50px;" /></label>
+      <button id="apply-viewport-btn" style="cursor:pointer; font-size:11px; font-weight:bold;">Set Viewport</button>
     </div>
 
     <div class="window-meta" id="meta-info">No trace file loaded.</div>
@@ -200,6 +215,28 @@ function getCategoryColor(cat) {
   return `hsl(${hue}, 65%, 55%)`;
 }
 
+// Read URL Query Parameters
+function getUrlParams() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return {
+    tStart: urlParams.has('t_start') ? parseFloat(urlParams.get('t_start')) : null,
+    tSpan: urlParams.has('t_span') ? parseFloat(urlParams.get('t_span')) : null,
+    thrStart: urlParams.has('thr_start') ? parseFloat(urlParams.get('thr_start')) : null,
+    thrSpan: urlParams.has('thr_span') ? parseFloat(urlParams.get('thr_span')) : null
+  };
+}
+
+// Update URL bar query parameters without reloading the page
+function updateUrlParams() {
+  if (!TRACE_DATA) return;
+  const url = new URL(window.location);
+  url.searchParams.set('t_start', (viewStart * 1000).toFixed(2));
+  url.searchParams.set('t_span', (viewSpan * 1000).toFixed(2));
+  url.searchParams.set('thr_start', viewThreadStart.toFixed(1));
+  url.searchParams.set('thr_span', viewThreadSpan.toFixed(1));
+  window.history.replaceState({}, '', url);
+}
+
 // --- Call Stack Reconstruction ---
 function annotateHierarchy() {
   if (!TRACE_DATA) return;
@@ -247,6 +284,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const hScrollBox = document.getElementById("h-scrollbar-box");
   const hScrollDummy = document.getElementById("h-scroll-dummy");
 
+  const inputTStart = document.getElementById("input-t-start");
+  const inputTSpan = document.getElementById("input-t-span");
+  const inputThrStart = document.getElementById("input-thr-start");
+  const inputThrSpan = document.getElementById("input-thr-span");
+  const applyBtn = document.getElementById("apply-viewport-btn");
+
   function resizeCanvas() {
     const rect = canvas.parentElement.getBoundingClientRect();
     canvas.width = rect.width;
@@ -292,6 +335,41 @@ document.addEventListener("DOMContentLoaded", () => {
     isSyncingScrollbars = false;
   }
 
+  // Synchronize manual entry fields in control bar
+  function syncInputFields() {
+    if (!TRACE_DATA) return;
+    if (document.activeElement !== inputTStart) inputTStart.value = (viewStart * 1000).toFixed(2);
+    if (document.activeElement !== inputTSpan) inputTSpan.value = (viewSpan * 1000).toFixed(2);
+    if (document.activeElement !== inputThrStart) inputThrStart.value = viewThreadStart.toFixed(1);
+    if (document.activeElement !== inputThrSpan) inputThrSpan.value = viewThreadSpan.toFixed(1);
+  }
+
+  // Apply manual entry values from control bar
+  function applyManualInputs() {
+    if (!TRACE_DATA) return;
+
+    const tStartMs = parseFloat(inputTStart.value);
+    const tSpanMs = parseFloat(inputTSpan.value);
+    const thrStart = parseFloat(inputThrStart.value);
+    const thrSpan = parseFloat(inputThrSpan.value);
+
+    if (!isNaN(tSpanMs) && tSpanMs > 0) {
+      viewSpan = tSpanMs / 1000;
+    }
+    if (!isNaN(tStartMs)) {
+      viewStart = Math.max(0, Math.min(totalSpan - viewSpan, tStartMs / 1000));
+    }
+
+    if (!isNaN(thrSpan) && thrSpan > 0) {
+      viewThreadSpan = Math.max(1.0, Math.min(THREADS.length, thrSpan));
+    }
+    if (!isNaN(thrStart)) {
+      viewThreadStart = Math.max(0, Math.min(THREADS.length - viewThreadSpan, thrStart));
+    }
+
+    scheduleRender("Manual Viewport Set");
+  }
+
   // Transient action message display
   function updateViewFeedback(actionLabel) {
     if (!TRACE_DATA || THREADS.length === 0) return;
@@ -320,6 +398,8 @@ document.addEventListener("DOMContentLoaded", () => {
         requestAnimationFrame(() => {
           render();
           syncScrollbars();
+          syncInputFields();
+          updateUrlParams();
           updateHover(lastMouseX, lastMouseY); // Auto-update hover message over current pixel
           renderScheduled = false;
         });
@@ -358,12 +438,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
       annotateHierarchy();
 
-      viewStart = 0.0;
-      viewSpan = totalSpan;
-
       THREADS = Object.keys(TRACE_DATA).map(Number).sort((a, b) => a - b);
-      viewThreadStart = 0.0;
-      viewThreadSpan = THREADS.length;
+      
+      // Check for Query String URL parameters
+      const params = getUrlParams();
+
+      viewSpan = (params.tSpan !== null && !isNaN(params.tSpan) && params.tSpan > 0) 
+        ? (params.tSpan / 1000) 
+        : totalSpan;
+
+      viewStart = (params.tStart !== null && !isNaN(params.tStart)) 
+        ? Math.max(0, Math.min(totalSpan - viewSpan, params.tStart / 1000)) 
+        : 0.0;
+
+      viewThreadSpan = (params.thrSpan !== null && !isNaN(params.thrSpan) && params.thrSpan > 0) 
+        ? Math.max(1.0, Math.min(THREADS.length, params.thrSpan)) 
+        : THREADS.length;
+
+      viewThreadStart = (params.thrStart !== null && !isNaN(params.thrStart)) 
+        ? Math.max(0, Math.min(THREADS.length - viewThreadSpan, params.thrStart)) 
+        : 0.0;
 
       CATEGORY_NAMES = data.categories;
       CATEGORY_COLORS = CATEGORY_NAMES.map(getCategoryColor);
@@ -378,6 +472,8 @@ document.addEventListener("DOMContentLoaded", () => {
       infoElement.textContent = "Trace loaded! Hover over bubbles or scroll/zoom in 2D.";
       render();
       syncScrollbars();
+      syncInputFields();
+      updateUrlParams();
     } catch (err) {
       alert("Failed to parse JSON trace: " + err.message);
     }
@@ -388,7 +484,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function getZstd() {
     if (!zstdWasmInstance) {
-      // Dynamic import from CDN (WASM binary is inlined, so no separate .wasm file fetch)
       const { Zstd } = await import("https://cdn.jsdelivr.net/npm/@hpcc-js/wasm-zstd/+esm");
       zstdWasmInstance = await Zstd.load();
     }
@@ -400,16 +495,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const fileName = file.name.toLowerCase();
     const arrayBuffer = await file.arrayBuffer();
 
-    // 1. Handle Gzip (.gz / .gzip) via native browser API
     if (fileName.endsWith(".gz") || fileName.endsWith(".gzip")) {
       const blob = new Blob([arrayBuffer]);
       const decompressedStream = blob.stream().pipeThrough(new DecompressionStream("gzip"));
       return await new Response(decompressedStream).text();
     }
 
-    // 2. Handle Zstandard (.zst / .zstd)
     if (fileName.endsWith(".zst") || fileName.endsWith(".zstd")) {
-      // Fast Path A: Attempt Native Browser DecompressionStream (Chrome 123+, Firefox 126+, Safari 26+)
       try {
         if (typeof DecompressionStream !== "undefined") {
           const blob = new Blob([arrayBuffer]);
@@ -417,17 +509,15 @@ document.addEventListener("DOMContentLoaded", () => {
           return await new Response(decompressedStream).text();
         }
       } catch (e) {
-        // Native stream unsupported or failed; fall back to inlined WASM
+        // Fall back to inlined WASM
       }
 
-      // Fast Path B: Inlined libzstd C engine compiled to WebAssembly
       const compressedBytes = new Uint8Array(arrayBuffer);
       const zstd = await getZstd();
       const decompressedBytes = zstd.decompress(compressedBytes);
       return new TextDecoder("utf-8").decode(decompressedBytes);
     }
 
-    // 3. Plain Uncompressed JSON (.json)
     return new TextDecoder("utf-8").decode(arrayBuffer);
   }
 
@@ -805,6 +895,18 @@ document.addEventListener("DOMContentLoaded", () => {
     lastMouseX = -1;
     lastMouseY = -1;
     updateHover(-1, -1);
+  });
+
+  // Manual input field listeners
+  applyBtn.addEventListener("click", applyManualInputs);
+
+  [inputTStart, inputTSpan, inputThrStart, inputThrSpan].forEach(input => {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        applyManualInputs();
+        input.blur();
+      }
+    });
   });
 
   // Scrollbar Event Listeners
