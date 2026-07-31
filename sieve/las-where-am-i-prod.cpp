@@ -46,6 +46,8 @@ where_am_I::where_am_I() = default;
 where_am_I::~where_am_I() = default;    // NOLINT
 where_am_I::where_am_I(where_am_I const & x) = default;
 where_am_I & where_am_I::operator=(where_am_I const & x) = default;
+where_am_I::where_am_I(where_am_I &&) : where_am_I() {}
+where_am_I & where_am_I::operator=(where_am_I &&) noexcept { return *this; }
 
 void where_am_I::decl_usage(cxx_param_list &)
 {
