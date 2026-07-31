@@ -1142,7 +1142,7 @@ static void pi_dispatch_op_add_custom(arith_generic::elt const *invec, arith_gen
 }
 
 /* XXX must be called in single threaded context  */
-static void pi_init_attribute_things()
+void parallelizing_info::init_attribute_things()
 {
     BWC_PI_SUM->f_stock = pi_dispatch_op_add_stock;
     BWC_PI_SUM->f_custom = pi_dispatch_op_add_custom;
@@ -1151,7 +1151,7 @@ static void pi_init_attribute_things()
 }
 
 /* XXX must be called in single threaded context  */
-static void pi_clear_attribute_things()
+void parallelizing_info::clear_attribute_things()
 {
     MPI_Op_free(&BWC_PI_SUM->custom);
     MPI_Type_free_keyval(&pi_mpi_attribute_key);
@@ -2057,17 +2057,6 @@ int mpi_data_eq(parallelizing_info & pi, void *buffer, size_t sz)
     return cmp == 0;
 }
 #endif
-
-/* XXX must be called in single threaded context  */
-void parallelizing_info_init()
-{
-    pi_init_attribute_things();
-}
-/* XXX must be called in single threaded context  */
-void parallelizing_info_finish()
-{
-    pi_clear_attribute_things();
-}
 
 void parallelizing_info_experimental::allgather(std::vector<unsigned int>& v, pi_comm_ptr wr)
 {

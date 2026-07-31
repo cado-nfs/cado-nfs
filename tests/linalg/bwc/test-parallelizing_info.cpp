@@ -55,7 +55,7 @@ int main(int argc, char const * argv[])
 
     cxx_param_list pl;
 
-    parallelizing_info_init();
+    parallelizing_info::init_attribute_things();
     parallelizing_info_decl_usage(pl);
     pl.declare_usage("v", "turn on some more logging");
 
@@ -70,7 +70,7 @@ int main(int argc, char const * argv[])
 
     pi_go(test_code, pl, NULL);
 
-    parallelizing_info_finish();
+    parallelizing_info::clear_attribute_things();
     MPI_Finalize();
 }
 

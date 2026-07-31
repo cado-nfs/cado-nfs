@@ -63,7 +63,7 @@ int main(int argc, char const * argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
 
-    parallelizing_info_init();
+    parallelizing_info::init_attribute_things();
 
     parallelizing_info_decl_usage(pl);
     pl.declare_usage("v", "turn on some demo logging");
@@ -83,7 +83,7 @@ int main(int argc, char const * argv[])
 
     pi_go(program, pl, nullptr);
 
-    parallelizing_info_finish();
+    parallelizing_info::clear_attribute_things();
 
     MPI_Finalize();
 

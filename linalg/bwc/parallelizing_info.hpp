@@ -235,6 +235,8 @@ struct parallelizing_info {
     void interleaving_flip();
     void interleaving_enter();
     void interleaving_leave();
+    static void init_attribute_things();
+    static void clear_attribute_things();
 };
 /* }}} */
 
@@ -311,8 +313,6 @@ struct pi_file_handle {
 using pi_file_handle_ptr = pi_file_handle *;
 /* }}} */
 
-extern void parallelizing_info_init();
-extern void parallelizing_info_finish();
 extern void parallelizing_info_decl_usage(cxx_param_list & pl);
 extern void parallelizing_info_lookup_parameters(cxx_param_list & pl);
 

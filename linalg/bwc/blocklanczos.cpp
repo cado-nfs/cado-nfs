@@ -699,7 +699,7 @@ int main(int argc, char const * argv[])
 
     bw_common_init(bw, &argc, &argv);
 
-    parallelizing_info_init();
+    parallelizing_info::init_attribute_things();
 
     bw_common_decl_usage(pl);
     parallelizing_info_decl_usage(pl);
@@ -723,7 +723,7 @@ int main(int argc, char const * argv[])
 
     pi_go(bl_prog, pl, 0);
 
-    parallelizing_info_finish();
+    parallelizing_info::clear_attribute_things();
 
     bw_common_clear(bw);
 
