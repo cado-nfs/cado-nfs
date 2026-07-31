@@ -128,7 +128,7 @@ std::vector<uint32_t> set_x_fake(unsigned int m, unsigned int & nx,
     std::vector<uint32_t> xs(nx * m);
     for (unsigned int i = 0; i < nx * m; i++)
         xs[i] = i;
-    serialize(pi.m);
+    pi.m.serialize(__FILE__, __LINE__);
     return xs;
 }
 

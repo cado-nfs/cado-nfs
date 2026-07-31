@@ -5,7 +5,7 @@
 #include <cerrno>
 #include <cinttypes>
 #include <cstdarg>
-#include <cstddef>       // for ptrdiff_t
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -36,32 +36,33 @@
 #include "verbose.hpp"
 #include "timing.h"
 #include "portability.h"
+#include "barrier.h"
 
 #if defined(HAVE_HWLOC)
 #include "cpubinding.hpp"
 #include "params.hpp"
 #endif  /* defined(HAVE_HWLOC) */
 
-static inline void pi_comm_init_pthread_things(pi_comm_ptr w, const char * desc)
+void pi_comm::init_pthread_things(const char * desc)
 {
     auto * res = new pthread_things;
 
-    barrier_init(res->bh, nullptr, w->ncores);
-    my_pthread_barrier_init(res->b, nullptr, w->ncores);
+    barrier_init(res->bh, nullptr, ncores);
+    my_pthread_barrier_init(res->b, nullptr, ncores);
     pthread_mutex_init(res->m, nullptr);
     res->desc = desc;
 
-    w->th = res;
+    th = res;
 }
 
-static inline void pi_comm_destroy_pthread_things(pi_comm_ptr w)
+void pi_comm::destroy_pthread_things()
 {
-    barrier_destroy(w->th->bh, nullptr);
-    my_pthread_barrier_destroy(w->th->b);
+    barrier_destroy(th->bh, nullptr);
+    my_pthread_barrier_destroy(th->b);
 
-    pthread_mutex_destroy(w->th->m);
-    delete w->th;
-    w->th = nullptr;
+    pthread_mutex_destroy(th->m);
+    delete th;
+    th = nullptr;
 }
 
 static void print_several(unsigned int n1, unsigned int n2, char a, char b, unsigned int w)
@@ -93,25 +94,25 @@ static void * pi_go_call_thread(
 {
     pi_interleaving_enter(p);
 #if defined(HAVE_HWLOC)
-    cpubinding_do_pinning(p->cpubinding_info,
-            int(p->wr[1]->trank),
-            int(p->wr[0]->trank));
+    cpubinding_do_pinning(p.cpubinding_info,
+            int(p.wr[1].trank),
+            int(p.wr[0].trank));
 #endif /* defined(HAVE_HWLOC) */
     int debug = 0;
     pl.parse("debug-parallel-bwc", debug);
 
     if (debug) {
-        pi_log_init(p->m);
-        pi_log_init(p->wr[0]);
-        pi_log_init(p->wr[1]);
+        p.m.log_init();
+        p.wr[0].log_init();
+        p.wr[1].log_init();
     }
 
     void * ret = f(p, pl, std::forward<Args>(args)...);
 
     if (debug) {
-        pi_log_clear(p->m);
-        pi_log_clear(p->wr[0]);
-        pi_log_clear(p->wr[1]);
+        p.m.log_clear();
+        p.wr[0].log_clear();
+        p.wr[1].log_clear();
     }
 
     pi_interleaving_flip(p);
@@ -163,7 +164,7 @@ void grid_print(parallelizing_info & pi, char * buf, size_t siz, int print)
 
     char * ptr = strings;
 
-    serialize(pi.m);
+    pi.m.serialize(__FILE__, __LINE__);
 
     if (print) {
         /* There's also the nullptr byte counted in siz. So that makes one
@@ -189,7 +190,7 @@ void grid_print(parallelizing_info & pi, char * buf, size_t siz, int print)
             print_several(nj0, nt0, '-', '+', maxsize-1);
         }
     }
-    serialize(pi.m);
+    pi.m.serialize(__FILE__, __LINE__);
     free(strings);
 }
 
@@ -307,23 +308,21 @@ static void display_process_grid(parallelizing_info & pi)
     MPI_Barrier(pi.m.pals);
 }
 
-static void pi_init_mpilevel(parallelizing_info & pi, cxx_param_list & pl)
+void parallelizing_info::init_mpilevel(cxx_param_list & pl)
 {
     int err;
-
-    pi = parallelizing_info {};
 
 #ifdef HAVE_UTSNAME_H
     {
         struct utsname u[1];
         uname(u);
-        pi->nodename = u->nodename;
-        size_t p = pi->nodename.find('.');
+        nodename = u->nodename;
+        size_t p = nodename.find('.');
         if (p != std::string::npos)
-            pi->nodename.erase(p);
+            nodename.erase(p);
     }
 #else
-    pi->nodename = "unknown";
+    nodename = "unknown";
 #endif
 
 #ifndef NDEBUG
@@ -344,9 +343,9 @@ static void pi_init_mpilevel(parallelizing_info & pi, cxx_param_list & pl)
     unsigned int nhc = thr[0];
     unsigned int nvc = thr[1];
 
-    pi->m->njobs = nhj * nvj;
-    pi->m->ncores = nhc * nvc;
-    pi->m->totalsize = pi->m->njobs * pi->m->ncores;
+    m.njobs = nhj * nvj;
+    m.ncores = nhc * nvc;
+    m.totalsize = m.njobs * m.ncores;
     // MPI_Errhandler my_eh;
     // MPI_Comm_create_errhandler(&pi_errhandler, &my_eh);
     // MPI_Comm_set_errhandler(MPI_COMM_WORLD, my_eh);
@@ -356,8 +355,8 @@ static void pi_init_mpilevel(parallelizing_info & pi, cxx_param_list & pl)
         MPI_Comm_rank(MPI_COMM_WORLD, & grank);
         if (grank == 0)
             printf("Making %d independent single-threaded MPI jobs, instead of %d %d-thread jobs\n",
-                pi->m->totalsize, pi->m->njobs, pi->m->ncores);
-        int const tt = pi->m->ncores;
+                m.totalsize, m.njobs, m.ncores);
+        int const tt = m.ncores;
 
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -371,10 +370,10 @@ static void pi_init_mpilevel(parallelizing_info & pi, cxx_param_list & pl)
         int const j = nj * nvc + tj;
         int const nrank = i * (nvj * nvc) + j;
 
-        MPI_Comm_split(MPI_COMM_WORLD, 0, nrank, & pi->m->pals);
-        pi->m->ncores = 1;
-        pi->m->njobs = pi->m->totalsize;
-        pi->thr_orig = thr;
+        MPI_Comm_split(MPI_COMM_WORLD, 0, nrank, & m.pals);
+        m.ncores = 1;
+        m.njobs = m.totalsize;
+        thr_orig = thr;
         mpi[0] *= thr[0]; thr[0]=1;
         mpi[1] *= thr[1]; thr[1]=1;
         nhj = mpi[0];
@@ -382,86 +381,86 @@ static void pi_init_mpilevel(parallelizing_info & pi, cxx_param_list & pl)
         nhc = thr[0];
         nvc = thr[1];
     } else {
-        pi->m->pals = MPI_COMM_WORLD;
+        m.pals = MPI_COMM_WORLD;
     }
 
-    MPI_Comm_rank(pi->m->pals, (int*) & pi->m->jrank);
+    MPI_Comm_rank(m.pals, (int*) & m.jrank);
 
     int size;
-    MPI_Comm_size(pi->m->pals, & size);
-    if ((unsigned int) size != pi->m->njobs) {
-        if (pi->m->jrank == 0) {
+    MPI_Comm_size(m.pals, & size);
+    if ((unsigned int) size != m.njobs) {
+        if (m.jrank == 0) {
             fprintf(stderr, "Inconsistency -- exactly %u == %u * %u"
                     " MPI jobs are needed -- got %u\n",
-                    pi->m->njobs, nhj, nvj, size);
+                    m.njobs, nhj, nvj, size);
         }
         exit(1);
     }
 
-    pi->m->trank = 0;
+    m.trank = 0;
 
     /* Init to the simple case */
-    pi->wr[0]->njobs = nvj;
-    pi->wr[0]->ncores = nvc;
-    pi->wr[1]->njobs = nhj;
-    pi->wr[1]->ncores = nhc;
-    pi->wr[0]->totalsize = pi->wr[0]->njobs * pi->wr[0]->ncores;
-    pi->wr[1]->totalsize = pi->wr[1]->njobs * pi->wr[1]->ncores;
+    wr[0].njobs = nvj;
+    wr[0].ncores = nvc;
+    wr[1].njobs = nhj;
+    wr[1].ncores = nhc;
+    wr[0].totalsize = wr[0].njobs * wr[0].ncores;
+    wr[1].totalsize = wr[1].njobs * wr[1].ncores;
 
     // Here we want the _common row number_ ; not to be confused with the
     // rank !
     unsigned int jcommon[2];
-    jcommon[0] = pi->m->jrank / nvj;
-    jcommon[1] = pi->m->jrank % nvj;
+    jcommon[0] = m.jrank / nvj;
+    jcommon[1] = m.jrank % nvj;
 
-    pi->wr[0]->trank = 0;
-    pi->wr[1]->trank = 0;
+    wr[0].trank = 0;
+    wr[1].trank = 0;
 
     for(int d = 0 ; d < 2 ; d++) {
         // A subgroup contains all process having the same jcommon value.
         // Therefore, we have as many horizontal MPI barriers set up as
         // one finds MPI job numbers across a column.
-        err = MPI_Comm_split(pi->m->pals, jcommon[d],
-                pi->m->jrank, &pi->wr[d]->pals);
+        err = MPI_Comm_split(m.pals, jcommon[d],
+                m.jrank, &wr[d].pals);
         ASSERT_ALWAYS(!err);
-        MPI_Comm_rank(pi->wr[d]->pals, (int*) &pi->wr[d]->jrank);
+        MPI_Comm_rank(wr[d].pals, (int*) &wr[d].jrank);
     }
 
-    get_node_number_and_prefix(pi);
-    display_process_grid(pi);
+    get_node_number_and_prefix(*this);
+    display_process_grid(*this);
 
 #if defined(HAVE_HWLOC)
     /* prepare the cpu binding messages, and print the unique messages we
      * receive */
     if (!verbose_enabled(CADO_VERBOSE_PRINT_BWC_CPUBINDING)) {
-        pi->cpubinding_info = cpubinding_get_info(nullptr, pl, thr[0], thr[1]);
+        cpubinding_info = cpubinding_get_info(nullptr, pl, thr[0], thr[1]);
     } else {
         char * cpubinding_messages;
-        pi->cpubinding_info = cpubinding_get_info(&cpubinding_messages, pl, thr[0], thr[1]);
+        cpubinding_info = cpubinding_get_info(&cpubinding_messages, pl, thr[0], thr[1]);
         int msgsize = 0;
         if (cpubinding_messages)
             msgsize = strlen(cpubinding_messages);
-        MPI_Allreduce(MPI_IN_PLACE, &msgsize, 1, MPI_INT, MPI_MAX, pi->m->pals);
+        MPI_Allreduce(MPI_IN_PLACE, &msgsize, 1, MPI_INT, MPI_MAX, m.pals);
         msgsize++;
         int const chunksize = PI_NAMELEN + msgsize;
-        char * big_pool = (char *) malloc(pi->m->njobs * chunksize);
-        memset(big_pool, 0, pi->m->njobs * chunksize);
+        char * big_pool = (char *) malloc(m.njobs * chunksize);
+        memset(big_pool, 0, m.njobs * chunksize);
         if (cpubinding_messages) {
             int rc;
-            rc = strlcpy(big_pool + pi->m->jrank * chunksize, pi->nodename.c_str(), PI_NAMELEN);
-            ASSERT_ALWAYS(rc == (int) pi->nodename.length());
-            rc = strlcpy(big_pool + pi->m->jrank * chunksize + PI_NAMELEN, cpubinding_messages, msgsize);
+            rc = strlcpy(big_pool + m.jrank * chunksize, nodename.c_str(), PI_NAMELEN);
+            ASSERT_ALWAYS(rc == (int) nodename.length());
+            rc = strlcpy(big_pool + m.jrank * chunksize + PI_NAMELEN, cpubinding_messages, msgsize);
             ASSERT_ALWAYS(rc == (int) strlen(cpubinding_messages));
             free(cpubinding_messages);
         }
 
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                big_pool, chunksize, MPI_BYTE, pi->m->pals);
+                big_pool, chunksize, MPI_BYTE, m.pals);
 
-        if (pi->m->jrank == 0) {
+        if (m.jrank == 0) {
             // const char * refnode = nullptr;
             const char * ref = nullptr;
-            for(unsigned int i = 0 ; i < pi->m->njobs ; i++) {
+            for(unsigned int i = 0 ; i < m.njobs ; i++) {
                 const char * node = big_pool + i * chunksize;
                 const char * msg = node + PI_NAMELEN;
                 if (!ref || strcmp(msg, ref) != 0) {
@@ -479,15 +478,15 @@ static void pi_init_mpilevel(parallelizing_info & pi, cxx_param_list & pl)
     }
 #else
     if (pl.has("cpubinding")) {
-        if (pi->m->jrank == 0) {
+        if (m.jrank == 0) {
                     printf("cpubinding: parameter ignored (no hwloc)\n");
         }
     }
 #endif /* defined(HAVE_HWLOC) */
 }
 
-/* How do we build a rank in pi->m from two rank in pi->wr[inner] and
- * pi->wr->outer ?
+/* How do we build a rank in pi.m from two rank in pi.wr[inner] and
+ * pi.wr.outer ?
  */
 static int mrank_from_tworanks(parallelizing_info & pi, int d, int ji, int jo)
 {
@@ -501,14 +500,12 @@ static int mrank_from_tworanks(parallelizing_info & pi, int d, int ji, int jo)
      */
 }
 
-
-static parallelizing_info *
-pi_grid_init(parallelizing_info & pi)
+parallelizing_info * parallelizing_info::grid_init()
 {
-    // unsigned int nvj = pi->wr[0]->njobs;
-    // unsigned int nhj = pi->wr[1]->njobs;
-    unsigned int const nvc = pi->wr[0]->ncores;
-    unsigned int const nhc = pi->wr[1]->ncores;
+    // unsigned int nvj = wr[0].njobs;
+    // unsigned int nhj = wr[1].njobs;
+    unsigned int const nvc = wr[0].ncores;
+    unsigned int const nhc = wr[1].ncores;
 
     /* used in several places for doing snprintf */
     char buf[20];
@@ -518,82 +515,92 @@ pi_grid_init(parallelizing_info & pi)
     // specialize the pi things, and then set up agreed barriers.
 
     // the global barrier is not too much work.
-    pi_comm_init_pthread_things(pi->m, "main");
+    m.init_pthread_things("main");
 
     // column and row barriers are more tricky.
     parallelizing_info * grid = new parallelizing_info[nhc * nvc] {};
 
     char commname[64];
 #ifndef MPI_LIBRARY_MT_CAPABLE
-    MPI_Comm_set_name(pi->m->pals, "main");
+    MPI_Comm_set_name(m.pals, "main");
     snprintf(commname, sizeof(commname), "rows%u-%u", 
-            pi->wr[1]->jrank * pi->wr[1]->ncores,
-            (pi->wr[1]->jrank + 1) * pi->wr[1]->ncores - 1);
-    MPI_Comm_set_name(pi->wr[0]->pals, commname);
+            wr[1].jrank * wr[1].ncores,
+            (wr[1].jrank + 1) * wr[1].ncores - 1);
+    MPI_Comm_set_name(wr[0].pals, commname);
     snprintf(commname, sizeof(commname), "cols%u-%u", 
-            pi->wr[0]->jrank * pi->wr[0]->ncores,
-            (pi->wr[0]->jrank + 1) * pi->wr[0]->ncores - 1);
-    MPI_Comm_set_name(pi->wr[1]->pals, commname);
+            wr[0].jrank * wr[0].ncores,
+            (wr[0].jrank + 1) * wr[0].ncores - 1);
+    MPI_Comm_set_name(wr[1].pals, commname);
 #endif
 
     for(unsigned int k = 0 ; k < nhc * nvc ; k++) {
-        parallelizing_info * e = grid + k;
-        *e = pi;
+        parallelizing_info & e = grid[k];
+        e = *this;
         unsigned int const k0 = k % nvc;
         unsigned int const k1 = k / nvc;
-        e->m->trank = k;
-        e->wr[0]->trank = k0;
-        e->wr[1]->trank = k1;
-        e->wr[0]->xwr = e->wr[1];
-        e->wr[1]->xwr = e->wr[0];
+        e.m.trank = k;
+        e.wr[0].trank = k0;
+        e.wr[1].trank = k1;
+        e.wr[0].xwr = & e.wr[1];
+        e.wr[1].xwr = & e.wr[0];
 #ifdef  MPI_LIBRARY_MT_CAPABLE
-        MPI_Comm_dup(pi->m->pals, &(e->m->pals));
-        MPI_Comm_dup(pi->wr[0]->pals, &(e->wr[0]->pals));
-        MPI_Comm_dup(pi->wr[1]->pals, &(e->wr[1]->pals));
+        MPI_Comm_dup(m.pals, &(e.m.pals));
+        MPI_Comm_dup(wr[0].pals, &(e.wr[0].pals));
+        MPI_Comm_dup(wr[1].pals, &(e.wr[1].pals));
 
         /* give a name */
         snprintf(commname, sizeof(commname), "main.%u", k);
-        MPI_Comm_set_name(e->m->pals, commname);
+        MPI_Comm_set_name(e.m.pals, commname);
         snprintf(commname, sizeof(commname), "row%u.%u", 
-                e->wr[1]->jrank * e->wr[1]->ncores + e->wr[1]->trank,
-                e->wr[0]->trank);
-        MPI_Comm_set_name(e->wr[0]->pals, commname);
+                e.wr[1].jrank * e.wr[1].ncores + e.wr[1].trank,
+                e.wr[0].trank);
+        MPI_Comm_set_name(e.wr[0].pals, commname);
         snprintf(commname, sizeof(commname), "col%u.%u", 
-                e->wr[0]->jrank * e->wr[0]->ncores + e->wr[0]->trank,
-                e->wr[1]->trank);
-        MPI_Comm_set_name(e->wr[1]->pals, commname);
+                e.wr[0].jrank * e.wr[0].ncores + e.wr[0].trank,
+                e.wr[1].trank);
+        MPI_Comm_set_name(e.wr[1].pals, commname);
 #endif  /* MPI_LIBRARY_MT_CAPABLE */
     }
 
+    /* It's very ugly. Only *this owns the th things associated to the
+     * pi_comm, but even then it's only for the communicator m. For wr[0]
+     * and wr[1] it's stored in the row and column leaders.
+     *
+     * I should really make them shared_ptrs.
+     */
+    for(unsigned int k = 0 ; k < nhc * nvc ; k++) {
+        grid[k].m.th = m.th;
+    }
+
     // row barriers.
-    // we've got pi->wr[1]->ncores cores working on separate rows (that's
+    // we've got wr[1].ncores cores working on separate rows (that's
     // the number of cores we encounter when walking down one column). So
-    // each row leader is at index c * pi->wr[0]->ncores, because
-    // pi->wr[0]->ncores is the number of cores working on separate
+    // each row leader is at index c * wr[0].ncores, because
+    // wr[0].ncores is the number of cores working on separate
     // columns.
     //
-    for(unsigned int c = 0 ; c < pi->wr[1]->ncores ; c++) {
+    for(unsigned int c = 0 ; c < wr[1].ncores ; c++) {
         snprintf(buf, sizeof(buf), "r%u", 
-                pi->wr[1]->jrank * pi->wr[1]->ncores + c);
-        unsigned int const Nc = c * pi->wr[0]->ncores;
-        pi_comm_ptr leader = grid[Nc]->wr[0];
-        pi_comm_init_pthread_things(leader, buf);
+                wr[1].jrank * wr[1].ncores + c);
+        unsigned int const Nc = c * wr[0].ncores;
+        pi_comm & leader = grid[Nc].wr[0];
+        leader.init_pthread_things(buf);
         // replicate.
-        for(unsigned int k = 0 ; k < pi->wr[0]->ncores ; k++) {
-            grid[k + Nc]->wr[0]->th = leader->th;
+        for(unsigned int k = 0 ; k < wr[0].ncores ; k++) {
+            grid[k + Nc].wr[0].th = leader.th;
         }
     }
 
     // column barriers.
-    for(unsigned int c = 0 ; c < pi->wr[0]->ncores ; c++) {
+    for(unsigned int c = 0 ; c < wr[0].ncores ; c++) {
         snprintf(buf, sizeof(buf), "c%u", 
-                pi->wr[0]->jrank * pi->wr[0]->ncores + c);
-        pi_comm_ptr leader = grid[c]->wr[1];
-        pi_comm_init_pthread_things(leader, buf);
+                wr[0].jrank * wr[0].ncores + c);
+        pi_comm & leader = grid[c].wr[1];
+        leader.init_pthread_things(buf);
         // replicate.
-        for(unsigned int k = 0 ; k < pi->wr[1]->ncores ; k++) {
-            unsigned int const Nk = k * pi->wr[0]->ncores;
-            grid[c + Nk]->wr[1]->th = leader->th;
+        for(unsigned int k = 0 ; k < wr[1].ncores ; k++) {
+            unsigned int const Nk = k * wr[0].ncores;
+            grid[c + Nk].wr[1].th = leader.th;
         }
     }
 
@@ -671,26 +678,26 @@ static void pi_go_mt_now(
         t.join();
 }
 
-static void pi_grid_clear(parallelizing_info & pi, parallelizing_info * grid)
+void parallelizing_info::grid_clear(parallelizing_info * grid)
 {
     // destroy row barriers.
-    for(unsigned int c = 0 ; c < pi.wr[1].ncores ; c++) {
-        unsigned int const Nc = c * pi.wr[0].ncores;
-        pi_comm_destroy_pthread_things(grid[Nc].wr[0]);
+    for(unsigned int c = 0 ; c < wr[1].ncores ; c++) {
+        unsigned int const Nc = c * wr[0].ncores;
+        grid[Nc].wr[0].destroy_pthread_things();
     }
     // destroy column barriers
-    for(unsigned int c = 0 ; c < pi.wr[0].ncores ; c++) {
-        pi_comm_destroy_pthread_things(grid[c].wr[1]);
+    for(unsigned int c = 0 ; c < wr[0].ncores ; c++) {
+        grid[c].wr[1].destroy_pthread_things();
     }
-#ifdef  MPI_LIBRARY_MT_CAPABLE
-    for(unsigned int k = 0 ; k < pi.m->ncores ; k++) {
+#ifdef  MLIBRARY_MT_CAPABLE
+    for(unsigned int k = 0 ; k < m->ncores ; k++) {
         MPI_Comm_free(&grid[k].m->pals);
         MPI_Comm_free(&grid[k].wr[0].pals);
         MPI_Comm_free(&grid[k].wr[1].pals);
     }
-#endif  /* MPI_LIBRARY_MT_CAPABLE */
+#endif  /* MLIBRARY_MT_CAPABLE */
 
-    /* Don't do pi_log_clear, just like we haven't done pi_log_init. The
+    /* Don't do log_clear, just like we haven't done log_init. The
      * sub-threads may define it, in which case it's their responsibility
      * to clear the thing.
      */
@@ -698,21 +705,21 @@ static void pi_grid_clear(parallelizing_info & pi, parallelizing_info * grid)
     delete[] grid;
 }
 
-static void pi_clear_mpilevel(parallelizing_info & pi)
+void parallelizing_info::clear_mpilevel()
 {
 #if defined(HAVE_HWLOC)
-    cpubinding_free_info(pi.cpubinding_info, pi.wr[0].ncores, pi.wr[1].ncores);
+    cpubinding_free_info(cpubinding_info, wr[0].ncores, wr[1].ncores);
 #endif /* defined(HAVE_HWLOC) */
 
-    pi_comm_destroy_pthread_things(pi.m);
+    m.destroy_pthread_things();
 
     for(int d = 0 ; d < 2 ; d++) {
-        MPI_Comm_free(&pi.wr[d].pals);
+        MPI_Comm_free(&wr[d].pals);
     }
-    if (pi.m.pals != MPI_COMM_WORLD)
-        MPI_Comm_free(&pi.m.pals);
+    if (m.pals != MPI_COMM_WORLD)
+        MPI_Comm_free(&m.pals);
 
-    // MPI_Errhandler_free(&my_eh);
+    // MErrhandler_free(&my_eh);
 }
 
 template<typename FCN>
@@ -722,14 +729,15 @@ static void pi_go_inner_not_interleaved(
         void * arg)
 {
     parallelizing_info pi;
-    parallelizing_info * grid;
-    pi_init_mpilevel(pi, pl);
-    grid = pi_grid_init(pi);
+    pi.init_mpilevel(pl);
+
+    parallelizing_info * grid = pi.grid_init();
     // shout_going_mt(pi->m);
     // pi_grid_print_sketch(pi, grids[0]);
     pi_go_mt_now(&grid, 1, pi.m.ncores, std::forward<FCN>(fcn), pl, arg);
-    pi_grid_clear(pi, grid);
-    pi_clear_mpilevel(pi);
+
+    pi.grid_clear(grid);
+    pi.clear_mpilevel();
 }
 
 template<typename FCN>
@@ -741,7 +749,7 @@ static void pi_go_inner_interleaved(
     parallelizing_info pi[2];
     parallelizing_info * grids[2];
 
-    pi_init_mpilevel(pi[0], pl);
+    pi[0].init_mpilevel(pl);
     pi[1] = pi[0];
 
     pi_interleaving pi0, pi1;
@@ -761,21 +769,21 @@ static void pi_go_inner_interleaved(
     pi[0].dict = &d;
     pi[1].dict = &d;
 
-    grids[0] = pi_grid_init(pi[0]);
-    grids[1] = pi_grid_init(pi[1]);
+    grids[0] = pi[0].grid_init();
+    grids[1] = pi[1].grid_init();
 
     // shout_going_mt(pi[0]->m);
     // pi_grid_print_sketch(pi, grids[0]);
 
     pi_go_mt_now(grids, 2, pi[0].m.ncores, std::forward<FCN>(fcn), pl, arg);
 
-    pi_grid_clear(pi[0], grids[0]);
-    pi_grid_clear(pi[1], grids[1]);
+    pi[0].grid_clear(grids[0]);
+    pi[1].grid_clear(grids[1]);
 
     my_pthread_barrier_destroy(&b);
 
-    pi_clear_mpilevel(pi[0]);
-    pi_clear_mpilevel(pi[1]);
+    pi[0].clear_mpilevel();
+    pi[1].clear_mpilevel();
 }
 
 /* TODO: rewrite! */
@@ -795,7 +803,7 @@ void * pi_load_generic(parallelizing_info & pi, unsigned long key, unsigned long
         return it->second;
 }
 
-void parallelizing_info_decl_usage(cxx_param_list & pl)/*{{{*/
+void parallelizing_info::declare_usage(cxx_param_list & pl)/*{{{*/
 {
     pl.declare_usage("mpi", "number of MPI nodes across which the execution will span, with mesh dimensions");
     pl.declare_usage("thr", "number of threads (on each node) for the program, with mesh dimensions");
@@ -811,7 +819,7 @@ void parallelizing_info_decl_usage(cxx_param_list & pl)/*{{{*/
 }
 /*}}}*/
 
-void parallelizing_info_lookup_parameters(cxx_param_list & pl)/*{{{*/
+void parallelizing_info::lookup_parameters(cxx_param_list & pl)/*{{{*/
 {
     /* These will all be looked later (within this file, though).
      */
@@ -844,36 +852,28 @@ void pi_go(
     }
 }
 
-
-
-
-
-
-void pi_log_init(pi_comm_ptr wr)
+void pi_comm::log_init()
 {
-    struct pi_log_book * lb = new pi_log_book();
-    wr->log_book = lb;
+    log_book = std::make_unique<pi_log_book>();;
 
     char commname[MPI_MAX_OBJECT_NAME];
     int namelen = sizeof(commname);
-    MPI_Comm_get_name(wr->pals, commname, &namelen);
+    MPI_Comm_get_name(pals, commname, &namelen);
 
-    if (wr->jrank == 0 && wr->trank == 0) {
-        printf("Enabled logging for %s:%s\n", commname, wr->th->desc.c_str());
+    if (jrank == 0 && trank == 0) {
+        printf("Enabled logging for %s:%s\n", commname, th->desc.c_str());
     }
 }
 
-void pi_log_clear(pi_comm_ptr wr)
+void pi_comm::log_clear()
 {
-    if (wr->log_book)
-        delete wr->log_book;
-    wr->log_book = nullptr;
+    log_book.reset();
 }
 
-void pi_log_op(pi_comm_ptr wr, const char * fmt, ...)
+void pi_comm::log_op(const char * fmt, ...)
 {
     va_list ap;
-    struct pi_log_book * lb = wr->log_book;
+    auto * lb = log_book.get();
     if (!lb)
         return;
 
@@ -886,8 +886,8 @@ void pi_log_op(pi_comm_ptr wr, const char * fmt, ...)
     gettimeofday(e->tv, nullptr);
 
     vsnprintf(e->what, sizeof(e->what), fmt, ap);
-    if (wr->ncores > 1)
-        fprintf(stderr, "%s:%d:%d %s\n", wr->th->desc.c_str(), wr->jrank, wr->trank, e->what);
+    if (ncores > 1)
+        fprintf(stderr, "%s:%d:%d %s\n", th->desc.c_str(), jrank, trank, e->what);
     va_end(ap);
 
     lb->next++;
@@ -895,9 +895,9 @@ void pi_log_op(pi_comm_ptr wr, const char * fmt, ...)
     lb->hsize++;
 }
 
-static void pi_log_print_backend(pi_comm_ptr wr, const char * myname, char ** strings, int * n, int alloc)
+static void pi_log_print_backend(pi_comm const & wr, const char * myname, char ** strings, int * n, int alloc)
 {
-    struct pi_log_book * lb = wr->log_book;
+    auto * lb = wr.log_book.get();
     if (!lb) return;
 
     ASSERT_ALWAYS(lb->next < PI_LOG_BOOK_ENTRIES);
@@ -911,7 +911,7 @@ static void pi_log_print_backend(pi_comm_ptr wr, const char * myname, char ** st
         i0 += PI_LOG_BOOK_ENTRIES;
     char commname[MPI_MAX_OBJECT_NAME];
     int namelen = sizeof(commname);
-    MPI_Comm_get_name(wr->pals, commname, &namelen);
+    MPI_Comm_get_name(wr.pals, commname, &namelen);
 
     int rc;
 
@@ -934,13 +934,13 @@ static void pi_log_print_backend(pi_comm_ptr wr, const char * myname, char ** st
     }
 }
 
-void pi_log_print(pi_comm_ptr wr)
+void pi_comm::log_print()
 {
     /* FIXME stdout or stderr ? */
     int const alloc = PI_LOG_BOOK_ENTRIES;
     char ** strings = new char*[alloc];
     int n = 0;
-    pi_log_print_backend(wr, "", strings, &n, alloc);
+    pi_log_print_backend(*this, "", strings, &n, alloc);
     for(int i = 0 ; i < n ; i++) {
         puts(strings[i]);
         free(strings[i]);
@@ -957,19 +957,19 @@ static int p_strcmp(char const * const * a, char const * const * b)
     return strcmp(*a, *b);
 }
 
-void pi_log_print_all(parallelizing_info & pi)
+void parallelizing_info::log_print_all() const
 {
     int const alloc = 3 * PI_LOG_BOOK_ENTRIES;
     char ** strings = new char *[alloc];
     int n = 0;
     char * myname;
     int rc;
-    rc = asprintf(&myname, "%s%s", pi.wr[0].th->desc.c_str(), pi.wr[1].th->desc.c_str());
+    rc = asprintf(&myname, "%s%s", wr[0].th->desc.c_str(), wr[1].th->desc.c_str());
     ASSERT_ALWAYS(rc != -1);
 
-    pi_log_print_backend(pi.m, myname, strings, &n, alloc);
-    pi_log_print_backend(pi.wr[0], myname, strings, &n, alloc);
-    pi_log_print_backend(pi.wr[1], myname, strings, &n, alloc);
+    pi_log_print_backend(m, myname, strings, &n, alloc);
+    pi_log_print_backend(wr[0], myname, strings, &n, alloc);
+    pi_log_print_backend(wr[1], myname, strings, &n, alloc);
     qsort(strings, n, sizeof(char*), (sortfunc_t) &p_strcmp);
 
     for(int i = 0 ; i < n ; i++) {
@@ -981,7 +981,7 @@ void pi_log_print_all(parallelizing_info & pi)
 }
 
 /* {{{ predefined types and operations */
-static struct pi_datatype_s pi_predefined_types[] = {
+static struct pi_datatype pi_predefined_types[] = {
     { MPI_INT,	                nullptr, sizeof(int) },
     { MPI_DOUBLE,	        nullptr, sizeof(double) },
     { MPI_BYTE,	                nullptr, 1 },
@@ -995,18 +995,18 @@ static struct pi_datatype_s pi_predefined_types[] = {
  * several places where this can come in handy. So once we set our mind
  * on requiring mpi-3.0, we can do some simplifications here and there.
  */
-pi_datatype_ptr BWC_PI_INT              = pi_predefined_types + 0;
-pi_datatype_ptr BWC_PI_DOUBLE           = pi_predefined_types + 1;
-pi_datatype_ptr BWC_PI_BYTE             = pi_predefined_types + 2;
-pi_datatype_ptr BWC_PI_UNSIGNED         = pi_predefined_types + 3;
-pi_datatype_ptr BWC_PI_UNSIGNED_LONG    = pi_predefined_types + 4;
-pi_datatype_ptr BWC_PI_UNSIGNED_LONG_LONG    = pi_predefined_types + 5;
-pi_datatype_ptr BWC_PI_LONG             = pi_predefined_types + 6;
+pi_datatype * BWC_PI_INT              = pi_predefined_types + 0;
+pi_datatype * BWC_PI_DOUBLE           = pi_predefined_types + 1;
+pi_datatype * BWC_PI_BYTE             = pi_predefined_types + 2;
+pi_datatype * BWC_PI_UNSIGNED         = pi_predefined_types + 3;
+pi_datatype * BWC_PI_UNSIGNED_LONG    = pi_predefined_types + 4;
+pi_datatype * BWC_PI_UNSIGNED_LONG_LONG    = pi_predefined_types + 5;
+pi_datatype * BWC_PI_LONG             = pi_predefined_types + 6;
 
 static_assert(sizeof(size_t) == sizeof(unsigned long)
         || sizeof(size_t) == sizeof(unsigned long long));
 
-pi_datatype_ptr BWC_PI_SIZE_T = pi_predefined_types + 4 + (sizeof(size_t) == sizeof(unsigned long long));
+pi_datatype * BWC_PI_SIZE_T = pi_predefined_types + 4 + (sizeof(size_t) == sizeof(unsigned long long));
 
 
 
@@ -1014,7 +1014,7 @@ struct pi_op_s BWC_PI_MIN[1] { MPI_MIN };
 struct pi_op_s BWC_PI_MAX[1] { MPI_MAX };
 
 static void pi_dispatch_op_add_stock(arith_generic::elt const *, arith_generic::elt *, int *, MPI_Datatype *);
-static void pi_dispatch_op_add_custom(arith_generic::elt const *, arith_generic::elt *, size_t, pi_datatype_ptr);
+static void pi_dispatch_op_add_custom(arith_generic::elt const *, arith_generic::elt *, size_t, pi_datatype *);
 
 struct pi_op_s BWC_PI_SUM[1]  { MPI_SUM }; // see pi_init_attribute_things
 struct pi_op_s BWC_PI_BXOR[1] { MPI_BXOR };
@@ -1134,7 +1134,7 @@ static void pi_dispatch_op_add_stock(arith_generic::elt const *invec, arith_gene
     abase->vec_add_and_reduce(inoutvec, invec, *len);
 }
 
-static void pi_dispatch_op_add_custom(arith_generic::elt const *invec, arith_generic::elt *inoutvec, size_t len, pi_datatype_ptr datatype)
+static void pi_dispatch_op_add_custom(arith_generic::elt const *invec, arith_generic::elt *inoutvec, size_t len, pi_datatype * datatype)
 {
     /* FIXME: arith's vec_add should really take size_t arguments */
     ASSERT_ALWAYS(len < (size_t) UINT_MAX);
@@ -1157,28 +1157,28 @@ void parallelizing_info::clear_attribute_things()
     MPI_Type_free_keyval(&pi_mpi_attribute_key);
 }
 
-pi_datatype_ptr pi_alloc_arith_datatype(parallelizing_info & pi, arith_generic * abase)
+pi_datatype * parallelizing_info::alloc_arith_datatype(arith_generic * abase)
 {
-    pi_datatype_ptr ptr = (pi_datatype_ptr) pi.m.shared_malloc_set_zero(sizeof(struct pi_datatype_s));
-    if (pi.m.trank == 0) {
+    pi_datatype * ptr = (pi_datatype *) m.shared_malloc_set_zero(sizeof(struct pi_datatype));
+    if (m.trank == 0) {
         ptr->abase = abase;
         ptr->item_size = abase->vec_elt_stride(1);
         MPI_Type_contiguous(ptr->item_size, MPI_BYTE, &ptr->datatype);
         MPI_Type_commit(&ptr->datatype);
         MPI_Type_set_attr(ptr->datatype, pi_mpi_attribute_key, abase);
     }
-    serialize_threads(pi.m);
+    m.serialize_threads(__FILE__, __LINE__);
     return ptr;
 }
 
-void pi_free_arith_datatype(parallelizing_info & pi, pi_datatype_ptr ptr)
+void parallelizing_info::free_arith_datatype(pi_datatype * ptr)
 {
-    serialize_threads(pi.m);
-    if (pi.m.trank == 0) {
+    m.serialize_threads(__FILE__, __LINE__);
+    if (m.trank == 0) {
         MPI_Type_delete_attr(ptr->datatype, pi_mpi_attribute_key);
         MPI_Type_free(&ptr->datatype);
     }
-    pi->m.shared_free(ptr);
+    m.shared_free(ptr);
 }
 
 arith_generic * pi_arith_datatype_get_abase(MPI_Datatype datatype)
@@ -1196,7 +1196,7 @@ arith_generic * pi_arith_datatype_get_abase(MPI_Datatype datatype)
  * important that we find the operation to perform by ourselves
  */
 static void pi_reduce_local(void *inbuf, void *inoutbuf, size_t count,
-                    pi_datatype_ptr datatype, pi_op_ptr op)
+                    pi_datatype * datatype, pi_op_ptr op)
 {
     if (datatype->abase) {
         if (op->f_custom) {
@@ -1250,7 +1250,7 @@ struct pi_collective_arg {
      * meaningful only for the root thread */
     void * ptr;
     unsigned int root;
-    pi_datatype_ptr datatype;
+    pi_datatype * datatype;
     size_t count;
     /* last two only for reduction */
     pi_op_ptr op;
@@ -1288,7 +1288,7 @@ static void pi_thread_bcast_out(int s MAYBE_UNUSED, struct pi_collective_arg * a
 
 /* broadcast the data area pointed to by [ptr, ptr+size[ to all threads.
  * Pointers at calling threads must differ. */
-void pi_comm::thread_bcast(void * ptr, size_t count, pi_datatype_ptr datatype, unsigned int root)
+void pi_comm::thread_bcast(void * ptr, size_t count, pi_datatype * datatype, unsigned int root)
 {
     struct pi_collective_arg a[1];
     a->wr = this;
@@ -1300,31 +1300,31 @@ void pi_comm::thread_bcast(void * ptr, size_t count, pi_datatype_ptr datatype, u
             (void(*)(int,void*)) &pi_thread_bcast_in,
             (void(*)(int,void*)) &pi_thread_bcast_out,
             a);
-    serialize_threads(this);
+    serialize_threads(__FILE__, __LINE__);
 }
 
-void pi_comm::bcast_mpi_inner(void * ptr, size_t count, pi_datatype_ptr datatype, unsigned int jroot, unsigned int troot)
-{
-    if (trank != troot)
-        return;
-
-    const int err = MPI_Bcast(ptr, count, datatype->datatype, jroot, pals);
-    ASSERT_ALWAYS(!err);
-}
-void pi_comm::bcast(void * ptr, size_t count, pi_datatype_ptr datatype, unsigned int jroot, unsigned int troot)
+void pi_comm::bcast(void * ptr, size_t count, pi_datatype * datatype, unsigned int jroot, unsigned int troot)
 {
     ASSERT(jroot < njobs);
     ASSERT(troot < ncores);
 
+    auto inner = [&, this]() {
+        if (trank != troot)
+            return;
+
+        const int err = MPI_Bcast(ptr, count, datatype->datatype, jroot, pals);
+        ASSERT_ALWAYS(!err);
+    };
+
     if (xwr) {
         /* We need a layer of protection */
         SEVERAL_THREADS_PLAY_MPI_BEGIN(xwr) {
-            bcast_mpi_inner(ptr, count, datatype, jroot, troot);
+            inner();
         }
         SEVERAL_THREADS_PLAY_MPI_END();
     } else {
         /* we expect that wr == pi->m */
-        bcast_mpi_inner(ptr, count, datatype, jroot, troot);
+        inner();
     }
     thread_bcast(ptr, count, datatype, troot);
 }
@@ -1375,7 +1375,7 @@ static void pi_thread_allreduce_out(int s MAYBE_UNUSED, struct pi_collective_arg
 
 /* ptr == dptr is supported */
 void pi_comm::thread_allreduce(void *ptr, void *dptr, size_t count,
-                pi_datatype_ptr datatype, pi_op_ptr op)
+                pi_datatype * datatype, pi_op_ptr op)
 {
     /* this code is buggy in the not-in-place case. let's fall back
      * to the in-place situation unconditionally.
@@ -1400,25 +1400,8 @@ void pi_comm::thread_allreduce(void *ptr, void *dptr, size_t count,
             (void(*)(int,void*)) &pi_thread_allreduce_in,
             (void(*)(int,void*)) &pi_thread_allreduce_out,
             a);
-    serialize_threads(this);
+    serialize_threads(__FILE__, __LINE__);
 }
-
-
-void pi_comm::allreduce_mpi_inner(
-        void *recvbuf, size_t count,
-        pi_datatype_ptr datatype, pi_op_ptr op)
-{
-    if (trank == 0) {
-        if (datatype->abase) {
-            /* Then it's a type for which we supposedly have written an
-             * overloaded operation. */
-            MPI_Allreduce(MPI_IN_PLACE, recvbuf, count, datatype->datatype, op->custom, pals);
-        } else {
-            MPI_Allreduce(MPI_IN_PLACE, recvbuf, count, datatype->datatype, op->stock, pals);
-        }
-    }
-}
-
 
 /* This intentionally has the same prototype as MPI_Allreduce */
 /* Only a few operations and datatypes are supported.
@@ -1426,41 +1409,41 @@ void pi_comm::allreduce_mpi_inner(
  * nullptr at sendbuf means in-place.
  */
 void pi_comm::allreduce(void *sendbuf, void *recvbuf, size_t count,
-        pi_datatype_ptr datatype, pi_op_ptr op)
+        pi_datatype * datatype, pi_op_ptr op)
 {
     ASSERT_ALWAYS(count <= (size_t) INT_MAX);
     thread_allreduce(sendbuf, recvbuf, count, datatype, op);
 
+    auto inner = [&, this]() {
+        if (trank == 0) {
+            if (datatype->abase) {
+                /* Then it's a type for which we supposedly have written an
+                 * overloaded operation. */
+                MPI_Allreduce(MPI_IN_PLACE, recvbuf, count, datatype->datatype, op->custom, pals);
+            } else {
+                MPI_Allreduce(MPI_IN_PLACE, recvbuf, count, datatype->datatype, op->stock, pals);
+            }
+        }
+    };
     if (xwr) {
         SEVERAL_THREADS_PLAY_MPI_BEGIN(xwr) {
-            allreduce_mpi_inner(recvbuf, count, datatype, op);
+            inner();
         }
         SEVERAL_THREADS_PLAY_MPI_END();
     } else {
-        allreduce_mpi_inner(recvbuf, count, datatype, op);
+        inner();
     }
     /* now it's just a matter of broadcasting to all threads */
     thread_bcast(recvbuf, count, datatype, 0);
 }
 
-void pi_comm::allgather_mpi_inner(
-        void *recvbuf,
-        size_t per_thread)
-{
-    if (trank != 0)
-        return;
-
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-            recvbuf, ncores * per_thread, MPI_BYTE,
-            pals);
-}
 
 /* should we have a pi_thread_allgather ? */
 
 void pi_comm::allgather(void * sendbuf,
-        size_t sendcount, pi_datatype_ptr sendtype,
+        size_t sendcount, pi_datatype * sendtype,
         void *recvbuf,
-        size_t recvcount, pi_datatype_ptr recvtype)
+        size_t recvcount, pi_datatype * recvtype)
 {
     ASSERT_ALWAYS(sendbuf == nullptr);
     ASSERT_ALWAYS(sendtype == nullptr);
@@ -1474,19 +1457,27 @@ void pi_comm::allgather(void * sendbuf,
     memcpy( pointer_arith(recvbuf_leader, offset),
             pointer_arith_const(recvbuf, offset),
             per_thread);
-    serialize_threads(this);
+    serialize_threads(__FILE__, __LINE__);
 
+    auto inner = [&, this]() {
+        if (trank != 0)
+            return;
+
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+                recvbuf, ncores * per_thread, MPI_BYTE,
+                pals);
+    };
     if (xwr) {
         SEVERAL_THREADS_PLAY_MPI_BEGIN(xwr)
         {
-            allgather_mpi_inner(recvbuf, per_thread);
+            inner();
         }
         SEVERAL_THREADS_PLAY_MPI_END();
     } else {
         /* we expect that wr == pi->m */
-        allgather_mpi_inner(recvbuf, per_thread);
+        inner();
     }
-    serialize_threads(this);
+    serialize_threads(__FILE__, __LINE__);
     /* and copy back */
     memcpy( pointer_arith(recvbuf, offset),
             pointer_arith_const(recvbuf_leader, offset),
@@ -1497,7 +1488,7 @@ void pi_comm::allgather(void * sendbuf,
 
 /* {{{ data_eq */
 
-int pi_comm::thread_data_eq(void *buffer, size_t count, pi_datatype_ptr datatype)
+int pi_comm::thread_data_eq(void *buffer, size_t count, pi_datatype * datatype)
 {
     void ** bufs = (void**) shared_malloc(ncores * sizeof(void*));
     int * oks = (int*) shared_malloc(ncores * sizeof(int));
@@ -1517,21 +1508,21 @@ int pi_comm::thread_data_eq(void *buffer, size_t count, pi_datatype_ptr datatype
      */
     for(unsigned int stride = 1 ; stride < ncores ; stride <<= 1) {
         unsigned int const i = trank;
-        serialize_threads(this);       /* because of this, we don't
+        serialize_threads(__FILE__, __LINE__);       /* because of this, we don't
                                            leave the loop with break */
         if (i + stride >= ncores) continue;
         /* many threads are doing nothing here */
         if (i & stride) continue;
         oks[i] = oks[i] && oks[i + stride] && memcmp(bufs[i], bufs[i + stride], datatype->item_size * count) == 0;
     }
-    serialize_threads(this);
+    serialize_threads(__FILE__, __LINE__);
     int const ok = oks[0];
     shared_free(oks);
     shared_free(bufs);
     return ok;
 }
 
-int pi_comm::data_eq(void *buffer, size_t count, pi_datatype_ptr datatype)
+int pi_comm::data_eq(void *buffer, size_t count, pi_datatype * datatype)
 {
     int ok = thread_data_eq(buffer, count, datatype);
 
@@ -1578,63 +1569,63 @@ void * pi_comm::shared_malloc_set_zero(size_t size)
 
 void pi_comm::shared_free(void * ptr)
 {
-    serialize_threads(this);
+    serialize_threads(__FILE__, __LINE__);
     if (trank == 0) free(ptr);
 }
 /*}}}*/
 
-int serialize__(pi_comm_ptr w, const char * s MAYBE_UNUSED, unsigned int l MAYBE_UNUSED)
+int pi_comm::serialize(const char * s MAYBE_UNUSED, unsigned int l MAYBE_UNUSED)
 {
     int err;
 #ifdef  CONCURRENCY_DEBUG
-    // note how w->th_count is normally a thread-private thing !
-    w->th_count++;
-    printf("(%s:%u) barrier #%d, %u/%u on %s [%p]\n", s, l, w->th_count,
-            w->trank, w->ncores,
-            w->th->desc, w->th->b);
+    // note how th_count is normally a thread-private thing !
+    th_count++;
+    printf("(%s:%u) barrier #%d, %u/%u on %s [%p]\n", s, l, th_count,
+            trank, ncores,
+            th->desc, th->b);
 #endif
-    my_pthread_barrier_wait(w->th->b);
-    if (w->trank == 0) {
-        err = MPI_Barrier(w->pals);
+    my_pthread_barrier_wait(th->b);
+    if (trank == 0) {
+        err = MPI_Barrier(pals);
         ASSERT_ALWAYS(!err);
     }
-    return w->jrank == 0 && w->trank == 0;
+    return jrank == 0 && trank == 0;
 }
 
-int serialize_threads__(pi_comm_ptr w, const char * s MAYBE_UNUSED, unsigned int l MAYBE_UNUSED)
+int pi_comm::serialize_threads(const char * s MAYBE_UNUSED, unsigned int l MAYBE_UNUSED)
 {
 #ifdef  CONCURRENCY_DEBUG
-    // note how w->th_count is normally a thread-private thing !
-    w->th_count++;
-    printf("(%s:%u) tbarrier #%d, %u/%u on %s [%p]\n", s, l, w->th_count,
-            w->trank, w->ncores,
-            w->th->desc, w->th->b);
+    // note how th_count is normally a thread-private thing !
+    th_count++;
+    printf("(%s:%u) tbarrier #%d, %u/%u on %s [%p]\n", s, l, th_count,
+            trank, ncores,
+            th->desc, th->b);
 #endif
-    my_pthread_barrier_wait(w->th->b);
+    my_pthread_barrier_wait(th->b);
     // struct timeval tv[1];
     // gettimeofday(tv, nullptr);
     // printf("%.2f\n", tv->tv_sec + (double) tv->tv_usec / 1.0e6);
     // sleep(1);
-    return w->trank == 0;
+    return trank == 0;
 }
 
 // XXX Many serializing calls in the two routines below have no
 // functional use, apart from the fact that they exert some pressure on
 // the mpi+pthreads way of doing things.
 
-static void say_hello(pi_comm_ptr w, parallelizing_info & pi MAYBE_UNUSED)
+static void say_hello(pi_comm & w, parallelizing_info & pi MAYBE_UNUSED)
 {
-    serialize(w);
-    for(unsigned int j = 0 ; j < w->njobs ; j++) {
-        serialize(w);
-        if (w->jrank != j)
+    w.serialize(__FILE__, __LINE__);
+    for(unsigned int j = 0 ; j < w.njobs ; j++) {
+        w.serialize(__FILE__, __LINE__);
+        if (w.jrank != j)
             continue;
-        pthread_mutex_lock(w->th->m);
+        pthread_mutex_lock(w.th->m);
 #ifdef CONCURRENCY_DEBUG
         /* Make it less verbose -- if it ever hangs in there, then
          * we can re-enable it */
         printf("(%s) J%uT%u ; %s%s ; (%s:j%ut%u) (%s:j%ut%u)\n",
-                w->th->desc,
+                w.th->desc,
                 pi.m.jrank,
                 pi.m.trank,
                 pi.wr[0].th->desc,
@@ -1643,13 +1634,13 @@ static void say_hello(pi_comm_ptr w, parallelizing_info & pi MAYBE_UNUSED)
                 pi.wr[1].th->desc, pi.wr[1].jrank, pi.wr[1].trank
               );
 #endif
-        pthread_mutex_unlock(w->th->m);
+        pthread_mutex_unlock(w.th->m);
     }
 }
 
 void pi_hello(parallelizing_info & pi)
 {
-    if (serialize(pi.m)) {
+    if (pi.m.serialize(__FILE__, __LINE__)) {
 #ifdef  CONCURRENCY_DEBUG
         printf("Doing hello world loop\n");
 #endif
@@ -1665,27 +1656,27 @@ void pi_hello(parallelizing_info & pi)
     // wander outside an execution period for which all threads sharing
     // this communicator are doing the same.
     for(unsigned int i = 0 ; i < pi.wr[0].totalsize ; i++) {
-        serialize(pi.m);
-        serialize_threads(pi.m);
+        pi.m.serialize(__FILE__, __LINE__);
+        pi.m.serialize_threads(__FILE__, __LINE__);
         if (i == pi.wr[0].jrank * pi.wr[0].ncores + pi.wr[0].trank) {
             say_hello(pi.wr[1], pi);
         }
     }
 
-    for(unsigned int i = 0 ; i < pi->wr[1]->totalsize ; i++) {
-        serialize(pi->m);
-        serialize_threads(pi->m);
-        if (i == pi->wr[1]->jrank * pi->wr[1]->ncores + pi->wr[1]->trank) {
-            say_hello(pi->wr[0], pi);
+    for(unsigned int i = 0 ; i < pi.wr[1].totalsize ; i++) {
+        pi.m.serialize(__FILE__, __LINE__);
+        pi.m.serialize_threads(__FILE__, __LINE__);
+        if (i == pi.wr[1].jrank * pi.wr[1].ncores + pi.wr[1].trank) {
+            say_hello(pi.wr[0], pi);
         }
     }
 
-    if (serialize(pi->m)) {
+    if (pi.m.serialize(__FILE__, __LINE__)) {
 #ifdef CONCURRENCY_DEBUG
         printf("OK: Finished hello world loop\n");
 #endif
     }
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
 }
 /*{{{ new i/o layer */
 /* Open a file handle on the leader node. The two pi_comm_ptr's
@@ -1807,10 +1798,10 @@ size_t pi_file_handle::write_chunk(void * buf, size_t size, size_t sizeondisk, s
     unsigned long size_ul = size;
     ASSERT_ALWAYS(pi.m.data_eq(&size_ul, 1, BWC_PI_UNSIGNED_LONG));
 
-    unsigned int const nci = pi.wr[inner]->ncores;
-    unsigned int const nco = pi.wr[outer]->ncores;
-    unsigned int const nji = pi.wr[inner]->njobs;
-    unsigned int const njo = pi.wr[outer]->njobs;
+    unsigned int const nci = pi.wr[inner].ncores;
+    unsigned int const nco = pi.wr[outer].ncores;
+    unsigned int const nji = pi.wr[inner].njobs;
+    unsigned int const njo = pi.wr[outer].njobs;
     unsigned int const ci  = pi.wr[inner].trank;
     unsigned int const co  = pi.wr[outer].trank;
     unsigned int const ji  = pi.wr[inner].jrank;
@@ -1829,12 +1820,12 @@ size_t pi_file_handle::write_chunk(void * buf, size_t size, size_t sizeondisk, s
     for(unsigned int xjo = 0 ; xjo < njo ; xjo++) {
         for(unsigned int xco = 0 ; xco < nco ; xco++) {
             for(unsigned int xji = 0 ; xji < nji ; xji++) {
-                unsigned int const xj = mrank_from_tworanks(*pi, inner, xji, xjo);
+                unsigned int const xj = mrank_from_tworanks(pi, inner, xji, xjo);
                 if (jm == xj) {
                     ASSERT_ALWAYS (ji == xji && jo == xjo);
                     /* fill the buffer with the contents relevant to the
                      * inner communicator (nci threads at work here) */
-                    serialize_threads(pi.m);
+                    pi.m.serialize_threads(__FILE__, __LINE__);
                     if (xco == co) {
                         void * wptr = pointer_arith(sbuf, ci * loc_size);
                         const void * rptr = pointer_arith_const(buf, spos);
@@ -1848,7 +1839,7 @@ size_t pi_file_handle::write_chunk(void * buf, size_t size, size_t sizeondisk, s
                             }
                         }
                     }
-                    serialize_threads(pi.m);
+                    pi.m.serialize_threads(__FILE__, __LINE__);
                 }
                 if (pi.m.trank == 0) {
                     /* only one thread per node does something. */
@@ -1919,10 +1910,10 @@ size_t pi_file_handle::read_chunk(void * buf, size_t size, size_t sizeondisk, si
     unsigned long size_ul = size;
     ASSERT_ALWAYS(pi.m.data_eq(&size_ul, 1, BWC_PI_UNSIGNED_LONG));
 
-    unsigned int const nci = pi.wr[inner]->ncores;
-    unsigned int const nco = pi.wr[outer]->ncores;
-    unsigned int const nji = pi.wr[inner]->njobs;
-    unsigned int const njo = pi.wr[outer]->njobs;
+    unsigned int const nci = pi.wr[inner].ncores;
+    unsigned int const nco = pi.wr[outer].ncores;
+    unsigned int const nji = pi.wr[inner].njobs;
+    unsigned int const njo = pi.wr[outer].njobs;
     unsigned int const ci  = pi.wr[inner].trank;
     unsigned int const co  = pi.wr[outer].trank;
     unsigned int const ji  = pi.wr[inner].jrank;
@@ -1937,7 +1928,7 @@ size_t pi_file_handle::read_chunk(void * buf, size_t size, size_t sizeondisk, si
     for(unsigned int xjo = 0 ; xjo < njo ; xjo++) {
         for(unsigned int xco = 0 ; xco < nco ; xco++) {
             for(unsigned int xji = 0 ; xji < nji ; xji++) {
-                unsigned int const xj = mrank_from_tworanks(*pi, inner, xji, xjo);
+                unsigned int const xj = mrank_from_tworanks(pi, inner, xji, xjo);
                 /* for job (ji,jo), nci*nco threads enter here. Unless
                  * (ji == xji && jo == xjo), this loop becomes trivial.
                  */
@@ -1970,7 +1961,7 @@ size_t pi_file_handle::read_chunk(void * buf, size_t size, size_t sizeondisk, si
                 }
                 if (jm == xj) {
                     ASSERT_ALWAYS (ji == xji && jo == xjo);
-                    serialize_threads(pi.m);
+                    pi.m.serialize_threads(__FILE__, __LINE__);
                     /* fill the buffer with the contents relevant to the
                      * inner communicator (nci threads at work here) */
                     if (xco == co) {
@@ -1986,7 +1977,7 @@ size_t pi_file_handle::read_chunk(void * buf, size_t size, size_t sizeondisk, si
                             }
                         }
                     }
-                    serialize_threads(pi.m);
+                    pi.m.serialize_threads(__FILE__, __LINE__);
                 }
             }
         }
@@ -2064,45 +2055,45 @@ void parallelizing_info_experimental::allgather(std::vector<unsigned int>& v, pi
     /* XXX XXX XXX
      * The call to MPI_Allreduce is only safe as long as the caller
      * function has made sure that only a single thread in the orthogonal
-     * communicator wr->xwr calls it!
+     * communicator wr.xwr calls it!
      *
-     * Either call wth wr->xwr->trank == 0, or use
-     * SEVERAL_THREADS_PLAY_MPI_BEGIN(wr->xwr)
+     * Either call wth wr.xwr.trank == 0, or use
+     * SEVERAL_THREADS_PLAY_MPI_BEGIN(wr.xwr)
      */
 
     wr.thread_bcast(&mainv, sizeof(mainv), BWC_PI_BYTE, 0);
 
-    for(unsigned int j = 1 ; j < wr->ncores ; ++j) {
-        if (wr->trank == j)
+    for(unsigned int j = 1 ; j < wr.ncores ; ++j) {
+        if (wr.trank == j)
             mainv->insert(mainv->end(), v.begin(), v.end());
-        serialize_threads(wr);
+        wr.serialize_threads(__FILE__, __LINE__);
     }
 
-    if (wr->trank == 0) {
+    if (wr.trank == 0) {
         std::vector<unsigned int> allv;
         /* we have to use int's because of MPI_Allgatherv */
-        std::vector<int> sizes(wr->njobs, 0);
-        std::vector<int> displs(wr->njobs, 0);
-        sizes[wr->jrank] = int(v.size());
+        std::vector<int> sizes(wr.njobs, 0);
+        std::vector<int> displs(wr.njobs, 0);
+        sizes[wr.jrank] = int(v.size());
         auto total = int(v.size());
 
         MPI_Allreduce(MPI_IN_PLACE, &total, 1, MPI_INT, MPI_SUM,
-                wr->pals);
+                wr.pals);
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                sizes.data(), 1, MPI_INT, wr->pals);
-        for(unsigned int i = 1 ; i < wr->njobs ; i++)
+                sizes.data(), 1, MPI_INT, wr.pals);
+        for(unsigned int i = 1 ; i < wr.njobs ; i++)
             displs[i] = displs[i-1] + sizes[i-1];
         allv.assign(total, 0);
-        std::ranges::copy(v, allv.begin() + displs[wr->jrank]);
+        std::ranges::copy(v, allv.begin() + displs[wr.jrank]);
         MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                 allv.data(), sizes.data(), displs.data(), MPI_UNSIGNED,
-                wr->pals);
+                wr.pals);
         std::swap(v, allv);
     }
 
-    serialize_threads(wr);
+    wr.serialize_threads(__FILE__, __LINE__);
     v = *mainv;
-    serialize_threads(wr);
+    wr.serialize_threads(__FILE__, __LINE__);
 }
 
 void parallelizing_info_experimental::broadcast(std::vector<unsigned int>& v, parallelizing_info & pi)
@@ -2111,7 +2102,7 @@ void parallelizing_info_experimental::broadcast(std::vector<unsigned int>& v, pa
     pi.m.bcast(&total, 1, BWC_PI_INT, 0, 0);
     if (pi.m.jrank || pi.m.trank) v.assign(total, 0);
     pi.m.bcast(v.data(), total, BWC_PI_UNSIGNED, 0, 0);
-    serialize(pi.m);
+    pi.m.serialize(__FILE__, __LINE__);
 }
 
 /* just for convenience */
@@ -2136,11 +2127,6 @@ void parallelizing_info_experimental::allgather(std::set<unsigned int>& v, pi_co
 void parallelizing_info::hello()
 {
     pi_hello(*this);
-}
-
-void parallelizing_info::log_print_all() const
-{
-    pi_log_print_all(const_cast<parallelizing_info &>(*this));
 }
 
 void parallelizing_info::grid_print(char * buf, size_t siz, int print)
@@ -2171,24 +2157,4 @@ void parallelizing_info::interleaving_enter()
 void parallelizing_info::interleaving_leave()
 {
     pi_interleaving_leave(*this);
-}
-
-int pi_comm::serialize_comm(const char * file, unsigned int line) {
-    return serialize__(this, file, line);
-}
-
-int pi_comm::serialize_threads_comm(const char * file, unsigned int line) {
-    return serialize_threads__(this, file, line);
-}
-
-void pi_comm::log_init() {
-    pi_log_init(this);
-}
-
-void pi_comm::log_clear() {
-    pi_log_clear(this);
-}
-
-void pi_comm::log_print() {
-    pi_log_print(this);
 }

@@ -48,14 +48,14 @@ int main(int argc, char const * argv[])
     parallelizing_info::init_attribute_things();
 
     bw_common_decl_usage(pl);
-    parallelizing_info_decl_usage(pl);
+    parallelizing_info::declare_usage(pl);
     matmul_top_decl_usage(pl);
     /* declare local parameters and switches: none here (so far). */
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
 
     bw_common_interpret_parameters(bw, pl);
-    parallelizing_info_lookup_parameters(pl);
+    parallelizing_info::lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters */
     if (bw->ys[0] < 0) { fprintf(stderr, "no ys value set\n"); exit(1); }

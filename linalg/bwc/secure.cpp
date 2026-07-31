@@ -73,7 +73,7 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
     std::unique_ptr<arith_cross_generic> AxA(arith_cross_generic::instance(A.get(), A.get()));
 
     matmul_top_data mmt(A.get(), pi, pl, bw->dir);
-    pi_datatype_ptr A_pi = mmt.pitype;
+    pi_datatype * A_pi = mmt.pitype;
 
     /* we work in the opposite direction compared to other programs */
     mmt_vector_pair myy(mmt, !bw->dir);
@@ -88,20 +88,20 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
      * to call mmt_mul with !bw->dir.
      */
 
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
 
     /* To fill Cr and Ct, we need a random state */
     cxx_gmp_randstate rstate;
 
 #if 0
     /* After all, a zero seed is fine, too */
-    if (pi->m->trank == 0 && !bw->seed) {
+    if (pi.m->trank == 0 && !bw->seed) {
         /* note that bw is shared between threads, thus only thread 0 should
          * test and update it here.
-         * at pi->m->jrank > 0, we don't care about the seed anyway
+         * at pi.m->jrank > 0, we don't care about the seed anyway
          */
         bw->seed = time(NULL);
-        MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m->pals);
+        MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi.m->pals);
     }
 #endif
     gmp_randseed_ui(rstate, bw->seed);
@@ -130,7 +130,7 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
      * if an inconsistency is detected.
      */
     int consistency = 1;
-    if (pi->m->jrank == 0 && pi->m->trank == 0) {
+    if (pi.m.jrank == 0 && pi.m.trank == 0) {
         Rfile = fopen_helper(Rfilename, "ab");
         size_t Rsz = file_bytes(Rfile.get());
 
@@ -175,8 +175,8 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
         }
 
         /* The non-master branch does exactly the same! */
-        pi->m.bcast(&consistency, 1, BWC_PI_INT, 0, 0);
-        if (!consistency) pi->m.abort(EXIT_FAILURE);
+        pi.m.bcast(&consistency, 1, BWC_PI_INT, 0, 0);
+        if (!consistency) pi.m.abort(EXIT_FAILURE);
 
         /* {{{ create or load T, based on the random seed. */
 
@@ -205,11 +205,11 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
 
         ASSERT_ALWAYS(Rfile);
 
-        pi->m.bcast(Tdata, bw->m, A_pi, 0, 0);
+        pi.m.bcast(Tdata, bw->m, A_pi, 0, 0);
     } else {
-        pi->m.bcast(&consistency, 1, BWC_PI_INT, 0, 0);
-        if (!consistency) pi->m.abort(EXIT_FAILURE);
-        pi->m.bcast(Tdata, bw->m, A_pi, 0, 0);
+        pi.m.bcast(&consistency, 1, BWC_PI_INT, 0, 0);
+        if (!consistency) pi.m.abort(EXIT_FAILURE);
+        pi.m.bcast(Tdata, bw->m, A_pi, 0, 0);
     }
     /* }}} */
 
@@ -272,12 +272,12 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
     /* {{{ adjust the list of check stops according to the check_stops
      * and interval parameters
      */
-    serialize_threads(pi->m);
-    if (pi->m->trank == 0) {
+    pi.m.serialize_threads(__FILE__, __LINE__);
+    if (pi.m.trank == 0) {
         /* the bw object is global ! */
         bw_set_length_and_interval_krylov(bw, mmt.n0);
     }
-    serialize_threads(pi->m);
+    pi.m.serialize_threads(__FILE__, __LINE__);
     ASSERT_ALWAYS(bw->end % bw->interval == 0);
 
     /* easier to deal with a copy on the stack */
@@ -301,13 +301,13 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
         check_stops.push_back(bw->interval);
     }
     std::ranges::sort(check_stops);
-    serialize_threads(pi->m);
+    pi.m.serialize_threads(__FILE__, __LINE__);
 
     if (tcan_print) {
         fmt::print("Computing trsp(x)*M^k for check stops k={}\n",
                 join(check_stops, ","));
     }
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
     /* }}} */
 
     // {{{ kill the warning about wrong spmv direction
@@ -318,7 +318,7 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
 
     int k = bw->start;
     for(int const next : check_stops) {
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
         if (next == 0) {
             /* if 0 is in check_stops, we don't want to create files such
              * as Cd0-64.0 */
@@ -346,7 +346,7 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
             Rdata_stream = A->alloc(nchecks * (next - k0), ALIGNMENT_ON_ALL_BWC_VECTORS);
             A->vec_set_zero(Rdata_stream, nchecks * (next - k0));
             A->vec_set_random(Rdata_stream, nchecks * (next - k0), rstate);
-            pi->m.bcast(Rdata_stream, nchecks * (next - k0), A_pi, 0, 0);
+            pi.m.bcast(Rdata_stream, nchecks * (next - k0), A_pi, 0, 0);
         }
     
         for( ; k < next ; k++) {
@@ -362,7 +362,7 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
             /* addmul_tiny degrades consistency ! */
             dvec.consistency = 1;
             mmt_vec_broadcast(dvec);
-            pi_log_op(mmt.pi->m, "iteration %d", k);
+            mmt.pi.m.log_op("iteration %d", k);
             matmul_top_mul(mmt, myy.vectors(), nullptr);
 
             if (tcan_print) {
@@ -370,14 +370,14 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
                 fflush(stdout);
             }
         }
-        serialize(pi->m);
-        serialize_threads(mmt.pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
+        mmt.pi.m.serialize_threads(__FILE__, __LINE__);
         mmt_vec_untwist(mmt, my);
         mmt_vec_untwist(mmt, dvec);
 
         mmt_vec_save(my,   bwc_Cv_file::pattern(k), unpadded, 0);
         mmt_vec_save(dvec, bwc_Cd_file::pattern(k), unpadded, 0);
-        if (pi->m->trank == 0 && pi->m->jrank == 0 && next > k0) {
+        if (pi.m.trank == 0 && pi.m.jrank == 0 && next > k0) {
             const size_t rc = fwrite(Rdata_stream, A->vec_elt_stride(nchecks), next - k0, Rfile.get());
             ASSERT_ALWAYS(rc == (size_t) (next - k0));
             fflush(Rfile.get());
@@ -400,7 +400,7 @@ int main(int argc, char const * argv[])
     parallelizing_info::init_attribute_things();
 
     bw_common_decl_usage(pl);
-    parallelizing_info_decl_usage(pl);
+    parallelizing_info::declare_usage(pl);
     matmul_top_decl_usage(pl);
     /* declare local parameters and switches: none here (so far). */
 
@@ -409,7 +409,7 @@ int main(int argc, char const * argv[])
     pl.remove_key("interleaving");
 
     bw_common_interpret_parameters(bw, pl);
-    parallelizing_info_lookup_parameters(pl);
+    parallelizing_info::lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
 
     if (pl.warn_unused()) {

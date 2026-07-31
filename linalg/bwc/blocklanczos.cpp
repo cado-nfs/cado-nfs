@@ -67,7 +67,7 @@ blstate::blstate(parallelizing_info & pi, cxx_param_list & pl)
 
 blstate::~blstate()
 {
-    serialize(mmt.pi->m);
+    mmt.pi.m.serialize(__FILE__, __LINE__);
     for(int i = 0 ; i < 3 ; i++) {
         /* We also need D_n, D_{n-1}, D_{n-2}. Those are in fact bitmaps.
          * Not clear that the bitmap type is really the one we want, though. */
@@ -191,7 +191,7 @@ static int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
         if (j == eblock) j = n;
         else j += v0.i0 + mmt_my_own_offset_in_items(v0);
         unsigned int jmin;
-        v0.pi->m.allreduce(&j, &jmin, 1, BWC_PI_UNSIGNED, BWC_PI_MIN);
+        v0.pi.m.allreduce(&j, &jmin, 1, BWC_PI_UNSIGNED, BWC_PI_MIN);
         if (jmin == n) {
             /* zero row */
             continue;
@@ -209,7 +209,7 @@ static int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
         }
         /* TODO: once we require mpi-3.0, use MPI_UINT64_T instead */
         ASSERT_ALWAYS(sizeof(unsigned long long) == sizeof(uint64_t));
-        v0.pi->m.allreduce(nullptr, &control, 1, BWC_PI_UNSIGNED_LONG_LONG, BWC_PI_MAX);
+        v0.pi.m.allreduce(nullptr, &control, 1, BWC_PI_UNSIGNED_LONG_LONG, BWC_PI_MAX);
         /* add row i to all rows where we had a coeff in column j */
         /* we'll do that for all coefficients in the block, but on m this
          * is just one single operation */
@@ -266,7 +266,7 @@ void blstate::save_result( unsigned int iter)
     std::string filename_base = "blaux.";
 
 
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
     if (tcan_print) { fmt::print("Saving {}* ...\n", filename_base); fflush(stdout); }
 
     mmt_full_vec_set(y, V[i0]);
@@ -308,7 +308,7 @@ void blstate::save_result( unsigned int iter)
     for(int i = 0 ; i < r ; i++) {
         m1[i] = 0;
     }
-    if (pi->m->jrank == 0 && pi->m->trank == 0) {
+    if (pi.m.jrank == 0 && pi.m.trank == 0) {
         auto f = fopen_helper(filename_base + "M1", "wb");
         size_t const rc = fwrite(m1.data(), sizeof(mat64), 1, f.get());
         ASSERT_ALWAYS(rc == 1);
@@ -329,12 +329,12 @@ void blstate::save_result( unsigned int iter)
     for(int i = r ; i < 64 ; i++) {
         m2[i] = 0;
     }
-    if (pi->m->jrank == 0 && pi->m->trank == 0) {
+    if (pi.m.jrank == 0 && pi.m.trank == 0) {
         auto f = fopen_helper(filename_base + "M2", "wb");
         size_t const rc = fwrite(m2.data(), sizeof(mat64), 1, f.get());
         ASSERT_ALWAYS(rc == 1);
     }
-    serialize(mmt.pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
     /* Now apply m2*m1 to v, for real */
     mmt_full_vec_set(y, V[i0]);
     mul_N64_T6464((uint64_t *) mmt_my_own_subvec(y),
@@ -366,7 +366,7 @@ int blstate::operator()(parallelizing_info & pi)
 
     size_t const nelts_for_nnmat = bw->n * (bw->n / A->simd_groupsize());
 
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
 
     /* note that we don't know how to do checking for BL. Sure, we can
      * check for mutual orthogonality of vector blocks at the
@@ -391,11 +391,11 @@ int blstate::operator()(parallelizing_info & pi)
         /* allow some deviation */
         length += 2*integer_sqrt(length);
         /* Because bw is a global variable, we protect its use */
-        if (serialize_threads(pi->m)) {
+        if (pi.m.serialize_threads(__FILE__, __LINE__)) {
             bw->end = length;
         }
         auto_end = length;
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
     }
 
     if (tcan_print) {
@@ -476,7 +476,7 @@ int blstate::operator()(parallelizing_info & pi)
         /* FIXME: for BL, we use 8 timers while only 4 are defined in the
          * structure.
          */
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
         int i, i0, i1, i2;
 
         for(i = 0 ; i < bw->interval ; i++) {
@@ -497,13 +497,13 @@ int blstate::operator()(parallelizing_info & pi)
                     matmul_top_mul_cpu(mmt, 0, yy[d]->d, *yy[!d], *yy[d]);
                     timing_next_timer(timing);  /* now timer is [1] (cpu-wait) */
                 }
-                serialize(pi->m);           /* for measuring waits only */
+                pi.m.serialize(__FILE__, __LINE__);           /* for measuring waits only */
 
                 timing_next_timer(timing);  /* now timer is [2] (COMM) */
                 mmt_vec_allreduce(*yy[!d]);
 
                 timing_next_timer(timing);  /* now timer is [3] (comm-wait) */
-                serialize(pi->m);           /* for measuring waits only */
+                pi.m.serialize(__FILE__, __LINE__);           /* for measuring waits only */
 
                 timing_next_timer(timing);  /* now timer is [0] (CPU) */
             }
@@ -522,7 +522,7 @@ int blstate::operator()(parallelizing_info & pi)
                     mmt_my_own_subvec(y),
                     mmt_my_own_size_in_items(y));
 
-            pi->m.allreduce(nullptr, vav, nelts_for_nnmat, mmt.pitype, BWC_PI_SUM);
+            pi.m.allreduce(nullptr, vav, nelts_for_nnmat, mmt.pitype, BWC_PI_SUM);
 
             A->vec_set_zero(vaav, nelts_for_nnmat);
 
@@ -531,7 +531,7 @@ int blstate::operator()(parallelizing_info & pi)
                     mmt_my_own_subvec(y),
                     mmt_my_own_size_in_items(y));
 
-            pi->m.allreduce(nullptr, vaav, nelts_for_nnmat, mmt.pitype, BWC_PI_SUM);
+            pi.m.allreduce(nullptr, vaav, nelts_for_nnmat, mmt.pitype, BWC_PI_SUM);
 
             ASSERT_ALWAYS(D[i0]->n == 64);
 
@@ -601,7 +601,7 @@ int blstate::operator()(parallelizing_info & pi)
             }
             timing_check(pi, timing, s+i+1, tcan_print);
         }
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
 
         for(int k = 0 ; k < 3 ; k++) {
             if (V[k].consistency < 2)
@@ -609,23 +609,23 @@ int blstate::operator()(parallelizing_info & pi)
             mmt_vec_untwist(mmt, V[k]);
         }
 
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
         if (i < bw->interval) {
             if (tcan_print) fmt::print("Finished at iteration {}, sum_dim={}=N*({}-{:.3f})\n", s+i, sum_Ni, bw->n, bw->n-(double)sum_Ni/(s+i));
 
             save_result(s+i);
             /* We need to cheat somewhat */
-            if (serialize_threads(pi->m)) {
+            if (pi.m.serialize_threads(__FILE__, __LINE__)) {
                 bw->end = s + i;
             }
-            serialize_threads(pi->m);
+            pi.m.serialize_threads(__FILE__, __LINE__);
             timing->end_mark = s + i;
             break;
         }
 
 
         save(s+bw->interval);
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
 
         if (tcan_print) fmt::print("N={} ; sum_dim={}=N*({}-{:.3f})\n", s+i, sum_Ni, bw->n, bw->n-(double)sum_Ni/(s+i));
         // reached s + bw->interval. Count our time on cpu, and compute the sum.
@@ -641,25 +641,25 @@ int blstate::operator()(parallelizing_info & pi)
     A->free(vaav);
 
 #if 0
-    pi_log_clear(pi->m);
-    pi_log_clear(pi->wr[0]);
-    pi_log_clear(pi->wr[1]);
+    pi.m.log_clear();
+    pi.wr[0].log_clear();
+    pi.wr[1].log_clear();
 #endif
 
     if (auto_end && bw->end == auto_end) {
         if (tcan_print) {
             fmt::print("FAILED blocklanczos (no collapse found for inner product).\n");
         }
-        if (serialize_threads(pi->m)) {
+        if (pi.m.serialize_threads(__FILE__, __LINE__)) {
             exit_code = 1;
         }
-        serialize_threads(pi->m);
+        pi.m.serialize_threads(__FILE__, __LINE__);
     } else {
         if (tcan_print) {
             fmt::print("Done blocklanczos.\n");
         }
     }
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
 
     timing_clear(timing);
 
@@ -677,7 +677,7 @@ static void * bl_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg M
 
     /* Don't think we stand any chance with interleaving with block
      * Lanczos... */
-    ASSERT_ALWAYS(!pi->interleaved);
+    ASSERT_ALWAYS(!pi.interleaved);
 
     // int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
 
@@ -699,14 +699,14 @@ int main(int argc, char const * argv[])
     parallelizing_info::init_attribute_things();
 
     bw_common_decl_usage(pl);
-    parallelizing_info_decl_usage(pl);
+    parallelizing_info::declare_usage(pl);
     matmul_top_decl_usage(pl);
     /* declare local parameters and switches: none here (so far). */
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
 
     bw_common_interpret_parameters(bw, pl);
-    parallelizing_info_lookup_parameters(pl);
+    parallelizing_info::lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters */
     if (bw->ys[0] < 0) { fmt::print(stderr, "no ys value set\n"); exit(1); }

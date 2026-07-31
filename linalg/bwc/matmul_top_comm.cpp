@@ -78,8 +78,8 @@
 
 /* {{{ mmt_vec_broadcast (generic interface) */
 /* mmt_vec_broadcast reads data in mmt.wr[d]->v, and broadcasts it across the
- * communicator mmt.pi->wr[d] ; eventually everybody on the communicator
- * mmt.pi->wr[d] has the data.
+ * communicator mmt.pi.wr[d] ; eventually everybody on the communicator
+ * mmt.pi.wr[d] has the data.
  *
  * Note that the combination of mmt_vec_reduce + mmt_vec_broadcast is not the
  * identity (because of the shuffled_product).
@@ -103,16 +103,16 @@ mmt_vec_broadcast(mmt_vec & v)
     int err;
 
     /* communicator wr is in the direction we are broadcasting */
-    pi_comm_ptr wr = v.pi->wr[v.d];
+    pi_comm & wr = v.pi.wr[v.d];
 
     /* communicator xwr is in the other direction */
-    pi_comm_ptr xwr = v.pi->wr[!v.d];
+    pi_comm * xwr = & v.pi.wr[!v.d];
     mmt_vec ** xwrpals = v.wrpals[!v.d].get();
 
-    pi_log_op(v.pi->m, "[%s:%d] enter first loop", __func__, __LINE__);
+    v.pi.m.log_op("[%s:%d] enter first loop", __func__, __LINE__);
     /* Make sure that no thread on the column is wandering in other
      * places -- when we're leaving reduce, this is important. */
-    serialize_threads(wr);
+    wr.serialize_threads(__FILE__, __LINE__);
 
     /* This loop suffers from two-dimensional serializing, so the
      * simplistic macros SEVERAL_THREADS_PLAY_MPI_BEGIN and END do not
@@ -126,8 +126,8 @@ mmt_vec_broadcast(mmt_vec & v)
         /* not shared: begin by collecting everything on thread 0 */
         mmt_own_vec_set2(v, v.sibling(0), v);
     }
-    serialize_threads(v.pi->m);
-    if (wr->trank == 0 && xwr->trank == 0) {
+    v.pi.m.serialize_threads(__FILE__, __LINE__);
+    if (wr.trank == 0 && xwr->trank == 0) {
 #if AG_CHOICE == AG_CHOICE_STOCK_IAG
         MPI_Request * req = (MPI_Request *) malloc(xwr->ncores * sizeof(MPI_Request));
 #endif  /* AG_CHOICE == AG_CHOICE_STOCK_IAG */
@@ -135,16 +135,16 @@ mmt_vec_broadcast(mmt_vec & v)
         for(unsigned int t = 0 ; t < xwr->ncores ; t++) {
             // although the openmpi man page looks funny, I'm assuming that
             // MPI_Allgather wants MPI_IN_PLACE as a sendbuf argument.
-            pi_log_op(wr, "[%s:%d] MPI_Allgather (round %u)", __func__, __LINE__, t);
+            wr.log_op("[%s:%d] MPI_Allgather (round %u)", __func__, __LINE__, t);
 #if AG_CHOICE == AG_CHOICE_STOCK_IAG
             err = MPI_Iallgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                    xwrpals[t]->v, v.abase->vec_elt_stride(1) * eblock * wr->ncores, MPI_BYTE, wr->pals, &req[t]);
+                    xwrpals[t]->v, v.abase->vec_elt_stride(1) * eblock * wr.ncores, MPI_BYTE, wr.pals, &req[t]);
 #elif AG_CHOICE == AG_CHOICE_STOCK_AG
-            err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, xwrpals[t]->v, v.abase->vec_elt_stride(1) * eblock * wr->ncores, MPI_BYTE, wr->pals);
+            err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, xwrpals[t]->v, v.abase->vec_elt_stride(1) * eblock * wr.ncores, MPI_BYTE, wr.pals);
 #else   /* AG_CHOICE */
 #error "Bad AG_CHOICE setting"
 #endif  /* AG_CHOICE */
-            pi_log_op(wr, "[%s:%d] MPI_Allgather (round %u) done", __func__, __LINE__, t);
+            wr.log_op("[%s:%d] MPI_Allgather (round %u) done", __func__, __LINE__, t);
             ASSERT_ALWAYS(!err);
         }
 
@@ -156,10 +156,10 @@ mmt_vec_broadcast(mmt_vec & v)
 #endif  /* AG_CHOICE == AG_CHOICE_STOCK_IAG */
     }
     v.consistency = 2;
-    serialize_threads(v.pi->m);
+    v.pi.m.serialize_threads(__FILE__, __LINE__);
     if (!mmt_vec_is_shared(v)) {
         mmt_full_vec_set(v, v.sibling(0));
-        serialize_threads(wr);
+        wr.serialize_threads(__FILE__, __LINE__);
     }
 #else   /* MPI_LIBRARY_MT_CAPABLE */
     /* Code deleted 20110119, as I've never been able to have enough
@@ -167,7 +167,7 @@ mmt_vec_broadcast(mmt_vec & v)
     ASSERT_ALWAYS(0);
 #endif  /* MPI_LIBRARY_MT_CAPABLE */
 
-    pi_log_op(v.pi->m, "[%s:%d] trailer", __func__, __LINE__);
+    v.pi.m.log_op("[%s:%d] trailer", __func__, __LINE__);
 }
 /* }}} */
 
@@ -178,12 +178,12 @@ mmt_vec_broadcast(mmt_vec & v)
 // TODO: test!
 static void alternative_reduce_scatter [[maybe_unused]] (mmt_vec & v)
 {
-    pi_comm_ptr wr = v.pi->wr[v.d];
-    unsigned int const njobs = wr->njobs;
-    unsigned int const rank = wr->jrank;
+    pi_comm & wr = v.pi.wr[v.d];
+    unsigned int const njobs = wr.njobs;
+    unsigned int const rank = wr.jrank;
     MPI_Datatype const t = v.pitype->datatype;
 
-    size_t const eitems = mmt_my_own_size_in_items(v) * wr->ncores;
+    size_t const eitems = mmt_my_own_size_in_items(v) * wr.ncores;
     if (v.rsbuf_items < eitems) {
         ASSERT_ALWAYS(v.rsbuf_items == 0);
         v.rsbuf[0] = v.abase->alloc_vector(eitems);
@@ -210,7 +210,7 @@ static void alternative_reduce_scatter [[maybe_unused]] (mmt_vec & v)
             break;
         MPI_Sendrecv(b[0], eitems, t, drank, (i<<16) + rank,
                      b[1], eitems, t, srank, (i<<16) + srank,
-                     wr->pals, MPI_STATUS_IGNORE);
+                     wr.pals, MPI_STATUS_IGNORE);
         arith_generic::elt * tb = b[0];   b[0] = b[1];  b[1] = tb; 
         l = (l + 1) % njobs;
     }
@@ -226,10 +226,10 @@ static void alternative_reduce_scatter [[maybe_unused]] (mmt_vec & v)
 /* Example data for a factoring matrix (rsa100) of size 135820*135692,
  * split over 2x3 mpi jobs, and 7x5 threads.
  *
- * 2 == mmt.pi->wr[1]->njobs (number of jobs encountered on a vertical axis).
- * 7 == mmt.pi->wr[1]->ncores (number of jobs per core on a vertical axis).
- * 3 == mmt.pi->wr[0]->njobs (number of jobs encountered on an horiz. axis).
- * 5 == mmt.pi->wr[0]->ncores (number of jobs per core on an horiz. axis).
+ * 2 == mmt.pi.wr[1]->njobs (number of jobs encountered on a vertical axis).
+ * 7 == mmt.pi.wr[1]->ncores (number of jobs per core on a vertical axis).
+ * 3 == mmt.pi.wr[0]->njobs (number of jobs encountered on an horiz. axis).
+ * 5 == mmt.pi.wr[0]->ncores (number of jobs per core on an horiz. axis).
  *
  * matrix is padded to a multiple of 210 = 2*3*5*7, which is * N=135870=210*647
  *
@@ -242,37 +242,37 @@ static void alternative_reduce_scatter [[maybe_unused]] (mmt_vec & v)
  * a mmt_vec_reduce operation, in the context of factoring, is with d==1
  * below. Hence, in fact, we're doing a reduction down a column.
  *
- * the value eitems fed to this function is mmt.pi->wr[d]->ncores (here,
+ * the value eitems fed to this function is mmt.pi.wr[d]->ncores (here,
  * 7) times the small chunk size. Here 7*647 == 4529.
  */
 /* all threads in mmt.wr[!d], one after another a priori, are going to
  * do alternative_reduce_scatter on their vector v[i]
  */
 // TODO: test!
-static void alternative_reduce_scatter_parallel [[maybe_unused]] (pi_comm_ptr xr, mmt_vec ** vs)
+static void alternative_reduce_scatter_parallel [[maybe_unused]] (pi_comm & xr, mmt_vec ** vs)
 {
     /* we write all data counts below with comments indicating the typical
      * size in our toy example above */
 
-    /* he have xr->ncores vectors. The vs[] array accesses data from the
+    /* he have xr.ncores vectors. The vs[] array accesses data from the
      * other peers. Note that the pi structures belong separately to each
      * peer, and so do the embedded communicators. Therefore the proper
      * way to see "our" xr is none other that the given parameter. And for
      * "our" wr, then we'll have to look for our own vector within vs.
      */
-    mmt_vec & v = *(vs[xr->trank]);
+    mmt_vec & v = *(vs[xr.trank]);
     arith_generic * ab = v.abase;
-    pi_comm_ptr wr = v.pi->wr[v.d];  /* 2 jobs, 7 cores */
+    pi_comm & wr = v.pi.wr[v.d];  /* 2 jobs, 7 cores */
     /* what we're going to do will happen completely in parallel over
-     * xr->njobs==3 communicators. We're simulating here the split into 5
+     * xr.njobs==3 communicators. We're simulating here the split into 5
      * communicators, even though those collide into a unique
      * communicator as far as MPI is concerned.
      */
-    unsigned int const njobs = wr->njobs;      /* 2 */
+    unsigned int const njobs = wr.njobs;      /* 2 */
     /* note that we no longer care at this point about what happened at
      * the thread level in our dimension. This is already done, period.
      */
-    unsigned int const rank = wr->jrank;
+    unsigned int const rank = wr.jrank;
     MPI_Datatype const t = v.pitype->datatype;
 
     /* If the rsbuf[] buffers have not yet been allocated, it is time to
@@ -280,7 +280,7 @@ static void alternative_reduce_scatter_parallel [[maybe_unused]] (pi_comm_ptr xr
      * them if because of a larger abase, the corresponding storage has
      * to be expanded.
      */
-    size_t const eitems = mmt_my_own_size_in_items(v) * wr->ncores;
+    size_t const eitems = mmt_my_own_size_in_items(v) * wr.ncores;
     /* notice that we are allocating a temp buffer only for one vector.
      * Of course, since this is a multithreaded routine, each thread in
      * xr is doing so at the same time */
@@ -293,13 +293,13 @@ static void alternative_reduce_scatter_parallel [[maybe_unused]] (pi_comm_ptr xr
     }
 
     ab->vec_set_zero(v.rsbuf[0].get(), eitems);
-    serialize_threads(xr);
+    xr.serialize_threads(__FILE__, __LINE__);
 
     unsigned int const srank = (rank + 1) % njobs;
     unsigned int const drank = (rank + njobs - 1) % njobs;
 
-    /* We describe the algorithm for one of the xr->ncores==5 threads.
-     * local vector areas [9058] split into [wr->njobs==2] sub-areas of
+    /* We describe the algorithm for one of the xr.ncores==5 threads.
+     * local vector areas [9058] split into [wr.njobs==2] sub-areas of
      * size [eitems (==4529)].
      *
      * on each job, each thread has 9058 == 2*4529 items
@@ -330,35 +330,35 @@ static void alternative_reduce_scatter_parallel [[maybe_unused]] (pi_comm_ptr xr
         ab->vec_add_and_reduce(v.rsbuf[s].get(),
                 ab->vec_subvec(v.sibling(0).v, j0),
                 j1-j0);
-        serialize_threads(xr);
+        xr.serialize_threads(__FILE__, __LINE__);
 
         if (i == njobs - 1)  
             break;
 
-        if (xr->trank == 0) {
+        if (xr.trank == 0) {
             MPI_Request * r = nullptr;
-            r = (MPI_Request *) malloc(2 * xr->ncores * sizeof(MPI_Request));
-            for(unsigned int w = 0 ; w < xr->ncores ; w++) {
+            r = (MPI_Request *) malloc(2 * xr.ncores * sizeof(MPI_Request));
+            for(unsigned int w = 0 ; w < xr.ncores ; w++) {
                 MPI_Request * rs = r + 2*w;
                 MPI_Request * rr = r + 2*w + 1;
-                MPI_Isend(vs[w]->rsbuf[s].get(),  eitems, t, drank, 0xb00+w, wr->pals, rs);
-                MPI_Irecv(vs[w]->rsbuf[!s].get(), eitems, t, srank, 0xb00+w, wr->pals, rr);
+                MPI_Isend(vs[w]->rsbuf[s].get(),  eitems, t, drank, 0xb00+w, wr.pals, rs);
+                MPI_Irecv(vs[w]->rsbuf[!s].get(), eitems, t, srank, 0xb00+w, wr.pals, rr);
                 /*
                 MPI_Sendrecv(vs[w]->rsbuf[s].get(), eitems, t, drank, 0xbeef,
                         vs[w]->rsbuf[!s].get(), eitems, t, srank, 0xbeef,
-                        wr->pals, MPI_STATUS_IGNORE);
+                        wr.pals, MPI_STATUS_IGNORE);
                         */
                 // MPI_Waitall(2, r + 2*w, MPI_STATUSES_IGNORE);
             }
-            MPI_Waitall(2 * xr->ncores, r, MPI_STATUSES_IGNORE);
+            MPI_Waitall(2 * xr.ncores, r, MPI_STATUSES_IGNORE);
             free(r);
         }
-        serialize_threads(xr);
+        xr.serialize_threads(__FILE__, __LINE__);
     }
 
     ab->vec_set(v.sibling(0).v, v.rsbuf[(njobs-1)&1].get(), eitems);
 
-    pi_log_op(wr, "[%s:%d] MPI_Reduce_scatter done", __func__, __LINE__);
+    wr.log_op("[%s:%d] MPI_Reduce_scatter done", __func__, __LINE__);
 }
 #endif  /* RS_CHOICE == RS_CHOICE_MINE_PARALLEL */
 /* }}} */
@@ -429,7 +429,7 @@ static int my_MPI_Reduce_scatter_block [[maybe_unused]] (void *sendbuf, void *re
 /* }}} */
 
 /* mmt_vec_reduce_inner reads data in v (vector for side d), sums it up
- * across the communicator mmt.pi->wr[d], and collects the results in
+ * across the communicator mmt.pi.wr[d], and collects the results in
  * vector v again, except that it's put in thread0's buffer (counting
  * threads in direction d, of course), *AT THE BEGINNING* of the data
  * area (which is surprising).
@@ -445,17 +445,17 @@ static void mmt_vec_reduce_inner(mmt_vec & v)
     ASSERT_ALWAYS(v.consistency != 2);
 
     /* reducing across a row is when d == 0 */
-    pi_comm_ptr wr = v.pi->wr[v.d];
-    pi_comm_ptr xr = v.pi->wr[!v.d];
+    pi_comm & wr = v.pi.wr[v.d];
+    pi_comm & xr = v.pi.wr[!v.d];
 
-    pi_log_op(v.pi->m, "[%s:%d] enter first loop", __func__, __LINE__);
+    v.pi.m.log_op("[%s:%d] enter first loop", __func__, __LINE__);
 
     // I don't think that the case of shared vectors has been tested
     // correctly for reduction. Well, to start with, I doubt it really
     // makes a lot of sense anyhow.
     // ASSERT_ALWAYS((v.flags & THREAD_SHARED_VECTOR) == 0);
 
-    if (wr->ncores > 1 && !mmt_vec_is_shared(v)) {
+    if (wr.ncores > 1 && !mmt_vec_is_shared(v)) {
         /* row threads have to sum up their data. Of course it's
          * irrelevant when there is only one such thread...
          *
@@ -463,33 +463,33 @@ static void mmt_vec_reduce_inner(mmt_vec & v)
          * row has finished its computation task, but besides that,
          * there's no locking until we start mpi stuff.
          */
-        pi_log_op(wr, "[%s:%d] serialize_threads", __func__, __LINE__);
-        serialize_threads(wr);
-        pi_log_op(wr, "[%s:%d] serialize_threads done", __func__, __LINE__);
+        wr.log_op("[%s:%d] serialize_threads", __func__, __LINE__);
+        wr.serialize_threads(__FILE__, __LINE__);
+        wr.log_op("[%s:%d] serialize_threads done", __func__, __LINE__);
 
-        /* Our [i0,i1[ range is split into wr->ncores parts. This range
+        /* Our [i0,i1[ range is split into wr.ncores parts. This range
          * represent coordinates which are common to all threads on
          * wr. Corresponding data has to be summed. Amongst the
-         * wr->ncores threads, thread k takes the responsibility of
+         * wr.ncores threads, thread k takes the responsibility of
          * summing data in the k-th block (that is, indices
-         * i0+k*(i1-i0)/wr->ncores and further). As a convention,
+         * i0+k*(i1-i0)/wr.ncores and further). As a convention,
          * the thread which eventually owns the final data is thread 0.
          *
          * Note that one should consider that data in threads other than
          * the destination thread may be clobbered by the operation
          * (although in the present implementation it is not).
          */
-        size_t const thread_chunk = wr->njobs * mmt_my_own_size_in_items(v);
+        size_t const thread_chunk = wr.njobs * mmt_my_own_size_in_items(v);
         arith_generic::elt * dptr = v.abase->vec_subvec(
                 v.sibling(0).v, 
-                wr->trank * thread_chunk);
-        for(unsigned int w = 1 ; w < wr->ncores ; w++) {
+                wr.trank * thread_chunk);
+        for(unsigned int w = 1 ; w < wr.ncores ; w++) {
             const arith_generic::elt * sptr = v.abase->vec_subvec(
                     v.sibling(w).v, 
-                    wr->trank * thread_chunk);
+                    wr.trank * thread_chunk);
             v.abase->vec_add_and_reduce(dptr, sptr, thread_chunk);
         }
-        pi_log_op(wr, "[%s:%d] thread reduction done", __func__, __LINE__);
+        wr.log_op("[%s:%d] thread reduction done", __func__, __LINE__);
     }
 
     /* Good. Now on each node, thread 0 has the reduced data for the
@@ -517,14 +517,14 @@ static void mmt_vec_reduce_inner(mmt_vec & v)
      * column serialization in the current procedure yet.
      */
 
-    pi_log_op(v.pi->m, "[%s:%d] secondary loop", __func__, __LINE__);
+    v.pi.m.log_op("[%s:%d] secondary loop", __func__, __LINE__);
 
-    pi_log_op(v.pi->m, "[%s:%d] serialize_threads", __func__, __LINE__);
-    serialize_threads(wr);
-    pi_log_op(v.pi->m, "[%s:%d] serialize_threads done", __func__, __LINE__);
+    v.pi.m.log_op("[%s:%d] serialize_threads", __func__, __LINE__);
+    wr.serialize_threads(__FILE__, __LINE__);
+    v.pi.m.log_op("[%s:%d] serialize_threads done", __func__, __LINE__);
 
 #ifndef MPI_LIBRARY_MT_CAPABLE
-    if (wr->trank == 0) {
+    if (wr.trank == 0) {
         /* openmpi-1.8.2 does not seem to have a working non-blocking
          * reduce_scatter, at least not a very efficient one. All
          * I've been able to do is to run MPI_Ireduce_scatter with
@@ -532,18 +532,18 @@ static void mmt_vec_reduce_inner(mmt_vec & v)
          * to crash. And anyway, it's very inefficient.
          */
 
-        ASSERT((v.i1 - v.i0) % wr->totalsize == 0);
+        ASSERT((v.i1 - v.i0) % wr.totalsize == 0);
 #if RS_CHOICE == RS_CHOICE_STOCK_RS 
         void * dptr = v.sibling(0)->v;
         SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
             // all recvcounts are equal
-            int * rc = malloc(wr->njobs * sizeof(int));
-            for(unsigned int k = 0 ; k < wr->njobs ; k++)
-                rc[k] = (v.i1 - v.i0) / wr->njobs;
+            int * rc = malloc(wr.njobs * sizeof(int));
+            for(unsigned int k = 0 ; k < wr.njobs ; k++)
+                rc[k] = (v.i1 - v.i0) / wr.njobs;
             int err = MPI_Reduce_scatter(dptr, dptr, rc,
                     v.pitype->datatype,
                     BWC_PI_SUM->custom,
-                    wr->pals);
+                    wr.pals);
             free(rc);
             ASSERT_ALWAYS(!err);
         }
@@ -552,10 +552,10 @@ static void mmt_vec_reduce_inner(mmt_vec & v)
         void * dptr = v.sibling(0)->v;
         SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
             int err = MPI_Reduce_scatter_block(dptr, dptr,
-                    (v.i1 - v.i0) / wr->njobs,
+                    (v.i1 - v.i0) / wr.njobs,
                     v.pitype->datatype,
                     BWC_PI_SUM->custom,
-                    wr->pals);
+                    wr.pals);
             ASSERT_ALWAYS(!err);
         }
         SEVERAL_THREADS_PLAY_MPI_END();
@@ -563,52 +563,52 @@ static void mmt_vec_reduce_inner(mmt_vec & v)
         void * dptr = v.sibling(0)->v;
         SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
             int err = my_MPI_Reduce_scatter_block(MPI_IN_PLACE, dptr,
-                    (v.i1 - v.i0) / wr->njobs,
+                    (v.i1 - v.i0) / wr.njobs,
                     v.pitype->datatype,
                     BWC_PI_SUM->custom,
-                    wr->pals);
+                    wr.pals);
             ASSERT_ALWAYS(!err);
         }
         SEVERAL_THREADS_PLAY_MPI_END();
 #elif RS_CHOICE == RS_CHOICE_STOCK_IRSBLOCK
         void * dptr = v.sibling(0)->v;
-        auto req = pi_shared_array<MPI_Request>(xr, xr->ncores);
+        auto req = pi_shared_array<MPI_Request>(xr, xr.ncores);
         SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
             int err = MPI_Ireduce_scatter_block(dptr, dptr,
-                    (v.i1 - v.i0) / wr->njobs,
+                    (v.i1 - v.i0) / wr.njobs,
                     v.pitype->datatype,
                     BWC_PI_SUM->custom,
-                    wr->pals, &req[t__]);
+                    wr.pals, &req[t__]);
             ASSERT_ALWAYS(!err);
-            pi_log_op(wr, "[%s:%d] MPI_Reduce_scatter done", __func__, __LINE__);
+            wr.log_op("[%s:%d] MPI_Reduce_scatter done", __func__, __LINE__);
         }
         SEVERAL_THREADS_PLAY_MPI_END();
-        serialize_threads(xr);
-        if (xr->trank == 0) {
-            for(unsigned int t = 0 ; t < xr->ncores ; t++) {
+        xr.serialize_threads(__FILE__, __LINE__);
+        if (xr.trank == 0) {
+            for(unsigned int t = 0 ; t < xr.ncores ; t++) {
                 MPI_Wait(&req[t], MPI_STATUS_IGNORE);
             }
         }
 #elif RS_CHOICE == RS_CHOICE_STOCK_IRS
         void * dptr = v.sibling(0)->v;
-        auto req = pi_shared_array<MPI_Request>(xr, xr->ncores);
-        int * rc = malloc(wr->njobs * sizeof(int));
-        for(unsigned int k = 0 ; k < wr->njobs ; k++)
-            rc[k] = (v.i1 - v.i0) / wr->njobs;
+        auto req = pi_shared_array<MPI_Request>(xr, xr.ncores);
+        int * rc = malloc(wr.njobs * sizeof(int));
+        for(unsigned int k = 0 ; k < wr.njobs ; k++)
+            rc[k] = (v.i1 - v.i0) / wr.njobs;
         SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
             int err = MPI_Ireduce_scatter(dptr, dptr,
                     rc,
                     v.pitype->datatype,
                     BWC_PI_SUM->custom,
-                    wr->pals, &req[t__]);
+                    wr.pals, &req[t__]);
             free(rc);
             ASSERT_ALWAYS(!err);
-            pi_log_op(wr, "[%s:%d] MPI_Reduce_scatter done", __func__, __LINE__);
+            wr.log_op("[%s:%d] MPI_Reduce_scatter done", __func__, __LINE__);
         }
         SEVERAL_THREADS_PLAY_MPI_END();
-        serialize_threads(xr);
-        if (xr->trank == 0) {
-            for(unsigned int t = 0 ; t < xr->ncores ; t++) {
+        xr.serialize_threads(__FILE__, __LINE__);
+        if (xr.trank == 0) {
+            for(unsigned int t = 0 ; t < xr.ncores ; t++) {
                 MPI_Wait(&req[t], MPI_STATUS_IGNORE);
             }
         }
@@ -624,9 +624,9 @@ static void mmt_vec_reduce_inner(mmt_vec & v)
         SEVERAL_THREADS_PLAY_MPI_END();
 #elif RS_CHOICE == RS_CHOICE_MINE_PARALLEL
 #if 0
-        auto vs = pi_shared_array<mmt_vec *>(xr, xr->ncores);
-        vs[xr->trank] = &v;
-        serialize_threads(xr);
+        auto vs = pi_shared_array<mmt_vec *>(xr, xr.ncores);
+        vs[xr.trank] = &v;
+        xr.serialize_threads(__FILE__, __LINE__);
         alternative_reduce_scatter_parallel(xr, vs.get());
 #else
         alternative_reduce_scatter_parallel(xr, v.wrpals[!v.d].get());
@@ -640,7 +640,7 @@ static void mmt_vec_reduce_inner(mmt_vec & v)
      * trust in an MPI implementation to check this */
     ASSERT_ALWAYS(0);
 #endif
-    serialize_threads(wr);
+    wr.serialize_threads(__FILE__, __LINE__);
 }
 void
 mmt_vec_reduce(mmt_vec & w, mmt_vec & v)
@@ -648,7 +648,7 @@ mmt_vec_reduce(mmt_vec & w, mmt_vec & v)
     ASSERT_ALWAYS(v.abase == w.abase);
     ASSERT_ALWAYS(v.d != w.d);
     mmt_vec_reduce_inner(v);
-    pi_comm_ptr wr = v.pi->wr[v.d];
+    pi_comm & wr = v.pi.wr[v.d];
     // row threads pick what they're interested in in thread0's reduced
     // buffer. Writes are non-overlapping in the mcol buffer here.
     // Different row threads always have different mcol buffers, and
@@ -660,20 +660,20 @@ mmt_vec_reduce(mmt_vec & w, mmt_vec & v)
     // just packed at the beginning.
 
     // row job rj, row thread rt has a col buffer containing
-    // picol->totalsize blocks of size eblock.  col job cj, col
-    // thread ct has in its row buffer pirow->totalsize blocks, but
+    // picol.totalsize blocks of size eblock.  col job cj, col
+    // thread ct has in its row buffer pirow.totalsize blocks, but
     // only virtually. Because of the reduce_scatter operation, only
-    // pirow->ncores blocks are here.
+    // pirow.ncores blocks are here.
     //
     // Thus the k-th block in the row buffer is rather understood as
-    // the one of indek rj * pirow->ncores + k in the data the row
+    // the one of indek rj * pirow.ncores + k in the data the row
     // threads have collectively computed.
     //
     // This block is of interest to the row thread of index k of
     // course, thus we restrict to rt==k
     //
-    // Now among the picol->totalsize blocks of the col buffer, this
-    // will go to position cj * picol->ncores + ct
+    // Now among the picol.totalsize blocks of the col buffer, this
+    // will go to position cj * picol.ncores + ct
  
     size_t const eblock = mmt_my_own_size_in_items(v);
     ASSERT_ALWAYS(mmt_my_own_size_in_items(w) == eblock);
@@ -683,7 +683,7 @@ mmt_vec_reduce(mmt_vec & w, mmt_vec & v)
             /* Note: reduce-scatter packs everything at the beginning in
              * the leader block, which is why we don't have our usual offset
              * here. */
-            v.abase->vec_subvec(v.sibling(0).v, wr->trank * eblock),
+            v.abase->vec_subvec(v.sibling(0).v, wr.trank * eblock),
             eblock);
 
     // as usual, we do not serialize on exit. Up to the next routine to
@@ -710,21 +710,21 @@ mmt_vec_reduce(mmt_vec & w, mmt_vec & v)
 void
 mmt_vec_reduce_sameside(mmt_vec & v)
 {
-    pi_comm_ptr wr = v.pi->wr[v.d];
+    pi_comm & wr = v.pi.wr[v.d];
     mmt_vec_reduce_inner(v);
     size_t const eblock = mmt_my_own_size_in_items(v);
     v.abase->vec_set(
             mmt_my_own_subvec(v),
-            v.abase->vec_subvec(v.sibling(0).v, wr->trank * eblock),
+            v.abase->vec_subvec(v.sibling(0).v, wr.trank * eblock),
             eblock);
     /* This ensures that we've effectively *moved* the data, not copied
      * it */
-    if (wr->trank) {
+    if (wr.trank) {
         v.abase->vec_set_zero(
-                v.abase->vec_subvec(v.sibling(0).v, wr->trank * eblock),
+                v.abase->vec_subvec(v.sibling(0).v, wr.trank * eblock),
                 eblock);
     }
-    serialize_threads(wr);
+    wr.serialize_threads(__FILE__, __LINE__);
     v.consistency = 1;
 }
 /* }}} */
@@ -739,21 +739,21 @@ mmt_vec_allreduce(mmt_vec & v)
 {
     ASSERT_ALWAYS(v.consistency != 2);
     /* reducing across a row is when d == 0 */
-    pi_comm_ptr wr = v.pi->wr[v.d];
+    pi_comm & wr = v.pi.wr[v.d];
 
-    pi_log_op(v.pi->m, "[%s:%d] enter first loop", __func__, __LINE__);
+    v.pi.m.log_op("[%s:%d] enter first loop", __func__, __LINE__);
 
-    serialize_threads(v.pi->m);
+    v.pi.m.serialize_threads(__FILE__, __LINE__);
     /* sum up row threads, so that only one thread on each row is used
      * for communication */
-    size_t const thread_chunk = wr->njobs * mmt_my_own_size_in_items(v);
+    size_t const thread_chunk = wr.njobs * mmt_my_own_size_in_items(v);
     if (!mmt_vec_is_shared(v)) {
         arith_generic::elt * dv = v.abase->vec_subvec(v.v,
-                wr->trank * thread_chunk);
-        for(unsigned int k = 1 ; k < wr->ncores ; k++) {
+                wr.trank * thread_chunk);
+        for(unsigned int k = 1 ; k < wr.ncores ; k++) {
             arith_generic::elt * sv = v.abase->vec_subvec(
-                    v.sibling((wr->trank+k) % wr->ncores).v,
-                    wr->trank * thread_chunk);
+                    v.sibling((wr.trank+k) % wr.ncores).v,
+                    wr.trank * thread_chunk);
             v.abase->vec_add_and_reduce(dv, sv, thread_chunk);
         }
     }
@@ -761,25 +761,25 @@ mmt_vec_allreduce(mmt_vec & v)
      * one has thread 0 do the work for all other threads, while other
      * threads are waiting.
      */
-    SEVERAL_THREADS_PLAY_MPI_BEGIN2(v.pi->m, peer) {
+    SEVERAL_THREADS_PLAY_MPI_BEGIN2(&(v.pi.m), peer) {
         arith_generic::elt * dv = v.abase->vec_subvec(
                 v.mpals.get()[peer]->v,
-                v.mpals.get()[peer]->pi->wr[v.d]->trank * thread_chunk);
+                v.mpals.get()[peer]->pi.wr[v.d].trank * thread_chunk);
         MPI_Allreduce(MPI_IN_PLACE,
                 dv,
                 thread_chunk,
                 v.pitype->datatype,
                 BWC_PI_SUM->custom,
-                wr->pals);
+                wr.pals);
     }
-    SEVERAL_THREADS_PLAY_MPI_END2(v.pi->m);
+    SEVERAL_THREADS_PLAY_MPI_END2(&(v.pi.m));
     if (!mmt_vec_is_shared(v)) {
         arith_generic::elt * sv = v.abase->vec_subvec(v.v,
-                wr->trank * thread_chunk);
-        for(unsigned int k = 1 ; k < wr->ncores ; k++) {
+                wr.trank * thread_chunk);
+        for(unsigned int k = 1 ; k < wr.ncores ; k++) {
             arith_generic::elt * dv = v.abase->vec_subvec(
-                    v.sibling((wr->trank+k) % wr->ncores).v,
-                    wr->trank * thread_chunk);
+                    v.sibling((wr.trank+k) % wr.ncores).v,
+                    wr.trank * thread_chunk);
             v.abase->vec_set(dv, sv, thread_chunk);
         }
     }
@@ -802,7 +802,7 @@ static void matmul_top_comm_bench_helper(int * pk, double * pt,
 	t1 = wct_seconds();
 	cont = t1 < t0 + 0.25;
 	cont = cont && (t1 < t0 + 1 || k < 100);
-        v.pi->m.allreduce(nullptr, &cont, 1, BWC_PI_INT, BWC_PI_MIN);
+        v.pi.m.allreduce(nullptr, &cont, 1, BWC_PI_INT, BWC_PI_MIN);
 	if (!cont)
 	    break;
         /* It's difficult to be faithful to the requirements on
@@ -816,14 +816,14 @@ static void matmul_top_comm_bench_helper(int * pk, double * pt,
     target = std::min(target, 100);
     if (target == 0)
         target = 1;
-    v.pi->m.bcast(&target, 1, BWC_PI_INT, 0, 0);
+    v.pi.m.bcast(&target, 1, BWC_PI_INT, 0, 0);
     t0 = wct_seconds();
     for (k = 0; k < target; k++) {
-        pi_log_op(v.pi->m, "[%s] iter%d/%d", __func__, k, target);
+        v.pi.m.log_op("[%s] iter%d/%d", __func__, k, target);
         v.consistency = 1;     /* see above */
         (*f) (v);
     }
-    serialize(v.pi->m);
+    v.pi.m.serialize(__FILE__, __LINE__);
     t1 = wct_seconds();
     *pk = k;
     *pt = t1 - t0;
@@ -854,25 +854,25 @@ void matmul_top_comm_bench(matmul_top_data & mmt, int d)
     size_t datasize[2];
     
     {
-        pi_comm_ptr pirow = mmt.pi->wr[!d];
-        pi_comm_ptr picol = mmt.pi->wr[d];
+        pi_comm & pirow = mmt.pi.wr[!d];
+        pi_comm & picol = mmt.pi.wr[d];
         /* within each row, all jobs are concerned with the same range
-         * vrow->i0 to vrow->i1. This is split into m=pirow->njobs
+         * vrow->i0 to vrow->i1. This is split into m=pirow.njobs
          * chunks, and reduce_scatter has m-1 communication rounds where
          * all of the m nodes output and receive one such chunk. All this
          * happens for all column threads, so we multiply by
-         * picol->ncores, too.
+         * picol.ncores, too.
          *
-         * Note that vrow->i1 - vrow->i0 is #rows / picol->totalsize
+         * Note that vrow->i1 - vrow->i0 is #rows / picol.totalsize
          *
-         * Note also that picol->ncores * #rows / picol->totalsize =
-         * #rows / picol->njobs, so that the final thing we compute is
+         * Note also that picol.ncores * #rows / picol.totalsize =
+         * #rows / picol.njobs, so that the final thing we compute is
          * really:
-         *      #rows / mmt.pi->m->njobs * (pirow->njobs - 1)
+         *      #rows / mmt.pi.m->njobs * (pirow.njobs - 1)
          */
         size_t const data_out_ra = abase->vec_elt_stride(
-                picol->ncores * (mmt.n[!d] / picol->totalsize) /
-                pirow->njobs * (pirow->njobs - 1));
+                picol.ncores * (mmt.n[!d] / picol.totalsize) /
+                pirow.njobs * (pirow.njobs - 1));
 
         /* one way to do all-gather is to mimick this, except that each
          * node will output the same chunk at each round. Beyond that,
@@ -881,12 +881,12 @@ void matmul_top_comm_bench(matmul_top_data & mmt, int d)
          * throughput estimation is way off.
          *
          * as above, this is really:
-         *      #cols / mmt.pi->m->njobs * (picol->njobs - 1)
+         *      #cols / mmt.pi.m->njobs * (picol.njobs - 1)
          *
          */
         size_t const data_out_ag = abase->vec_elt_stride(
-                pirow->ncores * (mmt.n[d] / pirow->totalsize) /
-                picol->njobs * (picol->njobs - 1));
+                pirow.ncores * (mmt.n[d] / pirow.totalsize) /
+                picol.njobs * (picol.njobs - 1));
 
         datasize[0] = data_out_ag;
         datasize[1] = data_out_ra;
@@ -894,33 +894,33 @@ void matmul_top_comm_bench(matmul_top_data & mmt, int d)
 
     for(int s = 0 ; s < 2 ; s++) {
         /* we have our axis, and the other axis */
-        pi_comm_ptr wr = mmt.pi->wr[d ^ s];          /* our axis */
-        pi_comm_ptr xr = mmt.pi->wr[d ^ s ^ 1];      /* other axis */
+        pi_comm & wr = mmt.pi.wr[d ^ s];          /* our axis */
+        pi_comm & xr = mmt.pi.wr[d ^ s ^ 1];      /* other axis */
         /* our operation has operated on the axis wr ; hence, we must
          * display data relative to the different indices within the
          * communicator xr.
          */
         matmul_top_comm_bench_helper(&k, &dt, funcs[s], test_vectors[d^s]);
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_TIMING_GRIDS)) {
-            for(unsigned int z = 0 ; z < xr->njobs ; z++) {
-                if (xr->jrank == z && wr->jrank == 0) {
-                    for(unsigned int w = 0 ; w < xr->ncores ; w++) {
-                        if (xr->trank == w && wr->trank == 0) {
+            for(unsigned int z = 0 ; z < xr.njobs ; z++) {
+                if (xr.jrank == z && wr.jrank == 0) {
+                    for(unsigned int w = 0 ; w < xr.ncores ; w++) {
+                        if (xr.trank == w && wr.trank == 0) {
                             char buf[16];
                             printf("%s %2d/%d, %s: %2d in %.1fs ; one: %.2fs (xput: %s/s)\n",
-                                    wr->th->desc.c_str(),
-                                    xr->jrank * xr->ncores + xr->trank,
-                                    xr->totalsize,
+                                    wr.th->desc.c_str(),
+                                    xr.jrank * xr.ncores + xr.trank,
+                                    xr.totalsize,
                                     text[s],
                                     k, dt, dt/k,
                                     size_disp(datasize[d^s] * k/dt, buf));
                         }
                     }
                 }
-                serialize(mmt.pi->m);
+                mmt.pi.m.serialize(__FILE__, __LINE__);
             }
         }
-        serialize(mmt.pi->m);
+        mmt.pi.m.serialize(__FILE__, __LINE__);
     }
 }
 

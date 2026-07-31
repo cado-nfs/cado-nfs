@@ -98,17 +98,17 @@ struct dispatcher {/*{{{*/
             : pi(pi)
             , map(pi.m.njobs, 0)
         {
-            map[pi->m.jrank] = reader_flag;
+            map[pi.m.jrank] = reader_flag;
 #ifdef RELY_ON_MPI_THREAD_MULTIPLE
             if (!has_mpi_thread_multiple()) {
-                if (pi->m.jrank > 0)
-                    map[pi->m.jrank] = 0;
+                if (pi.m.jrank > 0)
+                    map[pi.m.jrank] = 0;
                 else
-                    ASSERT_ALWAYS(map[pi->m.jrank]);
+                    ASSERT_ALWAYS(map[pi.m.jrank]);
             }
 #endif
 
-            MPI_Allgather(MPI_IN_PLACE, 0, 0, map.data(), 1, MPI_INT, pi->m.pals);
+            MPI_Allgather(MPI_IN_PLACE, 0, 0, map.data(), 1, MPI_INT, pi.m.pals);
 
             /* copy */
             // NOLINTBEGIN
@@ -237,10 +237,10 @@ struct dispatcher {/*{{{*/
         // nodes have read access from the matrix.
 
 
-        if (pi->m.jrank == 0) {
+        if (pi.m.jrank == 0) {
             fmt::print("Beginning balancing with {} readers for file {}\n",
                     nreaders(), mfile);
-            for(unsigned int i = 0 ; i < pi->m.njobs ; i++) {
+            for(unsigned int i = 0 ; i < pi.m.njobs ; i++) {
                 if (reader_map.is_reader(i))
                     fmt::print("Job {} is reader number {}\n", i, reader_map.index[i]);
             }
@@ -248,7 +248,7 @@ struct dispatcher {/*{{{*/
         ASSERT_ALWAYS(nreaders());
         MPI_Comm_split(MPI_COMM_WORLD,
                 reader_map.is_reader(),
-                int(pi->m.jrank),
+                int(pi.m.jrank),
                 &reader_comm);
 
         balancing_init(bal);
@@ -258,16 +258,16 @@ struct dispatcher {/*{{{*/
          * but cuting hair might well end up costing more memory (if we
          * have FLAG_REPLICATE for instance).
          */
-        if (pi->m.jrank == 0)
+        if (pi.m.jrank == 0)
             balancing_read_header(bal, bfile);
-        MPI_Bcast(&bal, sizeof(balancing), MPI_BYTE, 0, pi->m.pals);
+        MPI_Bcast(&bal, sizeof(balancing), MPI_BYTE, 0, pi.m.pals);
         /* Make sure that we didn't inadvertently copy a pointer from a
          * node to the others! */
         ASSERT_ALWAYS(bal.rowperm == nullptr);
         ASSERT_ALWAYS(bal.colperm == nullptr);
 
-        nhjobs = pi->wr[1].njobs;
-        nvjobs = pi->wr[0].njobs;
+        nhjobs = pi.wr[1].njobs;
+        nvjobs = pi.wr[0].njobs;
         rows_chunk_big = bal.trows / nhjobs;
         cols_chunk_big = bal.tcols / nvjobs;
         rows_chunk_small = bal.trows / bal.nh;
@@ -310,11 +310,11 @@ matrix_u32 balancing_get_matrix_u32(
 
     matrix_u32 m;
 
-    pi_shared_array<matrix_u32 *> const args_per_thread(pi->m, pi->m.ncores);
-    args_per_thread[pi->m.trank] = &m;
-    serialize_threads(pi->m);
+    pi_shared_array<matrix_u32 *> const args_per_thread(pi.m, pi.m.ncores);
+    args_per_thread[pi.m.trank] = &m;
+    pi.m.serialize_threads(__FILE__, __LINE__);
 
-    if (pi->m.trank == 0) {
+    if (pi.m.trank == 0) {
         dispatcher D(pi, pl, args_per_thread.get(), mfile, bfile, withcoeffs, transpose_while_dispatching);
         D.main();
         D.stats();
@@ -330,14 +330,14 @@ matrix_u32 balancing_get_matrix_u32(
  */
 void dispatcher::reader_thread_data::post_send(std::vector<uint32_t> & Q, int k)/*{{{*/
 {
-    if (k == int(pi->m->jrank)) {
+    if (k == int(pi.m.jrank)) {
         E.endpoint_handle_incoming(Q, k);
         Q.clear();
         return;
     }
     MPI_Request req;
     MPI_Isend(Q.data(), int(Q.size()), CADO_MPI_UINT32_T,
-            k, D.pass_number, pi->m->pals, &req);
+            k, D.pass_number, pi.m.pals, &req);
     outstanding.push_back(req);
     /* save the storage of Q somewhere for as long as the Isend is still
      * pending. */
@@ -354,16 +354,16 @@ void dispatcher::reader_thread_data::post_send(std::vector<uint32_t> & Q, int k)
 
 void dispatcher::reader_thread_data::post_semaphore_blocking(int k) const /*{{{*/
 {
-    if (k == int(pi->m->jrank)) return;
+    if (k == int(pi.m.jrank)) return;
 
     /* we might as well do it in a blocking way */
     uint32_t z = UINT32_MAX;
-    MPI_Send(&z, 1, CADO_MPI_UINT32_T, k, D.pass_number, pi->m->pals);
+    MPI_Send(&z, 1, CADO_MPI_UINT32_T, k, D.pass_number, pi.m.pals);
 }/*}}}*/
 
 void dispatcher::reader_thread_data::post_semaphore_nonblocking(int k)/*{{{*/
 {
-    if (k == int(pi->m->jrank)) return;
+    if (k == int(pi.m.jrank)) return;
 
     /* do it non-blocking. Since we post something non-blocking, we need
      * the data to stay alive until we MPI_Wait. It's not possible to put
@@ -371,7 +371,7 @@ void dispatcher::reader_thread_data::post_semaphore_nonblocking(int k)/*{{{*/
      */
     std::vector<uint32_t> Q(1, UINT32_MAX);
     MPI_Request req;
-    MPI_Isend(Q.data(), 1, CADO_MPI_UINT32_T, k, D.pass_number, pi->m->pals, &req);
+    MPI_Isend(Q.data(), 1, CADO_MPI_UINT32_T, k, D.pass_number, pi.m.pals, &req);
     outstanding.push_back(req);
     outstanding_queues.emplace_back();
     std::swap(Q, outstanding_queues.back());
@@ -430,7 +430,7 @@ void dispatcher::reader_thread_data::progress(bool wait)/*{{{*/
 void dispatcher::reader_compute_offsets()/*{{{*/
 {
     ASSERT_ALWAYS(reader_map.is_reader());
-    unsigned int const ridx = reader_map.index[pi->m->jrank];
+    unsigned int const ridx = reader_map.index[pi.m.jrank];
 
     // Let R == nreaders().
     // All R nodes read from the rw file and deduce the byte size of the
@@ -508,7 +508,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
         ASSERT_ALWAYS(s == matsize);
         bytes_per_reader[nreaders()-1] = matsize-last_s;
 
-        for(unsigned int i = 0 ; i < pi->m->njobs ; i++) {
+        for(unsigned int i = 0 ; i < pi.m.njobs ; i++) {
             if (!reader_map.is_reader(i)) continue;
             int const r = reader_map.index[i];
             fmt::print("Job {} (reader number {}) reads rows {} to {} and expects {}\n",
@@ -523,12 +523,12 @@ void dispatcher::reader_compute_offsets()/*{{{*/
 #endif
     offset_per_reader = bytes_per_reader;
     integrate(offset_per_reader);
-    unsigned int r = reader_map.index[pi->m->jrank];
+    unsigned int r = reader_map.index[pi.m.jrank];
     fmt::print("Job {} (reader number {})"
                 " reads rows {} to {}"
                 " and expects {} ({} bytes)"
                 " from offset {}\n",
-            pi->m->jrank, r,
+            pi.m.jrank, r,
             row0_per_reader[ridx],
             row0_per_reader[ridx+1],
             size_disp(bytes_per_reader[r]),
@@ -548,7 +548,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
     auto nreaders = D.nreaders();
     auto bal = D.bal;
 
-    unsigned int const ridx = D.reader_map.index[pi->m->jrank];
+    unsigned int const ridx = D.reader_map.index[pi.m.jrank];
     unsigned int const row0 = D.row0_per_reader[ridx];
     unsigned int const row1 = D.row0_per_reader[ridx+1];
 
@@ -561,7 +561,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
 
     std::vector<uint32_t> row;
     std::vector<std::vector<uint32_t>> nodedata(D.nvjobs);
-    std::vector<std::vector<uint32_t>> queues(pi->m->njobs);
+    std::vector<std::vector<uint32_t>> queues(pi.m.njobs);
 
     size_t const queue_size_per_peer = 1 << 16;
 
@@ -648,7 +648,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
             double dt = wct_seconds()-t0;
             if (dt <= 0) dt = 1e-9;
             fmt::print("pass {}, J{} (reader 0/{}): {} in {:.1f}s, {}/s\n",
-                    D.pass_number, pi->m->jrank, nreaders,
+                    D.pass_number, pi.m.jrank, nreaders,
                     size_disp(z), dt, size_disp(size_t(double(z)/dt)));
             fflush(stdout);
             if (disp_zx < disp_z) {
@@ -662,11 +662,11 @@ void dispatcher::reader_thread_data::read()/*{{{*/
     {
         double const dt = wct_seconds()-t0;
         fmt::print("pass {}, J{} (reader 0/{}): {} in {:.1f}s, {}/s (done)\n",
-                D.pass_number, pi->m->jrank, nreaders,
+                D.pass_number, pi.m.jrank, nreaders,
                 size_disp(z), dt, size_disp(size_t(double(z)/dt)));
         fflush(stdout);
     }
-    for(unsigned int kk = 0 ; kk < pi->m->njobs ; kk++) {
+    for(unsigned int kk = 0 ; kk < pi.m.njobs ; kk++) {
         auto & Q = queues[kk];
         if (!Q.empty())
             post_send(Q, int(kk));
@@ -677,7 +677,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
      * still be pending */
 #ifdef RELY_ON_MPI_THREAD_MULTIPLE
     progress(true);
-    for(unsigned int kk = 0 ; kk < pi->m->njobs ; kk++) {
+    for(unsigned int kk = 0 ; kk < pi.m.njobs ; kk++) {
         post_semaphore_blocking(kk);
     }
 #else   /* RELY_ON_MPI_THREAD_MULTIPLE */
@@ -685,7 +685,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
         watch_incoming_on_reader(active_peers);
         progress();
     }
-    for(unsigned int kk = 0 ; kk < pi->m->njobs ; kk++) {
+    for(unsigned int kk = 0 ; kk < pi.m.njobs ; kk++) {
         post_semaphore_nonblocking(int(kk));
     }
     for( ; !outstanding.empty() || active_peers ; )  {
@@ -706,12 +706,12 @@ void dispatcher::reader_thread_data::read()/*{{{*/
             d += sizes[ridx];
         }
         std::ranges::copy(check_vector,
-                full.begin() + displs[D.reader_map.index[pi->m->jrank]]);
+                full.begin() + displs[D.reader_map.index[pi.m.jrank]]);
         MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                 full.data(), sizes.data(), displs.data(),
                 CADO_MPI_UINT64_T, D.reader_comm);
 
-        if (D.reader_map.index[pi->m->jrank] == 0) {
+        if (D.reader_map.index[pi.m.jrank] == 0) {
             std::unique_ptr<FILE, delete_FILE> const f(fopen(check_vector_filename.c_str(), "wb"));
             size_t const rc = fwrite(full.data(), sizeof(uint64_t), bal.nrows, f.get());
             ASSERT_ALWAYS(rc == bal.nrows);
@@ -853,12 +853,12 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
     for (uint32_t j = 0; j < xbal.trows; j++) {
         ttab[fw_rowperm[j] / rows_chunk_small]++;
     }
-    ASSERT_ALWAYS(xbal.nh == pi->wr[1]->totalsize);
+    ASSERT_ALWAYS(xbal.nh == pi.wr[1].totalsize);
     for (uint32_t k = 0; k < xbal.nh; k++) {
         ASSERT_ALWAYS(ttab[k] == quo_r);
     }
 
-    unsigned int const ridx = reader_map.index[pi->m->jrank];
+    unsigned int const ridx = reader_map.index[pi.m.jrank];
     unsigned int const row0 = row0_per_reader[ridx];
     unsigned int const row1 = row0_per_reader[ridx+1];
     fw_rowperm.erase(fw_rowperm.begin() + row1, fw_rowperm.end());
@@ -892,7 +892,7 @@ void dispatcher::endpoint_thread_data::enter_pass_two()
 {
     auto withcoeffs = D.withcoeffs;
 
-    for(unsigned int i = 0 ; i < pi->m->ncores ; i++) {
+    for(unsigned int i = 0 ; i < pi.m.ncores ; i++) {
         auto & C = thread_row_weights[i];
 
         decltype(thread_row_positions)::value_type Cint(C.begin(), C.end());
@@ -924,12 +924,12 @@ void dispatcher::endpoint_thread_data::enter_pass_one()
     // theads.
     decltype(thread_row_weights)::value_type v;
     v.assign(D.transpose_while_dispatching ? D.cols_chunk_small : D.rows_chunk_small, 0);
-    thread_row_weights = { pi->m->ncores, v };
+    thread_row_weights = { pi.m.ncores, v };
 }
 
 void dispatcher::endpoint_thread_data::prepare_pass(int pass_number)/*{{{*/
 {
-    for(unsigned int i = 0 ; i < pi->m->ncores ; i++) {
+    for(unsigned int i = 0 ; i < pi.m.ncores ; i++) {
         ASSERT_ALWAYS(args_per_thread[i]->p.empty());
     }
     if (pass_number == 1) {
@@ -951,8 +951,8 @@ void dispatcher::endpoint_thread_data::endpoint_handle_incoming(std::vector<uint
         uint32_t rs = *next++;
         if (D.pass_number == 2 && D.withcoeffs) rs/=2;
 
-        unsigned int const n_row_groups = pi->wr[1]->ncores;
-        unsigned int const n_col_groups = pi->wr[0]->ncores;
+        unsigned int const n_row_groups = pi.wr[1].ncores;
+        unsigned int const n_col_groups = pi.wr[0].ncores;
         unsigned int const row_group = (rr / D.rows_chunk_small) % n_row_groups;
         unsigned int const row_index = rr % D.rows_chunk_small;
 
@@ -1072,10 +1072,10 @@ void dispatcher::endpoint_thread_data::receive()/*{{{*/
         // On pass 1, endpoint threads do Recv from any source, and update the
         // local row weight for all threads.
         MPI_Status status;
-        MPI_Probe(MPI_ANY_SOURCE, D.pass_number, pi->m->pals, &status);
+        MPI_Probe(MPI_ANY_SOURCE, D.pass_number, pi.m.pals, &status);
         MPI_Get_count(&status, CADO_MPI_UINT32_T, &Qs);
         Q.assign(Qs, 0);
-        MPI_Recv(Q.data(), Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, D.pass_number, pi->m->pals, MPI_STATUS_IGNORE);
+        MPI_Recv(Q.data(), Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, D.pass_number, pi.m.pals, MPI_STATUS_IGNORE);
         if (Qs == 1 && Q[0] == UINT32_MAX) {
             active_peers--;
             continue;
@@ -1090,7 +1090,7 @@ void dispatcher::reader_thread_data::watch_incoming_on_reader(int &active_peers)
 
     MPI_Status status;
     int flag = 0;
-    MPI_Iprobe(MPI_ANY_SOURCE, D.pass_number, pi->m->pals, &flag, &status);
+    MPI_Iprobe(MPI_ANY_SOURCE, D.pass_number, pi.m.pals, &flag, &status);
     if (!flag) return;
 
     int Qs;
@@ -1100,7 +1100,7 @@ void dispatcher::reader_thread_data::watch_incoming_on_reader(int &active_peers)
     // local row weight for all threads.
     MPI_Get_count(&status, CADO_MPI_UINT32_T, &Qs);
     Q.assign(Qs, 0);
-    MPI_Recv(Q.data(), Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, D.pass_number, pi->m->pals, MPI_STATUS_IGNORE);
+    MPI_Recv(Q.data(), Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, D.pass_number, pi.m.pals, MPI_STATUS_IGNORE);
     if (Qs == 1 && Q[0] == UINT32_MAX) {
         active_peers--;
         return;
@@ -1113,9 +1113,9 @@ void dispatcher::stats()
 {
     if (!verbose_enabled(CADO_VERBOSE_PRINT_BWC_DISPATCH_OUTER)) return;
     uint32_t const quo_r = bal.trows / bal.nh;
-    for(unsigned int k = 0 ; k < pi->m->ncores ; k++) {
+    for(unsigned int k = 0 ; k < pi.m.ncores ; k++) {
         fmt::print("[J{}T{}] N={} W={}\n",
-                pi->m->jrank, k,
+                pi.m.jrank, k,
                 quo_r,
                 (endpoint.args_per_thread[k]->p.size()-quo_r)/(1+withcoeffs));
     }
@@ -1162,7 +1162,7 @@ void dispatcher::stats()
     printf("[J%uT%u] N=%" PRIu32 " W=%" PRIu64 " "
           "R[%" PRIu32 "..%" PRIu32 "],%.1f~%.1f "
           "C[%" PRIu32 "..%" PRIu32 "],%.1f~%.1f.\n",
-          s->s->pi->m->jrank, s->s->pi->m->trank,
+          s->s->pi.m.jrank, s->s->pi.m.trank,
            my_nrows, tw,
           row_min, row_max, row_avg, row_dev,
           col_min, col_max, col_avg, col_dev);

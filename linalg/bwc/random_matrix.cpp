@@ -561,8 +561,8 @@ int32_t random_matrix_ddata::generate_coefficient(cxx_gmp_randstate & rstate, un
 void random_matrix_fill_fake_balancing_header(balancing & bal, parallelizing_info & pi, const char * rtmp)
 {
     random_matrix_process_data const r(rtmp);
-    bal.nh = pi->wr[1].totalsize;
-    bal.nv = pi->wr[0].totalsize;
+    bal.nh = pi.wr[1].totalsize;
+    bal.nv = pi.wr[0].totalsize;
     bal.nrows = r.nrows;
     bal.ncols = r.ncols;
     bal.ncoeffs = 0; /* FIXME ; what should I do ? */
@@ -804,13 +804,13 @@ matrix_u32 random_matrix_get_u32(parallelizing_info & pi, cxx_param_list & pl, u
 
     if (F.print) {
         fmt::print("Each of the {} jobs on {} nodes creates a matrix with {} rows {} cols, and {:.2f} coefficients per row on average. Seed for rank 0 is {}.\n",
-                pi->m.totalsize, pi->m.njobs,
+                pi.m.totalsize, pi.m.njobs,
                 F.nrows, F.ncols,
-                (double) r.density / pi->wr[0].totalsize, r.seed);
+                (double) r.density / pi.wr[0].totalsize, r.seed);
     }
 
     cxx_gmp_randstate rstate;
-    gmp_randseed_ui(rstate, r.seed + pi->m.jrank * pi->m.ncores + pi->m.trank);
+    gmp_randseed_ui(rstate, r.seed + pi.m.jrank * pi.m.ncores + pi.m.trank);
 
     if (transpose) {
         auto mat = F.get_bycolumns(rstate);

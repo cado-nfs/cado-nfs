@@ -128,7 +128,7 @@ void matmul_top_mul(matmul_top_data & mmt, mmt_vec * v, struct timing_data * tt)
      * exactly 4*n timers (or only 4, conceivably). Timers are switched
      * exactly that many times.
      *
-     * If the mmt.pi->interleaving setting is on, we interleave
+     * If the mmt.pi.interleaving setting is on, we interleave
      * computations and communications. We do 2n flips. Communications
      * are forbidden both before and after calls to this function (in the
      * directly adjacent code fragments before the closest flip() call,
@@ -151,7 +151,7 @@ void matmul_top_mul(matmul_top_data & mmt, mmt_vec * v, struct timing_data * tt)
         timing_next_timer(tt);
         /* now measuring jitter */
         pi_interleaving_flip(mmt.pi);
-        serialize(mmt.pi->m);
+        mmt.pi.m.serialize(__FILE__, __LINE__);
         timing_next_timer(tt);
 
         /* Now we can resume MPI communications. */
@@ -164,7 +164,7 @@ void matmul_top_mul(matmul_top_data & mmt, mmt_vec * v, struct timing_data * tt)
         timing_next_timer(tt);
         /* now measuring jitter */
         pi_interleaving_flip(mmt.pi);
-        serialize(mmt.pi->m);
+        mmt.pi.m.serialize(__FILE__, __LINE__);
 
         timing_next_timer(tt);
         midx += d ? -1 : 1;
@@ -186,8 +186,8 @@ void matmul_top_fill_random_source_generic(matmul_top_data & mmt, size_t stride,
     // that will eventually be relevant. However, it's easy enough to
     // fill our output vector with garbage, and do mmt_vec_broadcast
     // afterwards...
-    if ((v.flags & THREAD_SHARED_VECTOR) == 0 || mmt.pi->wr[d]->trank == 0)
-        mpfq_generic_random(stride, v.v, mmt.wr[d]->i1 - mmt.wr[d]->i0);
+    if ((v.flags & THREAD_SHARED_VECTOR) == 0 || mmt.pi.wr[d].trank == 0)
+        mpfq_generic_random(stride, v.v, mmt.wr[d].i1 - mmt.wr[d].i0);
 
     // reconcile all cells which correspond to the same vertical block.
     mmt_vec_broadcast(mmt, v, d);
@@ -345,9 +345,9 @@ void mmt_apply_identity(mmt_vec & w, mmt_vec const & v)
 
     arith_generic * A = v.abase;
 
-    serialize_threads(w.pi->m);
+    w.pi.m.serialize_threads(__FILE__, __LINE__);
     mmt_full_vec_set_zero(w);
-    serialize_threads(w.pi->m);
+    w.pi.m.serialize_threads(__FILE__, __LINE__);
 
     unsigned int v_off, w_off;
     unsigned int const how_many = intersect_two_intervals(&v_off, &w_off,
@@ -408,7 +408,7 @@ static void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mm
     int const d = y.d;
     arith_generic * A = y.abase;
 
-    serialize_threads(y.pi->m);
+    y.pi.m.serialize_threads(__FILE__, __LINE__);
 
     /* We'll have two vectors of size n[d], one named y in direction d,
      * and one named yt in direction !d.
@@ -448,7 +448,7 @@ static void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mm
         mmt_apply_identity(yt, y);
         mmt_vec_allreduce(yt);
         mmt_full_vec_set_zero(y);
-        serialize_threads(y.pi->m);
+        y.pi.m.serialize_threads(__FILE__, __LINE__);
         for(auto const & uv : s) {
             if (uv[d^xd] < y.i0 || uv[d^xd] >= y.i1)
                 continue;
@@ -458,7 +458,7 @@ static void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mm
                     A->vec_item(yt.v, uv[d^xd^1] - yt.i0));
         }
         y.consistency = 1;
-        serialize_threads(y.pi->m);
+        y.pi.m.serialize_threads(__FILE__, __LINE__);
         mmt_vec_allreduce(y);
     } else {
         /*
@@ -481,7 +481,7 @@ static void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mm
         mmt_apply_identity(y, yt);
         mmt_vec_allreduce(y);
     }
-    serialize_threads(y.pi->m);
+    y.pi.m.serialize_threads(__FILE__, __LINE__);
     ASSERT_ALWAYS(y.consistency == 2);
 }
 
@@ -564,7 +564,7 @@ static void mmt_vec_apply_or_unapply_T_inner(matmul_top_data & mmt, mmt_vec & y,
 
     matmul_top_matrix  const& Mloc = mmt.matrices[mmt.matrices.size() - 1];
     ASSERT_ALWAYS(y.consistency == 2);
-    serialize_threads(y.pi->m);
+    y.pi.m.serialize_threads(__FILE__, __LINE__);
     mmt_vec yt(mmt, y.abase, y.pitype, !y.d, 0, y.n);
     for(unsigned int i = y.i0 ; i < y.i1 ; i++) {
         unsigned int j;
@@ -624,15 +624,15 @@ static void get_local_permutations_ranges(matmul_top_data & mmt, int d, unsigned
     int pos[2];
 
     for(int dir = 0 ; dir < 2 ; dir++)  {
-        pi_comm_ptr piwr = mmt.pi->wr[dir];
-        pos[dir] = piwr->jrank * piwr->ncores + piwr->trank;
+        pi_comm & piwr = mmt.pi.wr[dir];
+        pos[dir] = piwr.jrank * piwr.ncores + piwr.trank;
     }
 
-    size_t const e = mmt.n[d] / mmt.pi->m->totalsize;
-    ii[0] = e *  pos[!d]    * mmt.pi->wr[d]->totalsize;
-    ii[1] = e * (pos[!d]+1) * mmt.pi->wr[d]->totalsize;
-    jj[0] = e *  pos[d]     * mmt.pi->wr[!d]->totalsize;
-    jj[1] = e * (pos[d]+1)  * mmt.pi->wr[!d]->totalsize;
+    size_t const e = mmt.n[d] / mmt.pi.m.totalsize;
+    ii[0] = e *  pos[!d]    * mmt.pi.wr[d].totalsize;
+    ii[1] = e * (pos[!d]+1) * mmt.pi.wr[d].totalsize;
+    jj[0] = e *  pos[d]     * mmt.pi.wr[!d].totalsize;
+    jj[1] = e * (pos[d]+1)  * mmt.pi.wr[!d].totalsize;
 }
 
 void indices_twist(matmul_top_data & mmt, std::vector<uint32_t> & xs, int d)
@@ -668,7 +668,7 @@ void indices_twist(matmul_top_data & mmt, std::vector<uint32_t> & xs, int d)
             else
                 xs[k] = 0;
         }
-        mmt.pi->m.allreduce(nullptr, xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR);
+        mmt.pi.m.allreduce(nullptr, xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR);
     } else if (Mloc.has_perm(!d) && (Mloc.bal.flags & FLAG_REPLICATE)) {
         ASSERT_ALWAYS(Mloc.n[0] == Mloc.n[1]);
         /* implicit S -- first we get the bits about the S in the other
@@ -709,7 +709,7 @@ void indices_twist(matmul_top_data & mmt, std::vector<uint32_t> & xs, int d)
                 xs[k] = 0;
             }
         }
-        mmt.pi->m.allreduce(nullptr, xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR);
+        mmt.pi.m.allreduce(nullptr, xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR);
     }
 }
 /* }}} */
@@ -753,7 +753,7 @@ void matmul_top_mul_cpu(matmul_top_data & mmt, int midx, int d, mmt_vec & w, mmt
 
     ASSERT_ALWAYS(w.siblings); /* w must not be shared */
 
-    pi_log_op(mmt.pi->m, "[%s:%d] enter matmul_mul", __func__, __LINE__);
+    mmt.pi.m.log_op("[%s:%d] enter matmul_mul", __func__, __LINE__);
 
     /* Note that matmul_init copies the calling abase argument to the
      * lower-level mm structure. It can quite probably be qualified as a
@@ -776,10 +776,10 @@ void matmul_top_mul_comm(mmt_vec & v, mmt_vec & w)
      * undesired !
      */
     ASSERT_ALWAYS(w.consistency != 2);
-    pi_log_op(v.pi->m, "[%s:%d] enter mmt_vec_reduce", __func__, __LINE__);
+    v.pi.m.log_op("[%s:%d] enter mmt_vec_reduce", __func__, __LINE__);
     mmt_vec_reduce(v, w);
     ASSERT_ALWAYS(v.consistency == 1);
-    pi_log_op(v.pi->m, "[%s:%d] enter mmt_vec_broadcast", __func__, __LINE__);
+    v.pi.m.log_op("[%s:%d] enter mmt_vec_broadcast", __func__, __LINE__);
     mmt_vec_broadcast(v);
     ASSERT_ALWAYS(v.consistency == 2);
 
@@ -788,8 +788,8 @@ void matmul_top_mul_comm(mmt_vec & v, mmt_vec & w)
      * threads will need the data, only one is actually importing it.
      */
     if (!v.siblings) {
-        pi_log_op(v.pi->wr[v.d], "[%s:%d] serialize threads", __func__, __LINE__);
-        serialize_threads(v.pi->wr[v.d]);
+        v.pi.wr[v.d].log_op("[%s:%d] serialize threads", __func__, __LINE__);
+        v.pi.wr[v.d].serialize_threads(__FILE__, __LINE__);
     }
 }
 
@@ -805,12 +805,12 @@ void mmt_vec_truncate_above_index(matmul_top_data & mmt MAYBE_UNUSED, mmt_vec & 
                     v.abase->vec_subvec(v.v, idx - v.i0),
                     v.i1 - idx);
         } else {
-            serialize_threads(v.pi->wr[v.d]);
-            if (v.pi->wr[v.d]->trank == 0)
+            v.pi.wr[v.d].serialize_threads(__FILE__, __LINE__);
+            if (v.pi.wr[v.d].trank == 0)
                 v.abase->vec_set_zero(
                         v.abase->vec_subvec(v.v, idx - v.i0),
                         v.i1 - idx);
-            serialize_threads(v.pi->wr[v.d]);
+            v.pi.wr[v.d].serialize_threads(__FILE__, __LINE__);
         }
     }
 }
@@ -822,10 +822,10 @@ void mmt_vec_truncate_below_index(matmul_top_data & mmt MAYBE_UNUSED, mmt_vec & 
         if (v.siblings) {
             v.abase->vec_set_zero(v.v, idx - v.i0);
         } else {
-            serialize_threads(v.pi->wr[v.d]);
-            if (v.pi->wr[v.d]->trank == 0)
+            v.pi.wr[v.d].serialize_threads(__FILE__, __LINE__);
+            if (v.pi.wr[v.d].trank == 0)
                 v.abase->vec_set_zero(v.v, idx - v.i0);
-            serialize_threads(v.pi->wr[v.d]);
+            v.pi.wr[v.d].serialize_threads(__FILE__, __LINE__);
         }
     }
 }
@@ -933,8 +933,8 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data & mmt, int i, 
                     mba.mfile = Mloc.mname;
                     mba.bfile = Mloc.bname;
                     mba.quiet = 0;
-                    mba.nh = (int) pi->wr[1]->totalsize;
-                    mba.nv = (int) pi->wr[0]->totalsize;
+                    mba.nh = (int) pi.wr[1].totalsize;
+                    mba.nv = (int) pi.wr[0].totalsize;
                     mba.withcoeffs = !mmt.abase->is_characteristic_two();
                     mba.rectangular = 0;
                     mba.skip_decorrelating_permutation = 0;
@@ -955,27 +955,27 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data & mmt, int i, 
             balancing_read_header(Mloc.bal, Mloc.bname);
         }
     }
-    mmt.pi->m.bcast(&Mloc.bal, sizeof(balancing), BWC_PI_BYTE, 0, 0);
+    mmt.pi.m.bcast(&Mloc.bal, sizeof(balancing), BWC_PI_BYTE, 0, 0);
 
     /* check that balancing dimensions are compatible with our run */
     int ok = 1;
-    ok = ok && mmt.pi->wr[0]->totalsize == Mloc.bal.nv;
-    ok = ok && mmt.pi->wr[1]->totalsize == Mloc.bal.nh;
+    ok = ok && mmt.pi.wr[0].totalsize == Mloc.bal.nv;
+    ok = ok && mmt.pi.wr[1].totalsize == Mloc.bal.nh;
     if (ok) return;
 
-    if (pi->m->jrank == 0 && pi->m->trank == 0) {
+    if (pi.m.jrank == 0 && pi.m.trank == 0) {
         fprintf(stderr, "Matrix %d, %s: balancing file %s"
                 " has dimensions %ux%u,"
                 " this conflicts with the current run,"
                 " which expected_last_iteration dimensions (%ux%u)x(%ux%u).\n",
                 i, Mloc.mname.c_str(), Mloc.bname.c_str(),
                 Mloc.bal.nh, Mloc.bal.nv,
-                mmt.pi->wr[1]->njobs,
-                mmt.pi->wr[1]->ncores,
-                mmt.pi->wr[0]->njobs,
-                mmt.pi->wr[0]->ncores);
+                mmt.pi.wr[1].njobs,
+                mmt.pi.wr[1].ncores,
+                mmt.pi.wr[0].njobs,
+                mmt.pi.wr[0].ncores);
     }
-    serialize(mmt.pi->m);
+    mmt.pi.m.serialize(__FILE__, __LINE__);
     exit(1);
 }
 
@@ -1008,10 +1008,10 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
      * bal_tmp.colperm, but beyond that, the header part will be wrong
      * at non-root nodes.
      */
-    auto pbal_tmp = pi_shared_object<balancing>(mmt.pi->m);
+    auto pbal_tmp = pi_shared_object<balancing>(mmt.pi.m);
     balancing & bal_tmp = *pbal_tmp;
 
-    if (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0) {
+    if (mmt.pi.m.jrank == 0 && mmt.pi.m.trank == 0) {
         if (!Mloc.bname.empty())
             balancing_read(bal_tmp, Mloc.bname);
         /* It's fine if we have nothing. This just means that we'll have
@@ -1020,24 +1020,24 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
         rowperm_items = bal_tmp.rowperm ? bal_tmp.trows : 0;
         colperm_items = bal_tmp.colperm ? bal_tmp.tcols : 0;
     }
-    mmt.pi->m.bcast(&rowperm_items, 1, BWC_PI_UNSIGNED, 0, 0);
-    mmt.pi->m.bcast(&colperm_items, 1, BWC_PI_UNSIGNED, 0, 0);
+    mmt.pi.m.bcast(&rowperm_items, 1, BWC_PI_UNSIGNED, 0, 0);
+    mmt.pi.m.bcast(&colperm_items, 1, BWC_PI_UNSIGNED, 0, 0);
 
-    if (mmt.pi->m->trank == 0) {
+    if (mmt.pi.m.trank == 0) {
         if (rowperm_items) {
             ASSERT_ALWAYS(rowperm_items == Mloc.bal.trows);
-            if (mmt.pi->m->jrank != 0)
+            if (mmt.pi.m.jrank != 0)
                 bal_tmp.rowperm = (uint32_t *) malloc(Mloc.bal.trows * sizeof(uint32_t));
-            MPI_Bcast(bal_tmp.rowperm, Mloc.bal.trows * sizeof(uint32_t), MPI_BYTE, 0, mmt.pi->m->pals);
+            MPI_Bcast(bal_tmp.rowperm, Mloc.bal.trows * sizeof(uint32_t), MPI_BYTE, 0, mmt.pi.m.pals);
         }
         if (colperm_items) {
             ASSERT_ALWAYS(colperm_items == Mloc.bal.tcols);
-            if (mmt.pi->m->jrank != 0)
+            if (mmt.pi.m.jrank != 0)
                 bal_tmp.colperm = (uint32_t *) malloc(Mloc.bal.tcols * sizeof(uint32_t));
-            MPI_Bcast(bal_tmp.colperm, Mloc.bal.tcols * sizeof(uint32_t), MPI_BYTE, 0, mmt.pi->m->pals);
+            MPI_Bcast(bal_tmp.colperm, Mloc.bal.tcols * sizeof(uint32_t), MPI_BYTE, 0, mmt.pi.m.pals);
         }
     }
-    serialize_threads(mmt.pi->m);      /* important ! */
+    mmt.pi.m.serialize_threads(__FILE__, __LINE__);      /* important ! */
 
     uint32_t * balperm[2] = { bal_tmp.rowperm, bal_tmp.colperm };
     for(int d = 0 ; d < 2 ; d++)  {
@@ -1062,16 +1062,16 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
 #if 0
         const char * text[2] = { "left", "right", };
         printf("[%s] J%uT%u does %zu/%u permutation pairs for %s vectors\n",
-                mmt.pi->nodenumber.c_str(),
-                mmt.pi->m->jrank, mmt.pi->m->trank,
-                Mloc.perm[d]->n, d ? Mloc.bal.tcols : Mloc.bal.trows,
+                mmt.pi.nodenumber,
+                mmt.pi.m.jrank, mmt.pi.m.trank,
+                Mloc.perm[d].n, d ? Mloc.bal.tcols : Mloc.bal.trows,
                 text[d]);
 #endif
     }
 
-    serialize_threads(mmt.pi->m);      /* important ! */
+    mmt.pi.m.serialize_threads(__FILE__, __LINE__);      /* important ! */
 
-    if (mmt.pi->m->trank == 0) {
+    if (mmt.pi.m.trank == 0) {
         if (bal_tmp.colperm) free(bal_tmp.colperm);
         if (bal_tmp.rowperm) free(bal_tmp.rowperm);
     }
@@ -1079,11 +1079,11 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
     /* Do this so that has_perm makes sense globally */
     Mloc.has_perm_map[0] = Mloc.has_perm_local(0);
     Mloc.has_perm_map[1] = Mloc.has_perm_local(1);
-    mmt.pi->m.allreduce(nullptr, Mloc.has_perm_map, 2, BWC_PI_INT, BWC_PI_MAX);
-    if (mmt.pi->m->trank == 0) {
-        MPI_Allreduce(MPI_IN_PLACE, Mloc.has_perm_map, 2, MPI_INT, MPI_MAX, mmt.pi->m->pals);
+    mmt.pi.m.allreduce(nullptr, Mloc.has_perm_map, 2, BWC_PI_INT, BWC_PI_MAX);
+    if (mmt.pi.m.trank == 0) {
+        MPI_Allreduce(MPI_IN_PLACE, Mloc.has_perm_map, 2, MPI_INT, MPI_MAX, mmt.pi.m.pals);
     }
-    mmt.pi->m.bcast(Mloc.has_perm_map, 2, BWC_PI_INT, 0, 0);
+    mmt.pi.m.bcast(Mloc.has_perm_map, 2, BWC_PI_INT, 0, 0);
 }
 
 matmul_top_data::matmul_top_data(
@@ -1094,7 +1094,7 @@ matmul_top_data::matmul_top_data(
         int optimized_direction)
     : abase(abase)
     , pi(pi)
-    , pitype(pi_alloc_arith_datatype(pi, abase))
+    , pitype(pi.alloc_arith_datatype(abase))
 {
     matmul_top_data & mmt = *this;
 
@@ -1129,7 +1129,7 @@ matmul_top_data::matmul_top_data(
     if (static_random_matrix)
         nmatrices = 1;
 
-    serialize_threads(mmt.pi->m);
+    mmt.pi.m.serialize_threads(__FILE__, __LINE__);
 
     /* The initialization goes through several passes */
     for(int i = 0 ; i < nmatrices ; i++) {
@@ -1182,7 +1182,7 @@ matmul_top_data::matmul_top_data(
 
         matmul_top_init_prepare_local_permutations(mmt, i);
 
-        if (!mmt.pi->interleaved) {
+        if (!mmt.pi.interleaved) {
             matmul_top_read_submatrix(mmt, i, pl, optimized_direction );
         } else {
             /* Interleaved threads will share their matrix data. The first
@@ -1195,16 +1195,16 @@ matmul_top_data::matmul_top_data(
 
 #define MMT_MM_MAGIC_KEY        0xaa000000UL
 
-            if (mmt.pi->interleaved->idx == 0) {
+            if (mmt.pi.interleaved->idx == 0) {
                 matmul_top_read_submatrix(mmt, i, pl, optimized_direction);
-                pi_store_generic(mmt.pi, MMT_MM_MAGIC_KEY + i, mmt.pi->m->trank, &Mloc);
+                pi_store_generic(mmt.pi, MMT_MM_MAGIC_KEY + i, mmt.pi.m.trank, &Mloc);
             } else {
                 /* This is unholy, I'm ashamed.  It's a mine field. I know.
                  *
                  * I use a shared_ptr to try to make things relatively
                  * safe. But I'm not proud of it, really.
                  */
-                auto * pal = (matmul_top_matrix *) pi_load_generic(mmt.pi, MMT_MM_MAGIC_KEY + i, mmt.pi->m->trank);
+                auto * pal = (matmul_top_matrix *) pi_load_generic(mmt.pi, MMT_MM_MAGIC_KEY + i, mmt.pi.m.trank);
                 ASSERT_ALWAYS(pal != nullptr);
                 Mloc.mm = pal->mm;
             }
@@ -1234,46 +1234,46 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
     pi_shared_array<char const *> const tlines(pi.m, pi.m.ncores);
 
     tlines[pi.m.trank] = myline.c_str();
-    serialize_threads(pi.m);
+    pi.m.serialize_threads(__FILE__, __LINE__);
 
     /* Also, just out of curiosity, try to see what we have currently */
     struct stat st[1];
 
-    pi_shared_array<int> const has_cache(pi->m, pi->m->totalsize);
+    pi_shared_array<int> const has_cache(pi.m, pi.m.totalsize);
 
     int const rc = stat(Mloc.mm->cachefile_name.c_str(), st);
-    unsigned int const mynode = pi->m->ncores * pi->m->jrank;
-    has_cache[mynode + pi->m->trank] = rc == 0;
-    serialize_threads(pi->m);
+    unsigned int const mynode = pi.m.ncores * pi.m.jrank;
+    has_cache[mynode + pi.m.trank] = rc == 0;
+    pi.m.serialize_threads(__FILE__, __LINE__);
 
     size_t len = 0;
-    if (pi->m->trank == 0) {
+    if (pi.m.trank == 0) {
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                    has_cache.get(), pi->m->ncores, MPI_INT, pi->m->pals);
+                    has_cache.get(), pi.m.ncores, MPI_INT, pi.m.pals);
 
-        for(unsigned int j = 0 ; j < pi->m->ncores ; j++) {
+        for(unsigned int j = 0 ; j < pi.m.ncores ; j++) {
             size_t const s = strlen(tlines[j]);
             len = std::max(len, s);
         }
-        MPI_Allreduce(MPI_IN_PLACE, &len, 1, MPI_INT, MPI_MAX, pi->m->pals);
-        std::unique_ptr<char[]> const info(new char[pi->m->totalsize * (len + 1)]);
-        std::unique_ptr<char[]> const mybuf(new char[pi->m->ncores * (len + 1)]);
-        std::fill_n(mybuf.get(), pi->m->ncores * (len+1), 0);
-        for(unsigned int j = 0 ; j < pi->m->ncores ; j++) {
+        MPI_Allreduce(MPI_IN_PLACE, &len, 1, MPI_INT, MPI_MAX, pi.m.pals);
+        std::unique_ptr<char[]> const info(new char[pi.m.totalsize * (len + 1)]);
+        std::unique_ptr<char[]> const mybuf(new char[pi.m.ncores * (len + 1)]);
+        std::fill_n(mybuf.get(), pi.m.ncores * (len+1), 0);
+        for(unsigned int j = 0 ; j < pi.m.ncores ; j++) {
             std::ranges::copy(tlines[j],
                     tlines[j] + strlen(tlines[j]) + 1,
                     mybuf.get() + j * (len + 1));
         }
         MPI_Allgather(
-                mybuf.get(), int(pi->m->ncores * (len+1)), MPI_BYTE,
-                info.get(),  int(pi->m->ncores * (len+1)), MPI_BYTE,
-                pi->m->pals);
-        if (pi->m->jrank == 0) {
+                mybuf.get(), int(pi.m.ncores * (len+1)), MPI_BYTE,
+                info.get(),  int(pi.m.ncores * (len+1)), MPI_BYTE,
+                pi.m.pals);
+        if (pi.m.jrank == 0) {
             auto f = fopen_helper(cachelist, "wb");
-            for(unsigned int j = 0 ; j < pi->m->njobs ; j++) {
-                unsigned int const j0 = j * pi->m->ncores;
+            for(unsigned int j = 0 ; j < pi.m.njobs ; j++) {
+                unsigned int const j0 = j * pi.m.ncores;
                 fprintf(f.get(), "get-cache ");
-                for(unsigned int k = 0 ; k < pi->m->ncores ; k++) {
+                for(unsigned int k = 0 ; k < pi.m.ncores ; k++) {
                     char * t = info.get() + (j0 + k) * (len + 1);
                     char * q = strchr(t, ' ');
                     ASSERT_ALWAYS(q);
@@ -1286,10 +1286,10 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
                 }
                 fprintf(f.get(), "\n");
             }
-            for(unsigned int j = 0 ; j < pi->m->njobs ; j++) {
-                unsigned int const j0 = j * pi->m->ncores;
+            for(unsigned int j = 0 ; j < pi.m.njobs ; j++) {
+                unsigned int const j0 = j * pi.m.ncores;
                 fprintf(f.get(), "has-cache ");
-                for(unsigned int k = 0 ; k < pi->m->ncores ; k++) {
+                for(unsigned int k = 0 ; k < pi.m.ncores ; k++) {
                     char * t = info.get() + (j0 + k) * (len + 1);
                     char * q = strchr(t, ' ');
                     ASSERT_ALWAYS(q);
@@ -1298,24 +1298,24 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
                         fprintf(f.get(), "%s", t);
                         *q=' ';
                     }
-                    if (!has_cache[pi->m->ncores * j + k]) continue;
+                    if (!has_cache[pi.m.ncores * j + k]) continue;
                     fprintf(f.get(), "%s", q);
                 }
                 fprintf(f.get(), "\n");
             }
         }
     }
-    serialize_threads(pi->m);
-    serialize_threads(pi->m);
-    serialize(pi->m);
+    pi.m.serialize_threads(__FILE__, __LINE__);
+    pi.m.serialize_threads(__FILE__, __LINE__);
+    pi.m.serialize(__FILE__, __LINE__);
 
     return 1;
 }
 
-static unsigned int local_fraction(unsigned int normal, pi_comm_ptr wr)
+static unsigned int local_fraction(unsigned int normal, pi_comm & wr)
 {
-    unsigned int const i = wr->jrank * wr->ncores + wr->trank;
-    return normal / wr->totalsize + (i < (normal % wr->totalsize));
+    unsigned int const i = wr.jrank * wr.ncores + wr.trank;
+    return normal / wr.totalsize + (i < (normal % wr.totalsize));
 }
 
 
@@ -1323,13 +1323,13 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
 {
     int rebuild = 0;
     pl.parse("rebuild_cache", rebuild);
-    int const can_print = (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0);
+    int const can_print = (mmt.pi.m.jrank == 0 && mmt.pi.m.trank == 0);
 
     matmul_top_matrix & Mloc = mmt.matrices[midx];
 
     Mloc.mm = matmul_interface::create(mmt.abase,
-                Mloc.n[0] / mmt.pi->wr[1]->totalsize,
-                Mloc.n[1] / mmt.pi->wr[0]->totalsize,
+                Mloc.n[0] / mmt.pi.wr[1].totalsize,
+                Mloc.n[1] / mmt.pi.wr[0].totalsize,
                 Mloc.locfile,
                 ""  /* means: choose mm_impl from pl */,
                 pl, optimized_direction);
@@ -1353,58 +1353,58 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
             printf("Now trying to load matrix cache files\n");
         }
         if (sqread) {
-            for(unsigned int j = 0 ; j < mmt.pi->m->ncores ; j += sqread) {
-                serialize_threads(mmt.pi->m);
+            for(unsigned int j = 0 ; j < mmt.pi.m.ncores ; j += sqread) {
+                mmt.pi.m.serialize_threads(__FILE__, __LINE__);
                 double t_read = -wct_seconds();
-                if (j / sqread == mmt.pi->m->trank / sqread)
+                if (j / sqread == mmt.pi.m.trank / sqread)
                     cache_loaded = Mloc.mm->reload_cache();
-                serialize(mmt.pi->m);
+                mmt.pi.m.serialize(__FILE__, __LINE__);
                 t_read += wct_seconds();
-                if (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == j && cache_loaded) {
+                if (mmt.pi.m.jrank == 0 && mmt.pi.m.trank == j && cache_loaded) {
                     fmt::print("[{}] J{}T{}-{}: read cache {} (and others) in {:.2f}s (round {}/{})\n",
-                    mmt.pi->nodenumber,
-                    mmt.pi->m->jrank,
-                    mmt.pi->m->trank,
-                    MIN(mmt.pi->m->ncores, mmt.pi->m->trank + sqread) - 1,
+                    mmt.pi.nodenumber,
+                    mmt.pi.m.jrank,
+                    mmt.pi.m.trank,
+                    MIN(mmt.pi.m.ncores, mmt.pi.m.trank + sqread) - 1,
                     Mloc.mm->cachefile_name,
                     t_read,
-                    j / sqread, iceildiv(mmt.pi->m->ncores, sqread)
+                    j / sqread, iceildiv(mmt.pi.m.ncores, sqread)
                     );
                 }
             }
         } else {
             double t_read = -wct_seconds();
             cache_loaded = Mloc.mm->reload_cache();
-            serialize(mmt.pi->m);
+            mmt.pi.m.serialize(__FILE__, __LINE__);
             t_read += wct_seconds();
-            if (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0 && cache_loaded) {
+            if (mmt.pi.m.jrank == 0 && mmt.pi.m.trank == 0 && cache_loaded) {
                 fmt::print("[{}] J{}: read cache {} (and others) in {:.2f}s\n",
-                        mmt.pi->nodenumber,
-                        mmt.pi->m->jrank,
+                        mmt.pi.nodenumber,
+                        mmt.pi.m.jrank,
                         Mloc.mm->cachefile_name,
                         t_read
                       );
             }
         }
-        if (!mmt.pi->m->trank) {
-            printf("J%u %s done reading (result=%d)\n", mmt.pi->m->jrank, mmt.pi->nodename.c_str(), cache_loaded);
+        if (!mmt.pi.m.trank) {
+            printf("J%u %s done reading (result=%d)\n", mmt.pi.m.jrank, mmt.pi.nodename.c_str(), cache_loaded);
         }
     }
 
-    if (!mmt.pi->m.data_eq(&cache_loaded, 1, BWC_PI_INT)) {
+    if (!mmt.pi.m.data_eq(&cache_loaded, 1, BWC_PI_INT)) {
         if (can_print) {
             fprintf(stderr, "Fatal error: cache files not present at expected locations\n");
         }
-        SEVERAL_THREADS_PLAY_MPI_BEGIN(mmt.pi->m) {
+        SEVERAL_THREADS_PLAY_MPI_BEGIN(&(mmt.pi.m)) {
             fmt::print(stderr, "[{}] J{}T{}: cache {}: {}\n",
-                    mmt.pi->nodenumber,
-                    mmt.pi->m->jrank,
-                    mmt.pi->m->trank,
+                    mmt.pi.nodenumber,
+                    mmt.pi.m.jrank,
+                    mmt.pi.m.trank,
                     Mloc.mm->cachefile_name,
                     cache_loaded ? "ok" : "not ok");
         }
         SEVERAL_THREADS_PLAY_MPI_END();
-        serialize(mmt.pi->m);
+        mmt.pi.m.serialize(__FILE__, __LINE__);
         abort();
     }
 
@@ -1424,17 +1424,17 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
             if (can_print) {
                 printf("Begin creation of fake matrix data in parallel\n");
             }
-            /* Mloc.mm->dim[0,1] contains the dimensions of the padded
+            /* Mloc.mm.dim[0,1] contains the dimensions of the padded
              * matrix. This is absolutely fine in the normal case. But in
              * the case of staged matrices, it's a bit different. We must
              * make sure that we generate matrices which have zeroes in
              * the padding area.
              */
 
-            unsigned int const data_nrows = local_fraction(Mloc.n0[0], mmt.pi->wr[1]);
-            unsigned int const data_ncols = local_fraction(Mloc.n0[1], mmt.pi->wr[0]);
-            unsigned int const padded_nrows = Mloc.n[0] / mmt.pi->wr[1]->totalsize;
-            unsigned int const padded_ncols = Mloc.n[1] / mmt.pi->wr[0]->totalsize;
+            unsigned int const data_nrows = local_fraction(Mloc.n0[0], mmt.pi.wr[1]);
+            unsigned int const data_ncols = local_fraction(Mloc.n0[1], mmt.pi.wr[0]);
+            unsigned int const padded_nrows = Mloc.n[0] / mmt.pi.wr[1].totalsize;
+            unsigned int const padded_ncols = Mloc.n[1] / mmt.pi.wr[0].totalsize;
 
             /* This reads the "random_matrix" argument in pl, and from
              * there the maxcoeff value goes in the
@@ -1455,10 +1455,10 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
              * share a common filesystem, in which case we must do this
              * also here.
              */
-            if (mmt.pi->m->trank == 0)
+            if (mmt.pi.m.trank == 0)
                 matrix_create_derived_cache_subdir(Mloc.mname, mmt.pi);
 
-            serialize_threads(mmt.pi->m);
+            mmt.pi.m.serialize_threads(__FILE__, __LINE__);
 
             m.reset(new matrix_u32(balancing_get_matrix_u32(mmt.pi, pl,
                     Mloc.mname, Mloc.bname,
@@ -1493,9 +1493,9 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
             // everybody does it in parallel
             if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_MAJOR_INFO))
                 printf("[%s] J%uT%u building cache for %s\n",
-                        mmt.pi->nodenumber.c_str(),
-                        mmt.pi->m->jrank,
-                        mmt.pi->m->trank,
+                        mmt.pi.nodenumber.c_str(),
+                        mmt.pi.m.jrank,
+                        mmt.pi.m.trank,
                         Mloc.locfile.c_str());
             Mloc.mm->build_cache(std::move(*m));
             Mloc.mm->save_cache();
@@ -1503,31 +1503,31 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
     } else {
         if (can_print)
             printf("Building local caches %d at a time\n", sqb);
-        for(unsigned int j = 0 ; j < mmt.pi->m->ncores + sqb ; j += sqb) {
-            serialize_threads(mmt.pi->m);
+        for(unsigned int j = 0 ; j < mmt.pi.m.ncores + sqb ; j += sqb) {
+            mmt.pi.m.serialize_threads(__FILE__, __LINE__);
             if (cache_loaded) continue;
-            if (j / sqb == mmt.pi->m->trank / sqb) {
+            if (j / sqb == mmt.pi.m.trank / sqb) {
                 if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_MAJOR_INFO))
                     printf("[%s] J%uT%u building cache for %s\n",
-                            mmt.pi->nodenumber.c_str(),
-                            mmt.pi->m->jrank,
-                            mmt.pi->m->trank,
+                            mmt.pi.nodenumber.c_str(),
+                            mmt.pi.m.jrank,
+                            mmt.pi.m.trank,
                             Mloc.locfile.c_str());
                 Mloc.mm->build_cache(std::move(*m));
-            } else if (j / sqb == mmt.pi->m->trank / sqb + 1) {
+            } else if (j / sqb == mmt.pi.m.trank / sqb + 1) {
                 Mloc.mm->save_cache();
             }
         }
     }
 
     if (!Mloc.mm->cachefile_name.empty() && verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_MAJOR_INFO)) {
-        pthread_mutex_lock(mmt.pi->m->th->m);
+        pthread_mutex_lock(mmt.pi.m.th->m);
         fmt::print("[{}] J{}T{} uses cache file {}\n",
-                mmt.pi->nodenumber,
-                mmt.pi->m->jrank, mmt.pi->m->trank,
+                mmt.pi.nodenumber,
+                mmt.pi.m.jrank, mmt.pi.m.trank,
                 /* cache for mmt.locfile, */
                 Mloc.mm->cachefile_name);
-        pthread_mutex_unlock(mmt.pi->m->th->m);
+        pthread_mutex_unlock(mmt.pi.m.th->m);
     }
 }
 
@@ -1536,32 +1536,32 @@ void matmul_top_report(matmul_top_data & mmt, double scale, int full)
     for(auto const & Mloc : mmt.matrices) {
         Mloc.mm->report(scale);
         size_t max_report_size = Mloc.mm->report_string.size() + 1;
-        mmt.pi->m.allreduce(nullptr, &max_report_size, 1, BWC_PI_SIZE_T, BWC_PI_MAX);
+        mmt.pi.m.allreduce(nullptr, &max_report_size, 1, BWC_PI_SIZE_T, BWC_PI_MAX);
         std::unique_ptr<char[]> const all_reports(
-                new char[mmt.pi->m->totalsize * max_report_size]);
-        std::fill_n(all_reports.get(), mmt.pi->m->totalsize * max_report_size, 0);
+                new char[mmt.pi.m.totalsize * max_report_size]);
+        std::fill_n(all_reports.get(), mmt.pi.m.totalsize * max_report_size, 0);
         std::ranges::copy(Mloc.mm->report_string,
-                all_reports.get() + max_report_size * (mmt.pi->m->jrank * mmt.pi->m->ncores + mmt.pi->m->trank));
-        mmt.pi->m.allgather(nullptr, 0, 0,
+                all_reports.get() + max_report_size * (mmt.pi.m.jrank * mmt.pi.m.ncores + mmt.pi.m.trank));
+        mmt.pi.m.allgather(nullptr, 0, 0,
                 all_reports.get(), max_report_size, BWC_PI_BYTE);
 
-        if (max_report_size > 1 && mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0) {
-            for(unsigned int j = 0 ; j < mmt.pi->m->njobs ; j++) {
-                for(unsigned int t = 0 ; t < mmt.pi->m->ncores ; t++) {
-                    const char * locreport = all_reports.get() + max_report_size * (j * mmt.pi->m->ncores + t);
+        if (max_report_size > 1 && mmt.pi.m.jrank == 0 && mmt.pi.m.trank == 0) {
+            for(unsigned int j = 0 ; j < mmt.pi.m.njobs ; j++) {
+                for(unsigned int t = 0 ; t < mmt.pi.m.ncores ; t++) {
+                    const char * locreport = all_reports.get() + max_report_size * (j * mmt.pi.m.ncores + t);
                     if (full || (j == 0 && t == 0))
                         printf("##### J%uT%u timing report:\n%s", j, t, locreport);
                 }
             }
         }
-        serialize(mmt.pi->m);
+        mmt.pi.m.serialize(__FILE__, __LINE__);
     }
 }
 
 matmul_top_data::~matmul_top_data()
 {
     matmul_top_data  const& mmt = *this;
-    pi_free_arith_datatype(mmt.pi, mmt.pitype);
-    serialize_threads(mmt.pi->m);
-    serialize(mmt.pi->m);
+    mmt.pi.free_arith_datatype(mmt.pitype);
+    mmt.pi.m.serialize_threads(__FILE__, __LINE__);
+    mmt.pi.m.serialize(__FILE__, __LINE__);
 }

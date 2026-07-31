@@ -14,12 +14,12 @@
 struct abase_proxy {
     parallelizing_info & pi;
     std::unique_ptr<arith_generic> A;
-    pi_datatype_ptr A_pi;
+    pi_datatype * A_pi;
 
     abase_proxy(parallelizing_info & pi, unsigned int width)
         : pi(pi)
         , A(arith_generic::instance(bw->p, width))
-        , A_pi(pi_alloc_arith_datatype(pi, A.get()))
+        , A_pi(pi.alloc_arith_datatype(A.get()))
     {
     }
     abase_proxy(abase_proxy &) = delete;
@@ -40,7 +40,7 @@ struct abase_proxy {
                 arith_cross_generic::instance(A.get(), A1));
         return tdict[A1].get();
     }
-    ~abase_proxy() { pi_free_arith_datatype(pi, A_pi); }
+    ~abase_proxy() { pi.free_arith_datatype(A_pi); }
 };
 
 #endif /* LINALG_BWC_ABASE_PROXY_HPP_ */

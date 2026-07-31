@@ -25,7 +25,7 @@ static int verbose = 0;
 
 static void mmt_vec_set_0n(mmt_vec & v, size_t items)
 {
-    serialize(v.pi->m);
+    v.pi.m.serialize(__FILE__, __LINE__);
     /* For debug: set to vector [0, 1, ..., n[
      *
      * Here we do something a bit fishy. We don't really have a way
@@ -48,15 +48,15 @@ static void mmt_vec_set_0n(mmt_vec & v, size_t items)
         *ptr = (v.i0 + off + s < items) ? v.i0 + off + s : 0;
     }
     v.consistency = 1;
-    serialize(v.pi->m);
+    v.pi.m.serialize(__FILE__, __LINE__);
     mmt_vec_broadcast(v);
-    serialize(v.pi->m);
+    v.pi.m.serialize(__FILE__, __LINE__);
 }
 
 /* check that v[i] == p[i] */
 static void mmt_vec_check_equal_0n(mmt_vec const & v, size_t items)
 {
-    serialize(v.pi->m);
+    v.pi.m.serialize(__FILE__, __LINE__);
     ASSERT_ALWAYS(v.consistency == 2);
     // ASSERT_ALWAYS((size_t) v.abase->elt_stride() <= sizeof(uint64_t));
     ASSERT_ALWAYS(v.abase->elt_stride() >= sizeof(unsigned int));
@@ -80,7 +80,7 @@ static void mmt_vec_check_equal_0n(mmt_vec const & v, size_t items)
 static void mmt_vec_check_equal_0n_permuted(mmt_vec const & v, size_t items,
                                             uint32_t * p)
 {
-    serialize(v.pi->m);
+    v.pi.m.serialize(__FILE__, __LINE__);
     ASSERT_ALWAYS(v.consistency == 2);
     // ASSERT_ALWAYS((size_t) v.abase->elt_stride() <= sizeof(uint64_t));
     ASSERT_ALWAYS(v.abase->elt_stride() >= sizeof(unsigned int));
@@ -104,7 +104,7 @@ static void mmt_vec_check_equal_0n_permuted(mmt_vec const & v, size_t items,
 static void mmt_vec_check_equal_0n_inv_permuted(mmt_vec const & v, size_t items,
                                                 uint32_t * p)
 {
-    serialize(v.pi->m);
+    v.pi.m.serialize(__FILE__, __LINE__);
     // ASSERT_ALWAYS((size_t) v.abase->elt_stride() <= sizeof(uint64_t));
     ASSERT_ALWAYS(v.abase->elt_stride() >= sizeof(unsigned int));
     size_t const off = mmt_my_own_offset_in_items(v);
@@ -124,7 +124,7 @@ static void mmt_vec_check_equal_0n_inv_permuted(mmt_vec const & v, size_t items,
         }
         ASSERT_ALWAYS(v.abase->is_zero(temp));
     }
-    serialize_threads(v.pi->wr[v.d]);
+    v.pi.wr[v.d].serialize_threads(__FILE__, __LINE__);
     v.abase->free(temp_alloc);
 }
 
@@ -136,14 +136,14 @@ static void * tst_prog(parallelizing_info & pi, cxx_param_list & pl,
     ASSERT_ALWAYS(!pi.interleaved);
 
     if (verbose) {
-        pi_log_init(pi.m);
-        pi_log_init(pi.wr[0]);
-        pi_log_init(pi.wr[1]);
+        pi.m.log_init();
+        pi.wr[0].log_init();
+        pi.wr[1].log_init();
     }
 
     cxx_gmp_randstate rstate;
 
-    // int tcan_print = bw->can_print && pi->m->trank == 0;
+    // int tcan_print = bw->can_print && pi.m->trank == 0;
 
     // int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     // int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp :
@@ -168,7 +168,7 @@ static void * tst_prog(parallelizing_info & pi, cxx_param_list & pl,
         mmt_vec v(mmt, 0, 0, 0, /* shared ! */ 1, mmt.n[0]);
         mmt_vec vi(mmt, 0, 0, 1, 0, mmt.n[1]);
         mmt_vec vii(mmt, 0, 0, 0, 0, mmt.n[0]);
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
         mmt_vec_set_0n(v, mmt.n0[0]);
         /* We save the Z files, although it's useless, the checking done
          * here is allright */
@@ -191,26 +191,26 @@ static void * tst_prog(parallelizing_info & pi, cxx_param_list & pl,
         char const * bname = pl.lookup_old("balancing");
         balancing_init(bb);
 
-        if (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0) {
+        if (mmt.pi.m.jrank == 0 && mmt.pi.m.trank == 0) {
             balancing_read(bb, bname);
         }
-        mmt.pi->m.bcast(&bb, sizeof(balancing), BWC_PI_BYTE, 0, 0);
+        mmt.pi.m.bcast(&bb, sizeof(balancing), BWC_PI_BYTE, 0, 0);
         /* fix the mmt.rowperm and mmt.colperm */
         if (bb.rowperm) {
-            if (mmt.pi->m->jrank || mmt.pi->m->trank) {
+            if (mmt.pi.m.jrank || mmt.pi.m.trank) {
                 bb.rowperm = (uint32_t *)malloc(bb.trows * sizeof(uint32_t));
             }
-            mmt.pi->m.bcast(bb.rowperm, bb.trows * sizeof(uint32_t), BWC_PI_BYTE, 0, 0);
+            mmt.pi.m.bcast(bb.rowperm, bb.trows * sizeof(uint32_t), BWC_PI_BYTE, 0, 0);
         }
         if (bb.colperm) {
-            if (mmt.pi->m->jrank || mmt.pi->m->trank) {
+            if (mmt.pi.m.jrank || mmt.pi.m.trank) {
                 bb.colperm = (uint32_t *)malloc(bb.tcols * sizeof(uint32_t));
             }
-            mmt.pi->m.bcast(bb.colperm, bb.tcols * sizeof(uint32_t), BWC_PI_BYTE, 0, 0);
+            mmt.pi.m.bcast(bb.colperm, bb.tcols * sizeof(uint32_t), BWC_PI_BYTE, 0, 0);
         }
 
         for (int test_shared = 0; test_shared < 2; test_shared++) {
-            serialize(pi->m);
+            pi.m.serialize(__FILE__, __LINE__);
             uint32_t * xr = bb.rowperm;
             uint32_t * xc = bb.colperm;
             uint32_t * freeme[2] = {NULL, NULL};
@@ -339,7 +339,7 @@ static void * tst_prog(parallelizing_info & pi, cxx_param_list & pl,
     {
         mmt_vec y(mmt, 0, 0, 1, /* shared ! */ 1, mmt.n[1]);
         mmt_vec my(mmt, 0, 0, 0, 0, mmt.n[0]);
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
         mmt_vec_set_random_through_file(y, "Y{}-{}.0", mmt.n0[1], rstate, 0);
         /* recall that for all purposes, bwc operates with M*T^-1 and not M
          */
@@ -360,7 +360,7 @@ static void * tst_prog(parallelizing_info & pi, cxx_param_list & pl,
     {
         mmt_vec w(mmt, 0, 0, 0, /* shared ! */ 1, mmt.n[0]);
         mmt_vec wm(mmt, 0, 0, 1, 0, mmt.n[1]);
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
         mmt_vec_set_random_through_file(w, "W{}-{}.0", mmt.n0[0], rstate, 0);
         mmt_vec_twist(mmt, w);
         matmul_top_mul_cpu(mmt, 0, w.d, wm, w);
@@ -386,7 +386,7 @@ static void * tst_prog(parallelizing_info & pi, cxx_param_list & pl,
         std::vector<uint32_t> xx(m * nx, 0);
         for (auto & x : xx)
             x = gmp_urandomm_ui(rstate, mmt.n0[0]);
-        pi->m.bcast(xx.data(), xx.size() * sizeof(uint32_t), BWC_PI_BYTE, 0, 0);
+        pi.m.bcast(xx.data(), xx.size() * sizeof(uint32_t), BWC_PI_BYTE, 0, 0);
         for (int d = 0; d < 2; d++) {
             std::string pat;
 
@@ -474,7 +474,7 @@ static void * tst_prog(parallelizing_info & pi, cxx_param_list & pl,
     // apply_identity(mmt, d);
     // mmt_vec_save(mmt, NULL, "V", !d, 0);
 
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
 
 #if 0
     mmt_vec oldv[2];
@@ -485,14 +485,14 @@ static void * tst_prog(parallelizing_info & pi, cxx_param_list & pl,
     mmt_vec_init(mmt, NULL, NULL, NULL, 0, flags[1 ^ 0]);
     mmt_vec_init(mmt, NULL, NULL, NULL, 1, flags[1 ^ 1]);
 
-    serialize_threads(mmt.pi->m);
+    mmt.pi.m.serialize_threads(__FILE__, __LINE__);
 
     size_t stride = abbytes(mmt.abase, 1);
     ASSERT_ALWAYS((mrow->v.flags & THREAD_SHARED_VECTOR) == 0);
     if (pirow->trank == 0 && pirow->jrank == 0) {
         mpfq_generic_copy(stride, mmt.wr[!bw->dir]->v.v, oldv[!bw->dir]->v, mmt.wr[!bw->dir]->i1 - mmt.wr[!bw->dir]->i0);
     }
-    serialize_threads(mmt.pi->m);
+    mmt.pi.m.serialize_threads(__FILE__, __LINE__);
 
     matmul_top_mul_comm(mmt, bw->dir);
     mmt_vec_save(mmt, NULL, CHECK_FILE_BASE, bw->dir, bw->interval);
@@ -510,11 +510,10 @@ static void * tst_prog(parallelizing_info & pi, cxx_param_list & pl,
     // A->oo_field_clear(A);
 
     if (verbose) {
-        pi_log_print_all(pi);
-
-        pi_log_clear(pi->m);
-        pi_log_clear(pi->wr[0]);
-        pi_log_clear(pi->wr[1]);
+        pi.log_print_all();
+        pi.m.log_clear();
+        pi.wr[0].log_clear();
+        pi.wr[1].log_clear();
     }
 
     return NULL;
@@ -529,7 +528,7 @@ int main(int argc, char const * argv[])
     parallelizing_info::init_attribute_things();
 
     bw_common_decl_usage(pl);
-    parallelizing_info_decl_usage(pl);
+    parallelizing_info::declare_usage(pl);
     pl.declare_usage("v", "turn on some demo logging");
     matmul_top_decl_usage(pl);
 
@@ -541,7 +540,7 @@ int main(int argc, char const * argv[])
     pl.remove_key("interleaving");
 
     bw_common_interpret_parameters(bw, pl);
-    parallelizing_info_lookup_parameters(pl);
+    parallelizing_info::lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
 
     if (pl.warn_unused()) {

@@ -203,7 +203,7 @@ void timing_check(parallelizing_info & pi, struct timing_data * timing, int iter
     if (print)
         printf("iteration %d\n", iter);
 
-    pi->grid_print(buf, strlen(buf) + 1, print);
+    pi.grid_print(buf, strlen(buf) + 1, print);
 }
 
 static void timing_disp_backend(parallelizing_info & pi, struct timing_data * timing, int iter, int print, const char * stage, int done)
@@ -306,7 +306,7 @@ static void timing_disp_backend(parallelizing_info & pi, struct timing_data * ti
     /* We're sharing via thread_broadcast data which sits on the stack of
      * one thread. So it's important that no thread exits this function
      * prematurely ! */
-    serialize_threads(pi.m);
+    pi.m.serialize_threads(__FILE__, __LINE__);
 }
 
 void timing_disp_collective_oneline(parallelizing_info & pi, struct timing_data * timing, int iter, int print, const char * stage)

@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include <string>
-#include <memory>
 
 #include "gmp_aux.h"
 #include "parallelizing_info.hpp"
@@ -20,9 +19,9 @@ struct matmul_top_data;
 
 struct mmt_vec {
     arith_generic * abase = nullptr;
-    parallelizing_info * pi = nullptr;
+    parallelizing_info & pi;
     int d = -1;
-    pi_datatype_ptr pitype = nullptr;
+    pi_datatype * pitype = nullptr;
 
     unsigned int n = 0;          // total size in items
     unsigned int i0 = 0;
@@ -37,9 +36,7 @@ struct mmt_vec {
     /* pointers to other vectors are held in shared memory areas (shared
      * among cores, of course)
      */
-    using pointer_to_others = std::unique_ptr<
-                mmt_vec *,
-                shared_free_deleter<mmt_vec *>>;
+    using pointer_to_others = pi_shared_array<mmt_vec *>;
 
     /* pi->wr[d]->ncores siblings ; only in case all cores in the
      * communicator have their own data area v */
@@ -57,8 +54,8 @@ struct mmt_vec {
 
     public:
 
-    mmt_vec() = default;
-    mmt_vec(matmul_top_data & mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n);
+    // mmt_vec() = default;
+    mmt_vec(matmul_top_data & mmt, arith_generic * abase, pi_datatype * pitype, int d, int flags, unsigned int n);
     mmt_vec(mmt_vec const &) = delete;
     mmt_vec& operator=(mmt_vec const &) = delete;
     ~mmt_vec() = default;

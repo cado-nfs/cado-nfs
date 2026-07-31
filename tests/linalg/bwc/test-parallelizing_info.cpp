@@ -15,7 +15,7 @@ static int verbose = 0;
 
 static void * test_code(parallelizing_info & pi, cxx_param_list & pl MAYBE_UNUSED, void * dummy MAYBE_UNUSED)
 {
-    serialize(pi.m);
+    pi.m.serialize(__FILE__, __LINE__);
     char * report_string;
     int rc = asprintf(&report_string, "J%uT%u\n", pi.m.jrank, pi.m.trank);
     ASSERT_ALWAYS(rc >= 0);
@@ -41,7 +41,7 @@ static void * test_code(parallelizing_info & pi, cxx_param_list & pl MAYBE_UNUSE
             }
         }
     }
-    serialize(pi.m);
+    pi.m.serialize(__FILE__, __LINE__);
     free(all_reports);
 
     free(report_string);
@@ -56,7 +56,7 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
 
     parallelizing_info::init_attribute_things();
-    parallelizing_info_decl_usage(pl);
+    parallelizing_info::declare_usage(pl);
     pl.declare_usage("v", "turn on some more logging");
 
     pl.configure_switch("v");
@@ -64,7 +64,7 @@ int main(int argc, char const * argv[])
     pl.process_command_line(argc, argv, false);
 
     pl.parse("v", verbose);
-    parallelizing_info_lookup_parameters(pl);
+    parallelizing_info::lookup_parameters(pl);
 
     pl.warn_unused();
 

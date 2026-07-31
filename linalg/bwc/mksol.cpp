@@ -59,7 +59,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     unsigned int const Av_width = splitwidth;
     unsigned int const Av_multiplex = bw->n / Av_width;
     std::unique_ptr<arith_generic> Av(arith_generic::instance(bw->p, Av_width));
-    pi_datatype_ptr Av_pi = pi_alloc_arith_datatype(pi, Av.get());
+    pi_datatype * Av_pi = pi.alloc_arith_datatype(Av.get());
     /* }}} */
 
     /* {{{ Second: We intend to perform only a single spmv per iteration,
@@ -91,7 +91,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     /* Now that we do this in Horner fashion, we multiply on vectors
      * whose width is the number of solutions we compute. */
     matmul_top_data mmt(As.get(), pi, pl, bw->dir);
-    pi_datatype_ptr As_pi = mmt.pitype;
+    pi_datatype * As_pi = mmt.pitype;
 
     /* allocate vectors (two batches): */
 
@@ -112,7 +112,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
 
     unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
     
     /* {{{ i/o stats.
      * let's be generous with interleaving protection. I don't want to be
@@ -127,11 +127,11 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     /* {{{ Read all vi's */
     cxx_gmp_randstate rstate;
     if (fake) {
-        if (pi->m.trank == 0 && !bw->seed) {
+        if (pi.m.trank == 0 && !bw->seed) {
             bw->seed = int(time(nullptr));
-            MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m.pals);
+            MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi.m.pals);
         }
-        serialize_threads(pi->m);
+        pi.m.serialize_threads(__FILE__, __LINE__);
         gmp_randseed_ui(rstate, bw->seed);
         if (tcan_print) 
             fmt::print("// Random generator seeded with {}\n", bw->seed);
@@ -140,13 +140,13 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
 
     unsigned int expected_last_iteration;
 
-    serialize_threads(pi->m);
-    if (pi->m.trank == 0) {
+    pi.m.serialize_threads(__FILE__, __LINE__);
+    if (pi.m.trank == 0) {
         /* the bw object is global ! */
         expected_last_iteration = bw_set_length_and_interval_mksol(bw, mmt.n0);
     }
-    pi->m.thread_bcast(&expected_last_iteration, 1, BWC_PI_UNSIGNED, 0);
-    serialize_threads(pi->m);
+    pi.m.thread_bcast(&expected_last_iteration, 1, BWC_PI_UNSIGNED, 0);
+    pi.m.serialize_threads(__FILE__, __LINE__);
     if (bw->end == INT_MAX) {
         if (tcan_print)
             fmt::print ("Target iteration is unspecified ;"
@@ -253,7 +253,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     for(unsigned int s = bw->start ; s < bw_end_copy ; s += bw->checkpoint_precious ) {
         const bwc_iteration_range nrange { s, s + bw->checkpoint_precious };
 
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
         for(int i = 0 ; i < bw->n / splitwidth ; i++) {
             int const ys[2] = { i * splitwidth, (i + 1) * splitwidth };
             auto pat = bwc_V_file::pattern(s);
@@ -266,7 +266,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
             mmt_vec_twist(mmt, vi[i]);
         }
 
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
 
         mmt_full_vec_set_zero(ymy[0]);
 
@@ -294,8 +294,8 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
             /* This is used only on the leader node */
             bool short_read = false;
 
-            serialize(pi->m);
-            if (pi->m.trank == 0 && pi->m.jrank == 0) {
+            pi.m.serialize(__FILE__, __LINE__);
+            if (pi.m.trank == 0 && pi.m.jrank == 0) {
                 int rc0 = 0, rc = 0;
                 for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
                     for(unsigned int j = 0 ; j < As_multiplex ; j++) {
@@ -323,7 +323,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
                                     sol0, sol1,
                                     i * Av_width, (i + 1) * Av_width);
 
-                            // fmt::print("[{}] reading from {}\n", pi->interleaved ? pi->interleaved->idx : -1, tmp);
+                            // fmt::print("[{}] reading from {}\n", pi.interleaved ? pi.interleaved->idx : -1, tmp);
                             auto f = fopen_helper(f_name, "rb");
                             rc = fseek(f.get(), one_fcoeff / Af_multiplex * s0, SEEK_SET);
                             if (rc >= 0) {
@@ -377,13 +377,13 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
                     sx = bw_end_copy = s0 + rc;
                 }
             }
-            serialize(pi->m);
-            pi->m.bcast(&s0, 1, BWC_PI_INT, 0, 0);
-            pi->m.bcast(&s1, 1, BWC_PI_INT, 0, 0);
-            pi->m.bcast(&sx, 1, BWC_PI_INT, 0, 0);
-            pi->m.bcast(&bw_end_copy, 1, BWC_PI_INT, 0, 0);
+            pi.m.serialize(__FILE__, __LINE__);
+            pi.m.bcast(&s0, 1, BWC_PI_INT, 0, 0);
+            pi.m.bcast(&s1, 1, BWC_PI_INT, 0, 0);
+            pi.m.bcast(&sx, 1, BWC_PI_INT, 0, 0);
+            pi.m.bcast(&bw_end_copy, 1, BWC_PI_INT, 0, 0);
 
-            serialize_threads(mmt.pi->m);
+            mmt.pi.m.serialize_threads(__FILE__, __LINE__);
 
             if (s0 == bw_end_copy)
                 continue;
@@ -397,11 +397,11 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
             for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
                 for(unsigned int j = 0 ; j < As_multiplex ; j++) {
                     arith_generic::elt * ff = fcoeffs[i * As_multiplex + j];
-                    pi->m.bcast(ff, Av->simd_groupsize() * (s1 - s0), As_pi, 0, 0);
+                    pi.m.bcast(ff, Av->simd_groupsize() * (s1 - s0), As_pi, 0, 0);
                 }
             }
 
-            serialize(pi->m);
+            pi.m.serialize(__FILE__, __LINE__);
 
                 /* Despite the fact that the bw->end value might lead us
                  * to stop earlier, we want to stop at multiples of the checking
@@ -415,7 +415,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
 
                 for(unsigned int k = 0 ; k < s1 - s0 ; k++) {
 
-                    serialize_threads(pi->m);
+                    pi.m.serialize_threads(__FILE__, __LINE__);
 
                     /*
                     if (tcan_print) {
@@ -444,7 +444,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
                      * I believe we could probably get away with this.
                      */
 
-                    serialize_threads(pi->m);
+                    pi.m.serialize_threads(__FILE__, __LINE__);
 
                     /* It's equivalent to doing the multiply at the
                      * beginning of the loop with the condition
@@ -464,7 +464,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
                     }
                 }
 
-                serialize(pi->m);
+                pi.m.serialize(__FILE__, __LINE__);
                 /* See remark above. */
                 pi_interleaving_flip(pi);
                 pi_interleaving_flip(pi);
@@ -494,7 +494,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     if (tcan_print) {
         fmt::print("Done mksol.\n");
     }
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
 
     for(unsigned int k = 0 ; k < Av_multiplex * As_multiplex ; k++) {
         As->free((fcoeffs[k]));
@@ -505,7 +505,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
         As->free((fcoeff_tmp));
     }
 
-    pi_free_arith_datatype(pi, Av_pi);
+    pi.free_arith_datatype(Av_pi);
 
     timing_clear(timing);
 
@@ -522,14 +522,14 @@ int main(int argc, char const * argv[])
     parallelizing_info::init_attribute_things();
 
     bw_common_decl_usage(pl);
-    parallelizing_info_decl_usage(pl);
+    parallelizing_info::declare_usage(pl);
     matmul_top_decl_usage(pl);
     /* declare local parameters and switches: none here (so far). */
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
 
     bw_common_interpret_parameters(bw, pl);
-    parallelizing_info_lookup_parameters(pl);
+    parallelizing_info::lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters: none here (so far). */
 

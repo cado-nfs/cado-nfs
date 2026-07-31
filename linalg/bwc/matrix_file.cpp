@@ -103,11 +103,13 @@ int matrix_file::lookup()/*{{{*/
 /* {{{ helpers around pi_bcast and friends.
  * Have I coded this somewhere else already ? */
 template<typename T> struct bwc_pi_type
-{ static const pi_datatype_ptr value; };
-template<> const pi_datatype_ptr bwc_pi_type<int>::value = BWC_PI_INT;
-template<> const pi_datatype_ptr bwc_pi_type<unsigned int>::value = BWC_PI_UNSIGNED;
-template<> const pi_datatype_ptr bwc_pi_type<unsigned long>::value = BWC_PI_UNSIGNED_LONG;
-template<> const pi_datatype_ptr bwc_pi_type<unsigned long long>::value = BWC_PI_UNSIGNED_LONG_LONG;
+{ static pi_datatype * value; };
+
+/* frankly, it's ugly. */
+template<> pi_datatype * bwc_pi_type<int>::value = BWC_PI_INT;
+template<> pi_datatype * bwc_pi_type<unsigned int>::value = BWC_PI_UNSIGNED;
+template<> pi_datatype * bwc_pi_type<unsigned long>::value = BWC_PI_UNSIGNED_LONG;
+template<> pi_datatype * bwc_pi_type<unsigned long long>::value = BWC_PI_UNSIGNED_LONG_LONG;
 
 template<typename T> static void bcast(parallelizing_info & pi, T & s, unsigned int jrank, unsigned int trank)
 {
@@ -155,10 +157,10 @@ int matrix_file::lookup(parallelizing_info & pi)/*{{{*/
     
     /* begin with local lookups */
     int c = 0;
-    if (pi->m.trank == 0)
+    if (pi.m.trank == 0)
         c = lookup();
 
-    unsigned int j = pi->m.jrank;
+    unsigned int j = pi.m.jrank;
     if (!c) j = UINT_MAX;
     allreduce(pi, j, BWC_PI_MIN);
     allreduce(pi, c, BWC_PI_MAX);

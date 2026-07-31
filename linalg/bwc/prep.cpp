@@ -40,7 +40,7 @@
 
 static void bw_rank_check(matmul_top_data & mmt, cxx_param_list & pl)
 {
-    int const tcan_print = bw->can_print && mmt.pi->m->trank == 0;
+    int const tcan_print = bw->can_print && mmt.pi.m.trank == 0;
     unsigned int const r = matmul_top_rank_upper_bound(mmt);
     if (tcan_print) {
         fmt::print("Matrix rank is at most {} (based on zero columns and rows "
@@ -152,18 +152,18 @@ static void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * i
     if (rhs_vecs.empty())
         return;
 
-    /* {std::istream * is} is actually nullptr if pi->m->jrank != 0 */
+    /* {std::istream * is} is actually nullptr if pi.m.jrank != 0 */
 
     arith_generic * A = rhs_vecs[0].abase;
-    parallelizing_info & pi = *rhs_vecs[0].pi;
+    parallelizing_info & pi = rhs_vecs[0].pi;
     int const d = rhs_vecs[0].d;
     auto i1 = rhs_vecs[0].i1;
     auto i0 = rhs_vecs[0].i0;
     auto eitems = i1 - i0;
 
-    pi_comm & m = pi->m;
-    pi_comm & wr = pi->wr[d];
-    pi_comm & xwr = *wr->xwr;
+    pi_comm & m = pi.m;
+    pi_comm & wr = pi.wr[d];
+    pi_comm & xwr = *wr.xwr;
 
     size_t const nrhs = rhs_vecs.size() * A->simd_groupsize();
 
@@ -174,11 +174,11 @@ static void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * i
      * a vector that has size 0 except at rank 0
      */
     std::vector<arith_generic::owned_vector> local_vecs;
-    if (m->trank == 0 && m->jrank == 0) {
+    if (m.trank == 0 && m.jrank == 0) {
         for (auto const & r MAYBE_UNUSED: rhs_vecs)
             local_vecs.emplace_back(A->alloc_vector(eitems));
     }
-    /* make leader_vecs accessible to all threads at pi->m->jrank == 0
+    /* make leader_vecs accessible to all threads at pi.m.jrank == 0
      * and all thread ranks along xwr */
     auto * p_local_vecs = &local_vecs;
     xwr.bcast(&p_local_vecs, sizeof(void *), BWC_PI_BYTE, 0, 0);
@@ -186,25 +186,25 @@ static void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * i
 
     cxx_mpz c;
 
-    for (unsigned int jpeer = 0; jpeer < xwr->njobs; jpeer++) {
-        if (wr->trank || wr->jrank) {
+    for (unsigned int jpeer = 0; jpeer < xwr.njobs; jpeer++) {
+        if (wr.trank || wr.jrank) {
             /* what happens along wr will be dealt with by a
              * broadcast along this communicator
              */
             continue;
         }
-        SEVERAL_THREADS_PLAY_MPI_BEGIN (xwr) {
+        SEVERAL_THREADS_PLAY_MPI_BEGIN (&xwr) {
             /* we'll use this as an MPI tag. It's important that we
              * include a thread id in there, since there will be multiple
              * transfers with same (src, dst) job ids!
              */
-            unsigned int const tpeer = xwr->trank;
-            unsigned int const round = jpeer * xwr->ncores + tpeer;
+            unsigned int const tpeer = xwr.trank;
+            unsigned int const round = jpeer * xwr.ncores + tpeer;
 
-            if (xwr->jrank == 0) {
+            if (xwr.jrank == 0) {
                 /* read eitems from the file. These will go to the own
                  * subvec of (jpeer, tpeer), and correspond to indices
-                 * that start at (jpeer * wr->ncores + tpeer) * eitems.
+                 * that start at (jpeer * wr.ncores + tpeer) * eitems.
                  *
                  * This can later be made consistent with all
                  * jobs/threads along wr by an allreduce operation.
@@ -231,15 +231,15 @@ static void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * i
             /* send to the right recipient */
             for (size_t j = 0; j * A->simd_groupsize() < nrhs; j++) {
                 if (jpeer != 0) {
-                    if (xwr->jrank == 0)
+                    if (xwr.jrank == 0)
                         MPI_Send(leader_vecs[j].get(),
                                  (int)A->vec_elt_stride(eitems), MPI_BYTE,
-                                 (int)jpeer, (int)round, xwr->pals);
-                    else if (xwr->jrank == jpeer)
+                                 (int)jpeer, (int)round, xwr.pals);
+                    else if (xwr.jrank == jpeer)
                         MPI_Recv(rhs_vecs[j].v, (int)A->vec_elt_stride(eitems),
-                                 MPI_BYTE, 0, (int)round, xwr->pals,
+                                 MPI_BYTE, 0, (int)round, xwr.pals,
                                  MPI_STATUS_IGNORE);
-                } else if (xwr->jrank == 0) {
+                } else if (xwr.jrank == 0) {
                     A->vec_set(rhs_vecs[j].v, leader_vecs[j].get(), eitems);
                 }
             }
@@ -247,7 +247,7 @@ static void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * i
         SEVERAL_THREADS_PLAY_MPI_END();
     }
 
-    serialize_threads(xwr);
+    xwr.serialize_threads(__FILE__, __LINE__);
 
     /* it's an easy enough way to get everything consistent. */
     for (auto & r: rhs_vecs) {
@@ -307,18 +307,18 @@ struct prep_object {
 
     void set_common_seed()
     { // {{{
-        if (pi->m->trank == 0 && !bw->seed) {
+        if (pi.m.trank == 0 && !bw->seed) {
             /* note that bw is shared between threads, thus only thread 0 should
              * test and update it here.
-             * at pi->m->jrank > 0, we don't care about the seed anyway
+             * at pi.m->jrank > 0, we don't care about the seed anyway
              */
             bw->seed = int(time(nullptr));
-            MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m->pals);
+            MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi.m.pals);
         }
-        serialize_threads(pi->m);
+        pi.m.serialize_threads(__FILE__, __LINE__);
         gmp_randseed_ui(rstate, bw->seed);
 
-        int const tcan_print = bw->can_print && pi->m->trank == 0;
+        int const tcan_print = bw->can_print && pi.m.trank == 0;
 
         if (tcan_print)
             fmt::print("// Random generator seeded with {}\n", bw->seed);
@@ -349,7 +349,7 @@ struct prep_object {
 
         // open rhs only at job 0, thread 0
         std::unique_ptr<std::ifstream> rhs;
-        if (pi->m->jrank == 0 && pi->m->trank == 0) {
+        if (pi.m.jrank == 0 && pi.m.trank == 0) {
             rhs = std::make_unique<std::ifstream>(rhs_name);
             (*rhs) >> hdr;
             ASSERT_ALWAYS(bool(*rhs));
@@ -364,9 +364,9 @@ struct prep_object {
         // threads along one communicator will deal with it)
         // other mpi ranks will just be sharing a null pointer, here.
         auto * p_rhs = rhs.get();
-        pi->m.thread_bcast(&p_rhs, sizeof(void *), BWC_PI_BYTE, 0);
-        pi->m.bcast(&hdr.ncols, sizeof(hdr.ncols), BWC_PI_BYTE, 0, 0);
-        pi->m.bcast(&hdr.nrows, sizeof(hdr.nrows), BWC_PI_BYTE, 0, 0);
+        pi.m.thread_bcast(&p_rhs, sizeof(void *), BWC_PI_BYTE, 0);
+        pi.m.bcast(&hdr.ncols, sizeof(hdr.ncols), BWC_PI_BYTE, 0, 0);
+        pi.m.bcast(&hdr.nrows, sizeof(hdr.nrows), BWC_PI_BYTE, 0, 0);
         /* don't share the cxx_mpz hdr.p */
 
         unsigned int const nrhs = hdr.ncols;
@@ -376,7 +376,7 @@ struct prep_object {
 
         abase_proxy const natural = abase_proxy::most_natural(pi);
         arith_generic * Av = natural.A.get();
-        pi_datatype_ptr Av_pi = natural.A_pi;
+        pi_datatype * Av_pi = natural.A_pi;
 
         /* XXX I'm pretty sure that this assert holds, in which case Av can
          * be A == mmt.abase, and Av_pi can be mmt.pitype
@@ -438,7 +438,7 @@ struct prep_object {
     { // {{{
         /* Create purely random vectors for V */
         size_t const splitwidth = y.abase->simd_groupsize();
-        parallelizing_info & pi = *y.pi;
+        parallelizing_info & pi = y.pi;
         int const tcan_print = bw->can_print && pi.m.trank == 0;
 
         for (unsigned int j = nrhs; j < (unsigned int)bw->n; j += splitwidth) {
@@ -491,7 +491,7 @@ struct prep_object {
                 if (tcan_print)
                     fmt::print("// Getting bored. Trying {} x vectors\n", my_nx);
             }
-            serialize_threads(pi->m);
+            pi.m.serialize_threads(__FILE__, __LINE__);
 
             if (tcan_print)
                 fmt::print(
@@ -594,8 +594,8 @@ struct prep_object {
             if (A->is_zero(A->vec_item(my.v, i - my.i0)))
                 ret0.insert(i);
         }
-        SEVERAL_THREADS_PLAY_MPI_BEGIN(my.pi->wr[my.d]) {
-            parallelizing_info_experimental::allgather(ret0, *my.pi->wr[my.d].xwr);
+        SEVERAL_THREADS_PLAY_MPI_BEGIN(&my.pi.wr[my.d]) {
+            parallelizing_info_experimental::allgather(ret0, *my.pi.wr[my.d].xwr);
         }
         SEVERAL_THREADS_PLAY_MPI_END();
 
@@ -613,8 +613,8 @@ struct prep_object {
                 if (A->is_zero(A->vec_item(my.v, i - my.i0)))
                     ret1.insert(i);
             }
-            SEVERAL_THREADS_PLAY_MPI_BEGIN(my.pi->wr[my.d]) {
-                parallelizing_info_experimental::allgather(ret1, *my.pi->wr[my.d].xwr);
+            SEVERAL_THREADS_PLAY_MPI_BEGIN(&my.pi.wr[my.d]) {
+                parallelizing_info_experimental::allgather(ret1, *my.pi.wr[my.d].xwr);
             }
             SEVERAL_THREADS_PLAY_MPI_END();
 
@@ -697,11 +697,11 @@ struct prep_object {
         }
 
         /* Make sure computation is over for everyone ! */
-        serialize_threads(pi->m);
+        pi.m.serialize_threads(__FILE__, __LINE__);
 
         /* Now all threads and jobs must collectively reduce the zone
          * pointed to by xymats */
-        pi->m.allreduce(nullptr, xymats_not_striped.get(),
+        pi.m.allreduce(nullptr, xymats_not_striped.get(),
                      bw->m * prep_iterations * A_multiplex, mmt.pitype,
                      BWC_PI_SUM);
 
@@ -729,7 +729,7 @@ int main(int argc, char const * argv[])
     parallelizing_info::init_attribute_things();
 
     bw_common_decl_usage(pl);
-    parallelizing_info_decl_usage(pl);
+    parallelizing_info::declare_usage(pl);
     matmul_top_decl_usage(pl);
     /* declare local parameters and switches */
     pl.declare_usage("rhs",
@@ -742,7 +742,7 @@ int main(int argc, char const * argv[])
     pl.remove_key("interleaving");
 
     bw_common_interpret_parameters(bw, pl);
-    parallelizing_info_lookup_parameters(pl);
+    parallelizing_info::lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters: none here (so far). */
     if (mpz_cmp_ui(bw->p, 2) != 0)
