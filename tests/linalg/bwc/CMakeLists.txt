@@ -732,7 +732,8 @@ macro(create_test_spmv test_spmv_base)
                 TIMEOUT ${default_timeout}
                 NO_DEFAULT_RUN
                 TARGET_DEPENDENCIES
-                random_matrix spmv_test short_matmul mf_scan2 mf_bal bwc_matmul_gf2
+                ${deps}
+                random_matrix spmv_test short_matmul mf_scan2 mf_bal
                 SCRIPT
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-spmv.sh
