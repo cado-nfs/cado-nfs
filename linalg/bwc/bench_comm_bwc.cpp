@@ -28,13 +28,13 @@ static void * bench_comm_prog(parallelizing_info & pi, cxx_param_list & pl, void
 
     matmul_top_data mmt(A.get(), pi, pl, bw->dir);
 
-    serialize(pi.m);
+    pi.m.serialize(__FILE__, __LINE__);
     matmul_top_comm_bench(mmt, bw->dir);
 
     if (tcan_print) {
         printf("Done bench.\n");
     }
-    serialize(pi.m);
+    pi.m.serialize(__FILE__, __LINE__);
 
     return nullptr;
 }

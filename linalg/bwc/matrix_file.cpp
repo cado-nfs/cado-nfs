@@ -100,7 +100,7 @@ int matrix_file::lookup()/*{{{*/
     return 1;
 }/*}}}*/
 
-/* {{{ helpers around pi_bcast and friends.
+/* {{{ helpers around pi_comm::bcast and friends.
  * Have I coded this somewhere else already ? */
 template<typename T> struct bwc_pi_type
 { static pi_datatype * value; };
@@ -139,7 +139,7 @@ static void bcast(parallelizing_info & pi, std::string & s, unsigned int jrank, 
     pi.m.bcast(foo.data(), sz, BWC_PI_BYTE, jrank, trank);
     s = std::string(foo.begin(), foo.end());
 }
-template<typename T> static void allreduce(parallelizing_info & pi, T & s, pi_op_ptr op)
+template<typename T> static void allreduce(parallelizing_info & pi, T & s, pi_op const * op)
 {
     pi.m.allreduce(nullptr, &s, 1, bwc_pi_type<T>::value, op);
 }

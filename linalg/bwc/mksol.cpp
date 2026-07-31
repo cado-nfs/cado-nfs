@@ -117,11 +117,11 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     /* {{{ i/o stats.
      * let's be generous with interleaving protection. I don't want to be
      * bothered, really */
-    pi_interleaving_flip(pi);
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
+    pi.interleaving_flip();
     matmul_top_comm_bench(mmt, bw->dir);
-    pi_interleaving_flip(pi);
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
+    pi.interleaving_flip();
     /* }}} */
 
     /* {{{ Read all vi's */
@@ -158,7 +158,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     }
     ASSERT_ALWAYS(bw->end == INT_MAX || bw->end % bw->interval == 0);
 
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
     if (bw->checkpoint_precious) {
         if (tcan_print) {
             fmt::print("As per interval={} checkpoint_precious={}, we'll load vectors every {} iterations, and print timings every {} iterations\n",
@@ -170,7 +170,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     } else {
         bw->checkpoint_precious = bw->interval;
     }
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
 
     /* {{{ Prepare temp space for F coefficients */
     /* F plays the role of a right-hand-side in mksol. Vector iterates
@@ -247,8 +247,8 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     /* }}} */
 
     unsigned int bw_end_copy = bw->end; /* avoid race conditions w/ interleaving */
-    pi_interleaving_flip(pi);
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
+    pi.interleaving_flip();
 
     for(unsigned int s = bw->start ; s < bw_end_copy ; s += bw->checkpoint_precious ) {
         const bwc_iteration_range nrange { s, s + bw->checkpoint_precious };
@@ -409,7 +409,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
                  * computations won't be checked.
                  */
 
-                pi_interleaving_flip(pi);
+                pi.interleaving_flip();
 
                 size_t const eblock = mmt_my_own_size_in_items(ymy[0]);
 
@@ -466,8 +466,8 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
 
                 pi.m.serialize(__FILE__, __LINE__);
                 /* See remark above. */
-                pi_interleaving_flip(pi);
-                pi_interleaving_flip(pi);
+                pi.interleaving_flip();
+                pi.interleaving_flip();
 
             // reached s + bw->interval. Count our time on cpu, and compute the sum.
             timing_disp_collective_oneline(pi, timing, s + sx - s0, tcan_print, "mksol");

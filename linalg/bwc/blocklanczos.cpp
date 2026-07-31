@@ -284,7 +284,7 @@ void blstate::save_result( unsigned int iter)
     /* save V*M as well because it's conceivably useful
      * XXX TODO: save in the other direction !
      *
-     * pi_file_open should not have the "inner" flag. This should be a
+     * pi_file_handle::open should not have the "inner" flag. This should be a
      * property of the _write and _read calls. But before we do that, we
      * should clean up the mess done in mksol & gather.
      */

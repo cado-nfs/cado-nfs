@@ -13,7 +13,7 @@
    fun:hwloc_topology_init
    fun:_ZN9cpubinderC1ERSo
    fun:cpubinding_get_info
-   fun:pi_init_mpilevel
+   fun:_ZN18parallelizing_info13init_mpilevelERN4cado6params14cxx_param_listE
 }
 
 {
@@ -25,8 +25,8 @@
    fun:hwloc_topology_init
    fun:cpubinder
    fun:cpubinding_get_info
-   fun:pi_init_mpilevel
-   fun:pi_go_inner_not_interleaved
+   fun:_ZN18parallelizing_info13init_mpilevelERN4cado6params14cxx_param_listE
+   ...
 }
 {
    hwloc_again
@@ -49,8 +49,7 @@
    ...
    fun:cpubinder
    fun:cpubinding_get_info
-   fun:pi_init_mpilevel
-   fun:pi_go_inner_not_interleaved
+   fun:_ZN18parallelizing_info13init_mpilevelERN4cado6params14cxx_param_listE
    ...
 }
 {

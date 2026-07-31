@@ -291,7 +291,7 @@ struct prep_object {
         // Doing the ``hello world'' test is a very good way of testing the
         // global mpi/pthreads setup. So despite its apparent irrelevance, I
         // suggest leaving it here as a cheap sanity check.
-        pi_hello(pi);
+        pi.hello();
 
         // I don't think multi-matrix was ever tested beyond the case p==2.
         ASSERT_ALWAYS(char2 || mmt.matrices.size() == 1);

@@ -150,7 +150,7 @@ void matmul_top_mul(matmul_top_data & mmt, mmt_vec * v, struct timing_data * tt)
 
         timing_next_timer(tt);
         /* now measuring jitter */
-        pi_interleaving_flip(mmt.pi);
+        mmt.pi.interleaving_flip();
         mmt.pi.m.serialize(__FILE__, __LINE__);
         timing_next_timer(tt);
 
@@ -163,7 +163,7 @@ void matmul_top_mul(matmul_top_data & mmt, mmt_vec * v, struct timing_data * tt)
         }
         timing_next_timer(tt);
         /* now measuring jitter */
-        pi_interleaving_flip(mmt.pi);
+        mmt.pi.interleaving_flip();
         mmt.pi.m.serialize(__FILE__, __LINE__);
 
         timing_next_timer(tt);
@@ -1008,7 +1008,7 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
      * bal_tmp.colperm, but beyond that, the header part will be wrong
      * at non-root nodes.
      */
-    auto pbal_tmp = pi_shared_object<balancing>(mmt.pi.m);
+    auto pbal_tmp = mmt.pi.m.make_shared<balancing>();
     balancing & bal_tmp = *pbal_tmp;
 
     if (mmt.pi.m.jrank == 0 && mmt.pi.m.trank == 0) {
@@ -1197,14 +1197,14 @@ matmul_top_data::matmul_top_data(
 
             if (mmt.pi.interleaved->idx == 0) {
                 matmul_top_read_submatrix(mmt, i, pl, optimized_direction);
-                pi_store_generic(mmt.pi, MMT_MM_MAGIC_KEY + i, mmt.pi.m.trank, &Mloc);
+                mmt.pi.store_generic(MMT_MM_MAGIC_KEY + i, mmt.pi.m.trank, &Mloc);
             } else {
                 /* This is unholy, I'm ashamed.  It's a mine field. I know.
                  *
                  * I use a shared_ptr to try to make things relatively
                  * safe. But I'm not proud of it, really.
                  */
-                auto * pal = (matmul_top_matrix *) pi_load_generic(mmt.pi, MMT_MM_MAGIC_KEY + i, mmt.pi.m.trank);
+                auto * pal = (matmul_top_matrix *) mmt.pi.load_generic(MMT_MM_MAGIC_KEY + i, mmt.pi.m.trank);
                 ASSERT_ALWAYS(pal != nullptr);
                 Mloc.mm = pal->mm;
             }
@@ -1231,7 +1231,7 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
     std::string const myline = fmt::format("{} {}",
             pi.nodename, Mloc.mm->cachefile_name);
 
-    pi_shared_array<char const *> const tlines(pi.m, pi.m.ncores);
+    auto const tlines = pi.m.make_shared_array<char const *>(pi.m.ncores);
 
     tlines[pi.m.trank] = myline.c_str();
     pi.m.serialize_threads(__FILE__, __LINE__);
@@ -1239,7 +1239,7 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
     /* Also, just out of curiosity, try to see what we have currently */
     struct stat st[1];
 
-    pi_shared_array<int> const has_cache(pi.m, pi.m.totalsize);
+    auto const has_cache = pi.m.make_shared_array<int>(pi.m.totalsize);
 
     int const rc = stat(Mloc.mm->cachefile_name.c_str(), st);
     unsigned int const mynode = pi.m.ncores * pi.m.jrank;

@@ -183,11 +183,11 @@ static void * krylov_prog(parallelizing_info & pi, cxx_param_list & pl, void * a
 
     /* let's be generous with interleaving protection. I don't want to be
      * bothered, really */
-    pi_interleaving_flip(pi);
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
+    pi.interleaving_flip();
     matmul_top_comm_bench(mmt, bw->dir);
-    pi_interleaving_flip(pi);
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
+    pi.interleaving_flip();
 
     /* I have absolutely no idea why, but the two --apparently useless--
      * serializing calls around the next block seem to have a beneficial
@@ -274,8 +274,8 @@ static void * krylov_prog(parallelizing_info & pi, cxx_param_list & pl, void * a
         timing_set_timer_name(timing, 4*i+3, "comm-wait%zu", i);
     }
 
-    pi_interleaving_flip(pi);
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
+    pi.interleaving_flip();
 
     for(int s = bw->start ; s < bw->end ; s += bw->interval ) {
 
@@ -286,13 +286,13 @@ static void * krylov_prog(parallelizing_info & pi, cxx_param_list & pl, void * a
          * MPI calls (well, it's *not* free of MPI calls, to start
          * with...).
          */
-        pi_interleaving_flip(pi);
-        pi_interleaving_flip(pi);
+        pi.interleaving_flip();
+        pi.interleaving_flip();
         mmt_vec_twist(mmt, ymy[0]);
 
         A->vec_set_zero(xymats, bw->m*bw->interval);
         pi.m.serialize(__FILE__, __LINE__);
-        pi_interleaving_flip(pi);
+        pi.interleaving_flip();
         for(int i = 0 ; i < bw->interval ; i++) {
             /* Compute the product by x */
             x_dotprod(A->vec_subvec(xymats, i * bw->m),
@@ -305,8 +305,8 @@ static void * krylov_prog(parallelizing_info & pi, cxx_param_list & pl, void * a
         pi.m.serialize(__FILE__, __LINE__);
 
         /* See remark above. */
-        pi_interleaving_flip(pi);
-        pi_interleaving_flip(pi);
+        pi.interleaving_flip();
+        pi.interleaving_flip();
 
         if (C && !C->verify(ymy[0], gxvecs, nx)) {
             fmt::print("Failed check at iteration {}\n",

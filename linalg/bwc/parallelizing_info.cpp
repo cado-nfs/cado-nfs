@@ -12,6 +12,7 @@
 #include <cstring>
 
 #include <array>
+#include <mutex>
 #include <thread>
 #include <set>
 #include <map>
@@ -92,7 +93,7 @@ static void * pi_go_call_thread(
         cxx_param_list & pl,
         Args&&... args)
 {
-    pi_interleaving_enter(p);
+    p.interleaving_enter();
 #if defined(HAVE_HWLOC)
     cpubinding_do_pinning(p.cpubinding_info,
             int(p.wr[1].trank),
@@ -115,8 +116,8 @@ static void * pi_go_call_thread(
         p.wr[1].log_clear();
     }
 
-    pi_interleaving_flip(p);
-    pi_interleaving_leave(p);
+    p.interleaving_flip();
+    p.interleaving_leave();
     return ret;
 }
 
@@ -143,16 +144,16 @@ typedef void * (*pthread_callee_t)(void*);
    }
    */
 
-void grid_print(parallelizing_info & pi, char * buf, size_t siz, int print)
+void parallelizing_info::grid_print(char * buf, size_t siz, int print)
 {
     unsigned long maxsize = siz;
-    pi.m.allreduce(nullptr, &maxsize, 1, BWC_PI_UNSIGNED_LONG, BWC_PI_MAX);
+    m.allreduce(nullptr, &maxsize, 1, BWC_PI_UNSIGNED_LONG, BWC_PI_MAX);
 
     // TODO: rewrite
-    char * strings = (char *) malloc(pi.m.totalsize * maxsize);
-    memset(strings, 0, pi.m.totalsize * maxsize);
+    char * strings = (char *) malloc(m.totalsize * maxsize);
+    memset(strings, 0, m.totalsize * maxsize);
 
-    int const me = pi.m.jrank * pi.m.ncores + pi.m.trank;
+    int const me = m.jrank * m.ncores + m.trank;
 
     /* instead of doing memcpy, we align the stuff. */
     char * fmt;
@@ -160,20 +161,20 @@ void grid_print(parallelizing_info & pi, char * buf, size_t siz, int print)
     ASSERT_ALWAYS(rc >= 0);
     snprintf(strings + me * maxsize, maxsize, fmt, buf);
     free(fmt);
-    pi.m.allreduce(nullptr, strings, pi.m.totalsize * maxsize, BWC_PI_BYTE, BWC_PI_BXOR);
+    m.allreduce(nullptr, strings, m.totalsize * maxsize, BWC_PI_BYTE, BWC_PI_BXOR);
 
     char * ptr = strings;
 
-    pi.m.serialize(__FILE__, __LINE__);
+    m.serialize(__FILE__, __LINE__);
 
     if (print) {
         /* There's also the nullptr byte counted in siz. So that makes one
          * less.
          */
-        unsigned int const nj0 = pi.wr[0].njobs;
-        unsigned int const nj1 = pi.wr[1].njobs;
-        unsigned int const nt0 = pi.wr[0].ncores;
-        unsigned int const nt1 = pi.wr[1].ncores;
+        unsigned int const nj0 = wr[0].njobs;
+        unsigned int const nj1 = wr[1].njobs;
+        unsigned int const nt0 = wr[0].ncores;
+        unsigned int const nt1 = wr[1].ncores;
         print_several(nj0, nt0, '-', '+', maxsize-1);
         for(unsigned int j1 = 0 ; j1 < nj1 ; j1++) {
             for(unsigned int t1 = 0 ; t1 < nt1 ; t1++) {
@@ -190,7 +191,7 @@ void grid_print(parallelizing_info & pi, char * buf, size_t siz, int print)
             print_several(nj0, nt0, '-', '+', maxsize-1);
         }
     }
-    pi.m.serialize(__FILE__, __LINE__);
+    m.serialize(__FILE__, __LINE__);
     free(strings);
 }
 
@@ -787,17 +788,17 @@ static void pi_go_inner_interleaved(
 }
 
 /* TODO: rewrite! */
-void pi_store_generic(parallelizing_info & pi, unsigned long key, unsigned long who, void * value)
+void parallelizing_info::store_generic(unsigned long key, unsigned long who, void * value)
 {
-    const std::lock_guard<std::mutex> dummy(pi.dict->mutex());
-    pi.dict->insert(std::make_pair(std::make_pair(key, who), value));
+    const std::scoped_lock dummy(dict->mutex());
+    (*dict)[pi_dictionary::key_type {key, who}] = value;
 }
 
-void * pi_load_generic(parallelizing_info & pi, unsigned long key, unsigned long who)
+void * parallelizing_info::load_generic(unsigned long key, unsigned long who)
 {
-    const std::lock_guard<std::mutex> dummy(pi.dict->mutex());
-    auto it = pi.dict->find(std::make_pair(key, who));
-    if (it == pi.dict->end())
+    const std::scoped_lock dummy(dict->mutex());
+    auto it = dict->find(std::make_pair(key, who));
+    if (it == dict->end())
         return nullptr;
     else
         return it->second;
@@ -881,7 +882,7 @@ void pi_comm::log_op(const char * fmt, ...)
 
     ASSERT_ALWAYS(lb->next < PI_LOG_BOOK_ENTRIES);
 
-    struct pi_log_entry * e = &(lb->t[lb->next]);
+    auto * e = &(lb->t[lb->next]);
 
     gettimeofday(e->tv, nullptr);
 
@@ -916,7 +917,7 @@ static void pi_log_print_backend(pi_comm const & wr, const char * myname, char *
     int rc;
 
     for(int i = i0 ; h-- ; ) {
-        struct pi_log_entry * e = &(lb->t[i]);
+        auto * e = &(lb->t[i]);
 
         ASSERT_ALWAYS(*n < alloc);
         rc = asprintf(&(strings[*n]), "%" PRIu64 ".%06u (%s) %s %s", 
@@ -1010,16 +1011,16 @@ pi_datatype * BWC_PI_SIZE_T = pi_predefined_types + 4 + (sizeof(size_t) == sizeo
 
 
 
-struct pi_op_s BWC_PI_MIN[1] { MPI_MIN };
-struct pi_op_s BWC_PI_MAX[1] { MPI_MAX };
+pi_op BWC_PI_MIN[1] { { MPI_MIN } };
+pi_op BWC_PI_MAX[1] { { MPI_MAX } };
 
 static void pi_dispatch_op_add_stock(arith_generic::elt const *, arith_generic::elt *, int *, MPI_Datatype *);
 static void pi_dispatch_op_add_custom(arith_generic::elt const *, arith_generic::elt *, size_t, pi_datatype *);
 
-struct pi_op_s BWC_PI_SUM[1]  { MPI_SUM }; // see pi_init_attribute_things
-struct pi_op_s BWC_PI_BXOR[1] { MPI_BXOR };
-struct pi_op_s BWC_PI_BAND[1] { MPI_BAND };
-struct pi_op_s BWC_PI_BOR[1]  { MPI_BOR };
+pi_op BWC_PI_SUM[1]  { { MPI_SUM } }; // see parallelizing_info::init_attribute_things
+pi_op BWC_PI_BXOR[1] { { MPI_BXOR } };
+pi_op BWC_PI_BAND[1] { { MPI_BAND } };
+pi_op BWC_PI_BOR[1]  { { MPI_BOR } };
 
 struct reduction_function {
     MPI_Datatype datatype;
@@ -1147,7 +1148,7 @@ void parallelizing_info::init_attribute_things()
     BWC_PI_SUM->f_stock = pi_dispatch_op_add_stock;
     BWC_PI_SUM->f_custom = pi_dispatch_op_add_custom;
     MPI_Type_create_keyval(MPI_TYPE_DUP_FN, MPI_TYPE_NULL_DELETE_FN, &pi_mpi_attribute_key, nullptr);
-    MPI_Op_create((pi_op_s::MPI_Op_t) BWC_PI_SUM->f_stock, 1, &BWC_PI_SUM->custom);
+    MPI_Op_create((pi_op::MPI_Op_t) BWC_PI_SUM->f_stock, 1, &BWC_PI_SUM->custom);
 }
 
 /* XXX must be called in single threaded context  */
@@ -1196,7 +1197,7 @@ arith_generic * pi_arith_datatype_get_abase(MPI_Datatype datatype)
  * important that we find the operation to perform by ourselves
  */
 static void pi_reduce_local(void *inbuf, void *inoutbuf, size_t count,
-                    pi_datatype * datatype, pi_op_ptr op)
+                    pi_datatype * datatype, pi_op const * op)
 {
     if (datatype->abase) {
         if (op->f_custom) {
@@ -1213,7 +1214,7 @@ static void pi_reduce_local(void *inbuf, void *inoutbuf, size_t count,
 
 /* }}} */
 
-/* {{{ collective operations with pi_comm_ptrs
+/* {{{ collective operations with pi_comm
  *
  * we provide a calling interface which is similar to mpi.
  *
@@ -1223,7 +1224,7 @@ static void pi_reduce_local(void *inbuf, void *inoutbuf, size_t count,
  *
  * We define the following functions:
  *
- *      {pi,pi_thread}_{bcast,allreduce,data_eq}
+ *      pi_comm::{,thread_}{bcast,allreduce,data_eq}
  *
  * where data_eq is a collective operation returning true or false
  * depending on whether the pointed data area is consistent across all
@@ -1240,12 +1241,12 @@ static void pi_reduce_local(void *inbuf, void *inoutbuf, size_t count,
  *
  * In a way that is similar to what is done in matmul_top_comm.cpp, we
  * provide a layer of protection around our pi_{bcast,allreduce,data_eq}
- * functions (of course, the pi_thread_* functiona are fine). These work
+ * functions (of course, the pi_comm::thread_* functiona are fine). These work
  * by checking the orthogonal communicator wr->xwr, if there is one.
  */
 
 struct pi_collective_arg {
-    pi_comm_ptr wr;
+    pi_comm * wr;
     /* this pointer is written from all threads. Its contents are
      * meaningful only for the root thread */
     void * ptr;
@@ -1253,7 +1254,7 @@ struct pi_collective_arg {
     pi_datatype * datatype;
     size_t count;
     /* last two only for reduction */
-    pi_op_ptr op;
+    pi_op const * op;
     void * dptr;
 };
 
@@ -1375,7 +1376,7 @@ static void pi_thread_allreduce_out(int s MAYBE_UNUSED, struct pi_collective_arg
 
 /* ptr == dptr is supported */
 void pi_comm::thread_allreduce(void *ptr, void *dptr, size_t count,
-                pi_datatype * datatype, pi_op_ptr op)
+                pi_datatype * datatype, pi_op const * op)
 {
     /* this code is buggy in the not-in-place case. let's fall back
      * to the in-place situation unconditionally.
@@ -1409,7 +1410,7 @@ void pi_comm::thread_allreduce(void *ptr, void *dptr, size_t count,
  * nullptr at sendbuf means in-place.
  */
 void pi_comm::allreduce(void *sendbuf, void *recvbuf, size_t count,
-        pi_datatype * datatype, pi_op_ptr op)
+        pi_datatype * datatype, pi_op const * op)
 {
     ASSERT_ALWAYS(count <= (size_t) INT_MAX);
     thread_allreduce(sendbuf, recvbuf, count, datatype, op);
@@ -1438,7 +1439,7 @@ void pi_comm::allreduce(void *sendbuf, void *recvbuf, size_t count,
 }
 
 
-/* should we have a pi_thread_allgather ? */
+/* should we have a pi_comm::thread_allgather ? */
 
 void pi_comm::allgather(void * sendbuf,
         size_t sendcount, pi_datatype * sendtype,
@@ -1638,14 +1639,14 @@ static void say_hello(pi_comm & w, parallelizing_info & pi MAYBE_UNUSED)
     }
 }
 
-void pi_hello(parallelizing_info & pi)
+void parallelizing_info::hello()
 {
-    if (pi.m.serialize(__FILE__, __LINE__)) {
+    if (m.serialize(__FILE__, __LINE__)) {
 #ifdef  CONCURRENCY_DEBUG
         printf("Doing hello world loop\n");
 #endif
     }
-    say_hello(pi.m, pi);
+    say_hello(m, *this);
 
     // before changing the grain of the barriers, we have to serialize at
     // the thread level (i.e. wait for the mpi serialization calls to
@@ -1655,34 +1656,34 @@ void pi_hello(parallelizing_info & pi)
     // Rule is: never let mpi-level synchronisations on a communicator
     // wander outside an execution period for which all threads sharing
     // this communicator are doing the same.
-    for(unsigned int i = 0 ; i < pi.wr[0].totalsize ; i++) {
-        pi.m.serialize(__FILE__, __LINE__);
-        pi.m.serialize_threads(__FILE__, __LINE__);
-        if (i == pi.wr[0].jrank * pi.wr[0].ncores + pi.wr[0].trank) {
-            say_hello(pi.wr[1], pi);
+    for(unsigned int i = 0 ; i < wr[0].totalsize ; i++) {
+        m.serialize(__FILE__, __LINE__);
+        m.serialize_threads(__FILE__, __LINE__);
+        if (i == wr[0].jrank * wr[0].ncores + wr[0].trank) {
+            say_hello(wr[1], *this);
         }
     }
 
-    for(unsigned int i = 0 ; i < pi.wr[1].totalsize ; i++) {
-        pi.m.serialize(__FILE__, __LINE__);
-        pi.m.serialize_threads(__FILE__, __LINE__);
-        if (i == pi.wr[1].jrank * pi.wr[1].ncores + pi.wr[1].trank) {
-            say_hello(pi.wr[0], pi);
+    for(unsigned int i = 0 ; i < wr[1].totalsize ; i++) {
+        m.serialize(__FILE__, __LINE__);
+        m.serialize_threads(__FILE__, __LINE__);
+        if (i == wr[1].jrank * wr[1].ncores + wr[1].trank) {
+            say_hello(wr[0], *this);
         }
     }
 
-    if (pi.m.serialize(__FILE__, __LINE__)) {
+    if (m.serialize(__FILE__, __LINE__)) {
 #ifdef CONCURRENCY_DEBUG
         printf("OK: Finished hello world loop\n");
 #endif
     }
-    pi.m.serialize(__FILE__, __LINE__);
+    m.serialize(__FILE__, __LINE__);
 }
 /*{{{ new i/o layer */
-/* Open a file handle on the leader node. The two pi_comm_ptr's
+/* Open a file handle on the leader node. The two pi_comm's
  * represent the inner and outer levels; they're mostly unused for this
- * function call, but requested for consistency with the pi_file_read and
- * pi_file_write calls.
+ * function call, but requested for consistency with the pi_file_handle::read and
+ * pi_file_handle::write calls.
  *
  * Return a globally consistent boolean indicating whether the operation
  * was successful (1) or not (0). In the latter case, set errno
@@ -1743,21 +1744,21 @@ static int area_is_zero(const void * src, ptrdiff_t offset0, ptrdiff_t offset1)
 }
 
 /*
-static ssize_t pi_file_write_leader(pi_file_handle_ptr f, void * buf, size_t size)
+static ssize_t pi_file_handle::write_leader(void * buf, size_t size)
 {
     unsigned long ret;
-    if (f->pi->m->jrank == 0 && f->pi->m->trank == 0)
-        ret = fwrite(buf, 1, size, f->f);
-    f->pi->m.bcast(&ret, 1, BWC_PI_UNSIGNED_LONG, 0, 0);
+    if (pi->m->jrank == 0 && pi->m->trank == 0)
+        ret = fwrite(buf, 1, size, f);
+    pi->m.bcast(&ret, 1, BWC_PI_UNSIGNED_LONG, 0, 0);
     return (ssize_t) ret;
 }
 
-static ssize_t pi_file_read_leader(pi_file_handle_ptr f, void * buf, size_t size)
+static ssize_t pi_file_handle::read_leader(void * buf, size_t size)
 {
     unsigned long ret;
-    if (f->pi->m->jrank == 0 && f->pi->m->trank == 0)
-        ret = fread(buf, 1, size, f->f);
-    f->pi->m.bcast(&ret, 1, BWC_PI_UNSIGNED_LONG, 0, 0);
+    if (pi->m->jrank == 0 && pi->m->trank == 0)
+        ret = fread(buf, 1, size, f);
+    pi->m.bcast(&ret, 1, BWC_PI_UNSIGNED_LONG, 0, 0);
     return (ssize_t) ret;
 }
 */
@@ -1990,27 +1991,27 @@ size_t pi_file_handle::read_chunk(void * buf, size_t size, size_t sizeondisk, si
 }
 /*}}}*/
 
-void pi_interleaving_flip(parallelizing_info & pi)
+void parallelizing_info::interleaving_flip()
 {
-    if (!pi.interleaved)
+    if (!interleaved)
         return;
-    my_pthread_barrier_wait(pi.interleaved->b);
+    my_pthread_barrier_wait(interleaved->b);
 }
 
-void pi_interleaving_enter(parallelizing_info & pi)
+void parallelizing_info::interleaving_enter()
 {
-    if (!pi.interleaved || pi.interleaved->idx == 0)
+    if (!interleaved || interleaved->idx == 0)
         return;
 
-    my_pthread_barrier_wait(pi.interleaved->b);
+    my_pthread_barrier_wait(interleaved->b);
 }
 
-void pi_interleaving_leave(parallelizing_info & pi)
+void parallelizing_info::interleaving_leave()
 {
-    if (!pi.interleaved || pi.interleaved->idx == 1)
+    if (!interleaved || interleaved->idx == 1)
         return;
 
-    my_pthread_barrier_wait(pi.interleaved->b);
+    my_pthread_barrier_wait(interleaved->b);
 }
 
 #if 0
@@ -2120,41 +2121,4 @@ void parallelizing_info_experimental::allgather(std::set<unsigned int>& v, pi_co
     allgather(w, wr);
     v.clear();
     v.insert(w.begin(), w.end());
-}
-
-/* C++ member functions for parallelizing_info and pi_file_handle */
-
-void parallelizing_info::hello()
-{
-    pi_hello(*this);
-}
-
-void parallelizing_info::grid_print(char * buf, size_t siz, int print)
-{
-    ::grid_print(*this, buf, siz, print);
-}
-
-void parallelizing_info::store_generic(unsigned long k1, unsigned long k2, void * val)
-{
-    pi_store_generic(*this, k1, k2, val);
-}
-
-void * parallelizing_info::load_generic(unsigned long k1, unsigned long k2)
-{
-    return pi_load_generic(*this, k1, k2);
-}
-
-void parallelizing_info::interleaving_flip()
-{
-    pi_interleaving_flip(*this);
-}
-
-void parallelizing_info::interleaving_enter()
-{
-    pi_interleaving_enter(*this);
-}
-
-void parallelizing_info::interleaving_leave()
-{
-    pi_interleaving_leave(*this);
 }

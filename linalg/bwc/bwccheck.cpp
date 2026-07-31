@@ -590,11 +590,11 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
 
         timing_check(pi, timing, s+i+1, tcan_print);
     }
-    serialize(pi->m);
+    pi->m.serialize(__FILE__, __LINE__);
 
     /* See remark above. */
-    pi_interleaving_flip(pi);
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
+    pi.interleaving_flip();
 
     if (!bw->skip_online_checks) {
         /* Last dot product. This must cancel ! */
@@ -610,9 +610,9 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
     mmt_vec_untwist(mmt, ymy[0]);
 
     /* Now (and only now) collect the xy matrices */
-    pi_allreduce(nullptr, xymats,
+    pi.m.allreduce(nullptr, xymats,
             bw->m * bw->interval,
-            mmt->pitype, BWC_PI_SUM, pi->m);
+            mmt->pitype, BWC_PI_SUM);
 
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
         char * tmp;
@@ -635,7 +635,7 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
     if (pi->m->trank == 0 && pi->m->jrank == 0)
         keep_rolling_checkpoints(v_name, s + bw->interval);
 
-    serialize(pi->m);
+    pi->m.serialize(__FILE__, __LINE__);
 
     // reached s + bw->interval. Count our time on cpu, and compute the sum.
     timing_disp_collective_oneline(pi, timing, s + bw->interval, tcan_print, "check");

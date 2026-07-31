@@ -673,9 +673,9 @@ class parasite_fixer {/*{{{*/
             }
         }
 
-        pi_allreduce(nullptr, matrix,
+        pi.m.allreduce(nullptr, matrix,
                 rows.size() * cols.size(),
-                mmt.pitype, BWC_PI_SUM, pi.m);
+                mmt.pitype, BWC_PI_SUM);
     }/*}}}*/
 #endif
 

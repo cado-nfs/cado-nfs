@@ -454,7 +454,7 @@ static void mmt_own_vec_clear_complement(matmul_top_data & mmt, int d)
     mmt_comm_ptr mdst = mmt.wr[d];
     pi_comm & pidst = mmt.pi.wr[d];
     if (mdst->v.flags & THREAD_SHARED_VECTOR)
-        serialize_threads(pidst);
+        pidst.serialize_threads(__FILE__, __LINE__);
     if (pidst->trank == 0 || !(mdst->v.flags & THREAD_SHARED_VECTOR)) {
         if (pidst->jrank == 0 && pidst->trank == 0) {
             /* ok, we keep the data */
@@ -515,7 +515,7 @@ int mmt_vec_load(mmt_vec & v, std::string const & filename_pattern, unsigned int
         }
         pi_file_handle f(v.pi);
         int const ok = f.open(v.d, filename, "rb");
-        /* "ok" is globally consistent after pi_file_open */
+        /* "ok" is globally consistent after pi_file_handle::open */
         if (!ok) {
             if (v.pi.m.trank == 0 && v.pi.m.jrank == 0) {
                 fmt::print(stderr, "ERROR: failed to load {}: {}\n",
@@ -526,7 +526,7 @@ int mmt_vec_load(mmt_vec & v, std::string const & filename_pattern, unsigned int
             size_t const s = f.read_chunk(mychunk, mysize, sizeondisk,
                     bigstride, b * smallstride, (b+1) * smallstride);
             int const ok = s == sizeondisk / Adisk_multiplex;
-            /* "ok" is globally consistent after pi_file_read_chunk */
+            /* "ok" is globally consistent after pi_file_handle::read_chunk */
             if (!ok) {
                 if (v.pi.m.trank == 0 && v.pi.m.jrank == 0) {
                     fmt::print(stderr, "ERROR: failed to load {}: short read, {}\n", filename, errno ? strerror(errno) : "no error reported via errno");
@@ -588,7 +588,7 @@ int mmt_vec_save(mmt_vec & v, std::string const & filename_pattern, unsigned int
         }
         pi_file_handle f(v.pi);
         int ok = f.open(v.d, tmpfilename, "wb");
-        /* "ok" is globally consistent after pi_file_open */
+        /* "ok" is globally consistent after pi_file_handle::open */
         if (!ok) {
             if (v.pi.m.trank == 0 && v.pi.m.jrank == 0) {
                 fmt::print(stderr, "WARNING: failed to save {}: {}\n", filename, strerror(errno));
@@ -601,7 +601,7 @@ int mmt_vec_save(mmt_vec & v, std::string const & filename_pattern, unsigned int
                     bigstride, b * smallstride, (b+1) * smallstride);
             v.pi.m.serialize_threads(__FILE__, __LINE__);
             ok = s == sizeondisk / Adisk_multiplex;
-            /* "ok" is globally consistent after pi_file_write_chunk */
+            /* "ok" is globally consistent after pi_file_handle::write_chunk */
             if (!ok && v.pi.m.trank == 0 && v.pi.m.jrank == 0) {
                 fmt::print(stderr, "ERROR: failed to save {}: short write, {}\n", filename, errno ? strerror(errno) : "no error reported via errno");
             }
@@ -729,7 +729,7 @@ unsigned long mmt_vec_hamming_weight(mmt_vec const & y) {
     unsigned long w = y.abase->vec_simd_hamming_weight(y.v, y.i1 - y.i0);
     /* all threads / cores in wiring wr[y.d] share the same data and
      * thus deduce the same count */
-    /* 20240925, bug #30083: added protection (inside pi_allreduce)
+    /* 20240925, bug #30083: added protection (inside pi_comm::allreduce)
      * across wr[y.d] !!!  */
     y.pi.wr[!y.d].allreduce(nullptr, &w,
             1, BWC_PI_UNSIGNED_LONG, BWC_PI_SUM);

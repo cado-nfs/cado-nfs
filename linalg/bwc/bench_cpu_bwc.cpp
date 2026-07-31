@@ -55,7 +55,7 @@ static void * bench_cpu_prog(parallelizing_info & pi, cxx_param_list & pl, void 
      * impact on the SEGv's we see every now and then with --mca
      * mpi_leave_pinned 1
      */
-    serialize(pi.m);
+    pi.m.serialize(__FILE__, __LINE__);
     {
         cxx_gmp_randstate rstate;
 
@@ -64,9 +64,9 @@ static void * bench_cpu_prog(parallelizing_info & pi, cxx_param_list & pl, void 
         mmt_vec_set_random_inconsistent(ymy[0], rstate);
         mmt_vec_truncate(mmt, ymy[0]);
     }
-    serialize(pi.m);
+    pi.m.serialize(__FILE__, __LINE__);
 
-    serialize_threads(pi.m);
+    pi.m.serialize_threads(__FILE__, __LINE__);
 
 
     for(int streak = 1 ; streak < bw->interval ; streak <<= 1) {
@@ -74,7 +74,7 @@ static void * bench_cpu_prog(parallelizing_info & pi, cxx_param_list & pl, void 
             printf("Measuring timings for %d multiplications (cpu-bound)\n", streak);
         mmt_vec_twist(mmt, ymy[0]);
 
-        serialize(pi.m);
+        pi.m.serialize(__FILE__, __LINE__);
         double timers[3] = {0,};
         timers[2] = -wct_seconds();
         thread_seconds_user_sys(timers);
@@ -104,7 +104,7 @@ static void * bench_cpu_prog(parallelizing_info & pi, cxx_param_list & pl, void 
         }
         thread_seconds_user_sys(timers);
         timers[2] += wct_seconds();
-        serialize(pi.m);
+        pi.m.serialize(__FILE__, __LINE__);
 
         char buf[40];
         snprintf(buf, 40, "%.2f@%.1f%% ", timers[2]/streak, 100.0*(timers[0]+timers[1])/timers[2]);

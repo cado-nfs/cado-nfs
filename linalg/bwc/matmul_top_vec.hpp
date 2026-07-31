@@ -36,7 +36,7 @@ struct mmt_vec {
     /* pointers to other vectors are held in shared memory areas (shared
      * among cores, of course)
      */
-    using pointer_to_others = pi_shared_array<mmt_vec *>;
+    using pointer_to_others = parallelizing_info::shared_array<mmt_vec *>;
 
     /* pi->wr[d]->ncores siblings ; only in case all cores in the
      * communicator have their own data area v */

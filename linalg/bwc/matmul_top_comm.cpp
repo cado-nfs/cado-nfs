@@ -572,7 +572,7 @@ static void mmt_vec_reduce_inner(mmt_vec & v)
         SEVERAL_THREADS_PLAY_MPI_END();
 #elif RS_CHOICE == RS_CHOICE_STOCK_IRSBLOCK
         void * dptr = v.sibling(0)->v;
-        auto req = pi_shared_array<MPI_Request>(xr, xr.ncores);
+        auto req = xr.shared_array<MPI_Request>(xr.ncores);
         SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
             int err = MPI_Ireduce_scatter_block(dptr, dptr,
                     (v.i1 - v.i0) / wr.njobs,
@@ -591,7 +591,7 @@ static void mmt_vec_reduce_inner(mmt_vec & v)
         }
 #elif RS_CHOICE == RS_CHOICE_STOCK_IRS
         void * dptr = v.sibling(0)->v;
-        auto req = pi_shared_array<MPI_Request>(xr, xr.ncores);
+        auto req = xr.shared_array<MPI_Request>(xr.ncores);
         int * rc = malloc(wr.njobs * sizeof(int));
         for(unsigned int k = 0 ; k < wr.njobs ; k++)
             rc[k] = (v.i1 - v.i0) / wr.njobs;
@@ -624,7 +624,7 @@ static void mmt_vec_reduce_inner(mmt_vec & v)
         SEVERAL_THREADS_PLAY_MPI_END();
 #elif RS_CHOICE == RS_CHOICE_MINE_PARALLEL
 #if 0
-        auto vs = pi_shared_array<mmt_vec *>(xr, xr.ncores);
+        auto vs = xr.shared_array<mmt_vec *>(xr.ncores);
         vs[xr.trank] = &v;
         xr.serialize_threads(__FILE__, __LINE__);
         alternative_reduce_scatter_parallel(xr, vs.get());

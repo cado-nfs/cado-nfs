@@ -433,7 +433,6 @@ linalg/bwc/README.OAR
 linalg/bwc/README.OpenMPI
 linalg/bwc/README.TORQUE
 linalg/bwc/README.gfp
-linalg/bwc/TODO
 linalg/bwc/abase_proxy.hpp
 linalg/bwc/acollect.cpp
 linalg/bwc/arith-concrete-base.hpp

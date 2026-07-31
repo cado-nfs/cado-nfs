@@ -310,7 +310,7 @@ matrix_u32 balancing_get_matrix_u32(
 
     matrix_u32 m;
 
-    pi_shared_array<matrix_u32 *> const args_per_thread(pi.m, pi.m.ncores);
+    auto const args_per_thread = pi.m.make_shared_array<matrix_u32 *>(pi.m.ncores);
     args_per_thread[pi.m.trank] = &m;
     pi.m.serialize_threads(__FILE__, __LINE__);
 
