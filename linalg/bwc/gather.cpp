@@ -324,7 +324,7 @@ struct rhs /*{{{*/ {
 
         if (leader)
             get_rhs_file_header(rhs_name, nullptr, &nrhs, nullptr);
-        pi_bcast(&nrhs, 1, BWC_PI_UNSIGNED, 0, 0, pi->m);
+        pi->m.bcast(&nrhs, 1, BWC_PI_UNSIGNED, 0, 0);
 
         if (tcan_print) {
             fmt::print("** Informational note about GF(p) inhomogeneous system:\n");
@@ -375,7 +375,7 @@ struct rhs /*{{{*/ {
                 }
             }
         }
-        pi_bcast(rhscoeffs, nrhs, mmt.pitype, 0, 0, pi->m);
+        pi->m.bcast(rhscoeffs, nrhs, mmt.pitype, 0, 0);
     }/*}}}*/
 
     ~rhs() {/*{{{*/
@@ -482,8 +482,8 @@ static std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int max
                 mmt_my_own_subvec(y), my_input_coordinates),
             my_pad_coordinates);
 
-    pi_allreduce(nullptr, &input_is_zero, 1, BWC_PI_INT, BWC_PI_MIN, y.pi->m);
-    pi_allreduce(nullptr, &pad_is_zero, 1, BWC_PI_INT, BWC_PI_MIN, y.pi->m);
+    y.pi->m.allreduce(nullptr, &input_is_zero, 1, BWC_PI_INT, BWC_PI_MIN);
+    y.pi->m.allreduce(nullptr, &pad_is_zero, 1, BWC_PI_INT, BWC_PI_MIN);
 
     return std::make_tuple(input_is_zero, pad_is_zero);
 }/*}}}*/
@@ -521,7 +521,7 @@ static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vect
          * course, so we don't heave the same headache as above */
         int is_zero = A->vec_is_zero(
                 mmt_my_own_subvec(y), mmt_my_own_size_in_items(y));
-        pi_allreduce(nullptr, &is_zero, 1, BWC_PI_INT, BWC_PI_MIN, pi.m);
+        pi.m.allreduce(nullptr, &is_zero, 1, BWC_PI_INT, BWC_PI_MIN);
 
         hamming_out = is_zero ? 0 : mmt_vec_hamming_weight(y);
     }
@@ -939,7 +939,7 @@ class parasite_fixer {/*{{{*/
         nz = A->alloc(rows.size(), ALIGNMENT_ON_ALL_BWC_VECTORS);
         A->vec_set_zero(nz, rows.size());
         compress_vector_to_sparse(nz, 0, 1, my, rows);
-        pi_allreduce(nullptr, nz, rows.size(), mmt.pitype, BWC_PI_SUM, pi->m); 
+        pi->m.allreduce(nullptr, nz, rows.size(), mmt.pitype, BWC_PI_SUM); 
 
         if (leader) debug_print_local_matrix(matrix, rows, cols, nz);
 
@@ -956,7 +956,7 @@ class parasite_fixer {/*{{{*/
                 std::tie(input_is_zero, pad_is_zero, hamming_out) = res;
                 A->vec_set_zero(nz, rows.size());
                 compress_vector_to_sparse(nz, 0, 1, my, rows);
-                pi_allreduce(nullptr, nz, rows.size(), mmt.pitype, BWC_PI_SUM, pi->m); 
+                pi->m.allreduce(nullptr, nz, rows.size(), mmt.pitype, BWC_PI_SUM); 
 
                 if (leader) debug_print_local_matrix(matrix, rows, cols, nz);
                 continue;

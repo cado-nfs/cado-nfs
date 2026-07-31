@@ -625,7 +625,7 @@ int mmt_vec_save(mmt_vec & v, std::string const & filename_pattern, unsigned int
                     fmt::print(stderr, "ERROR: failed to save {}: failed rename, {}\n", filename, errno ? strerror(errno) : "no error reported via errno");
                 }
             }
-            pi_bcast(&ok, 1, BWC_PI_INT, 0, 0, v.pi->m);
+            v.pi->m.bcast(&ok, 1, BWC_PI_INT, 0, 0);
         }
         tt += wct_seconds();
         if (tcan_print) {

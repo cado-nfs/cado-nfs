@@ -668,7 +668,7 @@ void indices_twist(matmul_top_data & mmt, std::vector<uint32_t> & xs, int d)
             else
                 xs[k] = 0;
         }
-        pi_allreduce(nullptr, xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR, mmt.pi->m);
+        mmt.pi->m.allreduce(nullptr, xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR);
     } else if (Mloc.has_perm(!d) && (Mloc.bal.flags & FLAG_REPLICATE)) {
         ASSERT_ALWAYS(Mloc.n[0] == Mloc.n[1]);
         /* implicit S -- first we get the bits about the S in the other
@@ -709,7 +709,7 @@ void indices_twist(matmul_top_data & mmt, std::vector<uint32_t> & xs, int d)
                 xs[k] = 0;
             }
         }
-        pi_allreduce(nullptr, xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR, mmt.pi->m);
+        mmt.pi->m.allreduce(nullptr, xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR);
     }
 }
 /* }}} */
@@ -955,7 +955,7 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data & mmt, int i, 
             balancing_read_header(Mloc.bal, Mloc.bname);
         }
     }
-    pi_bcast(&Mloc.bal, sizeof(balancing), BWC_PI_BYTE, 0, 0, mmt.pi->m);
+    mmt.pi->m.bcast(&Mloc.bal, sizeof(balancing), BWC_PI_BYTE, 0, 0);
 
     /* check that balancing dimensions are compatible with our run */
     int ok = 1;
@@ -1020,8 +1020,8 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
         rowperm_items = bal_tmp.rowperm ? bal_tmp.trows : 0;
         colperm_items = bal_tmp.colperm ? bal_tmp.tcols : 0;
     }
-    pi_bcast(&rowperm_items, 1, BWC_PI_UNSIGNED, 0, 0, mmt.pi->m);
-    pi_bcast(&colperm_items, 1, BWC_PI_UNSIGNED, 0, 0, mmt.pi->m);
+    mmt.pi->m.bcast(&rowperm_items, 1, BWC_PI_UNSIGNED, 0, 0);
+    mmt.pi->m.bcast(&colperm_items, 1, BWC_PI_UNSIGNED, 0, 0);
 
     if (mmt.pi->m->trank == 0) {
         if (rowperm_items) {
@@ -1079,11 +1079,11 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
     /* Do this so that has_perm makes sense globally */
     Mloc.has_perm_map[0] = Mloc.has_perm_local(0);
     Mloc.has_perm_map[1] = Mloc.has_perm_local(1);
-    pi_allreduce(nullptr, Mloc.has_perm_map, 2, BWC_PI_INT, BWC_PI_MAX, mmt.pi->m);
+    mmt.pi->m.allreduce(nullptr, Mloc.has_perm_map, 2, BWC_PI_INT, BWC_PI_MAX);
     if (mmt.pi->m->trank == 0) {
         MPI_Allreduce(MPI_IN_PLACE, Mloc.has_perm_map, 2, MPI_INT, MPI_MAX, mmt.pi->m->pals);
     }
-    pi_bcast(Mloc.has_perm_map, 2, BWC_PI_INT, 0, 0, mmt.pi->m);
+    mmt.pi->m.bcast(Mloc.has_perm_map, 2, BWC_PI_INT, 0, 0);
 }
 
 matmul_top_data::matmul_top_data(
@@ -1536,7 +1536,7 @@ void matmul_top_report(matmul_top_data & mmt, double scale, int full)
     for(auto const & Mloc : mmt.matrices) {
         Mloc.mm->report(scale);
         size_t max_report_size = Mloc.mm->report_string.size() + 1;
-        pi_allreduce(nullptr, &max_report_size, 1, BWC_PI_SIZE_T, BWC_PI_MAX, mmt.pi->m);
+        mmt.pi->m.allreduce(nullptr, &max_report_size, 1, BWC_PI_SIZE_T, BWC_PI_MAX);
         std::unique_ptr<char[]> const all_reports(
                 new char[mmt.pi->m->totalsize * max_report_size]);
         std::fill_n(all_reports.get(), mmt.pi->m->totalsize * max_report_size, 0);

@@ -191,7 +191,7 @@ static int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
         if (j == eblock) j = n;
         else j += v0.i0 + mmt_my_own_offset_in_items(v0);
         unsigned int jmin;
-        pi_allreduce(&j, &jmin, 1, BWC_PI_UNSIGNED, BWC_PI_MIN, v0.pi->m);
+        v0.pi->m.allreduce(&j, &jmin, 1, BWC_PI_UNSIGNED, BWC_PI_MIN);
         if (jmin == n) {
             /* zero row */
             continue;
@@ -209,7 +209,7 @@ static int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
         }
         /* TODO: once we require mpi-3.0, use MPI_UINT64_T instead */
         ASSERT_ALWAYS(sizeof(unsigned long long) == sizeof(uint64_t));
-        pi_allreduce(nullptr, &control, 1, BWC_PI_UNSIGNED_LONG_LONG, BWC_PI_MAX, v0.pi->m);
+        v0.pi->m.allreduce(nullptr, &control, 1, BWC_PI_UNSIGNED_LONG_LONG, BWC_PI_MAX);
         /* add row i to all rows where we had a coeff in column j */
         /* we'll do that for all coefficients in the block, but on m this
          * is just one single operation */

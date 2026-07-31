@@ -364,9 +364,9 @@ struct prep_object {
         // threads along one communicator will deal with it)
         // other mpi ranks will just be sharing a null pointer, here.
         auto * p_rhs = rhs.get();
-        pi_thread_bcast(&p_rhs, sizeof(void *), BWC_PI_BYTE, 0, pi->m);
-        pi_bcast(&hdr.ncols, sizeof(hdr.ncols), BWC_PI_BYTE, 0, 0, pi->m);
-        pi_bcast(&hdr.nrows, sizeof(hdr.nrows), BWC_PI_BYTE, 0, 0, pi->m);
+        pi->m.thread_bcast(&p_rhs, sizeof(void *), BWC_PI_BYTE, 0);
+        pi->m.bcast(&hdr.ncols, sizeof(hdr.ncols), BWC_PI_BYTE, 0, 0);
+        pi->m.bcast(&hdr.nrows, sizeof(hdr.nrows), BWC_PI_BYTE, 0, 0);
         /* don't share the cxx_mpz hdr.p */
 
         unsigned int const nrhs = hdr.ncols;

@@ -600,7 +600,7 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
         /* Last dot product. This must cancel ! */
         x_dotprod(ahead, gxvecs, nchecks, nx, ymy[0], -1);
 
-        pi_allreduce(nullptr, ahead, nchecks, mmt->pitype, BWC_PI_SUM, pi->m);
+        pi->m.allreduce(nullptr, ahead, nchecks, mmt->pitype, BWC_PI_SUM);
         if (!Ac->vec_is_zero(Ac, ahead, nchecks)) {
             printf("Failed check at iteration %d\n", s + bw->interval);
             exit(1);

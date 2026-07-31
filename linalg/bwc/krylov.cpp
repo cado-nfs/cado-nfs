@@ -74,7 +74,7 @@ struct check_data {
         if (!ok) {
             if (tcan_print)
                 fmt::print(stderr, "check file {} not found", Cv_filename_pattern);
-            pi_abort(EXIT_FAILURE, pi->m);
+            pi->m.abort(EXIT_FAILURE);
         }
         std::string const Ct_filename = fmt::format("Ct0-{}.0-{}", nchecks, bw->m);
         Tdata = Ac->alloc(bw->m, ALIGNMENT_ON_ALL_BWC_VECTORS);
@@ -84,7 +84,7 @@ struct check_data {
             ASSERT_ALWAYS(rc == 1);
         }
         if (tcan_print) fmt::print("loaded {}\n", Ct_filename);
-        pi_bcast(Tdata, bw->m, Ac_pi, 0, 0, pi->m);
+        pi->m.bcast(Tdata, bw->m, Ac_pi, 0, 0);
 
         ahead = A->alloc(nchecks, ALIGNMENT_ON_ALL_BWC_VECTORS);
     }
@@ -140,7 +140,7 @@ struct check_data {
             }
             A->free(tmp1);
 
-        pi_allreduce(nullptr, ahead, nchecks, mmt.pitype, BWC_PI_SUM, pi->m);
+        pi->m.allreduce(nullptr, ahead, nchecks, mmt.pitype, BWC_PI_SUM);
         return A->vec_is_zero(ahead, nchecks);
     }
 };

@@ -802,7 +802,7 @@ static void matmul_top_comm_bench_helper(int * pk, double * pt,
 	t1 = wct_seconds();
 	cont = t1 < t0 + 0.25;
 	cont = cont && (t1 < t0 + 1 || k < 100);
-        pi_allreduce(nullptr, &cont, 1, BWC_PI_INT, BWC_PI_MIN, v.pi->m);
+        v.pi->m.allreduce(nullptr, &cont, 1, BWC_PI_INT, BWC_PI_MIN);
 	if (!cont)
 	    break;
         /* It's difficult to be faithful to the requirements on
@@ -816,7 +816,7 @@ static void matmul_top_comm_bench_helper(int * pk, double * pt,
     target = std::min(target, 100);
     if (target == 0)
         target = 1;
-    pi_bcast(&target, 1, BWC_PI_INT, 0, 0, v.pi->m);
+    v.pi->m.bcast(&target, 1, BWC_PI_INT, 0, 0);
     t0 = wct_seconds();
     for (k = 0; k < target; k++) {
         pi_log_op(v.pi->m, "[%s] iter%d/%d", __func__, k, target);
