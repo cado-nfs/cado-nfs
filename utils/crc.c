@@ -82,7 +82,7 @@ uint32_t cado_crc_lfsr_turn32_little(cado_crc_lfsr_ptr l, const uint32_t * data,
     return w;
 }
 
-uint32_t crc32(const void * data, size_t count)
+uint32_t cado_crc32(const void * data, size_t count)
 {
     cado_crc_lfsr l;
     cado_crc_lfsr_init(l);

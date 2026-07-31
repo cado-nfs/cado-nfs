@@ -578,7 +578,7 @@ struct polmat { /* {{{ */
     }/*}}}*/
     uint32_t crc() const {
         if (stride() * sizeof(unsigned long) == BITS_TO_WORDS(ncoef, 64) * sizeof(uint64_t)) {
-            return crc32(x, ncols * nrows * stride() * sizeof(unsigned long));
+            return cado_crc32(x, ncols * nrows * stride() * sizeof(unsigned long));
         } else {
             /* otherwise it's gonna be painful...  */
             ASSERT_ALWAYS(sizeof(unsigned long) == sizeof(uint32_t));
@@ -681,7 +681,7 @@ template<typename fft_type> struct tpolmat /* {{{ */
         ASSERT(j < ncols);
         return po->get(x, j * nrows + i);
     }
-    uint32_t crc() const { return crc32((unsigned long *) x, nrows * ncols * po->size() * sizeof(*x)); }
+    uint32_t crc() const { return cado_crc32((unsigned long *) x, nrows * ncols * po->size() * sizeof(*x)); }
 };
 /*}}}*/
 

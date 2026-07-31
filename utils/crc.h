@@ -18,7 +18,7 @@ extern "C" {
 #endif
 
 /* This computes the crc32 value of the n bytes pointed to by c.  */
-extern uint32_t crc32(const void * data, size_t count);
+extern uint32_t cado_crc32(const void * data, size_t count);
 
 /* These provide the possibility of computing a checkum in several parts */
 extern uint32_t cado_crc_lfsr_turn1(cado_crc_lfsr_ptr, uint32_t);

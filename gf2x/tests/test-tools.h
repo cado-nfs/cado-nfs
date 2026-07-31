@@ -41,7 +41,7 @@ extern "C" {
 uint32_t fill(unsigned long * a, int n1, uint32_t startvalue, uint32_t ratio);
 
 /* return the crc32 mod x^32 + x^7 + x^6 + x^2 + 1 of the memory area */
-uint32_t crc32(unsigned long * c, int n3, uint32_t v);
+uint32_t gf2x_crc32(unsigned long * c, int n3, uint32_t v);
 
 #ifdef __cplusplus
 }

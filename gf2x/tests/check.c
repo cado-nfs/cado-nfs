@@ -121,7 +121,7 @@ int test(int n32bitwords, int d)
         uint32_t check0 = 0;
         for(int i = 0 ; i < d ; i++)
             for(int j = 0 ; j < d ; j++)
-                check0 = crc32(h[(d-1-i)*d+(d-1-j)], 2*n32bitwords, check0);
+                check0 = gf2x_crc32(h[(d-1-i)*d+(d-1-j)], 2*n32bitwords, check0);
         printf("%d %d %08" PRIx32 "\n", n32bitwords, d, check0);
     }
 

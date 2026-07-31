@@ -393,10 +393,10 @@ private_args::private_args(worker_threads_group & tg, int tnum, bench_args const
     ba.A->vec_set_zero(rowvec.get(), nr);
 }// }}}
 
-static uint32_t crc32(arith_generic * A, arith_generic::owned_vector const & v, unsigned int n)// {{{
+static uint32_t cado_crc32(arith_generic * A, arith_generic::owned_vector const & v, unsigned int n)// {{{
 {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
-    return crc32((unsigned long*) v.get(), A->vec_elt_stride(n));
+    return cado_crc32((unsigned long*) v.get(), A->vec_elt_stride(n));
 }// }}}
 
 void private_args::check()// {{{
@@ -423,16 +423,16 @@ void private_args::check()// {{{
     /* See the comment in matmul_mul about the direction argument and the
      * number of coordinates of source/destination vectors */
 
-    fmt::print("T{} colvec({}): {}\n", tnum, nc, crc32(A, colvec, nc0));
+    fmt::print("T{} colvec({}): {}\n", tnum, nc, cado_crc32(A, colvec, nc0));
     mm->mul(rowvec.get(), colvec.get(), 1);
-    fmt::print("T{} rowvec({}): {}\n", tnum, nr, crc32(A, rowvec, nr0));
+    fmt::print("T{} rowvec({}): {}\n", tnum, nr, cado_crc32(A, rowvec, nr0));
 
     A->vec_set_zero(check0.get(), A->simd_groupsize());
     AxA->add_dotprod(check0.get(), rowvec.get(), rowvec_bis.get(), nr0);
 
-    fmt::print("T{} rowvec_bis({}): {}\n", tnum, nr, crc32(A, rowvec_bis, nr0));
+    fmt::print("T{} rowvec_bis({}): {}\n", tnum, nr, cado_crc32(A, rowvec_bis, nr0));
     mm->mul(colvec_bis.get(), rowvec_bis.get(), 0);
-    fmt::print("T{} colvec_bis({}): {}\n", tnum, nc, crc32(A, colvec_bis, nc0));
+    fmt::print("T{} colvec_bis({}): {}\n", tnum, nc, cado_crc32(A, colvec_bis, nc0));
 
     A->vec_set_zero(check1.get(), A->simd_groupsize());
     AxA->add_dotprod(check1.get(), colvec.get(), colvec_bis.get(), nc0);
