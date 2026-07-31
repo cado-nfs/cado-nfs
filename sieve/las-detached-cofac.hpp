@@ -1,6 +1,8 @@
 #ifndef CADO_LAS_DETACHED_COFAC_HPP
 #define CADO_LAS_DETACHED_COFAC_HPP
 
+#include <memory>
+
 #include "las-cofac-standalone.hpp"
 
 class nfs_aux;

@@ -77,6 +77,7 @@ cado_define_test(test_bit_vector.c LIBRARIES utils tests)
 cado_define_test(test_intinv.c LIBRARIES utils tests)
 cado_define_test(test_dllist.c LIBRARIES tests)
 cado_define_test(test_threadpool.cpp LIBRARIES utils tests)
+cado_define_test(test_threadpool_taskgroup.cpp LIBRARIES utils tests)
 # note: these tests used to be disabled...
 cado_define_test(test_verbose.cpp LIBRARIES utils tests) # Should be run under Helgrind or other thread checkers
 cado_define_test(test_mpz_vector.cpp LIBRARIES utils)

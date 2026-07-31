@@ -1103,7 +1103,7 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(thread_pool * pool, mat<
     size_t number_ijs = i_width * j_height;
 
     for(auto [ij0, ij1] : subdivision(number_ijs, pool ? pool->size() : 1)) {
-        auto f = [&, ij0, ij1](worker_thread *) {
+        auto f = [&](size_t ij0, size_t ij1) {
             double weightsum = 0;
             double sum = 0;
             int i = static_cast<int>(ij0 / j_height) - nx/2;
@@ -1138,9 +1138,9 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(thread_pool * pool, mat<
             global_sum += sum;
         };
         if (pool) {
-            pool->add_task(f, 0, thread_pool::QUEUE_GENERIC, 0);
+            pool->add_task(f, ij0, ij1);
         } else {
-            f(nullptr);
+            f(ij0, ij1);
         }
     }
     if (pool) {

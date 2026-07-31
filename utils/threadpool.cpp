@@ -3,11 +3,12 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <algorithm>
+#include <atomic>
 #include <condition_variable>
 #include <exception>
 #include <functional>
 #include <mutex>
-#include <queue>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -33,10 +34,12 @@ int worker_thread::rank() const
 {
     return static_cast<int>(this - pool.threads.data());
 }
+
 int worker_thread::nthreads() const
 {
     return static_cast<int>(pool.threads.size());
 }
+
 bool worker_thread::is_synchronous() const
 {
     return pool.is_synchronous();
@@ -45,13 +48,20 @@ bool worker_thread::is_synchronous() const
 thread_pool::thread_pool(size_t const nr_threads, double & store_wait_time,
                          size_t const nr_queues, bool sync_thread_pool)
     : tasks(nr_queues)
+    , exceptions_mutex(nr_queues)
     , exceptions(nr_queues)
-    , created(nr_queues, 0)
-    , joined(nr_queues, 0)
-    , kill_threads(false)
+    , created(nr_queues)
+    , joined(nr_queues)
     , store_wait_time(store_wait_time)
 {
     ASSERT_ALWAYS(nr_threads == 1 || !sync_thread_pool);
+    sync_mode = sync_thread_pool;
+
+    worker_queues.resize(nr_threads);
+    for (size_t i = 0; i < nr_threads; ++i) {
+        worker_queues[i] = std::vector<worker_queue>(nr_queues);
+    }
+
     threads.reserve(nr_threads);
     for (size_t i = 0; i < nr_threads; i++)
         threads.emplace_back(*this, 0, !is_synchronous());
@@ -61,131 +71,201 @@ thread_pool::~thread_pool()
 {
     drain_all_queues();
     {
-        auto lock = get_lock();
+        const std::scoped_lock lock(pool_mutex);
         kill_threads = true;
-        for (auto & T: tasks)
-            T.not_empty.notify_all();
     }
-    drain_all_queues();
+    work_cv.notify_all();
+
     threads.clear();
-    for (auto const & T: tasks)
-        ASSERT_ALWAYS_NOTHROW(T.empty());
+
     for (auto const & E: exceptions)
         ASSERT_ALWAYS_NOTHROW(E.empty());
     store_wait_time += cumulated_wait_time;
 }
 
+bool thread_pool::all_task_queues_empty() const
+{
+    for (size_t q = 0; q < tasks.size(); ++q) {
+        if (joined[q].val.load(std::memory_order_relaxed) < created[q].val.load(std::memory_order_relaxed))
+            return false;
+    }
+    return true;
+}
+
+bool thread_pool::pop_local_or_steal(size_t worker_id, size_t preferred_queue, thread_task & task)
+{
+    size_t const nq = tasks.size();
+    size_t const nw = threads.size();
+
+    // 1. Try owner's local queue for preferred_queue (LIFO pop for local
+    // cache warmth)
+    {
+        auto & wq = worker_queues[worker_id][preferred_queue];
+        if (!wq.tasks.empty()) {
+            const std::scoped_lock lock(wq.mx);
+            if (!wq.tasks.empty()) {
+                task = std::move(wq.tasks.back());
+                wq.tasks.pop_back();
+                return true;
+            }
+        }
+    }
+
+    // 2. Try owner's local queue for other queues
+    for (size_t q = 0; q < nq; ++q) {
+        if (q == preferred_queue) continue;
+        auto & wq = worker_queues[worker_id][q];
+        if (!wq.tasks.empty()) {
+            const std::scoped_lock lock(wq.mx);
+            if (!wq.tasks.empty()) {
+                task = std::move(wq.tasks.back());
+                wq.tasks.pop_back();
+                return true;
+            }
+        }
+    }
+
+    // 3. Steal from other workers (FIFO steal from front)
+    for (size_t offset = 1; offset < nw; ++offset) {
+        size_t const victim = (worker_id + offset) % nw;
+        for (size_t q = 0; q < nq; ++q) {
+            size_t const actual_q = (preferred_queue + q) % nq;
+            auto & wq = worker_queues[victim][actual_q];
+            if (!wq.tasks.empty()) {
+                const std::scoped_lock lock(wq.mx);
+                if (!wq.tasks.empty()) {
+                    task = std::move(wq.tasks.front());
+                    wq.tasks.pop_front();
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 void thread_pool::thread_work_on_tasks(worker_thread & I)
 {
     ASSERT_ALWAYS(!is_synchronous());
+    auto const worker_id = static_cast<size_t>(I.rank());
     double tt = -seconds_thread();
+
     while (true) {
-        size_t queue = I.preferred_queue;
-        thread_task task = get_task(queue);
-        if (task.is_terminal())
-            break;
+        size_t const queue = I.preferred_queue;
+        thread_task task;
+
+        if (!pop_local_or_steal(worker_id, queue, task)) {
+            // No work found -> wait on condition variable
+            std::unique_lock<std::mutex> lock(pool_mutex);
+            nr_threads_waiting.fetch_add(1, std::memory_order_relaxed);
+
+            work_cv.wait(lock, [this, worker_id, queue, &task]() {
+                return kill_threads || pop_local_or_steal(worker_id, queue, task);
+            });
+
+            nr_threads_waiting.fetch_sub(1, std::memory_order_relaxed);
+
+            if (kill_threads && task.is_terminal() && all_task_queues_empty()) {
+                break;
+            }
+        }
+
+        if (task.is_terminal()) {
+            if (kill_threads) break;
+            continue;
+        }
 
         tt += seconds_thread();
         try {
             task(&I);
         } catch (...) {
-            std::scoped_lock guard(pool_mutex);
-            exceptions[queue].push(std::current_exception());
+            const std::scoped_lock guard(exceptions_mutex[task.id % tasks.size()]);
+            exceptions[task.id % tasks.size()].push(std::current_exception());
         }
 
-        {
-            auto lock = get_lock();
-            joined[queue]++;
-            tasks[queue].task_done.notify_all();
+        if (task.group) {
+            task.group->notify_joined();
         }
+
+        size_t const queue_id = (task.id < 0) ? 0 : static_cast<size_t>(task.id) % tasks.size();
+        size_t const current_joined = joined[queue_id].val.fetch_add(1, std::memory_order_acq_rel) + 1;
+        size_t const target_created = created[queue_id].val.load(std::memory_order_acquire);
+
+        if (current_joined >= target_created) {
+            const std::scoped_lock lock(tasks[queue_id].mx);
+            tasks[queue_id].task_done.notify_all();
+        }
+
         tt -= seconds_thread();
     }
+
     tt += seconds_thread();
-    std::scoped_lock const dummy(mm_cumulated_wait_time);
+    const std::scoped_lock dummy(mm_cumulated_wait_time);
     cumulated_wait_time += tt;
 }
 
-bool thread_pool::all_task_queues_empty() const
+void thread_pool::enqueue_task(std::function<void(worker_thread*)> task_fn, size_t queue, double cost, task_group * tg)
 {
-    for (auto const & T: tasks)
-        if (!T.empty())
-            return false;
-    return true;
-}
+    if (tg) {
+        tg->created_count.fetch_add(1, std::memory_order_relaxed);
+    }
 
-void thread_pool::enqueue_task(std::function<void(worker_thread*)> task_fn, int id, size_t queue, double cost) 
-{
+    created[queue].val.fetch_add(1, std::memory_order_relaxed);
+
     if (is_synchronous()) {
-        created[queue]++;
         try {
-            task_fn(threads.data());
+            worker_thread synchronous_worker(*this, queue, false);
+            task_fn(&synchronous_worker);
         } catch (...) {
-            const std::scoped_lock guard(pool_mutex);
+            const std::scoped_lock guard(exceptions_mutex[queue]);
             exceptions[queue].push(std::current_exception());
         }
-        joined[queue]++;
+        joined[queue].val.fetch_add(1, std::memory_order_release);
+        if (tg) {
+            tg->notify_joined();
+        }
         return;
     }
 
-    ASSERT_ALWAYS(queue < tasks.size());
+    thread_task t(std::move(task_fn), static_cast<int>(queue), cost, tg);
 
-    auto lock = get_lock();
-    ASSERT_ALWAYS(!kill_threads);
-
-    tasks[queue].push(thread_task(std::move(task_fn), id, cost));
-    created[queue]++;
-
-    size_t i = queue;
-    if (tasks[i].nr_threads_waiting == 0) {
-        for (i = 0; i < tasks.size() && tasks[i].nr_threads_waiting == 0; i++) {}
+    size_t const victim = round_robin_counter.fetch_add(1, std::memory_order_relaxed) % threads.size();
+    auto & wq = worker_queues[victim][queue];
+    {
+        const std::scoped_lock lock(wq.mx);
+        if (!wq.tasks.empty()) {
+            auto it = std::ranges::lower_bound(wq.tasks, t,
+                [](thread_task const & a, thread_task const & b) {
+                    return a.cost < b.cost;
+                });
+            wq.tasks.insert(it, std::move(t));
+        } else {
+            wq.tasks.push_back(std::move(t));
+        }
     }
-    if (i < tasks.size())
-        tasks[i].not_empty.notify_one();
+
+    work_cv.notify_one();
 }
 
 void thread_pool::drain_queue(size_t const queue, bool blocking)
 {
-    auto lock = get_lock();
-    for (size_t const cr = created[queue]; joined[queue] < cr;) {
-        if (!blocking) break;
-        tasks[queue].task_done.wait(lock);
-    }
-}
+    if (!blocking) return;
 
-thread_task thread_pool::get_task(size_t & preferred_queue)
-{
-    ASSERT(!is_synchronous());
+    size_t const target = created[queue].val.load(std::memory_order_acquire);
+    if (joined[queue].val.load(std::memory_order_acquire) >= target)
+        return;
 
-    auto lock = get_lock();
-
-    while (!kill_threads && all_task_queues_empty()) {
-        /* No work -> tell this thread to wait until work becomes available.
-           We also leave the loop when the thread needs to die.
-           The while() protects against spurious wake-ups that can fire even if
-           the queue is still empty. */
-        tasks[preferred_queue].nr_threads_waiting++;
-        tasks[preferred_queue].not_empty.wait(lock);
-        tasks[preferred_queue].nr_threads_waiting--;
-    }
-    thread_task task(true);
-    if (!(kill_threads && all_task_queues_empty())) {
-        size_t & i(preferred_queue);
-        if (tasks[i].empty()) {
-            for (i = 0; i < tasks.size() && tasks[i].empty(); i++) {}
-        }
-        /* There must have been a non-empty queue or we'd still be in the
-           while() loop above */
-        ASSERT_ALWAYS(i < tasks.size());
-        task = tasks[i].top();
-        tasks[i].pop();
-    }
-
-    return task;
+    std::unique_lock<std::mutex> lock(tasks[queue].mx);
+    tasks[queue].task_done.wait(lock, [this, queue]() {
+        return joined[queue].val.load(std::memory_order_acquire) >=
+               created[queue].val.load(std::memory_order_acquire);
+    });
 }
 
 void thread_pool::drain_all_queues()
 {
-    for (size_t queue = 0; queue < created.size(); ++queue) {
+    for (size_t queue = 0; queue < tasks.size(); ++queue) {
         drain_queue(queue);
     }
 }

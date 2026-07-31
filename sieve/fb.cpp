@@ -1554,7 +1554,7 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
         if (chunk.empty())
             return false;
 
-        auto fut = pool.add_future_task(thread_pool::QUEUE_GENERIC, 0, [&poly, chunk = std::move(chunk)](worker_thread*) mutable {
+        auto fut = pool.add_future_task([&poly, chunk = std::move(chunk)](worker_thread*) mutable {
             for (auto & fb_cur : chunk) {
                 fb_cur.nr_roots = 1;
                 auto R = fb_linear_root(poly, fb_cur.q);

@@ -238,6 +238,7 @@ class nfs_work {
 
         nfs_work &ws;  /* a pointer to the parent structure, really */
         std::vector<side_data> sides;
+        int nsides() const { return static_cast<int>(sides.size()); }
         /* SS is used only in process_bucket region */
         unsigned char *SS = nullptr;
 

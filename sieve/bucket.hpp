@@ -374,7 +374,10 @@ struct bucket_row_update_t
 };
 /* }}} */
 
+struct bucket_array_base {};
+
 template <int LEVEL, typename HINT> class bucket_array_t
+    : bucket_array_base
 {
     /* We want to be able to reseat the reference in the course of the
      * computation.
@@ -559,6 +562,13 @@ template <int LEVEL, typename HINT> class bucket_array_t
     }
     */
     void slice_statistics(int side, int idx, fb_factorbase::slicing const & fbs) const;
+};
+
+template<typename T>
+concept bucket_array_type = requires {
+    std::is_base_of_v<T, bucket_array_base>;
+    T::level;
+    typename T::update_t;
 };
 
 /* Downsort sorts the updates in the bucket_index-th bucket of a level-n

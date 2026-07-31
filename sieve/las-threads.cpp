@@ -3,6 +3,7 @@
 #include <cstddef>
 
 #include <array>
+#include <functional>
 
 #include "bucket.hpp"
 #include "las-auxiliary-data.hpp"
@@ -10,50 +11,53 @@
 #include "las-config.hpp"
 #include "las-report-stats.hpp"
 #include "las-threads.hpp"
-#include "macros.h"
 #include "tdict.hpp"
 #include "threadpool.hpp"
 #include "verbose.hpp"
 
 class las_memory_accessor; // IWYU pragma: keep
 
+/* This thin wrapper is only here to start the timer */
+template <bucket_array_type T>
+static void run_allocate_buckets(worker_thread * worker, las_memory_accessor & memory, int n_bucket, double ratio, int logI, nfs_aux & aux, T & B)
+{
+    timetree_t & timer(aux.th[worker->rank()].timer);
+    ENTER_THREAD_TIMER(timer);
+#ifndef DISABLE_TIMINGS
+    const timetree_t::accounting_sibling dummy(timer, tdict_slot_for_alloc_buckets);
+#endif
+    TIMER_CATEGORY(timer, bookkeeping());
+    auto tt = timer.trace(worker->rank(), chronograms::ALLOC {});
 
-template <typename T>
+    B.allocate_memory(memory, n_bucket, ratio, logI);
+}
+
+template <bucket_array_type T>
 void
-reservation_array_base<T>::allocate_buckets(las_memory_accessor & memory, int n_bucket, double fill_ratio, int logI, nfs_aux & aux, thread_pool & pool)
+reservation_array_base<T>::allocate_buckets(las_memory_accessor & memory, int n_bucket, double ratio, int logI, nfs_aux & aux, thread_pool & pool)
 {
     if (n_bucket <= 0) return;
 
-  /* We estimate that the updates will be evenly distributed among the n
-     different bucket arrays, so each gets fill_ratio / n.
-     However, for a large number of threads, we need a bit of margin.
-     In principle, one should check that the number of threads asked by the user
-     is not too large compared to the number of slices (i.e. the size of the
-     factor bases).
-     */
-  const double ratio = fill_ratio;
-
-  const size_t n = BAs.size();
-  for (size_t i = 0; i < n; i++) {
-      auto & B(BAs[i]);
-      /* Arrange so that the largest allocations are done first ! */
-      const auto cost = (double) (ratio/n * BUCKET_REGIONS[T::level] * n_bucket * sizeof(typename T::update_t));
-      pool.add_task([=,&B,&aux,&memory](worker_thread * worker){
-            timetree_t & timer(aux.th[worker->rank()].timer);
-            ENTER_THREAD_TIMER(timer);
-#ifndef DISABLE_TIMINGS
-            const timetree_t::accounting_sibling dummy(timer, tdict_slot_for_alloc_buckets);
-#endif
-            TIMER_CATEGORY(timer, bookkeeping());
-            auto tt = timer.trace(worker->rank(), chronograms::ALLOC {});
-
-            B.allocate_memory(memory, n_bucket, ratio / n, logI);
-              }, i, thread_pool::QUEUE_MISC, cost);
-      /* queue 2. Joined in nfs_work::allocate_buckets */
-  }
+    /* We estimate that the updates will be evenly distributed among the n
+       different bucket arrays, so each gets fill_ratio / n.
+       However, for a large number of threads, we need a bit of margin.
+       In principle, one should check that the number of threads asked by the user
+       is not too large compared to the number of slices (i.e. the size of the
+       factor bases).
+       */
+    const size_t n = BAs.size();
+    for (size_t i = 0; i < n; i++) {
+        /* Arrange so that the largest allocations are done first ! */
+        const auto cost = (double) (ratio/n * BUCKET_REGIONS[T::level] * n_bucket * sizeof(typename T::update_t));
+        pool.add_task(
+                thread_pool::QUEUE_MISC, cost,
+                run_allocate_buckets<T>,
+                std::ref(memory), n_bucket, ratio / n, logI, std::ref(aux), std::ref(BAs[i]));
+        /* queue 2. Joined in nfs_work::allocate_buckets */
+    }
 }
 
-template <typename T>
+template <bucket_array_type T>
 T & reservation_array<T, false>::inner_reserve()
 {
     auto lock = super::get_lock();
@@ -74,7 +78,7 @@ T & reservation_array<T, false>::inner_reserve()
     return super::BAs[i];
 }
 
-template <typename T>
+template <bucket_array_type T>
 void reservation_array<T, false>::release(T &BA) {
     auto lock = super::get_lock();
     const double ratio = BA.average_full();

@@ -9,6 +9,7 @@
 #include <queue>
 #include <utility>
 #include <mutex>
+#include <type_traits>
 
 #include "bucket.hpp"
 #include "las-bkmult.hpp"
@@ -22,7 +23,7 @@ class nfs_aux;
 
 /* A set of n bucket arrays, all of the same type, and methods to reserve one
    of them for exclusive use and to release it again. */
-template <typename T>
+template <bucket_array_type T>
 class reservation_array_base {
     mutable std::mutex my_lock;
     protected:
@@ -77,10 +78,10 @@ class reservation_array_base {
 /* bucket arrays with shorthints are filled by competing threads, and we
  * want a priority queue so that threads pick the least full array.
  */
-template <typename T, bool has_longhint_v = T::update_t::hint_t::is_long_v>
+template <bucket_array_type T, bool has_longhint_v = T::update_t::hint_t::is_long_v>
 class reservation_array;
 
-template<typename T>
+template<bucket_array_type T>
 class reservation_array<T, false> : public reservation_array_base<T> {
     static constexpr bool has_longhint_v = false;
     using super = reservation_array_base<T>;
@@ -144,7 +145,7 @@ class reservation_array<T, false> : public reservation_array_base<T> {
 /* buckets with longhints are only used in downsort, and we can use a
  * much simpler mechanism in that case.
  */
-template <typename T>
+template <bucket_array_type T>
 class reservation_array<T, true> : public reservation_array_base<T> {
     static constexpr bool has_longhint_v = true;
     using super = reservation_array_base<T>;
