@@ -1001,27 +1001,14 @@ void process_many_bucket_regions(
             /* We need to compute more init positions */
             int const more = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1] - done);
 
-            for(unsigned int side = 0 ; side < ws.sides.size() ; side++) {
-                nfs_work::side_data const& wss(ws.sides[side]);
+            for(auto & wss : ws.sides) {
                 if (wss.no_fb()) continue;
-                pool.add_task(thread_pool::QUEUE_GENERIC, 0.0,
-                    [first_region0_index, done, more, side, aux_p, &Q](worker_thread * worker, nfs_work & ws){
-                        timetree_t & timer(aux_p->get_timer(worker));
-                        ENTER_THREAD_TIMER(timer);
-                        MARK_TIMER_FOR_SIDE(timer, side);
-                        SIBLING_TIMER(timer, "prepare small sieve");
-                        nfs_work::side_data & wss(ws.sides[side]);
-                        SIBLING_TIMER(timer, "small sieve start positions");
-                        /* When we're doing 2-level sieving, there is probably
-                         * no real point in doing ssdpos initialization in
-                         * several passes.
-                         */
-                        wss.ssd->small_sieve_prepare_many_start_positions(
-                                first_region0_index + done,
-                                more,
-                                ws.conf.logI, Q.sublat);
-                    },
-                    std::ref(ws));
+
+                wss.ssd->small_sieve_prepare_many_start_positions(
+                        pool, nullptr,
+                        first_region0_index + done,
+                        more,
+                        ws.conf.logI, Q.sublat);
             }
 
             pool.drain_queue(thread_pool::QUEUE_GENERIC);

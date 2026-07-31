@@ -605,11 +605,10 @@ static void downsort_tree_inner(
 
     WHERE_AM_I_UPDATE(w, N, first_region0_index);
 
-    std::vector<std::shared_ptr<task_group>> ds_tgs(nsides);
-    std::vector<std::shared_ptr<task_group>> ds_aux_tgs(nsides);
-    std::vector<std::shared_ptr<task_group>> fib_tgs(nsides);
-
-    task_group sss_tg;
+    std::vector<task_group> ds_tgs(nsides);
+    std::vector<task_group> ds_aux_tgs(nsides);
+    std::vector<task_group> fib_tgs(nsides);
+    std::vector<task_group> sss_tgs(nsides);
 
     for (int side = 0; side < nsides; ++side) {
         nfs_work::side_data & wss(ws.sides[side]);
@@ -619,12 +618,9 @@ static void downsort_tree_inner(
         WHERE_AM_I_UPDATE(w, side, side);
         TIMER_CATEGORY(timer, sieving(side));
 
-        ds_tgs[side] = std::make_shared<task_group>();
-        ds_aux_tgs[side] = std::make_shared<task_group>();
-        fib_tgs[side] = std::make_shared<task_group>();
-        auto ds_tg = ds_tgs[side];
-        auto ds_aux_tg = ds_aux_tgs[side];
-        auto fib_tg = fib_tgs[side];
+        auto & ds_tg = ds_tgs[side];
+        auto & ds_aux_tg = ds_aux_tgs[side];
+        auto & fib_tg = fib_tgs[side];
 
         /* FIRST: Downsort what is coming from the level above, for this
          * bucket index */
@@ -657,7 +653,7 @@ static void downsort_tree_inner(
 
             for (auto const & BA_in: BA_ins) {
                 pool.add_task(
-                    *ds_tg,
+                    ds_tg,
                     [&aux, &ws, side, &BA_in, bucket_index](worker_thread * worker, where_am_I && w) {
                         nfs_work::side_data & wss(ws.sides[side]);
                         fb_factorbase::slicing const & fbs(*wss.fbs);
@@ -680,11 +676,11 @@ static void downsort_tree_inner(
         }
 
         /* Once ds_tg completes for this side, enqueue all FIB slice tasks into fib_tg */
-        ds_tg->on_complete(
-            [&ws, &aux, &pool, &precomp_plattices, ds_aux_tg, fib_tg, side, first_region0_index, &Q, bucket_index, w_val = where_am_I(w)]() mutable {
+        ds_tg.on_complete(
+            [&ws, &aux, &pool, &precomp_plattices, &ds_aux_tg, &fib_tg, side, first_region0_index, &Q, bucket_index, w_val = where_am_I(w)]() mutable {
                 /* SECOND: fill in buckets at this level, for this region. */
                 /* We do so only once ds_tg completes for this side */
-                auto do_fib = [&ws, &aux, &pool, &precomp_plattices, fib_tg, side, first_region0_index, &Q]() {
+                auto do_fib = [&ws, &aux, &pool, &precomp_plattices, &fib_tg, side, first_region0_index, &Q]() {
                     nfs_work::side_data & wss(ws.sides[side]);
                     wss.reset_all_pointers<LEVEL, my_shorthint_t>();
 
@@ -707,15 +703,15 @@ static void downsort_tree_inner(
                     }
 
                     for (auto & it: lattices) {
-                        pool.add_task(*fib_tg, thread_pool::QUEUE_GENERIC, it.get_weight(),
+                        pool.add_task(fib_tg, thread_pool::QUEUE_GENERIC, it.get_weight(),
                                 fill_in_buckets_one_slice_internal<LEVEL, my_shorthint_t>,
                                 std::ref(ws), std::ref(aux), std::ref(Q), side, nullptr, &it, nullptr, first_region0_index);
                     }
                 };
 
                 if (LEVEL < ws.toplevel - 1) {
-                    downsort_aux<LEVEL, WITH_HINTS>(ws, aux, pool, *ds_aux_tg, side, bucket_index, w_val);
-                    ds_aux_tg->on_complete(do_fib);
+                    downsort_aux<LEVEL, WITH_HINTS>(ws, aux, pool, ds_aux_tg, side, bucket_index, w_val);
+                    ds_aux_tg.on_complete(do_fib);
                 } else {
                     do_fib();
                 }
@@ -735,48 +731,28 @@ static void downsort_tree_inner(
             nfs_work::side_data const & wss(ws.sides[side]);
             if (wss.no_fb())
                 continue;
-            pool.add_task(
-                    sss_tg,
-                    thread_pool::QUEUE_GENERIC,
-                    std::numeric_limits<double>::max(),
-                    [=](worker_thread * worker, nfs_work & ws, nfs_aux & aux) {
-                        timetree_t & timer(aux.get_timer(worker));
-                        ENTER_THREAD_TIMER(timer);
-                        MARK_TIMER_FOR_SIDE(timer, side);
-                        SIBLING_TIMER(timer, "prepare small sieve");
-                        auto tt = worker->trace(chronograms::SSS(side, 1));
 
-                        nfs_work::side_data & wss(ws.sides[side]);
-                        SIBLING_TIMER(timer, "small sieve start positions");
-                        /* When we're doing 2-level sieving, there is probably
-                         * no real point in doing ssdpos initialization in
-                         * several passes.
-                         */
-                        wss.ssd->small_sieve_prepare_many_start_positions(
-                                first_region0_index,
-                                std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE,
-                                    ws.nb_buckets[1]),
-                                ws.conf.logI, Q.sublat);
-                        wss.ssd->small_sieve_activate_many_start_positions();
-                    },
-                    std::ref(ws), std::ref(aux));
+            auto & sss_tg = sss_tgs[side];
+            wss.ssd->small_sieve_prepare_many_start_positions(
+                    pool, &sss_tg,
+                    first_region0_index,
+                    std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1]),
+                    ws.conf.logI, Q.sublat);
+            sss_tg.on_complete([&wss]() {
+                wss.ssd->small_sieve_activate_many_start_positions();
+            });
         }
     }
 
-    for (int side = 0; side < nsides; ++side) {
-        if (ds_tgs[side])
-            ds_tgs[side]->wait();
-    }
-    for (int side = 0; side < nsides; ++side) {
-        if (ds_aux_tgs[side])
-            ds_aux_tgs[side]->wait();
-    }
-    for (int side = 0; side < nsides; ++side) {
-        if (fib_tgs[side])
-            fib_tgs[side]->wait();
-    }
-    if (LEVEL == 1) {
-        sss_tg.wait();
+    for (int side = 0; side < nsides; side++) {
+        nfs_work::side_data const & wss(ws.sides[side]);
+        if (wss.no_fb())
+            continue;
+        ds_tgs[side].wait();
+        ds_aux_tgs[side].wait();
+        fib_tgs[side].wait();
+        if (LEVEL == 1)
+            sss_tgs[side].wait();
     }
 
     /* RECURSE */

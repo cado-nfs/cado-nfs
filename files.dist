@@ -1712,6 +1712,8 @@ utils/cado_popen.cpp
 utils/cado_popen.hpp
 utils/cado_subrange_streambuf.hpp
 utils/cado_type_traits.hpp
+utils/chronograms.cpp
+utils/chronograms.hpp
 utils/coeff_proxy.hpp
 utils/crc.c
 utils/crc.h
@@ -1905,5 +1907,3 @@ utils/verbose.hpp
 utils/version_info.c.in
 utils/version_info.h
 utils/work_queue.hpp
-utils/chronograms.cpp
-utils/chronograms.hpp

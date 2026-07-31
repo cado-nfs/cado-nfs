@@ -15,6 +15,7 @@
 #include <array>
 #include <initializer_list>
 #include <vector>
+#include <memory>
 
 #include "fmt/base.h"
 
@@ -39,6 +40,7 @@
 #include "portability.h"
 #include "verbose.hpp"
 #include "utils_cxx.hpp"
+#include "chronograms.hpp"
 
 
 /* small sieve and resieving */
@@ -251,6 +253,7 @@ las_small_sieve_data::small_sieve_init(
     const int verbose = 0;
     where_am_I w MAYBE_UNUSED;
 
+    this->side = side;
     fbK = factorbaseK;
 
     // This zeroes out all vectors, but keeps storage around nevertheless
@@ -552,8 +555,118 @@ las_small_sieve_data::small_sieve_activate_many_start_positions()
     std::swap(ssdpos_many, ssdpos_many_next);
 }
 
+/* Range worker for parallel small_sieve_prepare_many_start_positions */
+void
+las_small_sieve_data::small_sieve_prepare_many_start_positions_range(
+        worker_thread * worker,
+        size_t s_start,
+        size_t s_end,
+        unsigned int first_region_index,
+        int nregions,
+        int logI,
+        sublat_t const & sl,
+        bool is_first)
+{
+    auto tt = worker_thread::trace(worker, chronograms::SSS(side, 1));
+    auto & res = ssdpos_many_next;
+    int const logB = LOG_BUCKET_REGION;
+    int const v = logI - logB;
+    int const w = (v > 0) ? (1 << v) : 1;
+
+    small_sieve_base const C(logI, first_region_index, sl);
+
+    // Step 1: Initialize row 0 .. w-1 for primes in [s_start, s_end)
+    if (is_first) {
+        ASSERT_ALWAYS(first_region_index == 0);
+        for (size_t s = s_start; s < s_end; ++s) {
+            res[0][s] = C.first_position_ordinary_prime(ssps[s]);
+        }
+        for (int i = 1; i < w; ++i) {
+            for (size_t s = s_start; s < s_end; ++s) {
+                fbprime_t x = res[i - 1][s] + offsets[s];
+                if (x >= ssps[s].get_p()) x -= ssps[s].get_p();
+                res[i][s] = x;
+            }
+        }
+    } else {
+        size_t const old_size = ssdpos_many.size();
+        ASSERT_ALWAYS(old_size >= static_cast<size_t>(w));
+        for (int i = 0; i < w; ++i) {
+            size_t const src_k = old_size - w + i;
+            for (size_t s = s_start; s < s_end; ++s) {
+                res[i][s] = ssdpos_many[src_k][s];
+            }
+        }
+    }
+
+    // Step 2: Compute remaining rows k = w .. nregions + w - 1
+    if (logI >= logB) {
+        ASSERT(nregions % w == 0);
+        for (int k = w; k < nregions + w; k += w) {
+            for (size_t s = s_start; s < s_end; ++s) {
+                fbprime_t x = res[k - w][s] + ssps[s].get_r();
+                if (x >= ssps[s].get_p()) x -= ssps[s].get_p();
+                res[k][s] = x;
+            }
+
+            for (int i = 1; i < w; ++i) {
+                for (size_t s = s_start; s < s_end; ++s) {
+                    fbprime_t x = res[k + i - 1][s] + offsets[s];
+                    if (x >= ssps[s].get_p()) x -= ssps[s].get_p();
+                    res[k + i][s] = x;
+                }
+            }
+        }
+    } else {
+        for (int k = w; k < nregions + w; k += w) {
+            for (size_t s = s_start; s < s_end; ++s) {
+                fbprime_t x = res[k - w][s] + offsets[s];
+                if (x >= ssps[s].get_p()) x -= ssps[s].get_p();
+                res[k][s] = x;
+            }
+        }
+    }
+}
+
+// Single-threaded fallback
 void
 las_small_sieve_data::small_sieve_prepare_many_start_positions(
+        unsigned int first_region_index,
+        int nregions,
+        int logI,
+        sublat_t const & sl)
+{
+    size_t const S = ssps.size();
+    if (S == 0) {
+        ssdpos_many_next.clear();
+        return;
+    }
+
+    int const logB = LOG_BUCKET_REGION;
+    int const v = logI - logB;
+    int const w = (v > 0) ? (1 << v) : 1;
+    size_t const R = nregions + w;
+
+    auto & res = ssdpos_many_next;
+    if (res.size() != R) {
+        res.resize(R);
+    }
+    for (size_t k = 0; k < R; ++k) {
+        if (res[k].size() != S)
+            res[k].resize(S);
+    }
+
+    bool const is_first = ssdpos_many.empty();
+
+    small_sieve_prepare_many_start_positions_range(
+        nullptr, 0, S, first_region_index, nregions, logI, sl, is_first);
+}
+
+// Multithreaded thread_pool version
+void
+las_small_sieve_data::small_sieve_prepare_many_start_positions(
+        thread_pool & pool,
+        task_group * ptg,
         unsigned int first_region_index,
         int nregions,
         int logI,
@@ -571,20 +684,21 @@ las_small_sieve_data::small_sieve_prepare_many_start_positions(
      * constructed exactly for us !
      */
 
-    auto & res(ssdpos_many_next);
-    res.clear();
-
-    int const logB = LOG_BUCKET_REGION;
-    int const v = logI - logB;
+    size_t const S = ssps.size();
+    if (S == 0) {
+        ssdpos_many_next.clear();
+        return;
+    }
 
     /* w is the number of bucket regions per row. It's still 1 if regions
      * span more than one row.
      */
+    int const logB = LOG_BUCKET_REGION;
+    int const v = logI - logB;
     int const w = (v > 0) ? (1 << v) : 1;
+    size_t const R = nregions + w;
 
-    res.assign(nregions + w, std::vector<spos_t>(ssps.size(), 0));
-
-    int k;
+    // 1. Single-threaded pre-allocation / layout setup
 
     /*
      * either ssdpos_many is empty, which means that we've never run
@@ -597,6 +711,84 @@ las_small_sieve_data::small_sieve_prepare_many_start_positions(
      * All offsets are in [0, p). Because we're doing a small sieve, p is
      * less than 2^I. But it might nevertheless be larger than 2^B.
      */
+
+    auto & res = ssdpos_many_next;
+    if (res.size() != R) {
+        res.resize(R);
+    }
+    for (size_t k = 0; k < R; ++k) {
+        if (res[k].size() != S)
+            res[k].resize(S);
+    }
+
+    bool const is_first = ssdpos_many.empty();
+
+    // 2. Determine chunk size (aligned to 16 primes = 64 bytes)
+    constexpr size_t ALIGN_PRIMES = 16;
+    size_t chunk_size = 128;
+    if (S > pool.size() * 32) {
+        size_t target_chunks = pool.size() * 4;
+        chunk_size = std::max<size_t>(64, ((S / target_chunks + ALIGN_PRIMES - 1) / ALIGN_PRIMES) * ALIGN_PRIMES);
+    }
+
+    // 3. Dispatch parallel tasks
+    std::unique_ptr<task_group> tg_u;
+
+    if (ptg == nullptr) {
+        tg_u = std::make_unique<task_group>();
+        ptg = tg_u.get();
+    }
+
+    task_group & tg(*ptg);
+
+    for (size_t s_start = 0; s_start < S; s_start += chunk_size) {
+        size_t s_end = std::min(S, s_start + chunk_size);
+
+        pool.add_task(tg, thread_pool::QUEUE_GENERIC, 0.0,
+            [this, s_start, s_end, first_region_index, nregions, logI, sl, is_first](worker_thread * worker) {
+                small_sieve_prepare_many_start_positions_range(
+                    worker, s_start, s_end, first_region_index, nregions, logI, sl, is_first);
+            });
+    }
+
+    if (tg_u)
+        tg.wait();
+
+#if 0
+#ifndef NDEBUG
+    tg.wait();
+    for (size_t k = 0; k < R; ++k) {
+        ASSERT(res[k].size() == ssps.size());
+        int N = first_region_index + k;
+        small_sieve_base C(logI, N, sl);
+        for (size_t s = 0; s < ssps.size(); ++s) {
+            ASSERT(res[k][s] == C.first_position_ordinary_prime(ssps[s]));
+        }
+    }
+#endif
+#endif
+}
+
+#if 0
+/* old code for reference */
+void
+las_small_sieve_data::small_sieve_prepare_many_start_positions(
+        unsigned int first_region_index,
+        int nregions,
+        int logI,
+        sublat_t const & sl)
+{
+    auto & res(ssdpos_many_next);
+    res.clear();
+
+    int const logB = LOG_BUCKET_REGION;
+    int const v = logI - logB;
+
+    int const w = (v > 0) ? (1 << v) : 1;
+
+    res.assign(nregions + w, std::vector<spos_t>(ssps.size(), 0));
+
+    int k;
 
     if (ssdpos_many.empty()) {
         ASSERT_ALWAYS(first_region_index == 0);
@@ -672,6 +864,7 @@ las_small_sieve_data::small_sieve_prepare_many_start_positions(
     }
 #endif
 }
+#endif
 
 /* }}} */
 

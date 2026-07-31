@@ -13,6 +13,7 @@
 #include "las-qlattice.hpp"
 #include "macros.h"
 #include "smallsieve.hpp"
+#include "threadpool.hpp"
 
 
 /* Simple primes/roots. These are implicitly "nice", i.e., odd primes/powers
@@ -114,6 +115,33 @@ namespace fmt {
 
 class las_small_sieve_data : public small_sieve_data {
 public:
+    // Single-threaded fallback / original interface
+    void small_sieve_prepare_many_start_positions(
+            unsigned int first_region_index,
+            int nregions,
+            int logI,
+            sublat_t const & sl) final;
+
+    // Multithreaded thread_pool interface
+    void small_sieve_prepare_many_start_positions(
+            thread_pool & pool,
+            task_group * tg,
+            unsigned int first_region_index,
+            int nregions,
+            int logI,
+            sublat_t const & sl) final;
+
+protected:
+    void small_sieve_prepare_many_start_positions_range(
+            worker_thread * worker,
+            size_t s_start,
+            size_t s_end,
+            unsigned int first_region_index,
+            int nregions,
+            int logI,
+            sublat_t const & sl,
+            bool is_first);
+public:
     void small_sieve_init(
             std::vector<fb_entry_general> const & resieved,
             std::vector<fb_entry_general> const & rest,
@@ -126,12 +154,6 @@ public:
     void small_sieve_clear() final;
 
     void small_sieve_info(const char * what, int side) const final;
-
-    void small_sieve_prepare_many_start_positions(
-            unsigned int first_region_index,
-            int nregions,
-            int logI,
-            sublat_t const & sl) final;
 
     void small_sieve_activate_many_start_positions() final;
 
@@ -162,6 +184,7 @@ protected:
     void small_sieve_print_contents(const char * prefix) const;
 
 private:
+    int side = -1;
     fb_factorbase::key_type fbK;
     std::vector<ssp_simple_t> ssps;
     std::vector<ssp_t> ssp;

@@ -768,29 +768,25 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
          */
         BOOKKEEPING_TIMER(timer_special_q);
 
+        std::vector<task_group> sss_tgs(nsides);
+
         for(int side = 0 ; side < nsides ; side++) {
             nfs_work::side_data  const& wss(ws.sides[side]);
             if (wss.no_fb()) continue;
+            auto & sss_tg(sss_tgs[side]);
             pool.add_task(
+                    sss_tg,
                     thread_pool::QUEUE_GENERIC,
                     std::numeric_limits<double>::max(),
-                    [](
-                        worker_thread * worker,
-                        nfs_work & ws,
-                        nfs_aux & aux,
-                        ALGO::special_q_data const & Q,
-                        int side)
+                    [&ws, &aux, &Q, side](
+                        worker_thread * worker)
                     {
                         timetree_t & timer(aux.get_timer(worker));
                         ENTER_THREAD_TIMER(timer);
                         MARK_TIMER_FOR_SIDE(timer, side);
-
                         SIBLING_TIMER(timer, "prepare small sieve");
-
                         auto tt = worker->trace(chronograms::SSS(side, ws.toplevel));
-
                         nfs_work::side_data & wss(ws.sides[side]);
-                        // if (wss.no_fb()) return;
 
                         wss.ssd->small_sieve_init(
                                 wss.fbs->small_sieve_entries.resieved,
@@ -802,24 +798,33 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
                                 wss.lognorms.scale);
 
                         wss.ssd->small_sieve_info("small sieve", side);
+                    });
 
-                        if (ws.toplevel == 1) {
-                            /* when ws.toplevel > 1, this start_many call
-                             * is done several times.
-                             */
-                            SIBLING_TIMER(timer, "small sieve start positions ");
-                            wss.ssd->small_sieve_prepare_many_start_positions(
-                                    0,
-                                    std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1]),
-                                    ws.conf.logI, Q.sublat);
-                            wss.ssd->small_sieve_activate_many_start_positions();
-                        }
-                    },
-                    std::ref(ws), std::ref(*aux_p), std::cref(Q), side);
+            if (ws.toplevel == 1) {
+                /* when ws.toplevel > 1, this start_many call
+                 * is done several times.
+                 */
+                sss_tg.on_complete([&ws, &Q, side, &pool, &sss_tg]() {
+                        nfs_work::side_data & wss(ws.sides[side]);
+                        wss.ssd->small_sieve_prepare_many_start_positions(
+                                pool, &sss_tg,
+                                0,
+                                std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1]),
+                                ws.conf.logI, Q.sublat);
+                        });
+            }
         }
 
         /* Note: we haven't done any downsorting yet ! */
-
+        for(int side = 0 ; side < nsides ; side++) {
+            nfs_work::side_data  const& wss(ws.sides[side]);
+            if (wss.no_fb()) continue;
+            auto & sss_tg(sss_tgs[side]);
+            sss_tg.wait();
+            if (ws.toplevel == 1)
+                wss.ssd->small_sieve_activate_many_start_positions();
+        }
+            
         pool.drain_queue(thread_pool::QUEUE_GENERIC);
 
         ws.check_buckets_max_full_toplevel(ws.toplevel);
