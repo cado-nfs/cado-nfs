@@ -161,9 +161,9 @@ static void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * i
     auto i0 = rhs_vecs[0].i0;
     auto eitems = i1 - i0;
 
-    pi_comm_ptr m = pi->m;
-    pi_comm_ptr wr = pi->wr[d];
-    pi_comm_ptr xwr = wr->xwr;
+    pi_comm & m = pi->m;
+    pi_comm & wr = pi->wr[d];
+    pi_comm & xwr = *wr->xwr;
 
     size_t const nrhs = rhs_vecs.size() * A->simd_groupsize();
 
@@ -181,7 +181,7 @@ static void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * i
     /* make leader_vecs accessible to all threads at pi->m->jrank == 0
      * and all thread ranks along xwr */
     auto * p_local_vecs = &local_vecs;
-    pi_bcast(&p_local_vecs, sizeof(void *), BWC_PI_BYTE, 0, 0, xwr);
+    xwr.bcast(&p_local_vecs, sizeof(void *), BWC_PI_BYTE, 0, 0);
     auto & leader_vecs(*p_local_vecs);
 
     cxx_mpz c;
@@ -595,7 +595,7 @@ struct prep_object {
                 ret0.insert(i);
         }
         SEVERAL_THREADS_PLAY_MPI_BEGIN(my.pi->wr[my.d]) {
-            parallelizing_info_experimental::allgather(ret0, my.pi->wr[my.d]->xwr);
+            parallelizing_info_experimental::allgather(ret0, *my.pi->wr[my.d].xwr);
         }
         SEVERAL_THREADS_PLAY_MPI_END();
 
@@ -614,7 +614,7 @@ struct prep_object {
                     ret1.insert(i);
             }
             SEVERAL_THREADS_PLAY_MPI_BEGIN(my.pi->wr[my.d]) {
-                parallelizing_info_experimental::allgather(ret1, my.pi->wr[my.d]->xwr);
+                parallelizing_info_experimental::allgather(ret1, *my.pi->wr[my.d].xwr);
             }
             SEVERAL_THREADS_PLAY_MPI_END();
 
@@ -701,9 +701,9 @@ struct prep_object {
 
         /* Now all threads and jobs must collectively reduce the zone
          * pointed to by xymats */
-        pi_allreduce(nullptr, xymats_not_striped.get(),
+        pi->m.allreduce(nullptr, xymats_not_striped.get(),
                      bw->m * prep_iterations * A_multiplex, mmt.pitype,
-                     BWC_PI_SUM, pi->m);
+                     BWC_PI_SUM);
 
         /* OK -- now everybody has the same data */
 

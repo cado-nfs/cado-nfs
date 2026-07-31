@@ -803,9 +803,9 @@ class parasite_fixer {/*{{{*/
                 serialize(pi->m);
             }
 
-            pi_allreduce(nullptr, *pmat,
+            pi->m.allreduce(nullptr, *pmat,
                     cblocks * vrows.size(),
-                    mmt.pitype, BWC_PI_SUM, pi->m);
+                    mmt.pitype, BWC_PI_SUM);
 
             if (leader) {
                 fmt::print("Print matrix of size {}*{}\n", srows.size(), scols.size());

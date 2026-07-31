@@ -522,8 +522,7 @@ int blstate::operator()(parallelizing_info & pi)
                     mmt_my_own_subvec(y),
                     mmt_my_own_size_in_items(y));
 
-            pi_allreduce(nullptr, vav,
-                    nelts_for_nnmat, mmt.pitype, BWC_PI_SUM, pi->m);
+            pi->m.allreduce(nullptr, vav, nelts_for_nnmat, mmt.pitype, BWC_PI_SUM);
 
             A->vec_set_zero(vaav, nelts_for_nnmat);
 
@@ -532,9 +531,7 @@ int blstate::operator()(parallelizing_info & pi)
                     mmt_my_own_subvec(y),
                     mmt_my_own_size_in_items(y));
 
-            pi_allreduce(nullptr, vaav, nelts_for_nnmat,
-                    mmt.pitype, BWC_PI_SUM, pi->m);
-
+            pi->m.allreduce(nullptr, vaav, nelts_for_nnmat, mmt.pitype, BWC_PI_SUM);
 
             ASSERT_ALWAYS(D[i0]->n == 64);
 

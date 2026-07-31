@@ -318,9 +318,9 @@ static void * krylov_prog(parallelizing_info & pi, cxx_param_list & pl, void * a
         mmt_vec_untwist(mmt, ymy[0]);
 
         /* Now (and only now) collect the xy matrices */
-        pi_allreduce(nullptr, xymats,
+        pi->m.allreduce(nullptr, xymats,
                 bw->m * bw->interval,
-                mmt.pitype, BWC_PI_SUM, pi->m);
+                mmt.pitype, BWC_PI_SUM);
 
         if (pi->m->trank == 0 && pi->m->jrank == 0 && !fake) {
             std::string const tmp = fmt::format("A{}-{}.{}-{}", ys[0], ys[1], s, s+bw->interval);

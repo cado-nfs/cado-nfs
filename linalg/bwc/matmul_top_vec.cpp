@@ -103,30 +103,29 @@ static bool own_his_vector(pi_comm_srcptr wr, int flags)
 }
 
 static
-mmt_vec::pointer_to_others create_pointer_to_others(pi_comm_ptr wr, mmt_vec * v)
+mmt_vec::pointer_to_others create_pointer_to_others(pi_comm & wr, mmt_vec * v)
 {
     mmt_vec::pointer_to_others ret(
-            static_cast<mmt_vec **>(shared_malloc(
-                    wr, 
+            static_cast<mmt_vec **>(wr.shared_malloc(
                     wr->ncores * sizeof(mmt_vec *))),
-            wr);
-    ret.get()[wr->trank] = v;
+            & wr);
+    ret.get()[wr.trank] = v;
     serialize_threads(wr);
     return ret;
 }
 
 static arith_generic::elt * owned_or_shared(
         arith_generic::owned_vector const & vv,
-        pi_comm_ptr wr,
+        pi_comm & wr,
         int flags)
 {
     if (!(flags & THREAD_SHARED_VECTOR))
         return vv.get();
 
     arith_generic::elt * v;
-    if (wr->trank == 0)
+    if (wr.trank == 0)
         v = vv.get();
-    pi_thread_bcast(&v, sizeof(void*), BWC_PI_BYTE, 0, wr);
+    wr.thread_bcast(&v, sizeof(void*), BWC_PI_BYTE, 0);
 
     return v;
 }
@@ -741,9 +740,8 @@ unsigned long mmt_vec_hamming_weight(mmt_vec const & y) {
      * thus deduce the same count */
     /* 20240925, bug #30083: added protection (inside pi_allreduce)
      * across wr[y.d] !!!  */
-    pi_allreduce(nullptr, &w,
-            1, BWC_PI_UNSIGNED_LONG, BWC_PI_SUM,
-            y.pi->wr[!y.d]);
+    y.pi->wr[!y.d].allreduce(nullptr, &w,
+            1, BWC_PI_UNSIGNED_LONG, BWC_PI_SUM);
     return w;
 }
 

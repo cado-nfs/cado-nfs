@@ -194,21 +194,19 @@ static void * tst_prog(parallelizing_info & pi, cxx_param_list & pl,
         if (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0) {
             balancing_read(bb, bname);
         }
-        pi_bcast(&bb, sizeof(balancing), BWC_PI_BYTE, 0, 0, mmt.pi->m);
+        mmt.pi->m.bcast(&bb, sizeof(balancing), BWC_PI_BYTE, 0, 0);
         /* fix the mmt.rowperm and mmt.colperm */
         if (bb.rowperm) {
             if (mmt.pi->m->jrank || mmt.pi->m->trank) {
                 bb.rowperm = (uint32_t *)malloc(bb.trows * sizeof(uint32_t));
             }
-            pi_bcast(bb.rowperm, bb.trows * sizeof(uint32_t), BWC_PI_BYTE, 0, 0,
-                     mmt.pi->m);
+            mmt.pi->m.bcast(bb.rowperm, bb.trows * sizeof(uint32_t), BWC_PI_BYTE, 0, 0);
         }
         if (bb.colperm) {
             if (mmt.pi->m->jrank || mmt.pi->m->trank) {
                 bb.colperm = (uint32_t *)malloc(bb.tcols * sizeof(uint32_t));
             }
-            pi_bcast(bb.colperm, bb.tcols * sizeof(uint32_t), BWC_PI_BYTE, 0, 0,
-                     mmt.pi->m);
+            mmt.pi->m.bcast(bb.colperm, bb.tcols * sizeof(uint32_t), BWC_PI_BYTE, 0, 0);
         }
 
         for (int test_shared = 0; test_shared < 2; test_shared++) {
@@ -388,7 +386,7 @@ static void * tst_prog(parallelizing_info & pi, cxx_param_list & pl,
         std::vector<uint32_t> xx(m * nx, 0);
         for (auto & x : xx)
             x = gmp_urandomm_ui(rstate, mmt.n0[0]);
-        pi_bcast(xx.data(), xx.size() * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
+        pi->m.bcast(xx.data(), xx.size() * sizeof(uint32_t), BWC_PI_BYTE, 0, 0);
         for (int d = 0; d < 2; d++) {
             std::string pat;
 

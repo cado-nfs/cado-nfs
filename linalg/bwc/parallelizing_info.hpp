@@ -161,16 +161,23 @@ struct pi_comm { /* {{{ */
     operator pi_comm *() { return this; }
     operator const pi_comm *() const { return this; }
 
+    /* pointers must be different on all threads */
     void thread_bcast(void * sendbuf, size_t count, pi_datatype_ptr datatype, unsigned int root);
     void thread_allreduce(void * sendbuf, void * recvbuf, size_t count, pi_datatype_ptr datatype, pi_op_ptr op);
     int thread_data_eq(void * buffer, size_t count, pi_datatype_ptr datatype);
 
+    private:
+    void bcast_mpi_inner(void * ptr, size_t count, pi_datatype_ptr datatype, unsigned int jroot, unsigned int troot);
+    void allreduce_mpi_inner(void *recvbuf, size_t count, pi_datatype_ptr datatype, pi_op_ptr op);
+    void allgather_mpi_inner(void *recvbuf, size_t per_thread);
+
+    public:
     void bcast(void * sendbuf, size_t count, pi_datatype_ptr datatype, unsigned int jroot, unsigned int troot);
     void allreduce(void * sendbuf, void * recvbuf, size_t count, pi_datatype_ptr datatype, pi_op_ptr op);
     void allgather(void * sendbuf, size_t sendcount, pi_datatype_ptr sendtype, void * recvbuf, size_t recvcount, pi_datatype_ptr recvtype);
     int data_eq(void * buffer, size_t count, pi_datatype_ptr datatype);
 
-    void abort(int err);
+    void abort(int err) const;
     int serialize_comm(const char * file, unsigned int line);
     int serialize_threads_comm(const char * file, unsigned int line);
 
@@ -178,6 +185,10 @@ struct pi_comm { /* {{{ */
     void log_clear();
     void log_print();
 
+    /* shared_malloc is like malloc, except that the pointer returned will be
+     * equal on all threads (proper access will deserve proper locking of
+     * course). shared_malloc_set_zero sets to zero too */
+    /* As a side-effect, all shared_* functions serialize threads */
     void * shared_malloc(size_t size);
     void * shared_malloc_set_zero(size_t size);
     void shared_free(void * ptr);
@@ -350,41 +361,13 @@ extern void pi_hello(parallelizing_info & pi);
  * no use for it) */
 typedef void (*thread_reducer_t)(const void *, void *, size_t);
 
-/* pointers must be different on all threads */
-extern void pi_thread_bcast(void * sendbuf,
-        size_t count, pi_datatype_ptr datatype,
-        unsigned int root,
-        pi_comm_ptr wr);
-extern void pi_abort(int err, pi_comm_ptr wr);
-extern void pi_thread_allreduce(void * sendbuf, void * recvbuf,
-        size_t count, pi_datatype_ptr datatype, pi_op_ptr op,
-        pi_comm_ptr wr);
-extern int pi_thread_data_eq(void * buffer,
-        size_t count, pi_datatype_ptr datatype,
-        pi_comm_ptr wr);
-extern void pi_bcast(void * sendbuf,
-        size_t count, pi_datatype_ptr datatype,
-        unsigned int jroot, unsigned int troot,
-        pi_comm_ptr wr);
-extern void pi_allreduce(void * sendbuf, void *recvbuf,
-        size_t count, pi_datatype_ptr datatype, pi_op_ptr op,
-        pi_comm_ptr wr);
-extern void pi_allgather(void * sendbuf,
-        size_t sendcount, pi_datatype_ptr sendtype,
-        void *recvbuf,
-        size_t recvcount, pi_datatype_ptr recvtype,
-        pi_comm_ptr wr);
-extern int pi_data_eq(void * buffer,
-        size_t count, pi_datatype_ptr datatype,
-        pi_comm_ptr wr);
-
 /* These two interfaces are experimental only */
 
 namespace parallelizing_info_experimental {
     void broadcast(std::vector<unsigned int>& v, parallelizing_info & pi);
-    void allgather(std::vector<unsigned int>& v, pi_comm_ptr wr);
+    void allgather(std::vector<unsigned int>& v, pi_comm & wr);
     void broadcast(std::set<unsigned int>& v, parallelizing_info & pi);
-    void allgather(std::set<unsigned int>& v, pi_comm_ptr wr);
+    void allgather(std::set<unsigned int>& v, pi_comm & wr);
 }
 
 /* prints the given string in a ascii-form matrix. */
@@ -419,20 +402,13 @@ extern void pi_interleaving_leave(parallelizing_info &);
 extern void pi_store_generic(parallelizing_info &, unsigned long, unsigned long, void *);
 extern void * pi_load_generic(parallelizing_info &, unsigned long, unsigned long);
 
-/* shared_malloc is like malloc, except that the pointer returned will be
- * equal on all threads (proper access will deserve proper locking of
- * course). shared_malloc_set_zero sets to zero too */
-/* As a side-effect, all shared_* functions serialize threads */
-extern void * shared_malloc(pi_comm_ptr wr, size_t size);
-extern void * shared_malloc_set_zero(pi_comm_ptr wr, size_t size);
-extern void shared_free(pi_comm_ptr wr, void * ptr);
 
 /* Use in std::unique_ptr<T, shared_free_deleter<T>>
  *     or std::unique_ptr<T[], shared_free_deleter<T>>
  */
 template<typename T>
 struct shared_free_deleter {
-    pi_comm_ptr wr = nullptr;
+    pi_comm * wr = nullptr;
     shared_free_deleter() = default;
     ~shared_free_deleter() = default;
     // NOLINTNEXTLINE(hicpp-explicit-conversions)
@@ -441,7 +417,7 @@ struct shared_free_deleter {
     shared_free_deleter& operator=(shared_free_deleter const &) = default;
     shared_free_deleter(shared_free_deleter &&) noexcept = default;
     shared_free_deleter& operator=(shared_free_deleter &&) noexcept = default;
-    void operator()(T * ptr) const { if (wr) shared_free(wr, ptr); }
+    void operator()(T * ptr) const { if (wr) wr->shared_free(ptr); }
 };
 
 template<typename T>
@@ -449,7 +425,7 @@ T * shared_new(pi_comm_ptr wr, size_t size)
 {
     void * ptr = nullptr;
     if (wr->trank == 0) ptr = new T[size];
-    pi_thread_bcast(&ptr, sizeof(void*), BWC_PI_BYTE, 0, wr);
+    wr->thread_bcast(&ptr, sizeof(void*), BWC_PI_BYTE, 0);
     return static_cast<T *>(ptr);
 }
 
@@ -465,7 +441,7 @@ T * shared_new(pi_comm_ptr wr)
 {
     void * ptr = nullptr;
     if (wr->trank == 0) ptr = new T;
-    pi_thread_bcast(&ptr, sizeof(void*), BWC_PI_BYTE, 0, wr);
+    wr->thread_bcast(&ptr, sizeof(void*), BWC_PI_BYTE, 0);
     return static_cast<T *>(ptr);
 }
 

@@ -175,8 +175,8 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
         }
 
         /* The non-master branch does exactly the same! */
-        pi_bcast(&consistency, 1, BWC_PI_INT, 0, 0, pi->m);
-        if (!consistency) pi_abort(EXIT_FAILURE, pi->m);
+        pi->m.bcast(&consistency, 1, BWC_PI_INT, 0, 0);
+        if (!consistency) pi->m.abort(EXIT_FAILURE);
 
         /* {{{ create or load T, based on the random seed. */
 
@@ -205,11 +205,11 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
 
         ASSERT_ALWAYS(Rfile);
 
-        pi_bcast(Tdata, bw->m, A_pi, 0, 0, pi->m);
+        pi->m.bcast(Tdata, bw->m, A_pi, 0, 0);
     } else {
-        pi_bcast(&consistency, 1, BWC_PI_INT, 0, 0, pi->m);
-        if (!consistency) pi_abort(EXIT_FAILURE, pi->m);
-        pi_bcast(Tdata, bw->m, A_pi, 0, 0, pi->m);
+        pi->m.bcast(&consistency, 1, BWC_PI_INT, 0, 0);
+        if (!consistency) pi->m.abort(EXIT_FAILURE);
+        pi->m.bcast(Tdata, bw->m, A_pi, 0, 0);
     }
     /* }}} */
 
@@ -346,7 +346,7 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
             Rdata_stream = A->alloc(nchecks * (next - k0), ALIGNMENT_ON_ALL_BWC_VECTORS);
             A->vec_set_zero(Rdata_stream, nchecks * (next - k0));
             A->vec_set_random(Rdata_stream, nchecks * (next - k0), rstate);
-            pi_bcast(Rdata_stream, nchecks * (next - k0), A_pi, 0, 0, pi->m);
+            pi->m.bcast(Rdata_stream, nchecks * (next - k0), A_pi, 0, 0);
         }
     
         for( ; k < next ; k++) {

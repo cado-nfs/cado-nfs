@@ -1391,7 +1391,7 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
         }
     }
 
-    if (!pi_data_eq(&cache_loaded, 1, BWC_PI_INT, mmt.pi->m)) {
+    if (!mmt.pi->m.data_eq(&cache_loaded, 1, BWC_PI_INT)) {
         if (can_print) {
             fprintf(stderr, "Fatal error: cache files not present at expected locations\n");
         }
@@ -1542,8 +1542,8 @@ void matmul_top_report(matmul_top_data & mmt, double scale, int full)
         std::fill_n(all_reports.get(), mmt.pi->m->totalsize * max_report_size, 0);
         std::ranges::copy(Mloc.mm->report_string,
                 all_reports.get() + max_report_size * (mmt.pi->m->jrank * mmt.pi->m->ncores + mmt.pi->m->trank));
-        pi_allgather(nullptr, 0, 0,
-                all_reports.get(), max_report_size, BWC_PI_BYTE, mmt.pi->m);
+        mmt.pi->m.allgather(nullptr, 0, 0,
+                all_reports.get(), max_report_size, BWC_PI_BYTE);
 
         if (max_report_size > 1 && mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0) {
             for(unsigned int j = 0 ; j < mmt.pi->m->njobs ; j++) {

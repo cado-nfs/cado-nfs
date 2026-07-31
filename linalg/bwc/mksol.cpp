@@ -127,9 +127,9 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     /* {{{ Read all vi's */
     cxx_gmp_randstate rstate;
     if (fake) {
-        if (pi->m->trank == 0 && !bw->seed) {
+        if (pi->m.trank == 0 && !bw->seed) {
             bw->seed = int(time(nullptr));
-            MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m->pals);
+            MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m.pals);
         }
         serialize_threads(pi->m);
         gmp_randseed_ui(rstate, bw->seed);
@@ -141,11 +141,11 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     unsigned int expected_last_iteration;
 
     serialize_threads(pi->m);
-    if (pi->m->trank == 0) {
+    if (pi->m.trank == 0) {
         /* the bw object is global ! */
         expected_last_iteration = bw_set_length_and_interval_mksol(bw, mmt.n0);
     }
-    pi_thread_bcast(&expected_last_iteration, 1, BWC_PI_UNSIGNED, 0, pi->m);
+    pi->m.thread_bcast(&expected_last_iteration, 1, BWC_PI_UNSIGNED, 0);
     serialize_threads(pi->m);
     if (bw->end == INT_MAX) {
         if (tcan_print)
@@ -295,7 +295,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
             bool short_read = false;
 
             serialize(pi->m);
-            if (pi->m->trank == 0 && pi->m->jrank == 0) {
+            if (pi->m.trank == 0 && pi->m.jrank == 0) {
                 int rc0 = 0, rc = 0;
                 for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
                     for(unsigned int j = 0 ; j < As_multiplex ; j++) {
@@ -378,10 +378,10 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
                 }
             }
             serialize(pi->m);
-            pi_bcast(&s0, 1, BWC_PI_INT, 0, 0, pi->m);
-            pi_bcast(&s1, 1, BWC_PI_INT, 0, 0, pi->m);
-            pi_bcast(&sx, 1, BWC_PI_INT, 0, 0, pi->m);
-            pi_bcast(&bw_end_copy, 1, BWC_PI_INT, 0, 0, pi->m);
+            pi->m.bcast(&s0, 1, BWC_PI_INT, 0, 0);
+            pi->m.bcast(&s1, 1, BWC_PI_INT, 0, 0);
+            pi->m.bcast(&sx, 1, BWC_PI_INT, 0, 0);
+            pi->m.bcast(&bw_end_copy, 1, BWC_PI_INT, 0, 0);
 
             serialize_threads(mmt.pi->m);
 
@@ -397,7 +397,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
             for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
                 for(unsigned int j = 0 ; j < As_multiplex ; j++) {
                     arith_generic::elt * ff = fcoeffs[i * As_multiplex + j];
-                    pi_bcast(ff, Av->simd_groupsize() * (s1 - s0), As_pi, 0, 0, pi->m);
+                    pi->m.bcast(ff, Av->simd_groupsize() * (s1 - s0), As_pi, 0, 0);
                 }
             }
 
