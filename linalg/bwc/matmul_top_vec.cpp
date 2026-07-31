@@ -523,8 +523,8 @@ int mmt_vec_load(mmt_vec & v, std::string const & filename_pattern, unsigned int
             fmt::print("Loading {} ...", filename);
             fflush(stdout);
         }
-        pi_file_handle f;
-        int const ok = pi_file_open(f, *v.pi, v.d, filename.c_str(), "rb");
+        pi_file_handle f(*v.pi);
+        int const ok = f.open(v.d, filename, "rb");
         /* "ok" is globally consistent after pi_file_open */
         if (!ok) {
             if (v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
@@ -533,7 +533,7 @@ int mmt_vec_load(mmt_vec & v, std::string const & filename_pattern, unsigned int
             }
         } else {
             serialize(v.pi->m);
-            size_t const s = pi_file_read_chunk(f, mychunk, mysize, sizeondisk,
+            size_t const s = f.read_chunk(mychunk, mysize, sizeondisk,
                     bigstride, b * smallstride, (b+1) * smallstride);
             int const ok = s == sizeondisk / Adisk_multiplex;
             /* "ok" is globally consistent after pi_file_read_chunk */
@@ -550,7 +550,7 @@ int mmt_vec_load(mmt_vec & v, std::string const & filename_pattern, unsigned int
             /* not clear it's useful, but well. */
             if (ok) mmt_vec_broadcast(v);
             serialize_threads(v.pi->m);
-            pi_file_close(f);
+            f.close();
         }
         tt += wct_seconds();
         if (ok && tcan_print) {
@@ -596,8 +596,8 @@ int mmt_vec_save(mmt_vec & v, std::string const & filename_pattern, unsigned int
             fmt::print("Saving {} ...", filename);
             fflush(stdout);
         }
-        pi_file_handle f;
-        int ok = pi_file_open(f, *v.pi, v.d, tmpfilename.c_str(), "wb");
+        pi_file_handle f(*v.pi);
+        int ok = f.open(v.d, tmpfilename, "wb");
         /* "ok" is globally consistent after pi_file_open */
         if (!ok) {
             if (v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
@@ -607,7 +607,7 @@ int mmt_vec_save(mmt_vec & v, std::string const & filename_pattern, unsigned int
         } else {
             ASSERT_ALWAYS(v.consistency == 2);
             serialize_threads(v.pi->m);
-            size_t const s = pi_file_write_chunk(f, mychunk, mysize, sizeondisk,
+            size_t const s = f.write_chunk(mychunk, mysize, sizeondisk,
                     bigstride, b * smallstride, (b+1) * smallstride);
             serialize_threads(v.pi->m);
             ok = s == sizeondisk / Adisk_multiplex;
@@ -615,7 +615,7 @@ int mmt_vec_save(mmt_vec & v, std::string const & filename_pattern, unsigned int
             if (!ok && v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
                 fmt::print(stderr, "ERROR: failed to save {}: short write, {}\n", filename, errno ? strerror(errno) : "no error reported via errno");
             }
-            ok = pi_file_close(f);
+            ok = f.close();
             if (!ok && v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
                 fmt::print(stderr, "ERROR: failed to save {}: failed fclose, {}\n", filename, errno ? strerror(errno) : "no error reported via errno");
             }

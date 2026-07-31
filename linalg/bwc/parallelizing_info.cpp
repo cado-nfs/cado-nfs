@@ -1707,26 +1707,24 @@ void pi_hello(parallelizing_info & pi)
  * In multithreaded context, f must represent a different data area on
  * all threads.
  */
-int pi_file_open(pi_file_handle_ptr f, parallelizing_info & pi, int inner, const char * name, const char * mode)
+int pi_file_handle::open(int inner, std::string const & name, const char * mode)
 {
-    *f = pi_file_handle {};
-    f->pi = &pi;
-    f->inner = inner;
-    f->outer = !inner;
-    f->f = nullptr;
-    f->name = name;
-    f->mode = mode;
+    this->inner = inner;
+    this->outer = !inner;
+    this->f = nullptr;
+    this->name = name;
+    this->mode = mode;
     int failed = 0;
-    if (f->pi->m.jrank == 0 && f->pi->m.trank == 0) {
+    if (pi.m.jrank == 0 && pi.m.trank == 0) {
         errno = 0;
         /* POSIX fopen is required to set errno
          * http://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
          */
-        f->f = fopen(name, mode);
-        if (f->f == nullptr)
+        this->f = fopen(name.c_str(), mode);
+        if (this->f == nullptr)
             failed = errno ? errno : EIO;
     }
-    pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, f->pi->m);
+    pi.m.bcast(&failed, 1, BWC_PI_INT, 0, 0);
     if (failed) errno = failed;
     return !failed;
 }
@@ -1735,16 +1733,16 @@ int pi_file_open(pi_file_handle_ptr f, parallelizing_info & pi, int inner, const
  * whether the operation was successful (1) or not (0). In the latter
  * case, set errno (globally) to the value returned by the fclose
  * function at the leader node. */
-int pi_file_close(pi_file_handle_ptr f)
+int pi_file_handle::close()
 {
     int failed = 0;
-    if (f->pi->m->jrank == 0 && f->pi->m->trank == 0) {
+    if (pi.m.jrank == 0 && pi.m.trank == 0) {
         errno = 0;
-        if (fclose(f->f) != 0)
+        if (fclose(f) != 0)
             failed = errno ? errno : EIO;
     }
-    pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, f->pi->m);
-    *f = pi_file_handle {};
+    pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, pi.m);
+    f = nullptr;
     if (failed) errno = failed;
     return !failed;
 }
@@ -1780,9 +1778,9 @@ static ssize_t pi_file_read_leader(pi_file_handle_ptr f, void * buf, size_t size
 */
 
 /* size is the chunk size on each core */
-size_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize)
+size_t pi_file_handle::write(void * buf, size_t size, size_t totalsize)
 {
-    return pi_file_write_chunk(f, buf, size, totalsize, 1, 0, 1);
+    return write_chunk(buf, size, totalsize, 1, 0, 1);
 }
 
 /* Here, we write a fragment of a "virtual" file (of size totalsize) that
@@ -1795,7 +1793,7 @@ size_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t total
  * a short read occurs, set errno (globally) to the value returned by the
  * fwrite function at the leader node.
  */
-size_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos)
+size_t pi_file_handle::write_chunk(void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos)
 {
     // coverity[result_independent_of_operands]
     ASSERT_ALWAYS(size <= ULONG_MAX);
@@ -1813,23 +1811,23 @@ size_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
      * However, having even sizes greatly simplifies the pictures, as
      * it alleviates the need to collect the sizes for all threads */
     unsigned long size_ul = size;
-    ASSERT_ALWAYS(pi_data_eq(&size_ul, 1, BWC_PI_UNSIGNED_LONG, f->pi->m));
+    ASSERT_ALWAYS(pi_data_eq(&size_ul, 1, BWC_PI_UNSIGNED_LONG, pi.m));
 
-    unsigned int const nci = f->pi->wr[f->inner]->ncores;
-    unsigned int const nco = f->pi->wr[f->outer]->ncores;
-    unsigned int const nji = f->pi->wr[f->inner]->njobs;
-    unsigned int const njo = f->pi->wr[f->outer]->njobs;
-    unsigned int const ci  = f->pi->wr[f->inner]->trank;
-    unsigned int const co  = f->pi->wr[f->outer]->trank;
-    unsigned int const ji  = f->pi->wr[f->inner]->jrank;
-    unsigned int const jo  = f->pi->wr[f->outer]->jrank;
-    unsigned int const jm  = f->pi->m->jrank;
+    unsigned int const nci = pi.wr[inner]->ncores;
+    unsigned int const nco = pi.wr[outer]->ncores;
+    unsigned int const nji = pi.wr[inner]->njobs;
+    unsigned int const njo = pi.wr[outer]->njobs;
+    unsigned int const ci  = pi.wr[inner].trank;
+    unsigned int const co  = pi.wr[outer].trank;
+    unsigned int const ji  = pi.wr[inner].jrank;
+    unsigned int const jo  = pi.wr[outer].jrank;
+    unsigned int const jm  = pi.m.jrank;
 
     /* the inner threads will do writes and MPI sends in one go. For
      * outer threads, it is not possible to concatenate similarly,
      * because we have writes relative to the mpi-level interleaved.
      */
-    void * sbuf = shared_malloc_set_zero(f->pi->m, loc_size * nci);
+    void * sbuf = shared_malloc_set_zero(pi.m, loc_size * nci);
 
     size_t res = 0;
     int failed = 0;
@@ -1837,12 +1835,12 @@ size_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
     for(unsigned int xjo = 0 ; xjo < njo ; xjo++) {
         for(unsigned int xco = 0 ; xco < nco ; xco++) {
             for(unsigned int xji = 0 ; xji < nji ; xji++) {
-                unsigned int const xj = mrank_from_tworanks(*f->pi, f->inner, xji, xjo);
+                unsigned int const xj = mrank_from_tworanks(*pi, inner, xji, xjo);
                 if (jm == xj) {
                     ASSERT_ALWAYS (ji == xji && jo == xjo);
                     /* fill the buffer with the contents relevant to the
                      * inner communicator (nci threads at work here) */
-                    serialize_threads(f->pi->m);
+                    serialize_threads(pi.m);
                     if (xco == co) {
                         void * wptr = pointer_arith(sbuf, ci * loc_size);
                         const void * rptr = pointer_arith_const(buf, spos);
@@ -1856,15 +1854,15 @@ size_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
                             }
                         }
                     }
-                    serialize_threads(f->pi->m);
+                    serialize_threads(pi.m);
                 }
-                if (f->pi->m->trank == 0) {
+                if (pi.m.trank == 0) {
                     /* only one thread per node does something. */
                     if (!jm) {
                         /* leader node to receive data */
                         if (xj) {       /* except its own... */
                             MPI_Recv(sbuf, loc_size * nci, MPI_BYTE,
-                                    xj, xj, f->pi->m->pals,
+                                    xj, xj, pi.m.pals,
                                     MPI_STATUS_IGNORE);
                         }
                         if (!failed) {
@@ -1875,7 +1873,7 @@ size_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
                              * http://pubs.opengroup.org/onlinepubs/9699919799/functions/fwrite.html
                              */
                             errno = 0;
-                            size_t const x = fwrite(sbuf, 1, wanna_write, f->f);
+                            size_t const x = fwrite(sbuf, 1, wanna_write, f);
                             res += x;
                             if (x < wanna_write)
                                 failed = errno ? errno : EIO;
@@ -1883,22 +1881,22 @@ size_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
                     } else if (jm == xj) {
                         /* my turn to send data */
                         MPI_Send(sbuf, loc_size * nci, MPI_BYTE,
-                                0, xj, f->pi->m->pals);
+                                0, xj, pi.m.pals);
                     }
                 }
             }
         }
     }
-    shared_free(f->pi->m, sbuf);
-    pi_bcast(&res, 1, BWC_PI_SIZE_T, 0, 0, f->pi->m);
-    pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, f->pi->m);
+    shared_free(pi.m, sbuf);
+    pi_bcast(&res, 1, BWC_PI_SIZE_T, 0, 0, pi.m);
+    pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, pi.m);
     if (failed) errno = failed;
     return res;
 }
 
-size_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk)
+size_t pi_file_handle::read(void * buf, size_t size, size_t sizeondisk)
 {
-    return pi_file_read_chunk(f, buf, size, sizeondisk, 1, 0, 1);
+    return read_chunk(buf, size, sizeondisk, 1, 0, 1);
 }
 
 /*
@@ -1907,7 +1905,7 @@ size_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeon
  * a short read occurs, set errno (globally) to the value returned by the
  * fread function at the leader node.
  */
-size_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos)
+size_t pi_file_handle::read_chunk(void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos)
 {
     // coverity[result_independent_of_operands]
     ASSERT_ALWAYS(size <= ULONG_MAX);
@@ -1925,19 +1923,19 @@ size_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t 
      * However, having even sizes greatly simplifies the pictures, as
      * it alleviates the need to collect the sizes for all threads */
     unsigned long size_ul = size;
-    ASSERT_ALWAYS(pi_data_eq(&size_ul, 1, BWC_PI_UNSIGNED_LONG, f->pi->m));
+    ASSERT_ALWAYS(pi_data_eq(&size_ul, 1, BWC_PI_UNSIGNED_LONG, pi.m));
 
-    unsigned int const nci = f->pi->wr[f->inner]->ncores;
-    unsigned int const nco = f->pi->wr[f->outer]->ncores;
-    unsigned int const nji = f->pi->wr[f->inner]->njobs;
-    unsigned int const njo = f->pi->wr[f->outer]->njobs;
-    unsigned int const ci  = f->pi->wr[f->inner]->trank;
-    unsigned int const co  = f->pi->wr[f->outer]->trank;
-    unsigned int const ji  = f->pi->wr[f->inner]->jrank;
-    unsigned int const jo  = f->pi->wr[f->outer]->jrank;
-    unsigned int const jm  = f->pi->m->jrank;
+    unsigned int const nci = pi.wr[inner]->ncores;
+    unsigned int const nco = pi.wr[outer]->ncores;
+    unsigned int const nji = pi.wr[inner]->njobs;
+    unsigned int const njo = pi.wr[outer]->njobs;
+    unsigned int const ci  = pi.wr[inner].trank;
+    unsigned int const co  = pi.wr[outer].trank;
+    unsigned int const ji  = pi.wr[inner].jrank;
+    unsigned int const jo  = pi.wr[outer].jrank;
+    unsigned int const jm  = pi.m.jrank;
 
-    void * sbuf = shared_malloc_set_zero(f->pi->m, loc_size * nci);
+    void * sbuf = shared_malloc_set_zero(pi.m, loc_size * nci);
 
     size_t res = 0;
     int failed = 0;
@@ -1945,11 +1943,11 @@ size_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t 
     for(unsigned int xjo = 0 ; xjo < njo ; xjo++) {
         for(unsigned int xco = 0 ; xco < nco ; xco++) {
             for(unsigned int xji = 0 ; xji < nji ; xji++) {
-                unsigned int const xj = mrank_from_tworanks(*f->pi, f->inner, xji, xjo);
+                unsigned int const xj = mrank_from_tworanks(*pi, inner, xji, xjo);
                 /* for job (ji,jo), nci*nco threads enter here. Unless
                  * (ji == xji && jo == xjo), this loop becomes trivial.
                  */
-                if (f->pi->m->trank == 0) {
+                if (pi.m.trank == 0) {
                     /* only one thread per node does something. */
                     if (!jm) {
                         /* leader node to read then send data */
@@ -1960,25 +1958,25 @@ size_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t 
                              * http://pubs.opengroup.org/onlinepubs/9699919799/functions/fread.html
                              */
                             errno = 0;
-                            size_t const x = fread(sbuf, 1, wanna_read, f->f);
+                            size_t const x = fread(sbuf, 1, wanna_read, f);
                             res += x;
                             if (x < wanna_read)
                                 failed = errno ? errno : EIO;
                         }
                         if (xj) {       /* except to itself... */
                             MPI_Send(sbuf, loc_size * nci, MPI_BYTE,
-                                    xj, xj, f->pi->m->pals);
+                                    xj, xj, pi.m.pals);
                         }
                     } else if (jm == xj) {
                         /* my turn to receive data */
                         MPI_Recv(sbuf, loc_size * nci, MPI_BYTE,
-                                0, xj, f->pi->m->pals,
+                                0, xj, pi.m.pals,
                                 MPI_STATUS_IGNORE);
                     }
                 }
                 if (jm == xj) {
                     ASSERT_ALWAYS (ji == xji && jo == xjo);
-                    serialize_threads(f->pi->m);
+                    serialize_threads(pi.m);
                     /* fill the buffer with the contents relevant to the
                      * inner communicator (nci threads at work here) */
                     if (xco == co) {
@@ -1994,14 +1992,14 @@ size_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t 
                             }
                         }
                     }
-                    serialize_threads(f->pi->m);
+                    serialize_threads(pi.m);
                 }
             }
         }
     }
-    shared_free(f->pi->m, sbuf);
-    pi_bcast(&res, 1, BWC_PI_SIZE_T, 0, 0, f->pi->m);
-    pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, f->pi->m);
+    shared_free(pi.m, sbuf);
+    pi_bcast(&res, 1, BWC_PI_SIZE_T, 0, 0, pi.m);
+    pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, pi.m);
     if (failed) errno = failed;
     return res;
 }
@@ -2179,36 +2177,6 @@ void parallelizing_info::interleaving_enter()
 void parallelizing_info::interleaving_leave()
 {
     pi_interleaving_leave(*this);
-}
-
-int pi_file_handle::open(parallelizing_info & pi, int inner, const char * name, const char * mode)
-{
-    return pi_file_open(this, pi, inner, name, mode);
-}
-
-int pi_file_handle::close()
-{
-    return pi_file_close(this);
-}
-
-size_t pi_file_handle::write(void * buf, size_t size, size_t sizeondisk)
-{
-    return pi_file_write(this, buf, size, sizeondisk);
-}
-
-size_t pi_file_handle::read(void * buf, size_t size, size_t sizeondisk)
-{
-    return pi_file_read(this, buf, size, sizeondisk);
-}
-
-size_t pi_file_handle::write_chunk(void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos)
-{
-    return pi_file_write_chunk(this, buf, size, sizeondisk, chunksize, spos, epos);
-}
-
-size_t pi_file_handle::read_chunk(void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos)
-{
-    return pi_file_read_chunk(this, buf, size, sizeondisk, chunksize, spos, epos);
 }
 
 void pi_comm::thread_bcast(void * sendbuf, size_t count, pi_datatype_ptr datatype, unsigned int root) {

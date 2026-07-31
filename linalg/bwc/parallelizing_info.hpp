@@ -4,21 +4,22 @@
 /* don't enable this. Clutters output a lot */
 #define xxxCONCURRENCY_DEBUG
 
-#include <cstdio>            // for FILE
+#include <cstdio>
 #include <cstddef>
 
 #include <array>
 #include <map>
 #include <vector>
+#include <utility>
 #include <set>
 #ifdef CONCURRENCY_DEBUG
 #include <mutex>
 #endif
 
-#include <sys/time.h>         // for struct timeval
+#include <sys/time.h>
 
-#include "barrier.h"          // for barrier_t
-#include "macros.h"           // for OMPI_VERSION_ATLEAST
+#include "barrier.h"
+#include "macros.h"
 #include "params.hpp"
 #include "select_mpi.h"
 #include "arith-generic.hpp"
@@ -198,7 +199,7 @@ using pi_interleaving_ptr = pi_interleaving *;
  * common to two interleaved pi structures. Used to pass lightweight info
  * only */
 
-typedef lock_guarded_container<std::map<std::pair<unsigned long, unsigned long>, void *>> pi_dictionary;
+using pi_dictionary = lock_guarded_container<std::map<std::pair<unsigned long, unsigned long>, void *>>;
 /* }}} */
 
 /* {{{ global parallelizing_info handle */
@@ -296,21 +297,24 @@ struct pi_file_handle {
     std::string name;        /* just for reference. I doubt we'll need them */
     std::string mode;
     FILE * f = nullptr;   /* meaningful only at root */
-    parallelizing_info * pi = nullptr;
+    parallelizing_info & pi;
     int inner = 0;
     int outer = 0;
 
-    operator pi_file_handle *() { return this; }
-    operator const pi_file_handle *() const { return this; }
+    pi_file_handle(parallelizing_info & pi)
+        : pi(pi)
+    {}
 
-    int open(parallelizing_info & pi, int inner, const char * name, const char * mode);
+    int open(int inner, std::string const & name, const char * mode);
+    ~pi_file_handle() {
+        if (f) close();
+    }
     int close();
     size_t write(void * buf, size_t size, size_t sizeondisk);
     size_t read(void * buf, size_t size, size_t sizeondisk);
     size_t write_chunk(void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos);
     size_t read_chunk(void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos);
 };
-using pi_file_handle_ptr = pi_file_handle *;
 /* }}} */
 
 extern void parallelizing_info_decl_usage(cxx_param_list & pl);
@@ -332,16 +336,6 @@ extern void pi_go(
         void * arg);
 
 extern void pi_hello(parallelizing_info & pi);
-
-/* I/O functions */
-extern int pi_file_open(pi_file_handle_ptr f, parallelizing_info & pi, int inner, const char * name, const char * mode);
-extern int pi_file_close(pi_file_handle_ptr f);
-/* sizeondisk is the size which should be on disk. It may be shorter than
- * the sum of the individual sizes, in case of padding */
-extern size_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk);
-extern size_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk);
-extern size_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos);
-extern size_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos);
 
 /* the parallelizing_info layer has some collective operations which
  * deliberately have prototypes simlar or identical to their mpi

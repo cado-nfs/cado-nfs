@@ -37,9 +37,9 @@ struct mmt_vec {
     /* pointers to other vectors are held in shared memory areas (shared
      * among cores, of course)
      */
-    typedef std::unique_ptr<
+    using pointer_to_others = std::unique_ptr<
                 mmt_vec *,
-                shared_free_deleter<mmt_vec *>> pointer_to_others;
+                shared_free_deleter<mmt_vec *>>;
 
     /* pi->wr[d]->ncores siblings ; only in case all cores in the
      * communicator have their own data area v */
