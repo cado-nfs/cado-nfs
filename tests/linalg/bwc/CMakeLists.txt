@@ -718,10 +718,18 @@ macro(create_test_spmv test_spmv_base)
             set(suffix _${mpiconf})
             if(suffix STREQUAL _nompi)
                 set(suffix)
+                set(default_timeout 40)
+                if (HAVE_MPI)
+                    # merely linking the MPI libraries takes time.
+                    set(default_timeout 60)
+                endif()
+            else()
+                # Same precaution as with bwc_test.
+                set(default_timeout 90)
             endif()
             cado_define_test(
                 TEST_NAME test_spmv_${test_spmv_base}${suffix}
-                TIMEOUT 40
+                TIMEOUT ${default_timeout}
                 NO_DEFAULT_RUN
                 TARGET_DEPENDENCIES
                 random_matrix spmv_test short_matmul mf_scan2 mf_bal bwc_matmul_gf2
@@ -1002,6 +1010,12 @@ add_subdirectory (flint-fft)
 
 #########################################################################
 
+if(HAVE_MPI)
+    set(linalg_determinant_timeout 60)
+else()
+    set(linalg_determinant_timeout 20)
+endif()
+
 cado_define_test(linalg_determinant
     PROVIDE_TEMPORARY_WDIR_ARG wdir
     AVOID_CONCURRENT 4
@@ -1011,6 +1025,7 @@ cado_define_test(linalg_determinant
         matrix=${CMAKE_CURRENT_SOURCE_DIR}/d20.sparse.bin
     SHA1_ON_REGEXP_LINES "^determinant modulo p: "
     TARGET_DEPENDENCIES bwc_full_gfp det_from_lingen
+    TIMEOUT ${linalg_determinant_timeout}
     NO_DEFAULT_RUN
 )
 
