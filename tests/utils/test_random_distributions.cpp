@@ -57,8 +57,8 @@ static void test_random_normal(cxx_gmp_randstate & rstate, double xm, double xs,
         fmt::print(stderr, "{}: after {} picks, mean={:.3f} sdev={:.3f}\n", __func__,
                 l, m, sd);
         if (l >= 1024) {
-            ASSERT_ALWAYS(abs(m - xm) <= 0.1 * xs);
-            ASSERT_ALWAYS(abs(sd - xs) <= 0.1 * xs);
+            ASSERT_ALWAYS(std::abs(m - xm) <= 0.1 * xs);
+            ASSERT_ALWAYS(std::abs(sd - xs) <= 0.1 * xs);
             fmt::print(stderr, "{}: checks passed\n", __func__);
         }
     }
@@ -89,8 +89,8 @@ static void test_random_normal_constrained(cxx_gmp_randstate & rstate,
         fmt::print(stderr, "{}: after {} picks, mean={:.3f} sdev={:.3f}\n", __func__,
                 l, m, sd);
         if (l >= 1024) {
-            ASSERT_ALWAYS(abs(m - mmy[0]) <= 0.1 * mmy[1]);
-            ASSERT_ALWAYS(abs(sd - mmy[1]) <= 0.1 * mmy[1]);
+            ASSERT_ALWAYS(std::abs(m - mmy[0]) <= 0.1 * mmy[1]);
+            ASSERT_ALWAYS(std::abs(sd - mmy[1]) <= 0.1 * mmy[1]);
             fmt::print(stderr, "{}: checks passed\n", __func__);
         }
     }
@@ -120,8 +120,8 @@ static void test_random_poisson(cxx_gmp_randstate & rstate, double xm,
         fmt::print(stderr, "{}: after {} picks, mean={:.3f} sdev={:.3f}\n", __func__,
                 l, m, sd);
         if (l >= 1024) {
-            ASSERT_ALWAYS(abs(m / xm - 1) <= 0.1);
-            ASSERT_ALWAYS(abs(sd / sqrt(xm) - 1) <= 0.1);
+            ASSERT_ALWAYS(std::abs(m / xm - 1) <= 0.1);
+            ASSERT_ALWAYS(std::abs(sd / sqrt(xm) - 1) <= 0.1);
             fmt::print(stderr, "{}: checks passed\n", __func__);
         }
     }
