@@ -67,16 +67,16 @@ struct mgmsqrt {
 
     explicit mgmsqrt(cxx_param_list & pl)
         : cpoly(pl)
-        , R(cpoly, param_list_parse_mandatory<std::string>(pl, "renumber"), true)
-        , e(param_list_parse_mandatory<int>(pl, "e"))
-        , side(param_list_parse_mandatory<int>(pl, "side"))
+        , R(cpoly, pl.parse_mandatory<std::string>("renumber"), true)
+        , e(pl.parse_mandatory<int>("e"))
+        , side(pl.parse_mandatory<int>("side"))
         , K(cpoly[side])
         , OK(K.maximal_order())
     {
         K.bless("alpha");
         {
             fmt::print("# Reading (a,b) pairs and exponents\n");
-            std::ifstream ab(param_list_parse_mandatory<std::string>(pl, "ab"));
+            std::ifstream ab(pl.parse_mandatory<std::string>("ab"));
             for(std::string s; std::getline(ab, s); ) {
                 strip(s);
                 if (s.empty() || s[0] == '#')
@@ -89,7 +89,7 @@ struct mgmsqrt {
         }
         {
             fmt::print("# Reading ideal indices and exponents\n");
-            std::ifstream Iv(param_list_parse_mandatory<std::string>(pl, "ideals"));
+            std::ifstream Iv(pl.parse_mandatory<std::string>("ideals"));
             for(std::string s; std::getline(Iv, s); ) {
                 strip(s);
                 if (s.empty() || s[0] == '#')

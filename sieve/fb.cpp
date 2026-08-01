@@ -9,14 +9,15 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <array>
 #include <iomanip>
 #include <istream>
 #include <ostream>
 #include <queue>
 #include <sstream>
 #include <stdexcept>
-#include <string>
 #include <streambuf>
+#include <string>
 #include <type_traits>
 
 #include <fcntl.h>

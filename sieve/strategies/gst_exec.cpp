@@ -7,6 +7,8 @@
 
 #include <fstream>
 
+#include "fmt/base.h"
+
 #include "facul_ecm.h"
 #include "facul_method.hpp"
 #include "fm.hpp"
@@ -39,8 +41,7 @@ static void declare_usage(cxx_param_list & pl)
                           "\t \t for one bit size cofactor.\n "
                           "\t \t You must specify these options:\n"
                           "\t \t -lim0, -lpb0, -r0, -ncurves, -decomp\n");
-    param_list_decl_usage(
-        pl, "gst",
+    pl.declare_usage("gst",
         "to merge two (or all) precomputing did by the option 'gst_r',\n "
         "\t \t and thus find the best strategie(s) for one (or each) couple "
         "(r0,r1).\n"
@@ -63,16 +64,14 @@ static void declare_usage(cxx_param_list & pl)
     pl.declare_usage("mfb0", "set the first cofactor bound to 2^mfb0");
     pl.declare_usage("mfb1",
                           "set the second cofactor bound to 2^mfb1");
-    param_list_decl_usage(
-        pl, "in",
+    pl.declare_usage("in",
         "to locate the file which contains\n "
         "\t \t our factoring methods, or locate the directory \n"
         "\t \t where the precomputed files for option 'gst' are stored");
     pl.declare_usage("out",
                           "to locate the directory where the "
                           "file(s) will be stored.");
-    param_list_decl_usage(
-        pl, "decomp",
+    pl.declare_usage("decomp",
         "to locate the file or the directory , according to\n"
         "\t \t if you need one or several files,\n"
         "\t \t which contain(s) the file(s) of cofactors decompositions.");
@@ -87,15 +86,12 @@ int main(int argc, char const * argv[])
 {
     cxx_param_list pl;
     declare_usage(pl);
-    /*
-       Passing NULL is allowed here. Find value with
-       param_list_parse_switch later on
-     */
-    param_list_configure_switch(pl, "gdc", nullptr);
-    param_list_configure_switch(pl, "gst", nullptr);
-    param_list_configure_switch(pl, "gst_r", nullptr);
 
-    param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
+    pl.configure_switch("gdc");
+    pl.configure_switch("gst");
+    pl.configure_switch("gst_r");
+
+    pl.process_command_line_and_extra_parameter_files(argc, argv);
 
     /*default values */
     unsigned long lim0 = 0;
@@ -106,27 +102,27 @@ int main(int argc, char const * argv[])
     int lpb1 = -1;
     int ncurves = -1;
 
-    param_list_parse_ulong(pl, "lim0", &lim0);
-    param_list_parse_ulong(pl, "lim1", &lim1);
-    param_list_parse_int(pl, "lpb0", &lpb0);
-    param_list_parse_int(pl, "lpb1", &lpb1);
-    param_list_parse_int(pl, "mfb1", &mfb1);
-    param_list_parse_int(pl, "mfb0", &mfb0);
-    param_list_parse_int(pl, "ncurves", &ncurves);
+    pl.parse("lim0", lim0);
+    pl.parse("lim1", lim1);
+    pl.parse("lpb0", lpb0);
+    pl.parse("lpb1", lpb1);
+    pl.parse("mfb1", mfb1);
+    pl.parse("mfb0", mfb0);
+    pl.parse("ncurves", ncurves);
 
-    int const gdc = param_list_parse_switch(pl, "-gdc");
-    int const gst_r = param_list_parse_switch(pl, "-gst_r");
-    int const gst = param_list_parse_switch(pl, "-gst");
+    int const gdc = pl.parse<int>("-gdc");
+    int const gst_r = pl.parse<int>("-gst_r");
+    int const gst = pl.parse<int>("-gst");
 
-    // and precompute just for one side!
-    if (gdc) { // precompute all decompositions!
+    // and precompute just for one side
+    if (gdc) { // precompute all decompositions
 
         if (lim0 == 0)
             pl.fail("Error: parameter -lim0 is mandatory\n");
         if (mfb0 == -1)
             pl.fail("Error: parameter -mfb0 is mandatory\n");
 
-        char const * file_out = param_list_lookup_string(pl, "out");
+        char const * file_out = pl.lookup_old("out");
 
         FILE * file = stdout;
         if (file_out) {
@@ -143,14 +139,14 @@ int main(int argc, char const * argv[])
 
         // store data
         char const * directory_out;
-        if ((directory_out = param_list_lookup_string(pl, "out")) == nullptr) {
+        if ((directory_out = pl.lookup_old("out")) == nullptr) {
             directory_out = "./";
         }
 
         if (gst) {
             // check parameters!
             char const * directory_in;
-            if ((directory_in = param_list_lookup_string(pl, "in")) == nullptr)
+            if ((directory_in = pl.lookup_old("in")) == nullptr)
                 pl.fail("Error: parameter -in is mandatory\n");
             if (lim0 == 0)
                 pl.fail("Error: parameter -lim0 is mandatory\n");
@@ -158,8 +154,8 @@ int main(int argc, char const * argv[])
                 pl.fail("Error: parameter -lim1 is mandatory\n");
 
             int r0 = -1, r1 = -1;
-            param_list_parse_int(pl, "r0", &r0);
-            param_list_parse_int(pl, "r1", &r1);
+            pl.parse("r0", r0);
+            pl.parse("r1", r1);
 
             if (r0 != -1 && r1 != -1) {
                 // just one couple will be studied!
@@ -256,8 +252,7 @@ int main(int argc, char const * argv[])
             }
         } else {
             char const * name_file_in;
-            if ((name_file_in = param_list_lookup_string(pl, "in")) ==
-                nullptr)
+            if ((name_file_in = pl.lookup_old("in")) == nullptr)
                 pl.fail("Error: parameter -in is mandatory\n");
 
             FILE * file_in = fopen(name_file_in, "r");
@@ -312,7 +307,7 @@ int main(int argc, char const * argv[])
             if (gst_r) {
 
                 int r0 = -1;
-                param_list_parse_int(pl, "r0", &r0);
+                pl.parse("r0", r0);
                 if (r0 == -1 || lpb0 == -1 || lim0 == 0 || ncurves == -1)
                     pl.fail("Error: parameters -r0 -lim0 "
                                     "-lpb0 -ncurves are mandatories.\n");
@@ -322,11 +317,7 @@ int main(int argc, char const * argv[])
                 int const lim_is_prime = 2 * fbb0 - 1;
                 tabular_decomp tab_decomp;
                 if (r0 >= lim_is_prime) {
-                    char const * name_file_decomp;
-                    if ((name_file_decomp = param_list_lookup_string(
-                             pl, "decomp")) == nullptr)
-                        pl.fail("Error: parameter -decomp is mandatory\n");
-                    std::ifstream is(name_file_decomp);
+                    std::ifstream is(pl.parse_mandatory<std::string>("decomp"));
                     is >> tab_decomp;
                     if (is.fail())
                         ASSERT_ALWAYS(0);
@@ -366,7 +357,7 @@ int main(int argc, char const * argv[])
                 */
                 char const * name_directory_decomp;
                 if ((name_directory_decomp =
-                         param_list_lookup_string(pl, "decomp")) == nullptr)
+                         pl.lookup_old("decomp")) == nullptr)
                     pl.fail("Error: parameter -decomp is mandatory\n");
 
                 tabular_strategy_t *** matrix = generate_matrix(

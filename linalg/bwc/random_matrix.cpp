@@ -74,7 +74,7 @@ struct rhs_writer {// {{{
     rhs_writer(random_matrix_process_data const &, cxx_param_list &);
 
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage(pl, "rhs", "rhs output (comma-separated <nrhs>,<prime>,<filename>[,<nullspace_direction>])");
+        pl.declare_usage("rhs", "rhs output (comma-separated <nrhs>,<prime>,<filename>[,<nullspace_direction>])");
     }
 };
 // }}}
@@ -105,7 +105,7 @@ static void generic_params_process_loop(cxx_param_list & pl,
 
     int t_argc = argv.size();
     const char ** t_argv = argv.data();
-    param_list_process_command_line(pl, &t_argc, &t_argv, false);
+    pl.process_command_line(t_argc, t_argv, false);
 }
 /* }}} */
 
@@ -127,29 +127,29 @@ struct random_matrix_process_data {
     std::unique_ptr<FILE, delete_FILE> cw, rw;
 
     static void configure_aliases(cxx_param_list & pl) {
-        param_list_configure_alias(pl, "output", "o");
-        param_list_configure_alias(pl, "density", "d");
-        param_list_configure_alias(pl, "seed", "s");
+        pl.configure_alias("output", "o");
+        pl.configure_alias("density", "d");
+        pl.configure_alias("seed", "s");
     }
 
     static void configure_switches(cxx_param_list & pl) {
-        param_list_configure_switch(pl, "binary", nullptr);
-        param_list_configure_switch(pl, "freq", nullptr);
+        pl.configure_switch("binary");
+        pl.configure_switch("freq");
     }
 
     static void process_arguments(cxx_param_list & pl, int argc, char * argv[]);
 
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage(pl, "nrows", "number of rows");
-        param_list_decl_usage(pl, "ncols", "number of cols");
-        param_list_decl_usage(pl, "density", "desired density per row");
-        param_list_decl_usage(pl, "seed", "seed");
-        param_list_decl_usage(pl, "c", "add coefficients");
-        param_list_decl_usage(pl, "output", "output file name");
-        param_list_decl_usage(pl, "binary", "output in binary");
-        param_list_decl_usage(pl, "kleft", "ensure at least a left kernel of dimension d");
-        param_list_decl_usage(pl, "kright", "ditto for right kernel");
-        param_list_decl_usage(pl, "freq", "output row and column weight matrices");
+        pl.declare_usage("nrows", "number of rows");
+        pl.declare_usage("ncols", "number of cols");
+        pl.declare_usage("density", "desired density per row");
+        pl.declare_usage("seed", "seed");
+        pl.declare_usage("c", "add coefficients");
+        pl.declare_usage("output", "output file name");
+        pl.declare_usage("binary", "output in binary");
+        pl.declare_usage("kleft", "ensure at least a left kernel of dimension d");
+        pl.declare_usage("kright", "ditto for right kernel");
+        pl.declare_usage("freq", "output row and column weight matrices");
         rhs_writer::declare_usage(pl);
     }
 
@@ -191,7 +191,7 @@ struct random_matrix_process_data {
 // {{{ rhs_writer::rhs_writer
 rhs_writer::rhs_writer(random_matrix_process_data const & R, cxx_param_list & pl)
 {
-    const char * description = param_list_lookup_string(pl, "rhs");
+    const char * description = pl.lookup_old("rhs");
 
     if (!description)
         return;
@@ -239,12 +239,12 @@ random_matrix_process_data::random_matrix_process_data(
     ASSERT_ALWAYS(ncols > 10 && nrows > 10);
     /* }}} */
 
-    param_list_parse(pl, "seed", seed);
+    pl.parse("seed", seed);
     if (!seed) seed = static_cast<unsigned long>(time(nullptr));
-    param_list_parse(pl, "c", maxcoeff);
+    pl.parse("c", maxcoeff);
 
-    bool const binary = param_list_parse_switch(pl, "binary");
-    bool const freq = param_list_parse_switch(pl, "freq");
+    bool const binary = pl.parse<int>("binary");
+    bool const freq = pl.parse<int>("freq");
 
     ascii = !binary;
 
@@ -257,7 +257,7 @@ random_matrix_process_data::random_matrix_process_data(
 
     const char * ofilename = nullptr;
 
-    if ((ofilename = param_list_lookup_string(pl, "output"))) {
+    if ((ofilename = pl.lookup_old("output"))) {
         owned_out.reset(fopen(ofilename, binary ? "wb" : "w"));
         DIE_ERRNO_DIAG(!bool(owned_out), "fopen(%s)", ofilename);
         out = owned_out.get();
@@ -315,8 +315,8 @@ struct random_matrix_ddata : public matrix_column_distribution {
         F.offset = 32;
         return F;
     }
-    void adjust(random_matrix_process_data const & r, parallelizing_info_srcptr pi, unsigned long padded_nrows, unsigned long padded_ncols);
-    void adjust_force_kernel(random_matrix_process_data const & r, parallelizing_info_srcptr pi, unsigned long padded_nrows, unsigned long padded_ncols, int kernel_left, int kernel_right);
+    void adjust(random_matrix_process_data const & r, const parallelizing_info * pi, unsigned long padded_nrows, unsigned long padded_ncols);
+    void adjust_force_kernel(random_matrix_process_data const & r, const parallelizing_info * pi, unsigned long padded_nrows, unsigned long padded_ncols, int kernel_left, int kernel_right);
     void info(FILE * out) const;
 
     /* probability mass function */
@@ -368,7 +368,7 @@ struct random_matrix_ddata : public matrix_column_distribution {
     /* get random matrices, _AND_ fill the stats */
     matrix_u32 get_byrows(cxx_gmp_randstate & rstate);
     matrix_u32 get_bycolumns(cxx_gmp_randstate & rstate);
-    matrix_u32 get_u32(parallelizing_info_ptr pi,
+    matrix_u32 get_u32(parallelizing_info & pi,
             cxx_param_list & pl,
             unsigned long data_nrows, unsigned long data_ncols,
             unsigned long padded_nrows, unsigned long padded_ncols,
@@ -428,17 +428,17 @@ void random_matrix_ddata::info(FILE * out) const
  * Note that the on-the-fly random_matrix setup omits the balancing
  * permutations, so that all padding rows are on the last blocks.
  */
-void random_matrix_ddata::adjust_force_kernel(random_matrix_process_data const & R, parallelizing_info_srcptr pi, unsigned long padded_nrows, unsigned long padded_ncols, int kernel_left, int kernel_right)
+void random_matrix_ddata::adjust_force_kernel(random_matrix_process_data const & R, const parallelizing_info * pi, unsigned long padded_nrows, unsigned long padded_ncols, int kernel_left, int kernel_right)
 {
-    print = pi ? pi->m->jrank == 0 && pi->m->trank == 0 : true;
+    print = pi ? pi->m.jrank == 0 && pi->m.trank == 0 : true;
     /* Adapt to the parallelizing_info structure : divide */
     /* note that padding has to still be padding. */
-    nrows = (R.nrows - kernel_right) / (pi ? pi->wr[1]->totalsize : 1);
-    ncols = (R.ncols - kernel_left) / (pi ? pi->wr[0]->totalsize : 1);
+    nrows = (R.nrows - kernel_right) / (pi ? pi->wr[1].totalsize : 1);
+    ncols = (R.ncols - kernel_left) / (pi ? pi->wr[0].totalsize : 1);
 
 #define ADJUST(pi, items, comm, ker) do {				\
     if (pi) {								\
-        unsigned int const rk = (comm)->jrank * (comm)->ncores + (comm)->trank;	\
+        unsigned int const rk = (comm).jrank * (comm).ncores + (comm).trank;	\
         if (rk * padded_n ## items >= R.n ## items - (ker)) {		\
             n ## items = 0;						\
         } else if ((rk+1) * padded_n ## items >= R.n ## items - (ker)) {	\
@@ -465,7 +465,7 @@ void random_matrix_ddata::adjust_force_kernel(random_matrix_process_data const &
     /* sets the scale parameter so that the expected row weight matches
      * our desired density target */
     scale = density / q(double(ncols));
-    spread = pi ? pi->wr[0]->totalsize : 1;
+    spread = pi ? pi->wr[0].totalsize : 1;
     mean = q(double(ncols));
     sdev = sqrt(mean * mean - qq(double(ncols)));
     maxcoeff = R.maxcoeff;
@@ -491,7 +491,7 @@ void random_matrix_ddata::adjust_force_kernel(random_matrix_process_data const &
     }
 }
 
-void random_matrix_ddata::adjust(random_matrix_process_data const & r, parallelizing_info_srcptr pi, unsigned long padded_nrows, unsigned long padded_ncols)
+void random_matrix_ddata::adjust(random_matrix_process_data const & r, const parallelizing_info * pi, unsigned long padded_nrows, unsigned long padded_ncols)
 {
     adjust_force_kernel(r, pi, padded_nrows, padded_ncols, 0, 0);
 }
@@ -558,11 +558,11 @@ int32_t random_matrix_ddata::generate_coefficient(cxx_gmp_randstate & rstate, un
 }
 
 #ifndef WANT_MAIN
-void random_matrix_fill_fake_balancing_header(balancing & bal, parallelizing_info_ptr pi, const char * rtmp)
+void random_matrix_fill_fake_balancing_header(balancing & bal, parallelizing_info & pi, const char * rtmp)
 {
     random_matrix_process_data const r(rtmp);
-    bal.nh = pi->wr[1]->totalsize;
-    bal.nv = pi->wr[0]->totalsize;
+    bal.nh = pi.wr[1].totalsize;
+    bal.nv = pi.wr[0].totalsize;
     bal.nrows = r.nrows;
     bal.ncols = r.ncols;
     bal.ncoeffs = 0; /* FIXME ; what should I do ? */
@@ -784,9 +784,9 @@ matrix_u32 random_matrix_ddata::get_bycolumns(cxx_gmp_randstate & rstate)
 }
 
 
-matrix_u32 random_matrix_get_u32(parallelizing_info_ptr pi, cxx_param_list & pl, unsigned long data_nrows, unsigned long data_ncols, unsigned long padded_nrows, unsigned long padded_ncols, bool withcoeffs, bool transpose)
+matrix_u32 random_matrix_get_u32(parallelizing_info & pi, cxx_param_list & pl, unsigned long data_nrows, unsigned long data_ncols, unsigned long padded_nrows, unsigned long padded_ncols, bool withcoeffs, bool transpose)
 {
-    const char * rtmp = param_list_lookup_string(pl, "random_matrix");
+    const char * rtmp = pl.lookup_old("random_matrix");
     ASSERT_ALWAYS(rtmp);
     random_matrix_process_data const r(rtmp);
 
@@ -800,17 +800,17 @@ matrix_u32 random_matrix_get_u32(parallelizing_info_ptr pi, cxx_param_list & pl,
     ASSERT_ALWAYS(!r.rhs.n);
 
     random_matrix_ddata F;
-    F.adjust(r, pi, data_nrows, data_ncols);
+    F.adjust(r, &pi, data_nrows, data_ncols);
 
     if (F.print) {
-        printf("Each of the %u jobs on %u nodes creates a matrix with %lu rows %lu cols, and %.2f coefficients per row on average. Seed for rank 0 is %lu.\n",
-                pi->m->totalsize, pi->m->njobs,
+        fmt::print("Each of the {} jobs on {} nodes creates a matrix with {} rows {} cols, and {:.2f} coefficients per row on average. Seed for rank 0 is {}.\n",
+                pi.m.totalsize, pi.m.njobs,
                 F.nrows, F.ncols,
-                (double) r.density / pi->wr[0]->totalsize, r.seed);
+                (double) r.density / pi.wr[0].totalsize, r.seed);
     }
 
     cxx_gmp_randstate rstate;
-    gmp_randseed_ui(rstate, r.seed + pi->m->jrank * pi->m->ncores + pi->m->trank);
+    gmp_randseed_ui(rstate, r.seed + pi.m.jrank * pi.m.ncores + pi.m.trank);
 
     if (transpose) {
         auto mat = F.get_bycolumns(rstate);
@@ -966,23 +966,23 @@ int main(int argc, char const * argv[])
     random_matrix_process_data::configure_switches(pl);
     random_matrix_process_data::configure_aliases(pl);
 
-    param_list_decl_usage(pl, "v", "turn verbosity on");
-    param_list_decl_usage(pl, "Z", "avoid zero columns");
-    param_list_configure_switch(pl, "v", nullptr);
-    param_list_configure_switch(pl, "Z", nullptr);
+    pl.declare_usage("v", "turn verbosity on");
+    pl.declare_usage("Z", "avoid zero columns");
+    pl.configure_switch("v");
+    pl.configure_switch("Z");
 
     argv++, argc--;
     
     generic_params_process_loop(pl, argv, argv + argc);
 
-    verbose = param_list_parse_switch(pl, "v");
-    avoid_zero_columns = param_list_parse_switch(pl, "Z");
+    pl.parse("v", verbose);
+    pl.parse("Z", avoid_zero_columns);
 
     random_matrix_process_data r(pl);
 
     /* {{{ parse kernel size. default is to make the matrix invertible */
-    param_list_parse(pl, "kleft", kernel_left);
-    param_list_parse(pl, "kright", kernel_right);
+    pl.parse("kleft", kernel_left);
+    pl.parse("kright", kernel_right);
 
     ASSERT_ALWAYS(r.nrows <= INT_MAX);
     ASSERT_ALWAYS(r.ncols <= INT_MAX);
@@ -1031,7 +1031,7 @@ int main(int argc, char const * argv[])
     /* }}} */
 
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("some arguments left unused");
 
     random_matrix_ddata F;

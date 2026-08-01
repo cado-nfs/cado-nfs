@@ -333,19 +333,19 @@ int main(int argc, char const * argv[])
     filter_galois_process::configure(pl);
     cado::filter_io_details::configure(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, true);
+    pl.process_command_line(argc, argv, true);
 
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
     cado::filter_io_details::interpret_parameters(pl);
-    param_list_print_command_line(stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
     const filelist input(pl, argc, argv);
 
     filter_galois_process fg(pl);
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Error, unused parameters are given\n");
 
     /* Renumbering table to convert from (p,r) to an index */

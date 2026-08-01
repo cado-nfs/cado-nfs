@@ -26,8 +26,7 @@ cxx_cado_poly::cxx_cado_poly(cxx_cado_poly::plist const &, cxx_param_list & pl)
 {
     /* Parse skew value. Set to 0.0 to ensure that we get an invalid skewness
        in case it is not given */
-    skew = 0.0;
-    param_list_parse_double(pl, "skew", &(skew));
+    pl.parse("skew", skew);
 
     super::clear();
 
@@ -35,16 +34,16 @@ cxx_cado_poly::cxx_cado_poly(cxx_cado_poly::plist const &, cxx_param_list & pl)
      * by coefficients. */
     for( ;; ) {
         std::string tag = fmt::format("poly{}", nsides());
-        if (!param_list_lookup_string(pl, tag.c_str()))
+        if (!pl.has(tag))
             break;
         /* sure, we could probably use the result of the string lookup.
-         * Well, that's not how param_list_parse_mpz_poly works.
-         * Note that param_list_parse_mpz_poly in itself supports two
+         * Well, that's not how param_list::parse<cxx_mpz_poly> works.
+         * Note that param_list::parse<cxx_mpz_poly> in itself supports two
          * distinct formats: comma-separated lists of coefficients, or
          * algebraic expressions.
          */
         super::emplace_back();
-        param_list_parse(pl, tag, super::back());
+        pl.parse(tag, super::back());
     }
 
     if (super::empty())
@@ -53,29 +52,25 @@ cxx_cado_poly::cxx_cado_poly(cxx_cado_poly::plist const &, cxx_param_list & pl)
     {
         super::emplace_back();
         super::emplace_back();
-        mpz_t coeff;
-        mpz_init(coeff);
+        cxx_mpz coeff;
         /* reading polynomials coefficient by coefficient */
         for (int i = 0; i <= MAX_DEGREE; i++)
         {
             char tc[4]; snprintf(tc, sizeof(tc), "c%d", i);
             char tX[4]; snprintf(tX, sizeof(tX), "X%d", i);
             char tY[4]; snprintf(tY, sizeof(tY), "Y%d", i);
-            if (param_list_parse_mpz(pl, tc, coeff))
+            if (pl.parse(tc, coeff))
                 mpz_poly_setcoeff((*this)[1], i, coeff);
-            if (param_list_parse_mpz(pl, tX, coeff))
+            if (pl.parse(tX, coeff))
                 mpz_poly_setcoeff((*this)[1], i, coeff);
-            if (param_list_parse_mpz(pl, tY, coeff))
+            if (pl.parse(tY, coeff))
                 mpz_poly_setcoeff((*this)[0], i, coeff);
         }
-        mpz_clear(coeff);
     }
 
     /* Parse value of N. Two keys possible: n or None. Return 0 if not found. */
-    if (!param_list_parse_mpz(pl, "n", n) &&
-            !param_list_parse_mpz(pl, "N", n) &&
-            !param_list_parse_mpz(pl, NULL, n))
-        throw std::runtime_error("Error, no value for N in cado_poly_set_plist\n");
+    if (!pl.parse("n", n) && !pl.parse("N", n) && !pl.parse("", n))
+        pl.fail("Error, no value for N in cado_poly_set_plist\n");
 
     for (int side = 0; side < nsides(); side++)
         if ((*this)[side]->deg < 0)
@@ -109,7 +104,7 @@ cxx_cado_poly::cxx_cado_poly(cxx_cado_poly::plist const &, cxx_param_list & pl)
 int cxx_cado_poly::read (FILE * f)
 {
   cxx_param_list pl;
-  param_list_read_stream (pl, f, 0);
+  pl.read(f, false);
   *this = cxx_cado_poly(plist {}, pl);
   return 1;
 }
@@ -119,8 +114,8 @@ int cxx_cado_poly::read_next_poly_from_stream (cxx_cado_poly & res, FILE * f)
 {
     int r;
     cxx_param_list pl;
-    r = param_list_read_stream (pl, f, 1);
-    if (r && !param_list_empty(pl)) {
+    r = pl.read(f, true);
+    if (r && !pl.empty()) {
         res = cxx_cado_poly(plist {}, pl);
         r = 1;
     } else {
@@ -161,7 +156,7 @@ int cxx_cado_poly::read(const char *filename)
             newitem[q-newitem] = '\0';
             newkey = newitem;
             newvalue = newitem + (q-newitem+1);
-            param_list_add_key(pl, newkey, newvalue, PARAMETER_FROM_FILE);
+            pl.add_key(newkey, newvalue, cado::params::origin::FROM_FILE);
             free(newitem);
         }
         *this = cxx_cado_poly(plist {}, pl);

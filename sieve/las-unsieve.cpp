@@ -6,13 +6,14 @@
  * on the value of TRACK_CODE_PATH.
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
-
-#include <algorithm>
 #include <climits>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+
+#include <array>
 #include <vector>
+
 #include "fb-types.hpp"
 #include "gcd.h"
 #include "gpf.h"

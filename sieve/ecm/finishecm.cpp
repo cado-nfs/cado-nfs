@@ -38,25 +38,25 @@ main (int argc, char const *argv[])
 
   declare_usage(pl);
 
-  param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
+  pl.process_command_line_and_extra_parameter_files(argc, argv);
 
   verbose_interpret_parameters(pl);
-  param_list_print_command_line(stdout, pl);
+  pl.print_command_line(stdout);
 
     const char * infilename;
-  if ((infilename = param_list_lookup_string(pl, "in")) == nullptr)
+  if ((infilename = pl.lookup_old("in")) == nullptr)
       pl.fail("Error: parameter -in is mandatory\n");
   
   int lpb[2] = {0, 0};
-  param_list_parse_int(pl, "lpb0", &lpb[0]);
-  param_list_parse_int(pl, "lpb1", &lpb[1]);
+  pl.parse("lpb0", lpb[0]);
+  pl.parse("lpb1", lpb[1]);
 
   if (lpb[0] * lpb[1] == 0)
       pl.fail("Error: parameters lpb[01] are mandatory\n");
 
   int batchlpb[2] = {0, 0};
-  param_list_parse_int(pl, "batchlpb0", &(batchlpb[0]));
-  param_list_parse_int(pl, "batchlpb1", &(batchlpb[1]));
+  pl.parse("batchlpb0", batchlpb[0]);
+  pl.parse("batchlpb1", batchlpb[1]);
   if (batchlpb[0] * batchlpb[1] == 0)
       pl.fail("Error: parameters batchlpb[01] are mandatory\n");
 

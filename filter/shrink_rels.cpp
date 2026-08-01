@@ -95,13 +95,13 @@ struct shrink_action {
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "out", "output file (defaults to stdout)");
-    param_list_decl_usage(pl, "in", "input file (defaults to stdin)");
-    param_list_decl_usage(pl, "shrink-factor", "divide all column indices by n");
-    param_list_decl_usage(pl, "shrink-threshold", "colums below threshold are not shrunk");
-    param_list_decl_usage(pl, "row-fraction", "ratio of rows to keep");
-    param_list_decl_usage(pl, "seed", "random seed");
-    param_list_decl_usage(pl, "dl", "DL mode (do not reduce valuations mod 2)");
+    pl.declare_usage("out", "output file (defaults to stdout)");
+    pl.declare_usage("in", "input file (defaults to stdin)");
+    pl.declare_usage("shrink-factor", "divide all column indices by n");
+    pl.declare_usage("shrink-threshold", "colums below threshold are not shrunk");
+    pl.declare_usage("row-fraction", "ratio of rows to keep");
+    pl.declare_usage("seed", "random seed");
+    pl.declare_usage("dl", "DL mode (do not reduce valuations mod 2)");
 }
 
 // coverity[root_function]
@@ -114,27 +114,27 @@ main (int argc, char const *argv[])
 
     shrink_action A;
 
-    param_list_configure_switch(pl, "-dl", &A.dl);
+    pl.configure_switch_old("-dl", &A.dl);
 
-    param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
+    pl.process_command_line_and_extra_parameter_files(argc, argv);
 
-    param_list_parse_double(pl, "shrink-factor", &A.shrink_factor);
+    pl.parse("shrink-factor", A.shrink_factor);
     if (A.shrink_factor < 1)
         pl.fail("Error: shrink factor must be an integer >= 1\n");
     
     {
         unsigned int thresh = 0;
-        param_list_parse_uint(pl, "shrink-threshold", &thresh);
+        pl.parse("shrink-threshold", thresh);
         A.shrink_threshold = thresh;
     }
     
     unsigned long seed;
 
-    if (param_list_parse_ulong(pl, "seed", &seed)) {
+    if (pl.parse("seed", seed)) {
         gmp_randseed_ui(A.rstate, seed);
     }
 
-    if (param_list_parse_double(pl, "row-fraction", &A.row_fraction)) {
+    if (pl.parse("row-fraction", A.row_fraction)) {
         if (A.row_fraction < 0 || A.row_fraction > 1)
             pl.fail("Error: row-fraction must be an real number in [0,1]\n");
     } else {
@@ -142,7 +142,7 @@ main (int argc, char const *argv[])
     }
 
     std::istream * ptr_in = &std::cin;
-    const char * in = param_list_lookup_string(pl, "in");
+    const char * in = pl.lookup_old("in");
     std::unique_ptr<std::istream> p_in;
     if (in) {
         p_in = std::unique_ptr<std::istream>(new ifstream_maybe_compressed(in));
@@ -150,7 +150,7 @@ main (int argc, char const *argv[])
     }
 
     std::ostream * ptr_out = &std::cout;
-    const char * out = param_list_lookup_string(pl, "out");
+    const char * out = pl.lookup_old("out");
     std::unique_ptr<std::ostream> p_out;
     if (out) {
         p_out = std::unique_ptr<std::ostream>(new ofstream_maybe_compressed(out));

@@ -2,6 +2,10 @@
 
 FB="$1"
 
+set -e
+
+if [ "$CADO_DEBUG" ] ; then set -x ; fi
+
 BINDIR="${CADO_NFS_BINARY_DIR?missing}/sieve"
 SRCDIR="${CADO_NFS_SOURCE_DIR?missing}"
 

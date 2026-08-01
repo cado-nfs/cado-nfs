@@ -163,7 +163,7 @@ struct matrix_file : public std::vector<uint32_t> {
      *
      */
     int lookup();
-    int lookup(parallelizing_info_ptr);
+    int lookup(parallelizing_info & pi);
     std::string get_lookup_diagnostic() const { return lookup_diagnostic; }
 
     /* filled by lookup() */
@@ -220,7 +220,7 @@ struct matrix_file : public std::vector<uint32_t> {
      * in the struct is the submatrix that this job/thread uses. The
      * splitting is done according to the balancing file bfile.
      */
-    void read(parallelizing_info_ptr pi, int direction, std::string const & sanity_check_vector = {});
+    void read(parallelizing_info & pi, int direction, std::string const & sanity_check_vector = {});
 
     /* The three dump() functions dump the data in different formats.
      * dump_mixed is the legacy format, and currently this also matches
@@ -236,7 +236,7 @@ struct matrix_file : public std::vector<uint32_t> {
     void dump_mixed(std::ostream&) const;
 
     /* This is defined in random_matrix.cpp */
-    static matrix_file build_random(parallelizing_info_ptr pi, cxx_param_list & pl, unsigned int nrows, unsigned int ncols, int coeff_bound);
+    static matrix_file build_random(parallelizing_info & pi, cxx_param_list & pl, unsigned int nrows, unsigned int ncols, int coeff_bound);
     static matrix_file build_random(cxx_param_list & pl, unsigned int nrows, unsigned int ncols, int coeff_bound);
 
     private:

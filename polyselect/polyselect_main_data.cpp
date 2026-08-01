@@ -312,13 +312,13 @@ void polyselect_main_data_commit_stats(polyselect_main_data_ptr main, polyselect
 void polyselect_main_data_parse_Nd(polyselect_main_data_ptr main, cxx_param_list & pl)
 {
     /* parse and check N in the first place */
-    int have_n = param_list_parse_mpz(pl, "n", main->N);
+    bool have_n = pl.parse("n", main->N);
 
     if (!have_n)
     {
         fprintf(stderr, "# Reading n from stdin\n");
-        param_list_read_stream(pl, stdin, 0);
-        have_n = param_list_parse_mpz(pl, "n", main->N);
+        pl.read(stdin, false);
+        have_n = pl.parse("n", main->N);
     }
 
     if (!have_n)
@@ -328,18 +328,18 @@ void polyselect_main_data_parse_Nd(polyselect_main_data_ptr main, cxx_param_list
     }
 
     if (mpz_cmp_ui(main->N, 0) <= 0)
-        param_list_generic_failure(pl, "n");
+        pl.fail("missing parameter n\n");
 
-    param_list_parse_uint(pl, "degree", &main->d);
+    pl.parse("degree", main->d);
     /* check degree */
     if (main->d <= 0)
-        param_list_generic_failure(pl, "degree");
+        pl.fail("missing parameter degree\n");
 }
 
 /*  parse incr, admin, admax */
 void polyselect_main_data_parse_ad_range(polyselect_main_data_ptr main, cxx_param_list & pl)
 {
-    param_list_parse_ulong(pl, "incr", &main->incr);
+    pl.parse("incr", main->incr);
     if (main->incr <= 0)
     {
         fprintf(stderr, "Error, incr should be positive\n");
@@ -348,7 +348,7 @@ void polyselect_main_data_parse_ad_range(polyselect_main_data_ptr main, cxx_para
 
     /* if no -admin is given, mpz_init did set it to 0, which is exactly
        what we want */
-    param_list_parse_mpz(pl, "admin", main->admin);
+    pl.parse("admin", main->admin);
     /* admin should be nonnegative */
     if (mpz_cmp_ui(main->admin, 0) < 0)
     {
@@ -365,14 +365,14 @@ void polyselect_main_data_parse_ad_range(polyselect_main_data_ptr main, cxx_para
     mpz_add_ui(main->admin, main->admin, (main->incr - mpz_fdiv_ui(main->admin, main->incr)) % main->incr);
 
 
-    param_list_parse_mpz(pl, "admax", main->admax);
+    pl.parse("admax", main->admax);
 }
 
 /* parse maxtime or target_E */
 void polyselect_main_data_parse_maxtime_or_target(polyselect_main_data_ptr main, cxx_param_list & pl)
 {
-    param_list_parse_double(pl, "maxtime", &main->maxtime);
-    param_list_parse_double(pl, "target_E", &main->target_E);
+    pl.parse("maxtime", main->maxtime);
+    pl.parse("target_E", main->target_E);
     /* maxtime and target_E are incompatible */
     if (main->maxtime != DBL_MAX && main->target_E != 0.0)
     {
@@ -386,9 +386,9 @@ void polyselect_main_data_parse_P(polyselect_main_data_ptr main, cxx_param_list 
 {
     unsigned long P = 0;
 
-    param_list_parse_ulong(pl, "P", &P);
+    pl.parse("P", P);
     if (P == 0)
-        param_list_generic_failure(pl, "P");
+        pl.fail("missing parameter P\n");
 
     double Pd;
     Pd = (double) P;

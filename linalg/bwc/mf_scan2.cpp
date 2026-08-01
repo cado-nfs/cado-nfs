@@ -296,8 +296,6 @@ static void maincode(ringbuf & R, int nb_consumers, FILE * f_in, FILE * f_rw, FI
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    const char * argv0 = argv[0];
-
     cxx_param_list pl;
     std::string rwfile;
     std::string cwfile;
@@ -309,10 +307,10 @@ int main(int argc, char const * argv[])
 
     mf_scan2_decl_usage(pl);
 
-    param_list_configure_switch(pl, "--withcoeffs", &withcoeffs);
+    pl.configure_switch("--withcoeffs");
 
     for(;argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) continue;
+        if (pl.update_cmdline(argc, argv)) continue;
         if (argv[0][0] != '-' && wild == 0) {
             mfile = argv[0];
             wild++;
@@ -320,20 +318,21 @@ int main(int argc, char const * argv[])
             continue;
         }
         fmt::print(stderr, "unknown option {}\n", argv[0]);
-        param_list_print_usage(pl, argv0, stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 
-    param_list_parse(pl, "thread-private-count", thread_private_count);
-    param_list_parse(pl, "thread-read-window", thread_read_window);
-    param_list_parse(pl, "thread-write-window", thread_write_window);
+    pl.parse("--withcoeffs", withcoeffs);
+    pl.parse("thread-private-count", thread_private_count);
+    pl.parse("thread-read-window", thread_read_window);
+    pl.parse("thread-write-window", thread_write_window);
 
-    param_list_parse(pl, "mfile", mfile);
-    param_list_parse(pl, "rwfile", rwfile);
-    param_list_parse(pl, "cwfile", cwfile);
+    pl.parse("mfile", mfile);
+    pl.parse("rwfile", rwfile);
+    pl.parse("cwfile", cwfile);
 
     if (mfile.empty()) {
-        param_list_print_usage(pl, argv0, stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -384,10 +383,10 @@ int main(int argc, char const * argv[])
 
     size_t ringbuf_size = std::min(ram / 64, UINT64_C(1) << 24);
 
-    param_list_parse(pl, "threads", threads);
+    pl.parse("threads", threads);
     {
         double r;
-        if (param_list_parse(pl, "io-memory", r)) {
+        if (pl.parse("io-memory", r)) {
             ringbuf_size = size_t(r * double(1UL << 30));
         }
     }

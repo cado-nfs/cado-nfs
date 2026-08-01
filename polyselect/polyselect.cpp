@@ -389,34 +389,34 @@ static void display_expected_memory_usage(polyselect_main_data_srcptr main, int 
 
 static void declare_usage(cxx_param_list & pl)
 {
-  param_list_decl_usage(pl, "degree",
+  pl.declare_usage("degree",
 			"(required, alias d) polynomial degree");
-  param_list_decl_usage(pl, "n", "(required, alias N) input number");
-  param_list_decl_usage(pl, "P",
+  pl.declare_usage("n", "(required, alias N) input number");
+  pl.declare_usage("P",
 			"(required) deg-1 coeff of g(x) has two prime factors in [P,2P]\n");
 
-  param_list_decl_usage(pl, "admax", "maximal value for ad (+ 1)");
-  param_list_decl_usage(pl, "admin", "minimal value for ad (default 0)");
-  param_list_decl_usage(pl, "incr", "increment of ad (default 60)");
-  param_list_decl_usage(pl, "maxtime",
+  pl.declare_usage("admax", "maximal value for ad (+ 1)");
+  pl.declare_usage("admin", "minimal value for ad (default 0)");
+  pl.declare_usage("incr", "increment of ad (default 60)");
+  pl.declare_usage("maxtime",
 			"stop the search after maxtime seconds");
 
   char str[200];
   snprintf(str, 200, "maximum number of special-q's considered\n"
 	   "               for each ad (default %d)", DEFAULT_NQ);
-  param_list_decl_usage(pl, "nq", str);
+  pl.declare_usage("nq", str);
   snprintf(str, 200, "number of polynomials kept (default %d)", DEFAULT_POLYSELECT_KEEP);
-  param_list_decl_usage(pl, "keep", str);
+  pl.declare_usage("keep", str);
   snprintf(str, 200, "size-optimization effort (default %d)",
 	   SOPT_DEFAULT_EFFORT);
-  param_list_decl_usage(pl, "sopteffort", str);
-  param_list_decl_usage(pl, "s", str);
-  param_list_decl_usage(pl, "t", "number of threads to use (default 1)");
-  param_list_decl_usage(pl, "F", "number of finer-grain threads to use (default 1)");
-  param_list_decl_usage(pl, "v", "verbose mode");
-  param_list_decl_usage(pl, "q", "quiet mode");
-  param_list_decl_usage(pl, "target_E", "target E-value\n");
-  param_list_decl_usage(pl, "chronogram", "store chronogram raw data to this file\n");
+  pl.declare_usage("sopteffort", str);
+  pl.declare_usage("s", str);
+  pl.declare_usage("t", "number of threads to use (default 1)");
+  pl.declare_usage("F", "number of finer-grain threads to use (default 1)");
+  pl.declare_usage("v", "verbose mode");
+  pl.declare_usage("q", "quiet mode");
+  pl.declare_usage("target_E", "target E-value\n");
+  pl.declare_usage("chronogram", "store chronogram raw data to this file\n");
   verbose_decl_usage(pl);
 }
 
@@ -675,27 +675,27 @@ int main(int argc, char const * argv[])
 
   declare_usage(pl);
 
-  param_list_configure_switch(pl, "-v", &main_data->verbose);
-  param_list_configure_switch(pl, "-q", &quiet);
-  param_list_configure_alias(pl, "degree", "-d");
-  param_list_configure_alias(pl, "incr", "-i");
-  param_list_configure_alias(pl, "n", "-N");
+  pl.configure_switch_old("-v", &main_data->verbose);
+  pl.configure_switch_old("-q", &quiet);
+  pl.configure_alias("degree", "-d");
+  pl.configure_alias("incr", "-i");
+  pl.configure_alias("n", "-N");
 
-  param_list_process_command_line(pl, &argc, &argv, false);
+  pl.process_command_line(argc, argv, false);
 
   polyselect_main_data_parse_Nd(main_data, pl);
   polyselect_main_data_parse_ad_range(main_data, pl);
   polyselect_main_data_parse_P(main_data, pl);
-  param_list_parse_ulong(pl, "nq", &main_data->nq);
-  chronogram_file = param_list_lookup_string(pl, "chronogram");
+  pl.parse("nq", main_data->nq);
+  chronogram_file = pl.lookup_old("chronogram");
 
-  const char * tmp;
-  if ((tmp = param_list_lookup_string(pl, "t")) && strcmp(tmp, "auto") == 0) {
+  auto const * t_ptr = pl.has("t");
+  if (t_ptr && *t_ptr == "auto") {
       main_data->nthreads = 0;
   } else {
-      param_list_parse_uint(pl, "t", &main_data->nthreads);
+      pl.parse("t", main_data->nthreads);
   }
-  param_list_parse_uint(pl, "F", &main_data->finer_grain_threads);
+  pl.parse("F", main_data->finer_grain_threads);
 #ifndef HAVE_HWLOC
   if (main_data->nthreads == 0) {
       fprintf(stderr, "Warning: -t auto requires hwloc\n");
@@ -704,22 +704,22 @@ int main(int argc, char const * argv[])
 #endif
 
   /* size optimization effort that passed to size_optimization */
-  param_list_parse_uint(pl, "sopteffort", &main_data->sopt_effort);
+  pl.parse("sopteffort", main_data->sopt_effort);
 
   {
-      param_list_parse_int(pl, "keep", &main_data->keep);
+      pl.parse("keep", main_data->keep);
       polyselect_stats_update_keep(main_data->stats, main_data->keep);
   }
 
   polyselect_main_data_parse_maxtime_or_target(main_data, pl);
 
-  if (param_list_warn_unused(pl))
+  if (pl.warn_unused())
       pl.fail("Unused parameters are given");
 
   /* print command line */
   verbose_interpret_parameters(pl);
 
-  param_list_print_command_line(stdout, pl);
+  pl.print_command_line(stdout);
 
   /* quiet mode */
   if (quiet == 1)

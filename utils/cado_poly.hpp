@@ -33,11 +33,11 @@ struct cxx_cado_poly : public std::vector<cxx_mpz_poly>
 
     static void configure_switches(cxx_param_list &) {}
     static void configure_aliases(cxx_param_list & pl) {
-        param_list_configure_alias(pl, "skew", "S");
+        pl.configure_alias("skew", "S");
     }
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage(pl, "poly", "polynomial file");
-        param_list_decl_usage(pl, "skew", "skewness");
+        pl.declare_usage("poly", "polynomial file");
+        pl.declare_usage("skew", "skewness");
     }
 
     cxx_cado_poly() = default;
@@ -46,20 +46,13 @@ struct cxx_cado_poly : public std::vector<cxx_mpz_poly>
 
     cxx_cado_poly(plist const &, cxx_param_list & pl);
 
-    cxx_cado_poly(cxx_param_list & pl) {
-        const char *tmp;
-        if ((tmp = param_list_lookup_string(pl, "poly")) == NULL) {
-            fprintf(stderr, "Error: -poly is missing\n");
-            param_list_print_usage(pl, NULL, stderr);
-            exit(EXIT_FAILURE);
-        }
-        if (!read(tmp)) {
-            ::fprintf(stderr, "Error reading polynomial file %s\n", tmp);
-            exit(EXIT_FAILURE);
-        }
+    explicit cxx_cado_poly(cxx_param_list & pl) {
+        auto tmp = pl.parse_mandatory<std::string>("poly");
+        if (!read(tmp))
+            pl.fail("Error reading polynomial file {}\n", tmp);
         /* -skew (or -S) may override (or set) the skewness given in the
          * polynomial file */
-        param_list_parse_double(pl, "skew", &(skew));
+        pl.parse("skew", (skew));
         if (skew <= 0.0) {
             fprintf(stderr, "Error, please provide a positive skewness\n");
             exit(EXIT_FAILURE);

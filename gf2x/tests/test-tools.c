@@ -63,7 +63,7 @@ uint32_t fill(unsigned long * a, int n1, uint32_t startvalue, uint32_t ratio)
         h = 0;								\
 } while (0)
 
-uint32_t crc32(unsigned long * c, int n3, uint32_t v)
+uint32_t gf2x_crc32(unsigned long * c, int n3, uint32_t v)
 {
     int i;
 #if GF2X_WORDSIZE == 32

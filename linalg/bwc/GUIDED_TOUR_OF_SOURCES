@@ -279,10 +279,10 @@ through.
 
 Below are a few things you can do with the pi variable. In these protos,
 wr should be one of the communicator inside pi.
-  pi_hello(pi)           // a small hello-world that tests the pi
-  pi_thread_bcast(void* ptr, size_t size, BWC_PI_BYTE, uint root, wr)
+  pi.hello()           // a small hello-world that tests the pi
+  wr.thread_bcast(void* ptr, size_t size, BWC_PI_BYTE, uint root)
                         // Broadcasting function at thread level
-  pi_bcast(...)
+  wr.bcast(...)
                         // Broadcasting function at MPI+thread level
   serialize(wr)         // Serializing stuff
   serialize_threads(wr)
@@ -493,7 +493,7 @@ the vector being passed is distributed in the "d=1" direction,
 even though "d=0" is probably the most extensively tested.
 Such a point of view is also visible in the naming of variables, e.g.
 when we write:
-    pi_comm_ptr picol = mmt->pi->wr[d];
+    pi_comm & picol = mmt->pi->wr[d];
 this does actually correspond to a column communicator only when d==1.
 
 

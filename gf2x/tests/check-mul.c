@@ -81,12 +81,12 @@ int main(int argc, char * argv[])
     v = fill(a, n1, v, ratio);
     v = fill(b, n2, v, ratio);
     gf2x_mul(c,a,N1,b,N2);
-    check0 = crc32(c, n3, 0);
+    check0 = gf2x_crc32(c, n3, 0);
 
     v = start;
     v = fill(c, n1, v, ratio);
     gf2x_mul(c,c,N1,b,N2);
-    check1 = crc32(c, n3, 0);
+    check1 = gf2x_crc32(c, n3, 0);
 
     if (check0 != check1) {
         printf("aliasing test failed\n");
@@ -97,7 +97,7 @@ int main(int argc, char * argv[])
     v = fill(a, n1, v, ratio);
     v = fill(c, n2, v, ratio);
     gf2x_mul(c,a,N1,c,N2);
-    check1 = crc32(c, n3, 0);
+    check1 = gf2x_crc32(c, n3, 0);
 
     if (check0 != check1) {
         printf("aliasing test failed\n");

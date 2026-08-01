@@ -17,9 +17,9 @@
 
 static void decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "p0", "prime lower bound");
-    param_list_decl_usage(pl, "p1", "prime upper bound");
-    param_list_decl_usage(pl, "n", "number of intervals");
+    pl.declare_usage("p0", "prime lower bound");
+    pl.declare_usage("p1", "prime upper bound");
+    pl.declare_usage("n", "number of intervals");
 }
 
 int main(int argc, char const * argv[])
@@ -32,13 +32,13 @@ int main(int argc, char const * argv[])
 
     decl_usage(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
-    param_list_parse(pl, "p0", p0);
-    param_list_parse(pl, "p1", p1);
-    param_list_parse(pl, "n", n);
+    pl.parse("p0", p0);
+    pl.parse("p1", p1);
+    pl.parse("n", n);
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Unused parameters are given");
 
     std::vector<unsigned long> splits = subdivide_primes_interval(p0, p1, n);

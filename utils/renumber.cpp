@@ -5,6 +5,7 @@
 #include <climits>
 
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include <limits>
 #include <list>
@@ -1186,14 +1187,14 @@ void renumber_t::more_info(std::ostream & os) const
 
 void renumber_t::builder_declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "renumber", "output file for renumbering table");
-    param_list_decl_usage(pl, "renumber_format", "format of the renumbering table (\"flat\")");
+    pl.declare_usage("renumber", "output file for renumbering table");
+    pl.declare_usage("renumber_format", "format of the renumbering table (\"flat\")");
 }
 
 void renumber_t::builder_lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "renumber");
-    param_list_lookup_string(pl, "renumber_format");
+    pl.lookup("renumber");
+    pl.lookup("renumber_format");
 }
 
 /* This is the core of the renumber table building routine. Part of this
@@ -1393,8 +1394,8 @@ index_t renumber_t::build(bool for_dl, hook * f)
 
 index_t renumber_t::build(cxx_param_list & pl, bool for_dl, hook * f)
 {
-    const char * renumberfilename = param_list_lookup_string(pl, "renumber");
-    const char * format_string = param_list_lookup_string(pl, "renumber_format");
+    const char * renumberfilename = pl.lookup_old("renumber");
+    const char * format_string = pl.lookup_old("renumber_format");
 
     if (format_string == nullptr) {
         set_format(format_flat);

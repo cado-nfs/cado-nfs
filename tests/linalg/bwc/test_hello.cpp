@@ -10,42 +10,42 @@
 
 static int verbose=0;
 
-static void * program(parallelizing_info_ptr pi, cxx_param_list & pl MAYBE_UNUSED, void * arg MAYBE_UNUSED)
+static void * program(parallelizing_info & pi, cxx_param_list & pl MAYBE_UNUSED, void * arg MAYBE_UNUSED)
 {
     if (verbose) {
-        pi_log_init(pi->m);
-        pi_log_init(pi->wr[0]);
-        pi_log_init(pi->wr[1]);
+        pi.m.log_init();
+        pi.wr[0].log_init();
+        pi.wr[1].log_init();
     }
 
     // it is here as a cheap sanity check.
-    pi_hello(pi);
+    pi.hello();
 
     if (verbose) {
-        pi_log_op(pi->m, "serialize");
-        serialize(pi->m);
+        pi.m.log_op("serialize");
+        pi.m.serialize(__FILE__, __LINE__);
 
-        /* note that in order to do serialize(pi->wr[0]), we need to make
+        /* note that in order to do pi.wr[0].serialize(__FILE__, __LINE__), we need to make
          * sure that only one thread in the intersecting communicator
          * executes.
          */
-        if (pi->wr[1]->trank == 0) {
-            pi_log_op(pi->wr[0], "serialize(2nd)");
-            serialize(pi->wr[0]);
+        if (pi.wr[1].trank == 0) {
+            pi.wr[0].log_op("serialize(2nd)");
+            pi.wr[0].serialize(__FILE__, __LINE__);
         }
-        serialize_threads(pi->wr[1]);
+        pi.wr[1].serialize_threads(__FILE__, __LINE__);
 
-        if (pi->wr[0]->trank == 0) {
-            pi_log_op(pi->wr[1], "serialize(3rd)");
-            serialize(pi->wr[1]);
+        if (pi.wr[0].trank == 0) {
+            pi.wr[1].log_op("serialize(3rd)");
+            pi.wr[1].serialize(__FILE__, __LINE__);
         }
-        serialize_threads(pi->wr[0]);
+        pi.wr[0].serialize_threads(__FILE__, __LINE__);
 
-        pi_log_print_all(pi);
+        pi.log_print_all();
 
-        pi_log_clear(pi->m);
-        pi_log_clear(pi->wr[0]);
-        pi_log_clear(pi->wr[1]);
+        pi.m.log_clear();
+        pi.wr[0].log_clear();
+        pi.wr[1].log_clear();
     }
 
     return nullptr;
@@ -63,26 +63,27 @@ int main(int argc, char const * argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
 
-    parallelizing_info_init();
+    parallelizing_info::init_attribute_things();
 
-    parallelizing_info_decl_usage(pl);
-    param_list_decl_usage(pl, "v", "turn on some demo logging");
+    parallelizing_info::declare_usage(pl);
+    pl.declare_usage("v", "turn on some demo logging");
 
-    param_list_configure_switch(pl, "v", &verbose);
+    pl.configure_switch("v");
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
-    parallelizing_info_lookup_parameters(pl);
+    pl.parse("v", verbose);
+    parallelizing_info::lookup_parameters(pl);
 
     if (verbose)
-        param_list_display (pl, stderr);
+        pl.display_debug(stderr);
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Unused parameters are given");
 
     pi_go(program, pl, nullptr);
 
-    parallelizing_info_finish();
+    parallelizing_info::clear_attribute_things();
 
     MPI_Finalize();
 

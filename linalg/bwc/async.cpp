@@ -146,7 +146,7 @@ void timing_clear(struct timing_data * t)
     free(t->since_beginning);
 }
 
-void timing_check(parallelizing_info pi, struct timing_data * timing, int iter, int print)
+void timing_check(parallelizing_info & pi, struct timing_data * timing, int iter, int print)
 {
     // printf("timing_check %d timing%d\n", iter, wr->trank);
 
@@ -203,10 +203,10 @@ void timing_check(parallelizing_info pi, struct timing_data * timing, int iter, 
     if (print)
         printf("iteration %d\n", iter);
 
-    grid_print(pi, buf, strlen(buf) + 1, print);
+    pi.grid_print(buf, strlen(buf) + 1, print);
 }
 
-static void timing_disp_backend(parallelizing_info pi, struct timing_data * timing, int iter, int print, const char * stage, int done)
+static void timing_disp_backend(parallelizing_info & pi, struct timing_data * timing, int iter, int print, const char * stage, int done)
 {
     if (!verbose_enabled(CADO_VERBOSE_PRINT_BWC_ITERATION_TIMINGS))
         return;
@@ -238,28 +238,24 @@ static void timing_disp_backend(parallelizing_info pi, struct timing_data * timi
 
     int const ndoubles = timing->ntimers * sizeof(timing_interval_data) / sizeof(double);
 
-    pi_allreduce((double*) T, (double*) Tsum,
-            ndoubles, BWC_PI_DOUBLE, BWC_PI_SUM,
-            pi->m);
-    pi_allreduce((double*) T, (double*) Tmin,
-            ndoubles, BWC_PI_DOUBLE, BWC_PI_MIN,
-            pi->m);
-    pi_allreduce((double*) T, (double*) Tmax,
-            ndoubles, BWC_PI_DOUBLE, BWC_PI_MAX,
-            pi->m);
-    pi_allreduce(NULL, &ncoeffs_d,
-            timing->ntimers, BWC_PI_DOUBLE, BWC_PI_SUM,
-            pi->m);
+    pi.m.allreduce((double*) T, (double*) Tsum,
+            ndoubles, BWC_PI_DOUBLE, BWC_PI_SUM);
+    pi.m.allreduce((double*) T, (double*) Tmin,
+            ndoubles, BWC_PI_DOUBLE, BWC_PI_MAX);
+    pi.m.allreduce((double*) T, (double*) Tmax,
+            ndoubles, BWC_PI_DOUBLE, BWC_PI_MAX);
+    pi.m.allreduce(NULL, &ncoeffs_d,
+            timing->ntimers, BWC_PI_DOUBLE, BWC_PI_SUM);
 
     double sum_dwct = 0;
     for(int i = 0 ; i < timing->ntimers ; i++) {
         sum_dwct += Tsum[i]->wct;
     }
-    double const avdwct = sum_dwct / pi->m->totalsize / di;
+    double const avdwct = sum_dwct / pi.m.totalsize / di;
 
     if (print) {
         for(int timer = 0 ; timer < timing->ntimers ; timer++) {
-            double const avwct = Tsum[timer]->wct / pi->m->totalsize / di;
+            double const avwct = Tsum[timer]->wct / pi.m.totalsize / di;
 
             char extra[32]={'\0'};
             if (ncoeffs_d[timer] != 0) {
@@ -310,15 +306,15 @@ static void timing_disp_backend(parallelizing_info pi, struct timing_data * timi
     /* We're sharing via thread_broadcast data which sits on the stack of
      * one thread. So it's important that no thread exits this function
      * prematurely ! */
-    serialize_threads(pi->m);
+    pi.m.serialize_threads(__FILE__, __LINE__);
 }
 
-void timing_disp_collective_oneline(parallelizing_info pi, struct timing_data * timing, int iter, int print, const char * stage)
+void timing_disp_collective_oneline(parallelizing_info & pi, struct timing_data * timing, int iter, int print, const char * stage)
 {
     timing_disp_backend(pi, timing, iter, print, stage, 0);
 }
 
-void timing_final_tally(parallelizing_info pi, struct timing_data * timing, int print, const char * stage)
+void timing_final_tally(parallelizing_info & pi, struct timing_data * timing, int print, const char * stage)
 {
     timing_disp_backend(pi, timing, timing->end_mark, print, stage, 1);
 }

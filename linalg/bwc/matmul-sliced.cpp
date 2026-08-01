@@ -132,7 +132,7 @@ struct matmul_sliced : public matmul_interface {
     private:
     static unsigned int npack_initial(cxx_param_list & pl) {
         unsigned int npack = L1_CACHE_SIZE;
-        param_list_parse(pl, "l1_cache_size", npack);
+        pl.parse("l1_cache_size", npack);
         npack /= sizeof(typename Arith::elt);
         return npack;
     }
@@ -146,7 +146,7 @@ matmul_sliced<Arith>::matmul_sliced(matmul_public && P, arith_concrete_base * px
 {
     int const suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
     store_transposed = suggest;
-    param_list_parse(pl, "mm_store_transposed", store_transposed);
+    pl.parse("mm_store_transposed", store_transposed);
     if (store_transposed != suggest) {
         fprintf(stderr, "Warning, mm_store_transposed"
                 " overrides suggested matrix storage ordering\n");

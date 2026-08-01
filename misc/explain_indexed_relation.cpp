@@ -54,8 +54,8 @@
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "renumber", "input file for renumbering table ; exclusive with --build");
-    param_list_decl_usage(pl, "relations", "explain indexed relations from this file.");
+    pl.declare_usage("renumber", "input file for renumbering table ; exclusive with --build");
+    pl.declare_usage("relations", "explain indexed relations from this file.");
     verbose_decl_usage(pl);
 }
 
@@ -86,30 +86,30 @@ struct command_line {
     cxx_cado_poly cpoly;
 
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage(pl, "dl", "interpret as DL-related data.");
-        param_list_decl_usage(pl, "python", "output python directly (skip the sage preparser).");
-        param_list_decl_usage(pl, "raw", "output only machine readable contents.");
-        param_list_decl_usage(pl, "all", "output code with the definition of all ideals.");
-        param_list_decl_usage(pl, "build", "build the renumbering table on the fly, instead of loading it (requires --lpbs)");
-        param_list_decl_usage(pl, "skip-ideal-checks", "do not include the sagemath checks for ideals.");
-        param_list_decl_usage(pl, "lpbs", "large primes bounds (comma-separated list, for --build only)");
-        param_list_decl_usage(pl, "poly", "input polynomial file");
+        pl.declare_usage("dl", "interpret as DL-related data.");
+        pl.declare_usage("python", "output python directly (skip the sage preparser).");
+        pl.declare_usage("raw", "output only machine readable contents.");
+        pl.declare_usage("all", "output code with the definition of all ideals.");
+        pl.declare_usage("build", "build the renumbering table on the fly, instead of loading it (requires --lpbs)");
+        pl.declare_usage("skip-ideal-checks", "do not include the sagemath checks for ideals.");
+        pl.declare_usage("lpbs", "large primes bounds (comma-separated list, for --build only)");
+        pl.declare_usage("poly", "input polynomial file");
     }
 
     void configure_switches(cxx_param_list & pl) {
-        param_list_configure_switch(pl, "dl", &dl);
-        param_list_configure_switch(pl, "python", &python);
-        param_list_configure_switch(pl, "raw", &raw);
-        param_list_configure_switch(pl, "all", &all);
-        param_list_configure_switch(pl, "build", &build);
-        param_list_configure_switch(pl, "skip-ideal-checks", &skip_ideal_checks);
+        pl.configure_switch_old("dl", &dl);
+        pl.configure_switch_old("python", &python);
+        pl.configure_switch_old("raw", &raw);
+        pl.configure_switch_old("all", &all);
+        pl.configure_switch_old("build", &build);
+        pl.configure_switch_old("skip-ideal-checks", &skip_ideal_checks);
     }
 
     void lookup_parameters(cxx_param_list & pl) {
-        polyfilename = param_list_lookup_string(pl, "poly");
-        renumberfilename = param_list_lookup_string(pl, "renumber");
-        relationsfilename = param_list_lookup_string(pl, "relations");
-        param_list_parse(pl, "lpbs", lpb);
+        polyfilename = pl.lookup_old("poly");
+        renumberfilename = pl.lookup_old("renumber");
+        relationsfilename = pl.lookup_old("relations");
+        pl.parse("lpbs", lpb);
         if (!cpoly.read(polyfilename))
         {
             fmt::print (stderr, "Error reading polynomial file\n");
@@ -321,10 +321,10 @@ int main(int argc, char const * argv[])
 
     cmdline.configure_switches(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     verbose_interpret_parameters(pl);
-    param_list_print_command_line (stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
     cmdline.lookup_parameters(pl);

@@ -89,7 +89,7 @@ void verbose_interpret_parameters(cxx_param_list & pl)
         }
     }
 
-    const char * v = param_list_lookup_string(pl, "verbose_flags");
+    const char * v = pl.lookup_old("verbose_flags");
     if (!v) return;
 
     char * w = strdup(v);
@@ -136,7 +136,7 @@ void verbose_interpret_parameters(cxx_param_list & pl)
 
 void verbose_decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "verbose_flags", "fine grained control on which messages get printed");
+    pl.declare_usage("verbose_flags", "fine grained control on which messages get printed");
 }
 
 /* returns true if the following verbose flag is enabled */

@@ -21,15 +21,14 @@
 #include "select_mpi.h"
 #include "timing.h"
 
-static void * bench_cpu_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * bench_cpu_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
-    int fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
-    fake = fake || param_list_lookup_string(pl, "static_random_matrix") != nullptr;
+    bool fake = pl.has("random_matrix") || pl.has("static_random_matrix");
     if (fake) bw->skip_online_checks = 1;
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
 
     int const ys[2] = { bw->ys[0], bw->ys[1], };
-    if (pi->interleaved) {
+    if (pi.interleaved) {
         fprintf(stderr,
                 "bench_cpu_bwc does not work in the interleaved setting\n");
         exit(EXIT_FAILURE);
@@ -56,18 +55,18 @@ static void * bench_cpu_prog(parallelizing_info_ptr pi, cxx_param_list & pl, voi
      * impact on the SEGv's we see every now and then with --mca
      * mpi_leave_pinned 1
      */
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
     {
         cxx_gmp_randstate rstate;
 
-        unsigned long const g = pi->m->jrank * pi->m->ncores + pi->m->trank;
+        unsigned long const g = pi.m.jrank * pi.m.ncores + pi.m.trank;
         gmp_randseed_ui(rstate, bw->seed + g);
         mmt_vec_set_random_inconsistent(ymy[0], rstate);
         mmt_vec_truncate(mmt, ymy[0]);
     }
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
 
-    serialize_threads(pi->m);
+    pi.m.serialize_threads(__FILE__, __LINE__);
 
 
     for(int streak = 1 ; streak < bw->interval ; streak <<= 1) {
@@ -75,7 +74,7 @@ static void * bench_cpu_prog(parallelizing_info_ptr pi, cxx_param_list & pl, voi
             printf("Measuring timings for %d multiplications (cpu-bound)\n", streak);
         mmt_vec_twist(mmt, ymy[0]);
 
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
         double timers[3] = {0,};
         timers[2] = -wct_seconds();
         thread_seconds_user_sys(timers);
@@ -105,16 +104,16 @@ static void * bench_cpu_prog(parallelizing_info_ptr pi, cxx_param_list & pl, voi
         }
         thread_seconds_user_sys(timers);
         timers[2] += wct_seconds();
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
 
         char buf[40];
         snprintf(buf, 40, "%.2f@%.1f%% ", timers[2]/streak, 100.0*(timers[0]+timers[1])/timers[2]);
-        grid_print(pi, buf, strlen(buf) + 1, tcan_print);
+        pi.grid_print(buf, strlen(buf) + 1, tcan_print);
 
         double slowest = timers[2]/streak;
         double fastest = timers[2]/streak;
-        pi_allreduce(nullptr, &slowest, 1, BWC_PI_DOUBLE, BWC_PI_MAX, pi->m);
-        pi_allreduce(nullptr, &fastest, 1, BWC_PI_DOUBLE, BWC_PI_MIN, pi->m);
+        pi.m.allreduce(nullptr, &slowest, 1, BWC_PI_DOUBLE, BWC_PI_MAX);
+        pi.m.allreduce(nullptr, &fastest, 1, BWC_PI_DOUBLE, BWC_PI_MIN);
         if (tcan_print)
             printf("Cpu time spread: %.2f ... %.2f (delta = %.2f)\n",
                     fastest, slowest, slowest - fastest);
@@ -129,13 +128,13 @@ static void * bench_cpu_prog(parallelizing_info_ptr pi, cxx_param_list & pl, voi
 
         mmt_vec_untwist(mmt, ymy[0]);
 
-        serialize(pi->m);
+        pi->m.serialize(__FILE__, __LINE__);
     }
 
     if (tcan_print) {
         printf("Done bench.\n");
     }
-    serialize(pi->m);
+    pi->m.serialize(__FILE__, __LINE__);
 
     return nullptr;
 }
@@ -147,34 +146,34 @@ int main(int argc, char const * argv[])
 
     bw_common_init(bw, &argc, &argv);
 
-    parallelizing_info_init();
+    parallelizing_info::init_attribute_things();
 
     bw_common_decl_usage(pl);
-    parallelizing_info_decl_usage(pl);
+    parallelizing_info::declare_usage(pl);
     matmul_top_decl_usage(pl);
     /* declare local parameters and switches: none here (so far). */
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
 
     bw_common_interpret_parameters(bw, pl);
-    parallelizing_info_lookup_parameters(pl);
+    parallelizing_info::lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters */
     if (bw->ys[0] < 0) { fprintf(stderr, "no ys value set\n"); exit(1); }
 
-    ASSERT_ALWAYS(param_list_lookup_string(pl, "ys"));
-    ASSERT_ALWAYS(!param_list_lookup_string(pl, "solutions"));
+    ASSERT_ALWAYS(pl.has("ys"));
+    ASSERT_ALWAYS(!pl.has("solutions"));
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        if (!rank) pl.print_usage(stderr);
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     pi_go(bench_cpu_prog, pl, nullptr);
 
-    parallelizing_info_finish();
+    parallelizing_info::clear_attribute_things();
     
     bw_common_clear(bw);
 

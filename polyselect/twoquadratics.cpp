@@ -291,27 +291,27 @@ void MontgomeryTwoQuadratics (mpz_poly f, mpz_poly g, mpz_t skew, mpz_t N,
 
 static void declare_usage(cxx_param_list & pl)
 {
-  param_list_decl_usage(pl, "N", "input number (default c59)");
-  param_list_decl_usage(pl, "minP", "Use P > minP (default 2)");
-  param_list_decl_usage(pl, "maxP", "Use P <= maxP (default nextprime(minP))");
-  param_list_decl_usage(pl, "skewness", "maximun skewness possible "
+  pl.declare_usage("N", "input number (default c59)");
+  pl.declare_usage("minP", "Use P > minP (default 2)");
+  pl.declare_usage("maxP", "Use P <= maxP (default nextprime(minP))");
+  pl.declare_usage("skewness", "maximun skewness possible "
                                         "(default floor(N^(1/4))");
-  param_list_decl_usage(pl, "v", "verbose output (print all polynomials)");
-  param_list_decl_usage(pl, "q", "quiet output (print only best polynomials)");
+  pl.declare_usage("v", "verbose output (print all polynomials)");
+  pl.declare_usage("q", "quiet output (print only best polynomials)");
   char str[200];
   snprintf (str, 200, "sieving area (default %.2e)", AREA);
-  param_list_decl_usage(pl, "area", str);
+  pl.declare_usage("area", str);
   snprintf (str, 200, "algebraic smoothness bound (default %.2e)", BOUND_F);
-  param_list_decl_usage(pl, "Bf", str);
+  pl.declare_usage("Bf", str);
   snprintf (str, 200, "rational smoothness bound (default %.2e)", BOUND_G);
-  param_list_decl_usage(pl, "Bg", str);
-  param_list_decl_usage(pl, "print", "print in cado_poly format");
+  pl.declare_usage("Bg", str);
+  pl.declare_usage("print", "print in cado_poly format");
   verbose_decl_usage(pl);
 }
 
-static void usage (const char *argv, cxx_param_list & pl)
+static void usage (const char *argv MAYBE_UNUSED, cxx_param_list & pl)
 {
-  param_list_print_usage(pl, argv, stderr);
+  pl.print_usage(stderr);
   exit (EXIT_FAILURE);
 }
 
@@ -331,9 +331,9 @@ int main(int argc, char const * argv[])
   /* read params */
   declare_usage(pl);
 
-  param_list_configure_switch (pl, "-v", &verbose);
-  param_list_configure_switch (pl, "-q", &quiet);
-  param_list_configure_switch (pl, "-print", &print);
+  pl.configure_switch_old("-v", &verbose);
+  pl.configure_switch_old("-q", &quiet);
+  pl.configure_switch_old("-print", &print);
 
   if (argc == 1)
     usage (argv[0], pl);
@@ -341,12 +341,12 @@ int main(int argc, char const * argv[])
   argc--,argv++;
   for ( ; argc ; )
   {
-    if (param_list_update_cmdline (pl, &argc, &argv)) { continue; }
+    if (pl.update_cmdline(argc, argv)) { continue; }
     fprintf (stderr, "Unhandled parameter %s\n", argv[0]);
     usage (argv0, pl);
   }
 
-  if (!param_list_parse_mpz(pl, "skewness", max_skewness))
+  if (!pl.parse("skewness", max_skewness))
     mpz_set_ui (max_skewness, 0);
   else if (mpz_cmp_ui (max_skewness, 1) < 0)
   {
@@ -355,17 +355,17 @@ int main(int argc, char const * argv[])
     abort();
   }
 
-  if (param_list_parse_double (pl, "area", &area) == 0) /* no -area */
+  if (!pl.parse("area", area)) /* no -area */
     area = AREA;
-  if (param_list_parse_double (pl, "Bf", &bound_f) == 0) /* no -Bf */
+  if (!pl.parse("Bf", bound_f)) /* no -Bf */
     bound_f = BOUND_F;
-  if (param_list_parse_double (pl, "Bg", &bound_g) == 0) /* no -Bg */
+  if (!pl.parse("Bg", bound_g)) /* no -Bg */
     bound_g = BOUND_G;
-  if (!param_list_parse_mpz(pl, "minP", minP))
+  if (!pl.parse("minP", minP))
     mpz_set_ui (minP, 2);
-  if (!param_list_parse_mpz(pl, "maxP", maxP))
+  if (!pl.parse("maxP", maxP))
     mpz_nextprime(maxP, minP);
-  if (!param_list_parse_mpz(pl, "N", N))
+  if (!pl.parse("N", N))
     mpz_set_str (N,
         "71641520761751435455133616475667090434063332228247871795429", 10);
 
@@ -396,9 +396,9 @@ int main(int argc, char const * argv[])
     verbose = -1;
 
   verbose_interpret_parameters(pl);
-  if (param_list_warn_unused(pl))
+  if (pl.warn_unused())
     usage (argv0, pl);
-  param_list_print_command_line (stdout, pl);
+  pl.print_command_line(stdout);
 
   if (verbose >= 0)
   {

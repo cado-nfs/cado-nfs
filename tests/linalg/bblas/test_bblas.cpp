@@ -46,10 +46,10 @@ static print_features() /*{{{*/
 static void
 declare_usage(cxx_param_list& pl) /*{{{*/
 {
-    param_list_decl_usage(pl, "seed", "seed for random data generation");
-    param_list_decl_usage(pl, "n", "n value for some size-dependent tests");
-    param_list_decl_usage(pl, "fast", "do quick tests only\n");
-    param_list_decl_usage(pl, "tests", "list of tests to perform\n");
+    pl.declare_usage("seed", "seed for random data generation");
+    pl.declare_usage("n", "n value for some size-dependent tests");
+    pl.declare_usage("fast", "do quick tests only\n");
+    pl.declare_usage("tests", "list of tests to perform\n");
 } /*}}}*/
 
 // coverity[root_function]
@@ -59,17 +59,18 @@ int main(int argc, char const * argv[])
     unsigned int n = 2 * 1000 * 1000;
     int seed = 0;
     declare_usage(pl);
-    param_list_configure_switch(pl, "-fast", &test_bblas_base::test_accel);
+    pl.configure_switch("-fast");
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
-    param_list_parse_uint(pl, "n", &n);
+    pl.parse("-fast", test_bblas_base::test_accel);
+    pl.parse("n", n);
 
     std::vector<std::string> tests;
-    if (!param_list_parse(pl, "tests", tests))
+    if (!pl.parse("tests", tests))
         tests.emplace_back("all");
 
-    param_list_parse(pl, "seed", seed);
+    pl.parse("seed", seed);
 
     if (!seed)
         seed = time(nullptr);

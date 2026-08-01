@@ -32,12 +32,12 @@ void las_verbose_enter(cxx_param_list & pl, FILE * output, int verbose)
     verbose_output_add(1, stderr, 1);
     /* Channel 2 is for statistics. We always print them to las' normal output */
     verbose_output_add(2, output, 1);
-    if (param_list_parse_switch(pl, "-stats-stderr")) {
+    if (pl.parse<int>("-stats-stderr")) {
         /* If we should also print stats to stderr, add stderr to channel 2 */
         verbose_output_add(2, stderr, 1);
     }
 #ifdef TRACE_K
-    const char *trace_file_name = param_list_lookup_string(pl, "traceout");
+    const char *trace_file_name = pl.lookup_old("traceout");
     FILE *trace_file = stderr;
     if (trace_file_name != nullptr) {
         trace_file = fopen(trace_file_name, "w");
@@ -68,7 +68,7 @@ las_output::las_output(cxx_param_list & pl)
     ASSERT_ALWAYS(output == nullptr);
     output = stdout;
     outputname.clear();
-    const char * tmp = param_list_lookup_string(pl, "out");
+    const char * tmp = pl.lookup_old("out");
     if (tmp) {
         output = fopen_maybe_compressed(tmp, "w");
 	if (!output) {
@@ -77,11 +77,11 @@ las_output::las_output(cxx_param_list & pl)
 	}
         outputname = std::string(tmp);
     }
-    verbose = param_list_parse_switch(pl, "-v");
+    pl.parse("-v", verbose);
     setvbuf(output, nullptr, _IOLBF, 0);      /* mingw has no setlinebuf */
     las_verbose_enter(pl, output, verbose);
 
-    param_list_print_command_line(output, pl);
+    pl.print_command_line(output);
     las_display_config_flags();
 }
 
@@ -96,18 +96,18 @@ las_output::~las_output()
 
 void las_output::configure_switches(cxx_param_list & pl)
 {
-    param_list_configure_switch(pl, "-stats-stderr", nullptr);
-    param_list_configure_switch(pl, "-v", nullptr);
+    pl.configure_switch("-stats-stderr");
+    pl.configure_switch("-v");
 }
 
 void las_output::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "v",    "verbose mode, also prints sieve-area checksums");
-    param_list_decl_usage(pl, "out",  "filename where relations are written, instead of stdout");
+    pl.declare_usage("v",    "verbose mode, also prints sieve-area checksums");
+    pl.declare_usage("out",  "filename where relations are written, instead of stdout");
 #ifdef TRACE_K
-    param_list_decl_usage(pl, "traceout", "Output file for trace output, default: stderr");
+    pl.declare_usage("traceout", "Output file for trace output, default: stderr");
 #endif
-    param_list_decl_usage(pl, "stats-stderr", "print stats to stderr in addition to stdout/out file");
+    pl.declare_usage("stats-stderr", "print stats to stderr in addition to stdout/out file");
 }
 /*}}}*/
 

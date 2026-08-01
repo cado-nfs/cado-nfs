@@ -5,18 +5,18 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cctype>
-#include <cstring>
 
-#include <utility>
-#include <string>
-#include <map>
-#include <list>
-#include <iostream>
+#include <algorithm>
+#include <array>
 #include <fstream>
+#include <iostream>
+#include <iterator>
+#include <list>
+#include <map>
 #include <sstream>
 #include <stdexcept>
-#include <algorithm>
-#include <iterator>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include <hwloc.h>
@@ -36,16 +36,16 @@
 
 void cpubinding_decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "input-topology-file",
+    pl.declare_usage("input-topology-file",
             "simulated topology, only for testing");
-    param_list_decl_usage(pl, "input-topology-string",
+    pl.declare_usage("input-topology-string",
             "simulated topology, only for testing");
-    param_list_decl_usage(pl, "cpubinding", "path to a cpubinding.conf file, or explicit CPU binding string");
+    pl.declare_usage("cpubinding", "path to a cpubinding.conf file, or explicit CPU binding string");
 }
 
 void cpubinding_lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "cpubinding");
+    pl.lookup("cpubinding");
 }
 
 
@@ -829,9 +829,9 @@ void cpubinder::read_param_list(cxx_param_list & pl, int want_conf_file)
     /* the first two arguments here are not parsed in the cado-nfs
      * context. It's only used by the helper binary I have for testing
      * the topology matching code */
-    const char * topology_file = param_list_lookup_string(pl, "input-topology-file");
-    const char * topology_string = param_list_lookup_string(pl, "input-topology-string");
-    const char * cpubinding_conf = param_list_lookup_string(pl, "cpubinding");
+    const char * topology_file = pl.lookup_old("input-topology-file");
+    const char * topology_string = pl.lookup_old("input-topology-string");
+    const char * cpubinding_conf = pl.lookup_old("cpubinding");
 
     /* If we arrive here, then cpubinding_conf is not something which
      * looks like a forced binding, so this should be a config file
@@ -1185,7 +1185,7 @@ void cpubinder::stage()
 
 void * cpubinding_get_info(char ** messages, cxx_param_list & pl, unsigned int tt0, unsigned int tt1)
 {
-    const char * conf = param_list_lookup_string(pl, "cpubinding");
+    const char * conf = pl.lookup_old("cpubinding");
     thread_split const thr(tt0, tt1);
 
     if (conf && (strcmp(conf, "no") == 0 || strcmp(conf, "none")==0)) {

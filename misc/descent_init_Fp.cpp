@@ -435,23 +435,23 @@ static void one_descent_thread(
 
 static void descent_declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage_header(pl,
+    pl.declare_usage_header(
             "[-poly polfile] [-side xxx] [-extdeg n] [-jl] [-mt n] [-mineff "
             "e] [-maxeff E] [-seed s] [-lpb t] [-v] p z\n"
             "  If extdeg > 1, then z must be a white-separated sequence of "
             "coefs z0 z1 ... z_{k-1}\n");
 
-    param_list_decl_usage(pl, "seed", "random seed");
-    param_list_decl_usage(pl, "mt", "number of threads");
-    param_list_decl_usage(pl, "minB1", "start ECM with this B1");
-    param_list_decl_usage(pl, "mineff", "minimum ECM effort");
-    param_list_decl_usage(pl, "maxeff", "maximum ECM effort");
-    param_list_decl_usage(pl, "side", "side for target");
-    param_list_decl_usage(pl, "v", "verbose mode");
-    param_list_decl_usage(pl, "extdeg", "do descent for GF(p^extdeg)");
-    param_list_decl_usage(pl, "jl", "use Joux-Lercier sieving");
-    param_list_decl_usage(pl, "lpb", "bound on large primes");
-    param_list_decl_usage(pl, "poly", "cado-nfs polynomial");
+    pl.declare_usage("seed", "random seed");
+    pl.declare_usage("mt", "number of threads");
+    pl.declare_usage("minB1", "start ECM with this B1");
+    pl.declare_usage("mineff", "minimum ECM effort");
+    pl.declare_usage("maxeff", "maximum ECM effort");
+    pl.declare_usage("side", "side for target");
+    pl.declare_usage("v", "verbose mode");
+    pl.declare_usage("extdeg", "do descent for GF(p^extdeg)");
+    pl.declare_usage("jl", "use Joux-Lercier sieving");
+    pl.declare_usage("lpb", "bound on large primes");
+    pl.declare_usage("poly", "cado-nfs polynomial");
 }
 
 namespace {
@@ -461,8 +461,8 @@ namespace {
 
 static void descent_configure_switches(cxx_param_list & pl)
 {
-    param_list_configure_switch(pl, "-v", &verbose);
-    param_list_configure_switch(pl, "-jl", &jl);
+    pl.configure_switch_old("-v", &verbose);
+    pl.configure_switch_old("-jl", &jl);
 }
 
 
@@ -488,7 +488,7 @@ main(int argc, char const * argv[])
 
     std::vector<cxx_mpz> wild;
 
-    param_list_process_command_line(pl, &argc, &argv, true);
+    pl.process_command_line(argc, argv, true);
     for( ; argc ; ) {
         if (argv[0][0] != '-') {
             cxx_mpz z;
@@ -500,20 +500,20 @@ main(int argc, char const * argv[])
         pl.fail("Unhandled parameter {}\n", argv[0]);
     }
 
-    param_list_parse(pl, "seed", seed);
-    param_list_parse(pl, "mt", nthread);
-    param_list_parse(pl, "minB1", minB1);
-    param_list_parse(pl, "mineff", mineff);
-    param_list_parse(pl, "maxeff", maxeff);
-    param_list_parse(pl, "side", side);
-    param_list_parse(pl, "extdeg", ext);
-    param_list_parse(pl, "lpb", target);
-    const char * polyfilename = param_list_lookup_string(pl, "poly");
+    pl.parse("seed", seed);
+    pl.parse("mt", nthread);
+    pl.parse("minB1", minB1);
+    pl.parse("mineff", mineff);
+    pl.parse("maxeff", maxeff);
+    pl.parse("side", side);
+    pl.parse("extdeg", ext);
+    pl.parse("lpb", target);
+    const char * polyfilename = pl.lookup_old("poly");
     if (polyfilename) {
         cpoly.read(polyfilename);
     }
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Unused parameters are given");
 
     if ((jl || (ext > 1)) && !polyfilename)

@@ -208,6 +208,46 @@ template<typename T, typename U> struct parser<std::pair<T, U>> {// {{{
     }
 };
 // }}}
+template<typename K, typename V> struct parser<std::map<K, V>> {// {{{
+    bool operator()(std::string const & s, std::map<K, V> & value, std::string const & pair_sep = ",", std::string const & kv_sep = ":") const
+    {
+        std::map<K, V> res;
+        for(auto const & t : split(s, pair_sep)) {
+            if (t.empty()) continue;
+            auto toks = split(t, kv_sep);
+            if (toks.size() != 2)
+                return false;
+            K k {};
+            V v {};
+            if (!parse(toks[0], k) || !parse(toks[1], v))
+                return false;
+            res[std::move(k)] = std::move(v);
+        }
+        value = std::move(res);
+        return true;
+    }
+};
+// }}}
+template<typename K, typename V> struct parser<std::unordered_map<K, V>> {// {{{
+    bool operator()(std::string const & s, std::unordered_map<K, V> & value, std::string const & pair_sep = ",", std::string const & kv_sep = ":") const
+    {
+        std::unordered_map<K, V> res;
+        for(auto const & t : split(s, pair_sep)) {
+            if (t.empty()) continue;
+            auto toks = split(t, kv_sep);
+            if (toks.size() != 2)
+                return false;
+            K k {};
+            V v {};
+            if (!parse(toks[0], k) || !parse(toks[1], v))
+                return false;
+            res[std::move(k)] = std::move(v);
+        }
+        value = std::move(res);
+        return true;
+    }
+};
+// }}}
 template<> struct parser<bool> {// {{{
     bool operator()(std::string const & s, bool & b) const {
         if (s == "1" || s == "true" || s == "True" || s == "yes" || s == "on") {
@@ -217,6 +257,14 @@ template<> struct parser<bool> {// {{{
             b = false;
             return true;
         }
+        try {
+            size_t pos = 0;
+            int const v = std::stoi(s, &pos);
+            if (pos == s.size()) {
+                b = (v != 0);
+                return true;
+            }
+        } catch (...) {}
         return false;
     }
 };// }}}
@@ -390,12 +438,11 @@ struct cxx_param_list {
     void declare_usage(std::string const & key, std::string const & doc) {
         documentation_structure.push_back(key);
         documentation[key] = doc;
-        /* Note that duplicate calls to param_list_decl_usage for the same
-         * key will not trigger two distinct prints of the same
-         * documentation string. See the collapsing logic in
-         * param_list_print_usage.
-         *
-         * XXX hmmm. does this observation still hold?
+        /* Note that duplicate calls to cxx_param_list::declare_usage for
+         * the same key used to be optimized away, and used to not
+         * trigger two distinct prints of the same documentation string.
+         * Now they _do_! See poly and skew in las, for example. We
+         * should maybe fix that.
          */
         use_doc = true;
     }
@@ -454,7 +501,7 @@ struct cxx_param_list {
      *  - argv++, argc--
      *  - update the pl structure with all the arguments that are found.
      *  - process --help to display the help message as configured via
-     *  param_list_decl_usage
+     *  cxx_param_list::declare_usage
      *  - return with some trailing arguments if they are allowed, otherwise
      *  error out.
      */
@@ -824,215 +871,6 @@ using parameter_switch_with_default =
 using cxx_param_list = cado::params::cxx_param_list;
 
 /***********************************************************************/
-/* compatibility calls */
-static inline void param_list_decl_usage_header(cxx_param_list & pl, const char * a)
-{
-    pl.declare_usage_header(a);
-}
-static inline void param_list_decl_usage(cxx_param_list & pl, const char * key, const char * msg)
-{
-    pl.declare_usage(key, msg);
-}
-static inline void param_list_print_usage(cxx_param_list & pl, const char *, FILE * f)
-{
-    pl.print_usage(f);
-}
-static inline void param_list_print_command_line(FILE * f, cxx_param_list & pl)
-{
-    pl.print_command_line(f);
-}
-static inline int param_list_read_stream(cxx_param_list & pl, FILE * f, int stop_on_empty_line)
-{
-    return pl.read(f, stop_on_empty_line);
-}
-static inline void param_list_configure_alias(cxx_param_list & pl, const char * key, const char * alias)
-{
-    pl.configure_alias(key, alias);
-}
-static inline void param_list_configure_switch(cxx_param_list & pl, const char * key, int * v)
-{
-    pl.configure_switch_old(key, v);
-}
-static inline int param_list_parse_double(cxx_param_list & pl, const char * key, double * d)
-{
-    return pl.parse(key, *d);
-}
-static inline int param_list_parse_uint(cxx_param_list & pl, const char * key, unsigned int * d)
-{
-    return pl.parse(key, *d);
-}
-static inline int param_list_parse_int(cxx_param_list & pl, const char * key, int * d)
-{
-    return pl.parse(key, *d);
-}
-static inline int param_list_parse_uint64(cxx_param_list & pl, const char * key, uint64_t * d)
-{
-    return pl.parse(key, *d);
-}
-static inline int param_list_parse_int64(cxx_param_list & pl, const char * key, int64_t * d)
-{
-    return pl.parse(key, *d);
-}
-static inline int param_list_parse_ulong(cxx_param_list & pl, const char * key, unsigned long * d)
-{
-    return pl.parse(key, *d);
-}
-static inline int param_list_parse_long(cxx_param_list & pl, const char * key, long * d)
-{
-    return pl.parse(key, *d);
-}
-static inline int param_list_parse_switch(cxx_param_list & pl, const char * key)
-{
-    /* for the needs of cumulative switches, it is better to return the
-     * switch as an int.
-     */
-    return pl.parse<int>(key);
-}
-extern int param_list_parse_mpz(cxx_param_list & pl, const char * key, mpz_ptr x);
-static inline int param_list_parse_uint_and_uint(cxx_param_list & pl, const char * key, unsigned int * x, const char * sep)
-{
-    std::array<unsigned int, 2> a {};
-    int const r = pl.parse(key, a, sep);
-    if (r)
-        std::ranges::copy(a, x);
-    return r;
-}
-static inline int param_list_parse_int_and_int(cxx_param_list & pl, const char * key, int * x, const char * sep)
-{
-    std::array<int, 2> a {};
-    int const r = pl.parse(key, a, sep);
-    if (r)
-        std::ranges::copy(a, x);
-    return r;
-}
-static inline int param_list_parse_intxint(cxx_param_list & pl, const char * key, int * x)
-{
-    return param_list_parse_int_and_int(pl, key, x, "x");
-}
-static inline int param_list_parse_int_list(cxx_param_list & pl, const char * key, int * x, size_t n, const char * sep)
-{
-    /* XXX param_list_parse_*_list gives a _maximum_ size, and expects
-     * the number of parsed items as return value */
-    std::vector<int> a;
-    if (!pl.parse(key, a, sep))
-        return 0;
-    ASSERT_ALWAYS(a.size() <= n);
-    std::ranges::copy(a, x);
-    return static_cast<int>(a.size());
-}
-static inline int param_list_parse_uint_list(cxx_param_list & pl, const char * key, unsigned int * x, size_t n, const char * sep)
-{
-    /* XXX param_list_parse_*_list gives a _maximum_ size, and expects
-     * the number of parsed items as return value */
-    std::vector<unsigned int> a;
-    if (!pl.parse(key, a, sep))
-        return 0;
-    ASSERT_ALWAYS(a.size() <= n);
-    std::ranges::copy(a, x);
-    return static_cast<int>(a.size());
-}
-template<typename T>
-T param_list_parse(cxx_param_list & pl, std::string const & key)
-{
-    T r {};
-    pl.parse(key, r);
-    return r;
-}
-template<typename T>
-int param_list_parse(cxx_param_list & pl, std::string const & key, T & r)
-{
-    return pl.parse(key, r);
-}
-template<typename T>
-T param_list_parse_mandatory(cxx_param_list & pl, std::string const & key)
-{
-    return pl.parse_mandatory<T>(key);
-}
-static inline void param_list_generic_failure(cxx_param_list & pl, const char *missing)
-{
-    pl.fail("missing or invalid parameter {}", missing);
-}
-
-static inline const char * param_list_lookup_string(cxx_param_list & pl, const char * key)
-{
-    auto const * p = pl.has(key);
-    return p ? p->c_str() : nullptr;
-}
-
-enum args_per_side_policy_t {
-    ARGS_PER_SIDE_DEFAULT_AS_IS,
-    ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS,
-};
-template<typename T>
-int param_list_parse_per_side(cxx_param_list & pl, std::string const & key0, T * lpb_arg, int n, enum args_per_side_policy_t policy)
-{
-    std::vector<T> v;
-    int r;
-    if (policy == ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS) {
-        r = pl.parse_per_side(key0, v, n, cado::params::copy_previous_side());
-    } else {
-        r = pl.parse_per_side(key0, v, n, lpb_arg[n-1]);
-    }
-    if (r)
-        std::copy(v.begin(), v.end(), lpb_arg);
-    /* XXX param_list_parse_*_per_side expects a size (but it is
-     * particularly badly defined, so we should really not use it IMHO) */
-    return r * n;
-}
-
-static inline int param_list_parse_int_args_per_side(cxx_param_list & pl, std::string const & key0, int * lpb_arg, int n, enum args_per_side_policy_t policy)
-{
-    return param_list_parse_per_side(pl, key0, lpb_arg, n, policy);
-}
-static inline int param_list_parse_uint_args_per_side(cxx_param_list & pl, std::string const & key0, unsigned int * lpb_arg, int n, enum args_per_side_policy_t policy)
-{
-    return param_list_parse_per_side(pl, key0, lpb_arg, n, policy);
-}
-enum parameter_origin { PARAMETER_FROM_FILE, PARAMETER_FROM_CMDLINE };
-static inline void param_list_add_key(cxx_param_list & pl,
-        const char * key, const char * value, enum parameter_origin o)
-{
-    pl.add_key(key, value, o == PARAMETER_FROM_FILE ? cado::params::origin::FROM_FILE : cado::params::origin::FROM_CMDLINE);
-}
-static inline void param_list_remove_key(cxx_param_list & pl,
-        const char * key)
-{
-    pl.remove_key(key);
-}
-static inline void param_list_process_command_line_and_extra_parameter_files(cxx_param_list & pl,
-        int * p_argc, char const *** p_argv)
-{
-    pl.process_command_line_and_extra_parameter_files(*p_argc, *p_argv);
-}
-
-static inline void param_list_process_command_line(cxx_param_list & pl,
-        int * p_argc, char const *** p_argv, int accept_trailing_args)
-{
-    pl.process_command_line(*p_argc, *p_argv, accept_trailing_args);
-}
-
-static inline void param_list_display(cxx_param_list & pl,
-        FILE * f)
-{
-    pl.display_debug(f);
-}
-static inline bool param_list_empty(cxx_param_list const & pl)
-{
-    return pl.empty();
-}
-static inline int param_list_warn_unused(cxx_param_list const & pl)
-{
-    return pl.warn_unused();
-}
-static inline int param_list_update_cmdline(cxx_param_list & pl,
-    int * argc, char const *** argv)
-{
-    return pl.update_cmdline(*argc, *argv);
-}
-static inline size_t param_list_get_list_count(cxx_param_list & pl, const char * key)
-{
-    return pl.get_list_count(key);
-}
 using cado::params::collect_command_line;
 using cado::params::parameter_error;
 

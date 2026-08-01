@@ -925,7 +925,7 @@ las_parallel_desc::las_parallel_desc(cxx_param_list & pl, double jobram_arg)
     : las_parallel_desc()
 {
     jobram = jobram_arg;
-    const char * desc_c0 = param_list_lookup_string(pl, "t");
+    const char * desc_c0 = pl.lookup_old("t");
 
     if (!desc_c0) {
         verbose_output_start_batch();
@@ -949,9 +949,9 @@ las_parallel_desc::las_parallel_desc(cxx_param_list & pl, double jobram_arg)
     help->replace_aliases(description_string);
 
 #ifdef HAVE_HWLOC
-    param_list_parse_double(pl, "memory-margin", &help->total_ram_margin);
+    pl.parse("memory-margin", help->total_ram_margin);
     /* The --job-memory argument will **ALWAYS** win */
-    param_list_parse_double(pl, "job-memory", &jobram);
+    pl.parse("job-memory", jobram);
     if (jobram != -1)
         help->min_pu_fit(jobram);
 #endif

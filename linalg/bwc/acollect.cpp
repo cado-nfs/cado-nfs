@@ -143,7 +143,7 @@ int main(int argc, char const * argv[])
     /* {{{ declare local parameters and switches */
     pl.declare_usage("remove-old",
             "discard original A file once the concatenated file has been successfully written");
-    param_list_configure_switch(pl, "--remove-old", &remove_old);
+    pl.configure_switch_old("--remove-old", &remove_old);
     /* }}} */
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
@@ -159,7 +159,7 @@ int main(int argc, char const * argv[])
     ASSERT_ALWAYS(bits_per_coeff >= 1);
     /* }}} */
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Unused parameters are given");
 
     int rc = 0;

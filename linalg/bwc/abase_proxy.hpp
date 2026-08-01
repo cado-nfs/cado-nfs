@@ -12,21 +12,21 @@
 #include "parallelizing_info.hpp"
 
 struct abase_proxy {
-    parallelizing_info_ptr pi;
+    parallelizing_info & pi;
     std::unique_ptr<arith_generic> A;
-    pi_datatype_ptr A_pi;
+    pi_datatype * A_pi;
 
-    abase_proxy(parallelizing_info_ptr pi, unsigned int width)
+    abase_proxy(parallelizing_info & pi, unsigned int width)
         : pi(pi)
         , A(arith_generic::instance(bw->p, width))
-        , A_pi(pi_alloc_arith_datatype(pi, A.get()))
+        , A_pi(pi.alloc_arith_datatype(A.get()))
     {
     }
     abase_proxy(abase_proxy &) = delete;
     abase_proxy & operator=(abase_proxy const &) = delete;
-    abase_proxy(abase_proxy &&) = default;
-    abase_proxy & operator=(abase_proxy &&) = default;
-    static abase_proxy most_natural(parallelizing_info_ptr pi)
+    abase_proxy(abase_proxy &&) = delete;
+    abase_proxy & operator=(abase_proxy &&) = delete;
+    static abase_proxy most_natural(parallelizing_info & pi)
     {
         const unsigned int width = mpz_cmp_ui(bw->p, 2) == 0 ? 64 : 1;
         return { pi, width };
@@ -40,7 +40,7 @@ struct abase_proxy {
                 arith_cross_generic::instance(A.get(), A1));
         return tdict[A1].get();
     }
-    ~abase_proxy() { pi_free_arith_datatype(pi, A_pi); }
+    ~abase_proxy() { pi.free_arith_datatype(A_pi); }
 };
 
 #endif /* LINALG_BWC_ABASE_PROXY_HPP_ */

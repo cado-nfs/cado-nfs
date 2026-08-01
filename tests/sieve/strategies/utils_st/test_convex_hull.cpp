@@ -69,10 +69,10 @@ int main(int argc, char const * argv[])
     cxx_gmp_randstate state;
 
     declare_usage(pl);
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     /* print command-line arguments */
-    param_list_print_command_line (stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
 
@@ -81,10 +81,10 @@ int main(int argc, char const * argv[])
     double x1 = 10;
     unsigned long seed = 0;
 
-    param_list_parse(pl, "N", N);
-    param_list_parse(pl, "x0", x0);
-    param_list_parse(pl, "x1", x1);
-    param_list_parse(pl, "seed", seed);
+    pl.parse("N", N);
+    pl.parse("x0", x0);
+    pl.parse("x1", x1);
+    pl.parse("seed", seed);
 
     ASSERT_ALWAYS(x0 < x1);
     gmp_randseed_ui(state, seed);

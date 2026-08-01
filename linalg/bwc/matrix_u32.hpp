@@ -70,7 +70,7 @@ struct matrix_u32 {
     /* A few interfaces are allowed to call the default ctor */
     friend struct random_matrix_ddata;
     friend matrix_u32 balancing_get_matrix_u32(
-            parallelizing_info_ptr pi,
+            parallelizing_info & pi,
             cxx_param_list & pl,
             std::string const & mfile,
             std::string const & bfile,

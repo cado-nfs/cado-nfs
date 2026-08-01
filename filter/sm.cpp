@@ -223,16 +223,16 @@ static void MPI_Recv_res(std::vector<cxx_mpz_poly> & res, int src,
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "poly", "(required) poly file");
-    param_list_decl_usage(pl, "purged", "(required) purged file");
-    param_list_decl_usage(pl, "index", "(required) index file");
-    param_list_decl_usage(pl, "out", "output file (stdout if not given)");
-    param_list_decl_usage(pl, "ell", "(required) group order");
-    param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-portability.h)");
-    param_list_decl_usage(pl, "nsms",
+    pl.declare_usage("poly", "(required) poly file");
+    pl.declare_usage("purged", "(required) purged file");
+    pl.declare_usage("index", "(required) index file");
+    pl.declare_usage("out", "output file (stdout if not given)");
+    pl.declare_usage("ell", "(required) group order");
+    pl.declare_usage("sm-mode", "SM mode (see sm-portability.h)");
+    pl.declare_usage("nsms",
                           "number of SM on side 0,1,... (default is "
                           "computed by the program)");
-    param_list_decl_usage(pl, "t",
+    pl.declare_usage("t",
                           "number of threads on each mpi job (default 1)");
     verbose_decl_usage(pl);
 }
@@ -263,30 +263,29 @@ int main(int argc, char const ** argv)
     /* read params */
     declare_usage(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
-    param_list_print_command_line(stdout, pl);
+    pl.print_command_line(stdout);
 
     /* Read poly filename from command line */
-    if ((polyfile = param_list_lookup_string(pl, "poly")) == nullptr)
+    if ((polyfile = pl.lookup_old("poly")) == nullptr)
         pl.fail("Error: parameter -poly is mandatory\n");
 
     /* Read purged filename from command line */
-    if ((purgedfile = param_list_lookup_string(pl, "purged")) == nullptr)
+    if ((purgedfile = pl.lookup_old("purged")) == nullptr)
         pl.fail("Error: parameter -purged is mandatory\n");
 
     /* Read index filename from command line */
-    if ((indexfile = param_list_lookup_string(pl, "index")) == nullptr)
+    if ((indexfile = pl.lookup_old("index")) == nullptr)
         pl.fail("Error: parameter -index is mandatory\n");
 
     /* Read outfile filename from command line ; defaults to stdout. */
-    outfile = param_list_lookup_string(pl, "out");
+    outfile = pl.lookup_old("out");
 
     /* Read ell from command line (assuming radix 10) */
-    if (!param_list_parse(pl, "ell", ell))
-        pl.fail("Error: parameter -ell is mandatory\n");
+    pl.parse_mandatory("ell", ell);
 
     /* Init polynomial */
     if (!cpoly.read(polyfile)) {
@@ -300,9 +299,9 @@ int main(int argc, char const ** argv)
      * computed later by sm_side_info_init */
     std::vector<int> nsm_arg(cpoly.nsides(), -1);
     /* Read number of sm to be printed from command line */
-    param_list_parse_int_args_per_side(pl, "nsm", nsm_arg.data(),
-                                       cpoly.nsides(),
-                                       ARGS_PER_SIDE_DEFAULT_AS_IS);
+    std::vector<int> v;
+    if (pl.parse_per_side("nsm", v, cpoly.nsides(), -1))
+        nsm_arg = v;
 
     std::vector<mpz_poly_srcptr> F(cpoly.nsides());
 
@@ -318,9 +317,9 @@ int main(int argc, char const ** argv)
         }
     }
 
-    char const * sm_mode_string = param_list_lookup_string(pl, "sm-mode");
+    char const * sm_mode_string = pl.lookup_old("sm-mode");
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Unused parameters are given");
 
     /* Print ell and ell^2 */

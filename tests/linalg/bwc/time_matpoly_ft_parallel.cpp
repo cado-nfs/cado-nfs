@@ -97,13 +97,13 @@ template<bool is_binary>
 static void declare_usage(cxx_param_list & pl)
 {
     if constexpr (!is_binary)
-        param_list_decl_usage(pl, "prime", "(mandatory) prime defining the base field");
+        pl.declare_usage("prime", "(mandatory) prime defining the base field");
     else
-        param_list_decl_usage(pl, "prime", "(unused) prime defining the base field -- we only use 2");
-    param_list_decl_usage(pl, "m", "dimension m");
-    param_list_decl_usage(pl, "n", "dimension n");
-    param_list_decl_usage(pl, "L", "length (step length in recursive algorithm)");
-    param_list_decl_usage(pl, "seed", "random seed");
+        pl.declare_usage("prime", "(unused) prime defining the base field -- we only use 2");
+    pl.declare_usage("m", "dimension m");
+    pl.declare_usage("n", "dimension n");
+    pl.declare_usage("L", "length (step length in recursive algorithm)");
+    pl.declare_usage("seed", "random seed");
     lingen_platform::declare_usage(pl);
 }
 
@@ -128,23 +128,23 @@ int main(int argc, char const * argv[])
 
     declare_usage<is_binary>(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     if constexpr (!is_binary) {
-        if (!param_list_parse(pl, "prime", p))
+        if (!pl.parse("prime", p))
             pl.fail("--prime is mandatory\n");
     } else {
         mpz_set_ui(p, 2);   /* unused anyway */
-        param_list_parse(pl, "prime", p);
+        pl.parse("prime", p);
     }
-    param_list_parse_uint(pl, "m", &m);
-    param_list_parse_uint(pl, "n", &n);
-    param_list_parse_uint(pl, "L", &L);
-    param_list_parse_ulong(pl, "seed", &seed);
+    pl.parse("m", m);
+    pl.parse("n", n);
+    pl.parse("L", L);
+    pl.parse("seed", seed);
 
     lingen_platform const P(MPI_COMM_WORLD, pl);
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         exit(EXIT_FAILURE);
     if constexpr (is_binary) {
         if (m & 63) {

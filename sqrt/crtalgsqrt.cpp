@@ -2497,14 +2497,14 @@ int main(int argc, char const ** argv)
 
     if (cache)  rcache = wcache = 1;
 
-    param_list_parse(pl, "print_delay", print_delay);
-    param_list_parse(pl, "ram", ram_gb);
+    pl.parse("print_delay", print_delay);
+    pl.parse("ram", ram_gb);
 
-    param_list_parse(pl, "verbose", verbose);
+    pl.parse("verbose", verbose);
     pl.configure_switch_old("--cache", &cache);
-    param_list_parse(pl, "ncores", glob.ncores);
-    param_list_parse(pl, "r", asked_r);
-    param_list_parse(pl, "lll_maxdim", glob.lll_maxdim);
+    pl.parse("ncores", glob.ncores);
+    pl.parse("r", asked_r);
+    pl.parse("lll_maxdim", glob.lll_maxdim);
 
     if (!pl.has("depfile"))
         pl.fail("missing argument -depfile");
@@ -2540,7 +2540,7 @@ int main(int argc, char const ** argv)
     // note that for rsa768, this estimation takes only 10 minutes, so
     // it's not a big trouble.
     unsigned long toto;
-    if (!param_list_parse(pl, "sqrt_coeffs_bits", toto)) {
+    if (!pl.parse("sqrt_coeffs_bits", toto)) {
         if (glob.rank == 0) {
             estimate_nbits_sqrt(&glob.nbits_sqrt, glob.ab); //, size_guess);
         }

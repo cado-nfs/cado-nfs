@@ -61,7 +61,7 @@ matmul_basic<Arith>::matmul_basic(matmul_public && P, arith_concrete_base * pxx,
 {
     int const suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
     store_transposed = suggest;
-    param_list_parse(pl, "mm_store_transposed", store_transposed);
+    pl.parse("mm_store_transposed", store_transposed);
     if (store_transposed != suggest) {
         fprintf(stderr, "Warning, mm_store_transposed"
                 " overrides suggested matrix storage ordering\n");

@@ -1,21 +1,21 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdint>      // for SIZE_MAX
-#include <cstring>      // for memset, strlen
-#include <cstdio>       // fprintf // IWYU pragma: keep
-#include <cstdarg>      // va_list // IWYU pragma: keep
+#include <cstdint>
+#include <cstring>
+#include <cstdio>
+#include <cstdarg>
 #include <cstdlib>
 
-#include <string>        // for string, basic_string
+#include <string>
 #include <vector>
 
 #include "logline.hpp"
-#include "memusage.h"   // Memusage2
-#include "params.hpp"     // param_list_parse_*
+#include "memusage.h"
+#include "params.hpp"
 #include "select_mpi.h"
-#include "timing.h"     // seconds
-#include "portability.h" // asprintf // IWYU pragma: keep
-#include "misc.h"       // size_disp_fine
+#include "timing.h"
+#include "portability.h"
+#include "misc.h"
 #include "macros.h"
 
 /* This is intended to provide progress info, and optionally also more
@@ -106,27 +106,28 @@ void logline_unserialize(double tt)
 
 void logline_decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "logline_threshold",
+    pl.declare_usage("logline_threshold",
             "print log lines of verbosity level i only for sizes greater than i-th item in this comma-separated list");
-    param_list_decl_usage(pl, "logline_timings",
+    pl.declare_usage("logline_timings",
             "print timings with log lines");
-    param_list_decl_usage(pl, "logline_report_wct",
+    pl.declare_usage("logline_report_wct",
             "print wct taken by each step marked by log lines");
-    param_list_decl_usage(pl, "logline_print_all_mpi_nodes",
+    pl.declare_usage("logline_print_all_mpi_nodes",
             "enable logline printing on all MPI nodes");
 
 }
 
 int logline_interpret_parameters(cxx_param_list & pl)
 {
-    int thr[10];
-    int const n = param_list_parse_int_list(pl, "logline_threshold", thr, 10, ",");
-    for(int i = 0 ; i < n ; i++) {
-        logline_thresholds[i] = thr[i];
+    std::vector<size_t> thr;
+    if (pl.parse("logline_threshold", thr, ",")) {
+        for(size_t i = 0 ; i < std::min(thr.size(), size_t(10)) ; i++) {
+            logline_thresholds[i] = thr[i];
+        }
     }
-    param_list_parse_int(pl, "logline_timings", &logline_timings);
-    param_list_parse_int(pl, "logline_report_wct", &logline_report_wct);
-    param_list_parse_int(pl, "logline_print_all_mpi_nodes", &logline_print_all_mpi_nodes);
+    pl.parse("logline_timings", logline_timings);
+    pl.parse("logline_report_wct", logline_report_wct);
+    pl.parse("logline_print_all_mpi_nodes", logline_print_all_mpi_nodes);
     return 0;
 }
 

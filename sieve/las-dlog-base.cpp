@@ -18,13 +18,13 @@
 void las_dlog_base::declare_usage(cxx_param_list & pl)
 {
     if (!dlp_descent) return;
-    param_list_decl_usage(pl, "renumber", "renumber table (for the descent)");
-    param_list_decl_usage(pl, "log", "log table, as built by reconstructlog");
+    pl.declare_usage("renumber", "renumber table (for the descent)");
+    pl.declare_usage("log", "log table, as built by reconstructlog");
     /* These belong to las-siever-config of course. But we do a lookup
      * from here as well.
      */
-    param_list_decl_usage(pl, "lpb0", "set large prime bound on side 0 to 2^lpb0");
-    param_list_decl_usage(pl, "lpb1", "set large prime bound on side 1 to 2^lpb1");
+    pl.declare_usage("lpb0", "set large prime bound on side 0 to 2^lpb0");
+    pl.declare_usage("lpb1", "set large prime bound on side 1 to 2^lpb1");
 }
 
 las_dlog_base::las_dlog_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
@@ -35,24 +35,18 @@ las_dlog_base::las_dlog_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     renumberfilename = NULL;
     logfilename = NULL;
     const char * tmp;
-    if ((tmp = param_list_lookup_string(pl, "renumber")) != NULL) {
+    if ((tmp = pl.lookup_old("renumber")) != NULL) {
         renumberfilename = strdup(tmp);
     }
-    if ((tmp = param_list_lookup_string(pl, "log")) != NULL) {
+    if ((tmp = pl.lookup_old("log")) != NULL) {
         logfilename = strdup(tmp);
     }
     if (!logfilename != !renumberfilename) {
         fprintf(stderr, "In descent mode, want either renumber+log, or none\n");
         exit(EXIT_FAILURE);
     }
-    if (!param_list_parse_ulong(pl, "lpb0", &(lpb[0]))) {
-        fprintf(stderr, "In descent mode, want lpb0 for the final descent\n");
-        exit(EXIT_FAILURE);
-    }
-    if (!param_list_parse_ulong(pl, "lpb1", &(lpb[1]))) {
-        fprintf(stderr, "In descent mode, want lpb1 for the final descent\n");
-        exit(EXIT_FAILURE);
-    }
+    pl.parse_mandatory("lpb0", lpb[0]);
+    pl.parse_mandatory("lpb1", lpb[1]);
 #if SIZEOF_P_R_VALUES < 8
     if (lpb[0] >= 32 || lpb[1] >= 32) {
         fprintf(stderr, "In descent mode, lpb >= 32 requires SIZEOF_P_R_VALUES==8\n");

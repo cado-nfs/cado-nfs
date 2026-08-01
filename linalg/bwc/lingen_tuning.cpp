@@ -38,6 +38,7 @@
 #include "misc.h"
 #include "params.hpp"
 #include "timing.h"
+#include "utils_cxx.hpp"
 
 /* {{{ all_splits_of
  * Given n>=1 return the list of all integers k (1<=k<=n) such
@@ -212,40 +213,41 @@ struct lingen_tuner_base {
         int quiet = 0;
         const char * tuning_log_filename = nullptr;
         static void declare_usage(cxx_param_list & pl) {/*{{{*/
-            param_list_decl_usage(pl, "tuning_log_filename",
+            pl.declare_usage("tuning_log_filename",
                     "Output tuning log to this file\n");
-            param_list_decl_usage(pl, "tuning_quiet",
+            pl.declare_usage("tuning_quiet",
                     "Silence tuning log\n");
         }/*}}}*/
         static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
             lingen_platform::lookup_parameters(pl);
-            param_list_lookup_string(pl, "tuning_quiet");
-            param_list_lookup_string(pl, "tuning_log_filename");
+            pl.lookup("tuning_quiet");
+            pl.lookup("tuning_log_filename");
         }/*}}}*/
-        output_info(cxx_param_list & pl) {
-            tuning_log_filename = param_list_lookup_string(pl, "tuning_log_filename");
-            param_list_parse_int(pl, "tuning_quiet", &quiet);
+        output_info(cxx_param_list & pl)
+            : tuning_log_filename(pl.lookup_old("tuning_log_filename"))
+        {
+            pl.parse("tuning_quiet", quiet);
         }
     };/*}}}*/
     static void declare_usage(cxx_param_list & pl) {/*{{{*/
         lingen_platform::declare_usage(pl);
         output_info::declare_usage(pl);
-        param_list_decl_usage(pl, "tuning_schedule_filename",
+        pl.declare_usage("tuning_schedule_filename",
                 "Save (and re-load if it exists) tuning schedule from this file");
-        param_list_decl_usage(pl, "tuning_timing_cache_filename",
+        pl.declare_usage("tuning_timing_cache_filename",
                 "Save (and re-load) timings for individual transforms in this file\n");
-        param_list_decl_usage(pl, "basecase-keep-until",
+        pl.declare_usage("basecase-keep-until",
                 "When tuning, stop measuring basecase timing when it exceeds the time of the recursive algorithm (counting its leaf calls) by this factor\n");
-        param_list_decl_usage(pl, "tuning_thresholds",
+        pl.declare_usage("tuning_thresholds",
                 "comma-separated list of threshols, given in the form <algorithm>:<threshold> value. Recognized values for <algorithm> are a subset of recursive,gfp_plain,flint,cantor,gf2x_plain. Thresholds are integers corresponding to the input size of E\n");
     }/*}}}*/
     static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
         lingen_platform::lookup_parameters(pl);
         output_info::lookup_parameters(pl);
-        param_list_lookup_string(pl, "tuning_schedule_filename");
-        param_list_lookup_string(pl, "tuning_timing_cache_filename");
-        param_list_lookup_string(pl, "basecase-keep-until");
-        param_list_lookup_string(pl, "tuning_thresholds");
+        pl.lookup("tuning_schedule_filename");
+        pl.lookup("tuning_timing_cache_filename");
+        pl.lookup("basecase-keep-until");
+        pl.lookup("tuning_thresholds");
     }/*}}}*/
 };
 
@@ -293,44 +295,15 @@ struct lingen_tuner : public lingen_tuner_base {
             return has(key) ? at(key) : UINT_MAX;
         }
         tuning_thresholds_t(cxx_param_list & pl, std::ostream& os, lingen_platform const & P) {/*{{{*/
-            const char * tmp = param_list_lookup_string(pl, "tuning_thresholds");
-            if (!tmp) return;
-            std::string const tlist = tmp;
-            for(size_t pos = 0 ; pos != std::string::npos ; ) {
-                size_t const next = tlist.find(',', pos);
-                std::string tok;
-                if (next == std::string::npos) {
-                    tok = tlist.substr(pos);
-                    pos = next;
-                } else {
-                    tok = tlist.substr(pos, next - pos);
-                    pos = next + 1;
-                }
-                auto error = [&tok](std::string const& reason) {
-                    std::string const base = fmt::format(
-                            "tuning_thresholds is bad:"
-                            " pair \"{}\" ", tok);
-                    throw std::invalid_argument(base + reason);
-                };
-
-                size_t const colon = tok.find(':');
-                if (colon == std::string::npos)
-                    error("has no colon");
-
-                std::string algorithm = tok.substr(0, colon);
+            std::map<std::string, unsigned int> m;
+            if (!pl.parse("tuning_thresholds", m, ",", ":"))
+                return;
+            for(auto const & [algorithm, dst] : m) {
                 if (std::ranges::find(thresholds_verbs, algorithm) == thresholds_verbs.end()) {
-                    std::ostringstream os;
-                    for(auto const & x : thresholds_verbs)
-                        os << " " << x;
-                    error(fmt::format(
-                                "uses unrecognized key \"{}\""
-                                " (recognized keys:{})",
-                                algorithm, os.str()));
+                    pl.fail("tuning_thresholds is bad: uses unrecognized key \"{}\" (recognized keys: {})",
+                            algorithm, join(thresholds_verbs, " "));
                 }
-
-                unsigned int & dst(getref(algorithm));
-                if (!(std::istringstream(tok.substr(colon + 1)) >> dst))
-                    error("has no understandable integer threshold");
+                getref(algorithm) = dst;
             }
             if (has(collective) && P.r == 1) {
                 const char * what = "interpreted as \"recursive\"";
@@ -356,21 +329,24 @@ struct lingen_tuner : public lingen_tuner_base {
     std::map<unsigned int, std::string> strat_name;
 
 
-    lingen_tuner(std::ostream& os, bw_dimensions<is_binary> & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :/*{{{*/
-        ab(&d.ab), 
-        m(d.m), n(d.n), L(L), P(comm, pl),
-        tuning_thresholds(pl, os, P)
+    lingen_tuner(std::ostream& os, bw_dimensions<is_binary> & d, size_t L, MPI_Comm comm, cxx_param_list & pl) /*{{{*/
+        : ab(&d.ab)
+        , m(d.m)
+        , n(d.n)
+        , L(L)
+        , P(comm, pl)
+        , timing_cache_filename(pl.lookup_old("tuning_timing_cache_filename"))
+        , schedule_filename(pl.lookup_old("tuning_schedule_filename"))
+        , tuning_thresholds(pl, os, P)
     {
-        mpz_set (p, ab->characteristic());
+        mpz_set(p, ab->characteristic());
         gmp_randseed_ui(rstate, 1);
 
-        param_list_parse_double(pl, "basecase-keep-until", &basecase_keep_until);
+        pl.parse("basecase-keep-until", basecase_keep_until);
 
-        schedule_filename = param_list_lookup_string(pl, "tuning_schedule_filename");
         /* only the leader will do the tuning, so only the leader cares
          * about loading/saving it...
          */
-        timing_cache_filename = param_list_lookup_string(pl, "tuning_timing_cache_filename");
         int rank;
         MPI_Comm_rank(P.comm, &rank);
         if (rank == 0)

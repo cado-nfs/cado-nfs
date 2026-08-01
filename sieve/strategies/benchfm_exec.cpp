@@ -38,34 +38,29 @@ int main(int argc, char const * argv[])
     int nb_test = 0;
     cxx_param_list pl;
     declare_usage(pl);
-    /* 
-       Passing NULL is allowed here. Find value with
-       param_list_parse_switch later on 
-     */
     pl.configure_switch("p");
     pl.configure_switch("t");
 
-    param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
+    pl.process_command_line_and_extra_parameter_files(argc, argv);
 
     //default values
     int len_p_min = -1; //default_value
     int final_nb_fm = -1; //default value
     
-    int const opt_proba = param_list_parse_switch(pl, "-p");
-    int const opt_time = param_list_parse_switch(pl, "-t");
-    param_list_parse_int(pl, "lb", &len_p_min);
-    param_list_parse_int(pl, "f", &final_nb_fm);
-    param_list_parse_int(pl, "N", &nb_test);
+    int const opt_proba = pl.parse<int>("-p");
+    int const opt_time = pl.parse<int>("-t");
+    pl.parse("lb", len_p_min);
+    pl.parse("f", final_nb_fm);
+    pl.parse("N", nb_test);
 
     const char *pathname_in;
     const char *pathname_out;
-    if ((pathname_in = param_list_lookup_string(pl, "in")) == NULL)
+    if ((pathname_in = pl.lookup_old("in")) == NULL)
         pl.fail("missing argument -in");
-    if ((pathname_out = param_list_lookup_string(pl, "out")) == NULL)
+    if ((pathname_out = pl.lookup_old("out")) == NULL)
         pl.fail("missing argument -out");
 
-    gmp_randstate_t state;
-    gmp_randinit_default(state);
+    cxx_gmp_randstate state;
     gmp_randseed_ui(state, time(NULL));
 
     FILE *file_in = fopen(pathname_in, "r");
@@ -102,8 +97,6 @@ int main(int argc, char const * argv[])
 
     //free
     tabular_fm_free(c);
-
-    gmp_randclear(state);
 
     return EXIT_SUCCESS;
 }

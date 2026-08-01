@@ -100,8 +100,8 @@
 static void configure_aliases(cxx_param_list & pl)
 {
     las_info::configure_aliases(pl);
-    param_list_configure_alias(pl, "log-bucket-region", "B");
-    param_list_configure_alias(pl, "log-bucket-region-step", "Bi");
+    pl.configure_alias("log-bucket-region", "B");
+    pl.configure_alias("log-bucket-region-step", "Bi");
     las_output::configure_aliases(pl);
     tdict::configure_aliases(pl);
 }
@@ -112,14 +112,15 @@ static void configure_switches(cxx_param_list & pl)
     las_output::configure_switches(pl);
     tdict::configure_switches(pl);
 
-    param_list_configure_switch(pl, "-allow-largesq", &allow_largesq);
+    pl.configure_switch("-allow-largesq");
     if (dlp_descent)
-        param_list_configure_switch(pl, "-recursive-descent", &recursive_descent);
+        pl.configure_switch("-recursive-descent");
 
-    param_list_configure_switch(pl, "-prepend-relation-time", &prepend_relation_time);
-    param_list_configure_switch(pl, "-sync", &sync_at_special_q);
-    param_list_configure_switch(pl, "-sync-thread-pool", &sync_thread_pool);
-    param_list_configure_switch(pl, "-never-discard", &never_discard);
+    pl.configure_switch("-prepend-relation-time");
+    pl.configure_switch("-sync");
+    pl.configure_switch("-sync-thread-pool");
+    pl.configure_switch("-never-discard");
+
     pl.configure_switch("print-slice-statistics");
 
     chronograms::configure_switches(pl);
@@ -1469,27 +1470,37 @@ int main (int argc0, char const * argv0[])/*{{{*/
 
     argv++, argc--;
     for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
+        if (pl.update_cmdline(argc, argv))
+            continue;
         /* Could also be a file */
         FILE * f = fopen(argv[0], "r");
         if (f) {
-            param_list_read_stream(pl, f, 0);
+            pl.read(f, false);
             fclose(f);
             argv++,argc--;
             continue;
         }
         fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        param_list_print_usage(pl, argv0[0], stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 
-    param_list_parse_int(pl, "trialdiv-first-side", &trialdiv_first_side);
-    param_list_parse_int(pl, "print-slice-statistics", &print_slice_statistics);
-    param_list_parse_int(pl, "exit-early", &exit_after_rel_found);
+    pl.parse("-allow-largesq", allow_largesq);
     if (dlp_descent)
-        param_list_parse_double(pl, "grace-time-ratio", &general_grace_time_ratio);
-    param_list_parse_int(pl, "log-bucket-region", &LOG_BUCKET_REGION);
-    param_list_parse_int(pl, "log-bucket-region-step", &LOG_BUCKET_REGION_step);
+        pl.parse("-recursive-descent", recursive_descent);
+
+    pl.parse("-prepend-relation-time", prepend_relation_time);
+    pl.parse("-sync", sync_at_special_q);
+    pl.parse("-sync-thread-pool", sync_thread_pool);
+    pl.parse("-never-discard", never_discard);
+
+    pl.parse("trialdiv-first-side", trialdiv_first_side);
+    pl.parse("print-slice-statistics", print_slice_statistics);
+    pl.parse("exit-early", exit_after_rel_found);
+    if (dlp_descent)
+        pl.parse("grace-time-ratio", general_grace_time_ratio);
+    pl.parse("log-bucket-region", LOG_BUCKET_REGION);
+    pl.parse("log-bucket-region-step", LOG_BUCKET_REGION_step);
     set_LOG_BUCKET_REGION();
 
     tdict::interpret_parameters(pl);
@@ -1586,7 +1597,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     sieve_shared_data::lookup_parameters(pl, las.cpoly.nsides());
     batch_side_config::lookup_parameters(pl, las.cpoly.nsides());
 
-    param_list_warn_unused(pl);
+    pl.warn_unused();
 
     /* In the random-sample + relation cache case, we're going to proceed
      * through a special case, as this will spare us the need to load the
