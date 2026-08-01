@@ -39,7 +39,7 @@ int main(int argc, char const * argv[])
 
     int direction = 0;
 
-    param_list_configure_switch(pl, "--columns", &direction);
+    pl.configure_switch("--columns");
 
     for( ; argc ; ) {
         if (param_list_update_cmdline(pl, &argc, &argv)) continue;
@@ -50,6 +50,7 @@ int main(int argc, char const * argv[])
         }
     }
 
+    pl.parse("--columns", direction);
     if (wild.empty())
         throw std::runtime_error("missing verb");
 

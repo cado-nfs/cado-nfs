@@ -717,7 +717,7 @@ int main(int argc, char const * argv[])
     if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        if (!rank) pl.print_usage(stderr);
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 

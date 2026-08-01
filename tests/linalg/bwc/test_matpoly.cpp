@@ -535,22 +535,24 @@ int main(int argc, char const * argv[])
 
     declare_usage<is_binary>(pl);
 
-    param_list_configure_switch(pl, "--test-basecase", &test_basecase);
+    pl.configure_switch("--test-basecase");
 
     pl.process_command_line(argc, argv, false);
 
+    pl.parse("--test-basecase", test_basecase);
+
     if constexpr(!is_binary) {
-        if (!param_list_parse(pl, "prime", p))
+        if (!pl.parse("prime", p))
             pl.fail("--prime is mandatory\n");
     } else {
         mpz_set_ui(p, 2);   /* unused anyway */
-        param_list_parse(pl, "prime", p);
+        pl.parse("prime", p);
     }
-    param_list_parse_uint(pl, "m", &m);
-    param_list_parse_uint(pl, "n", &n);
-    param_list_parse_uint(pl, "len1", &len1);
-    param_list_parse_uint(pl, "len2", &len2);
-    param_list_parse_ulong(pl, "seed", &seed);
+    pl.parse("m", m);
+    pl.parse("n", n);
+    pl.parse("len1", len1);
+    pl.parse("len2", len2);
+    pl.parse("seed", seed);
     if (pl.warn_unused())
         exit(EXIT_FAILURE);
     if constexpr (is_binary) {

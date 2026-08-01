@@ -5,18 +5,18 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cctype>
-#include <cstring>
 
-#include <utility>
-#include <string>
-#include <map>
-#include <list>
-#include <iostream>
+#include <algorithm>
+#include <array>
 #include <fstream>
+#include <iostream>
+#include <iterator>
+#include <list>
+#include <map>
 #include <sstream>
 #include <stdexcept>
-#include <algorithm>
-#include <iterator>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include <hwloc.h>
@@ -45,7 +45,7 @@ void cpubinding_decl_usage(cxx_param_list & pl)
 
 void cpubinding_lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "cpubinding");
+    pl.lookup("cpubinding");
 }
 
 

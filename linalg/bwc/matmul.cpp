@@ -67,24 +67,24 @@ void matmul_decl_usage(cxx_param_list & pl)
 
 void matmul_lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "mm_impl");
-    param_list_lookup_string(pl, "mm_store_transposed");
+    pl.lookup("mm_impl");
+    pl.lookup("mm_store_transposed");
 
-    param_list_lookup_string(pl, "l1_cache_size");
-    param_list_lookup_string(pl, "l2_cache_size");
-    param_list_lookup_string(pl, "cache_line_size");
+    pl.lookup("l1_cache_size");
+    pl.lookup("l2_cache_size");
+    pl.lookup("cache_line_size");
 #if 0
-    param_list_lookup_string(pl, "mm_threaded_nthreads");
-    param_list_lookup_string(pl, "mm_threaded_sgroup_size");
-    param_list_lookup_string(pl, "mm_threaded_offset1");
-    param_list_lookup_string(pl, "mm_threaded_offset2");
-    param_list_lookup_string(pl, "mm_threaded_offset3");
-    param_list_lookup_string(pl, "mm_threaded_densify_tolerance");
+    pl.lookup("mm_threaded_nthreads");
+    pl.lookup("mm_threaded_sgroup_size");
+    pl.lookup("mm_threaded_offset1");
+    pl.lookup("mm_threaded_offset2");
+    pl.lookup("mm_threaded_offset3");
+    pl.lookup("mm_threaded_densify_tolerance");
 #endif
-    param_list_lookup_string(pl, "matmul_bucket_methods");
+    pl.lookup("matmul_bucket_methods");
 
-    param_list_lookup_string(pl, "local_cache_copy_dir");
-    param_list_lookup_string(pl, "no_save_cache");
+    pl.lookup("local_cache_copy_dir");
+    pl.lookup("no_save_cache");
 }
 
 

@@ -44,7 +44,7 @@ void lingen_io_matpoly<is_binary>::decl_usage(cxx_param_list & pl)
 template<bool is_binary>
 void lingen_io_matpoly<is_binary>::lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "io-block-size");
+    pl.lookup("io-block-size");
 }
 
 template<bool is_binary>

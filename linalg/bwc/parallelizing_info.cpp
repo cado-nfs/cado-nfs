@@ -93,7 +93,7 @@ static void * pi_go_call_thread(
             int(p->wr[0]->trank));
 #endif /* defined(HAVE_HWLOC) */
     int debug = 0;
-    param_list_parse(pl, "debug-parallel-bwc", debug);
+    pl.parse("debug-parallel-bwc", debug);
 
     if (debug) {
         pi_log_init(p->m);
@@ -331,13 +331,13 @@ static void pi_init_mpilevel(parallelizing_info_ptr pi, cxx_param_list & pl)
     MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
 #endif
 
-    int mpi[2] = {1,1};
-    int thr[2] = {1,1};
+    std::array<int, 2> mpi = {1,1};
+    std::array<int, 2> thr = {1,1};
     int only_mpi = 0;
 
-    param_list_parse_intxint(pl, "mpi", mpi);
-    param_list_parse_intxint(pl, "thr", thr);
-    param_list_parse_int(pl, "only_mpi", &only_mpi);
+    pl.parse("mpi", mpi, "x");
+    pl.parse("thr", thr, "x");
+    pl.parse("only_mpi", only_mpi);
 
     unsigned int nhj = mpi[0];
     unsigned int nvj = mpi[1];
@@ -374,7 +374,7 @@ static void pi_init_mpilevel(parallelizing_info_ptr pi, cxx_param_list & pl)
         MPI_Comm_split(MPI_COMM_WORLD, 0, nrank, & pi->m->pals);
         pi->m->ncores = 1;
         pi->m->njobs = pi->m->totalsize;
-        memcpy(pi->thr_orig, thr, 2*sizeof(int));
+        pi->thr_orig = thr;
         mpi[0] *= thr[0]; thr[0]=1;
         mpi[1] *= thr[1]; thr[1]=1;
         nhj = mpi[0];
@@ -478,7 +478,7 @@ static void pi_init_mpilevel(parallelizing_info_ptr pi, cxx_param_list & pl)
         free(big_pool);
     }
 #else
-    if (param_list_lookup_string(pl, "cpubinding")) {
+    if (pl.has("cpubinding")) {
         if (pi->m->jrank == 0) {
                     printf("cpubinding: parameter ignored (no hwloc)\n");
         }
@@ -828,16 +828,16 @@ void parallelizing_info_lookup_parameters(cxx_param_list & pl)/*{{{*/
 {
     /* These will all be looked later (within this file, though).
      */
-    param_list_lookup_string(pl, "mpi");
-    param_list_lookup_string(pl, "thr");
-    param_list_lookup_string(pl, "interleaving");
-    param_list_lookup_string(pl, "only_mpi");
-    param_list_lookup_string(pl, "debug-parallel-bwc");
+    pl.lookup("mpi");
+    pl.lookup("thr");
+    pl.lookup("interleaving");
+    pl.lookup("only_mpi");
+    pl.lookup("debug-parallel-bwc");
 
 #if defined(HAVE_HWLOC)
     cpubinding_lookup_parameters(pl);
 #else
-    param_list_lookup_string(pl, "cpubinding");
+    pl.lookup("cpubinding");
 #endif
 }
 /*}}}*/
@@ -849,7 +849,7 @@ void pi_go(
         void * arg)
 {
     int interleaving = 0;
-    param_list_parse_int(pl, "interleaving", &interleaving);
+    pl.parse("interleaving", interleaving);
     if (interleaving) {
         pi_go_inner_interleaved(fcn, pl, arg);
     } else {

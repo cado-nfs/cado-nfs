@@ -697,22 +697,22 @@ int main(int argc, char const * argv[])
 
     pl.process_command_line(argc, argv, false);
 
-    purgedname = param_list_lookup_string(pl, "purged");
-    indexname = param_list_lookup_string(pl, "index");
-    outname = param_list_lookup_string(pl, "out");
-    heavyblockname = param_list_lookup_string(pl, "heavyblock");
-    bw_kernel_file = param_list_lookup_string(pl, "ker");
+    purgedname = pl.lookup_old("purged");
+    indexname = pl.lookup_old("index");
+    outname = pl.lookup_old("out");
+    heavyblockname = pl.lookup_old("heavyblock");
+    bw_kernel_file = pl.lookup_old("ker");
 
     const char * tmp;
 
-    if ((tmp = param_list_lookup_string(pl, "poly")) == NULL)
+    if ((tmp = pl.lookup_old("poly")) == NULL)
         pl.fail("Error: parameter -poly is mandatory\n");
     cpoly.read(tmp);
     if (cpoly.nsides() < 1 || cpoly.nsides() > 2)
         pl.fail("Error: number of polys should be 1 or 2, got {}\n",
                            cpoly.nsides());
 
-    if (param_list_parse_int(pl, "nchar", &nchars) == 0)
+    if (pl.parse("nchar", nchars) == 0)
         pl.fail("Error: parameter -nchar is mandatory\n");
 
     if (only_sign_chars && nchars != cpoly.nsides()) {
@@ -725,20 +725,17 @@ int main(int argc, char const * argv[])
     pl.parse("only_sign_chars", only_sign_chars);
 
     /* parse the optional -nratchars option */
-    param_list_parse_int(pl, "nratchars", &nratchars);
+    pl.parse("nratchars", nratchars);
     if (nratchars && cpoly.get_ratside() == -1) { /* no rat side */
         fmt::print(stderr, "Error: nratchars is non-zero ({}) but poly has no "
                            "rational side\n", nratchars);
         exit (EXIT_FAILURE);
     }
     /* parse lpb{side} for each side of cpoly */
-    for (int side = 0; side < cpoly.nsides(); ++side) {
-        std::string arg = fmt::format("lpb{}", side);
-        if (param_list_parse_ulong(pl, arg.c_str(), &lpb[side]) == 0)
-            pl.fail("Error: parameter {} is mandatory\n", arg);
-    }
+    for (int side = 0; side < cpoly.nsides(); ++side)
+        pl.parse_mandatory(fmt::format("lpb{}", side), lpb[side]);
 
-    param_list_parse_int(pl, "t", &nthreads);
+    pl.parse("t", nthreads);
 
     if (purgedname == NULL || indexname == NULL || outname == NULL)
         pl.fail("Error: parameters -purged, -index and -out are mandatory\n");

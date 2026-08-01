@@ -1112,17 +1112,14 @@ static void declare_usage(cxx_param_list & pl)
     pl.declare_usage("mfb0", "set the first cofactor bound to 2^mfb0");
     pl.declare_usage("mfb1",
                           "set the second cofactor bound to 2^mfb1");
-    param_list_decl_usage(
-        pl, "decomp",
+    pl.declare_usage("decomp",
         "to locate the file or the directory , according to\n"
         "\t \t if you need one or several files,\n"
         "\t \t which contain(s) the file(s) of cofactors decompositions.");
-    param_list_decl_usage(
-        pl, "dist",
+    pl.declare_usage("dist",
         "the pathname of our file which contains the distribution\n"
         "\t\t of our pairs of cofactors.");
-    param_list_decl_usage(
-        pl, "t",
+    pl.declare_usage("t",
         "specify the time (seconds) to optain cofactors in the file\n"
         "\t\t given by the option 'dist'.");
     pl.declare_usage("out",
@@ -1139,7 +1136,7 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
     declare_usage(pl);
 
-    param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
+    pl.process_command_line_and_extra_parameter_files(argc, argv);
 
     // option parser
     unsigned long lim0 = 0;
@@ -1150,13 +1147,13 @@ int main(int argc, char const * argv[])
     unsigned int mfb1 = 0;
     double C0 = -1;
 
-    param_list_parse_ulong(pl, "lim0", &lim0);
-    param_list_parse_uint(pl, "lpb1", &lpb1);
-    param_list_parse_ulong(pl, "lim1", &lim1);
-    param_list_parse_uint(pl, "mfb1", &mfb1);
-    param_list_parse_uint(pl, "lpb0", &lpb0);
-    param_list_parse_uint(pl, "mfb0", &mfb0);
-    param_list_parse_double(pl, "t", &C0);
+    pl.parse("lim0", lim0);
+    pl.parse("lpb1", lpb1);
+    pl.parse("lim1", lim1);
+    pl.parse("mfb1", mfb1);
+    pl.parse("lpb0", lpb0);
+    pl.parse("mfb0", mfb0);
+    pl.parse("t", C0);
 
     if (lim0 == 0 || lpb0 == 0 || mfb0 == 0 || lim1 == 0 || lpb1 == 0 ||
         mfb1 == 0 || C0 == -1) {
@@ -1201,7 +1198,7 @@ int main(int argc, char const * argv[])
     // option: tab decomp
     char const * name_directory_decomp;
     //  "/localdisk/trichard/results/decomp_cofactor/decomp_tmp";
-    if ((name_directory_decomp = param_list_lookup_string(pl, "decomp")) ==
+    if ((name_directory_decomp = pl.lookup_old("decomp")) ==
         nullptr) {
         fputs("Parser error: Please re-run with the option "
               "-decomp and a valid directory name.\n",
@@ -1211,7 +1208,7 @@ int main(int argc, char const * argv[])
     // option: distribution cofactors
     char const * name_file_cofactor;
     //"/localdisk/trichard/cado768/cofactors";
-    if ((name_file_cofactor = param_list_lookup_string(pl, "dist")) ==
+    if ((name_file_cofactor = pl.lookup_old("dist")) ==
         nullptr) {
         fputs("Parser error: Please re-run with the option -dist "
               "followed by the pathname of the file which stores the "
@@ -1404,7 +1401,7 @@ int main(int argc, char const * argv[])
            T / 1000000, T / (Y * 1000000));
 
     char const * pathname_output;
-    pathname_output = param_list_lookup_string(pl, "out");
+    pathname_output = pl.lookup_old("out");
     FILE * file_output = fopen(pathname_output, "w");
     fprint_final_strategy(file_output, matrix_strat_res, mfb0 + 1, mfb1 + 1);
     fclose(file_output);
@@ -1431,7 +1428,7 @@ int main(int argc, char const * argv[])
         compute_best_strategy(matrix, distrib_C, mfb0 + 1, mfb1 + 1, C0);
 
     char const * pathname_output;
-    pathname_output = param_list_lookup_string(pl, "out");
+    pathname_output = pl.lookup_old("out");
 
     if (pathname_output != nullptr) {
         FILE * file_output = fopen(pathname_output, "w");

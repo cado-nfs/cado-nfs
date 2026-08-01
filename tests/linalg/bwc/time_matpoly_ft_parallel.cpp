@@ -131,16 +131,16 @@ int main(int argc, char const * argv[])
     pl.process_command_line(argc, argv, false);
 
     if constexpr (!is_binary) {
-        if (!param_list_parse(pl, "prime", p))
+        if (!pl.parse("prime", p))
             pl.fail("--prime is mandatory\n");
     } else {
         mpz_set_ui(p, 2);   /* unused anyway */
-        param_list_parse(pl, "prime", p);
+        pl.parse("prime", p);
     }
-    param_list_parse_uint(pl, "m", &m);
-    param_list_parse_uint(pl, "n", &n);
-    param_list_parse_uint(pl, "L", &L);
-    param_list_parse_ulong(pl, "seed", &seed);
+    pl.parse("m", m);
+    pl.parse("n", n);
+    pl.parse("L", L);
+    pl.parse("seed", seed);
 
     lingen_platform const P(MPI_COMM_WORLD, pl);
 

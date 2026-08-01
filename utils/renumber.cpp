@@ -5,6 +5,7 @@
 #include <climits>
 
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include <limits>
 #include <list>
@@ -1192,8 +1193,8 @@ void renumber_t::builder_declare_usage(cxx_param_list & pl)
 
 void renumber_t::builder_lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "renumber");
-    param_list_lookup_string(pl, "renumber_format");
+    pl.lookup("renumber");
+    pl.lookup("renumber_format");
 }
 
 /* This is the core of the renumber table building routine. Part of this

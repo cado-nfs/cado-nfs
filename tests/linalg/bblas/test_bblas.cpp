@@ -59,17 +59,18 @@ int main(int argc, char const * argv[])
     unsigned int n = 2 * 1000 * 1000;
     int seed = 0;
     declare_usage(pl);
-    param_list_configure_switch(pl, "-fast", &test_bblas_base::test_accel);
+    pl.configure_switch("-fast");
 
     pl.process_command_line(argc, argv, false);
 
-    param_list_parse_uint(pl, "n", &n);
+    pl.parse("-fast", test_bblas_base::test_accel);
+    pl.parse("n", n);
 
     std::vector<std::string> tests;
-    if (!param_list_parse(pl, "tests", tests))
+    if (!pl.parse("tests", tests))
         tests.emplace_back("all");
 
-    param_list_parse(pl, "seed", seed);
+    pl.parse("seed", seed);
 
     if (!seed)
         seed = time(nullptr);

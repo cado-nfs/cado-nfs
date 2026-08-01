@@ -401,12 +401,12 @@ int main(int argc, char const * argv[])
     if (bw->ys[0] < 0) { fmt::print(stderr, "no ys value set\n"); exit(1); }
 
     ASSERT_ALWAYS(param_list_lookup_string(pl, "ys"));
-    ASSERT_ALWAYS(!param_list_lookup_string(pl, "solutions"));
+    ASSERT_ALWAYS(!pl.has("solutions"));
 
     if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        if (!rank) pl.print_usage(stderr);
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 

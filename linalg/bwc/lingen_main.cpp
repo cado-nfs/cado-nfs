@@ -2,6 +2,8 @@
 
 #include <cstddef>
 
+#include <array>
+
 #include <sys/utsname.h>
 
 #include "fmt/base.h"
@@ -82,8 +84,8 @@ static void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
             "use recursive algorithm above this size");
 #endif
 
-    param_list_configure_switch(pl, "--tune", &global_flag_tune);
-    param_list_configure_switch(pl, "--ascii", &global_flag_ascii);
+    pl.configure_switch("--tune");
+    pl.configure_switch("--ascii");
     pl.configure_alias("seed", "random_seed");
 
 }/*}}}*/
@@ -330,13 +332,13 @@ static int wrapped_main(int argc, char const *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    param_list_parse_int(pl, "allow_zero_on_rhs", &allow_zero_on_rhs);
-    param_list_parse_uint(pl, "random-input-with-length", &random_input_length);
-    param_list_parse_uint(pl, "input-length", &input_length);
-    param_list_parse_int(pl, "split-output-file", &split_output_file);
-    param_list_parse_int(pl, "split-input-file", &split_input_file);
+    pl.parse("allow_zero_on_rhs", allow_zero_on_rhs);
+    pl.parse("random-input-with-length", random_input_length);
+    pl.parse("input-length", input_length);
+    pl.parse("split-output-file", split_output_file);
+    pl.parse("split-input-file", split_input_file);
 
-    auto const afile = param_list_parse<std::string>(pl, "afile");
+    auto const afile = pl.parse<std::string>("afile");
 
     if (bw->m == -1) {
 	fmt::print(stderr, "no m value set\n");
@@ -352,14 +354,14 @@ static int wrapped_main(int argc, char const *argv[])
     }
 
     /* we allow ffile and ffile to be both NULL */
-    auto ffile = param_list_parse<std::string>(pl, "ffile");
+    auto ffile = pl.parse<std::string>("ffile");
     if (ffile.empty() && !afile.empty())
         ffile = afile + ".gen";
     ASSERT_ALWAYS(afile.empty() == ffile.empty());
 
     bmstatus<is_binary> bm(bw->m, bw->n, bw->p);
 
-    const char * rhs_name = param_list_lookup_string(pl, "rhs");
+    const char * rhs_name = pl.lookup_old("rhs");
     if (!global_flag_tune && !random_input_length) {
         if (!rhs_name) {
             fmt::print(stderr, "# When using lingen, you must either supply --random-input-with-length, or provide a rhs, or possibly provide rhs=none\n");
@@ -367,7 +369,7 @@ static int wrapped_main(int argc, char const *argv[])
             rhs_name = nullptr;
         }
     }
-    if (param_list_parse_uint(pl, "nrhs", &(bm.d.nrhs)) && rhs_name) {
+    if (pl.parse("nrhs", (bm.d.nrhs)) && rhs_name) {
         fmt::print(stderr, "# the command line arguments rhs= and nrhs= are incompatible\n");
         exit(EXIT_FAILURE);
     }
@@ -382,8 +384,8 @@ static int wrapped_main(int argc, char const *argv[])
 #if 0
     bm.lingen_threshold = 10;
     bm.lingen_mpi_threshold = 1000;
-    param_list_parse_uint(pl, "lingen_threshold", &(bm.lingen_threshold));
-    param_list_parse_uint(pl, "lingen_mpi_threshold", &(bm.lingen_mpi_threshold));
+    pl.parse("lingen_threshold", (bm.lingen_threshold));
+    pl.parse("lingen_mpi_threshold", (bm.lingen_mpi_threshold));
     if (bm.lingen_mpi_threshold < bm.lingen_threshold) {
         bm.lingen_mpi_threshold = bm.lingen_threshold;
         fmt::print(stderr, "Argument fixing: setting lingen_mpi_threshold={} (because lingen_threshold={})\n",
@@ -401,9 +403,7 @@ static int wrapped_main(int argc, char const *argv[])
     /* TODO: we should rather use lingen_platform.
      */
     /* {{{ Parse MPI args. Make bm.com[0] a better mpi communicator */
-    bm.mpi_dims[0] = 1;
-    bm.mpi_dims[1] = 1;
-    param_list_parse_intxint(pl, "mpi", bm.mpi_dims);
+    pl.parse("mpi", bm.mpi_dims, "x");
     {
         /* Display node index wrt MPI_COMM_WORLD */
         print_node_assignment(MPI_COMM_WORLD);
@@ -411,10 +411,10 @@ static int wrapped_main(int argc, char const *argv[])
         /* Reorder all mpi nodes so that each node gets the given number
          * of jobs, but close together.
          */
-        int const mpi[2] = { bm.mpi_dims[0], bm.mpi_dims[1], };
-        int thr[2] = {1,1};
+        std::array<int, 2> const mpi = bm.mpi_dims;
+        std::array<int, 2> thr = {1,1};
 #ifdef  HAVE_OPENMP
-        if (param_list_parse_intxint(pl, "thr", thr)) {
+        if (pl.parse("thr", thr, "x")) {
             if (omp_get_max_threads() >= thr[0] * thr[1]) {
                 if (!rank)
                     fmt::print("# Limiting number of openmp threads to {}\n",
@@ -429,12 +429,12 @@ static int wrapped_main(int argc, char const *argv[])
             }
         }
 #else
-        if (param_list_parse_intxint(pl, "thr", thr)) {
+        if (pl.parse("thr", thr, "x")) {
             if (thr[0]*thr[1] != 1) {
                 if (!rank) {
                     fmt::print(stderr, "This program only wants openmp for multithreading. Ignoring thr argument.\n");
                 }
-                param_list_add_key(pl, "thr", "1x1", PARAMETER_FROM_CMDLINE);
+                pl.add_key("thr", "1x1", cado::params::origin::FROM_CMDLINE);
             }
         }
 #endif
@@ -489,6 +489,9 @@ static int wrapped_main(int argc, char const *argv[])
     }
     /* }}} */
 
+    pl.parse("--tune", global_flag_tune);
+    pl.parse("--ascii", global_flag_ascii);
+
     /* lingen tuning accepts some arguments. We look them up so as to
      * avoid failures down the line */
     lingen_tuning_lookup_parameters(pl);
@@ -501,7 +504,7 @@ static int wrapped_main(int argc, char const *argv[])
     if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        if (!rank) pl.print_usage(stderr);
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 

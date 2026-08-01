@@ -3,6 +3,7 @@
 
 #include <cstring>
 
+#include <array>
 #include <tuple>
 #include <vector>
 
@@ -29,7 +30,7 @@ struct bmstatus {
     // unsigned int lingen_threshold;
     // unsigned int lingen_mpi_threshold;
     
-    int mpi_dims[2]; /* mpi_dims[0] = mpi[0] * thr[0] */
+    std::array<int, 2> mpi_dims = { 1, 1 }; /* mpi_dims[0] = mpi[0] * thr[0] */
     MPI_Comm com[3]; /* [0]: MPI_COMM_WORLD, reordered.
                         [1]: row-wise
                         [2]: column-wise */

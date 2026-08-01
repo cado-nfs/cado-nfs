@@ -7,10 +7,11 @@
 #include <cfloat>
 #include <climits>
 
+#include <algorithm>
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
-#include <algorithm>
 
 #include <gmp.h>
 
@@ -149,48 +150,48 @@ int main(int argc, char const * argv[])
     int nq_max = 1;
     int nfills_speed_test = 32;
     int hush_max_jitter = 0;
-    int abort_on_jitter[2] = {INT_MAX, INT_MAX};
+    std::array<int, 2> abort_on_jitter = {INT_MAX, INT_MAX};
     int check_bucket = -1;      /* defaults to random pick, can be forced */
     unsigned long seed = 0;
 
     bool ok = true;
 
-    ok = ok && param_list_parse_mpz(pl, "q0", q0);
-    ok = ok && param_list_parse_int(pl, "sqside", &sqside);
-    bool const okrange = ok && param_list_parse_mpz(pl, "q1", q1);
-    bool const ok_qrho = ok && param_list_parse_mpz(pl, "rho", rho);
-    param_list_parse_int(pl, "check-bucket", &check_bucket);
-    param_list_parse_int(pl, "nfills-speed-test", &nfills_speed_test);
-    param_list_parse_int(pl, "random-sample", &nq_max);
-    param_list_parse_ulong(pl, "random-seed", &seed);
-    param_list_parse_int(pl, "hush-max-jitter", &hush_max_jitter);
-    param_list_parse_int_and_int(pl, "abort-on-jitter", abort_on_jitter, ",");
-    param_list_parse_int(pl, "log-bucket-region", &LOG_BUCKET_REGION);
+    ok = ok && pl.parse("q0", q0);
+    ok = ok && pl.parse("sqside", sqside);
+    bool const okrange = ok && pl.parse("q1", q1);
+    bool const ok_qrho = ok && pl.parse("rho", rho);
+    pl.parse("check-bucket", check_bucket);
+    pl.parse("nfills-speed-test", nfills_speed_test);
+    pl.parse("random-sample", nq_max);
+    pl.parse("random-seed", seed);
+    pl.parse("hush-max-jitter", hush_max_jitter);
+    pl.parse("abort-on-jitter", abort_on_jitter, ",");
+    pl.parse("log-bucket-region", LOG_BUCKET_REGION);
     set_LOG_BUCKET_REGION();
 
     if (okrange == ok_qrho) {
         fprintf(stderr, "Must provide sqside, q0, and either q1 or rho\n");
-        param_list_print_usage(pl, nullptr, stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
-    if (ok_qrho && param_list_lookup_string(pl, "random-seed")) {
+    if (ok_qrho && pl.has("random-seed")) {
         fprintf(stderr, "-rho and -random-sample are incompatible\n");
-        param_list_print_usage(pl, nullptr, stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 
     /* These two are mandatory for siever_config::parse_default ; however
      * for our application here, they're totally useless, as we're not
      * initializing a factor base */
-    if (!param_list_lookup_string(pl, "lim0"))
-        param_list_add_key(pl, "lim0", "0", PARAMETER_FROM_FILE);
-    if (!param_list_lookup_string(pl, "lim1"))
-        param_list_add_key(pl, "lim1", "0", PARAMETER_FROM_FILE);
+    if (!pl.has("lim0"))
+        pl.add_key("lim0", "0", cado::params::origin::FROM_FILE);
+    if (!pl.has("lim1"))
+        pl.add_key("lim1", "0", cado::params::origin::FROM_FILE);
 
     siever_config config_base;
     if (!siever_config::parse_default<NFS>(config_base, pl, cpoly.nsides())) {
         fprintf(stderr, "Error: please provide a full set of {lim,mfb,lpb}{0,1} parameters\n");
-        param_list_print_usage(pl, nullptr, stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 

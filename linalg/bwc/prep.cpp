@@ -746,16 +746,16 @@ int main(int argc, char const * argv[])
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters: none here (so far). */
     if (mpz_cmp_ui(bw->p, 2) != 0)
-        param_list_lookup_string(pl, "rhs");
+        pl.lookup("rhs");
 
-    ASSERT_ALWAYS(!param_list_lookup_string(pl, "ys"));
-    ASSERT_ALWAYS(!param_list_lookup_string(pl, "solutions"));
+    ASSERT_ALWAYS(!pl.has("ys"));
+    ASSERT_ALWAYS(!pl.has("solutions"));
 
     if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         if (!rank)
-            param_list_print_usage(pl, bw->original_argv[0], stderr);
+            pl.print_usage(stderr);
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 

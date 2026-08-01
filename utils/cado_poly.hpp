@@ -50,7 +50,7 @@ struct cxx_cado_poly : public std::vector<cxx_mpz_poly>
         const char *tmp;
         if ((tmp = param_list_lookup_string(pl, "poly")) == NULL) {
             fprintf(stderr, "Error: -poly is missing\n");
-            param_list_print_usage(pl, NULL, stderr);
+            pl.print_usage(stderr);
             exit(EXIT_FAILURE);
         }
         if (!read(tmp)) {

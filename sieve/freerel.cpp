@@ -52,7 +52,7 @@ static char const * argv0;
 static void
 usage(cxx_param_list & pl, char const * argv0)
 {
-    param_list_print_usage(pl, argv0, stderr);
+    pl.print_usage(stderr);
     exit(EXIT_FAILURE);
 }
 

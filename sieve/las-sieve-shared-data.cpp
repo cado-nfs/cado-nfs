@@ -36,7 +36,7 @@ void sieve_shared_data::lookup_parameters(cxx_param_list & pl, int nsides)
      * there's no reason to thaw it.
      */
     siever_side_config::lookup_parameters(pl, nsides);
-    param_list_lookup_string(pl, "fbc");
+    pl.lookup("fbc");
 }
 
 sieve_shared_data::side_data::side_data(int side,

@@ -126,12 +126,12 @@ static std::vector<number_field_prime_ideal> batch_read_prime_factorization(std:
 
 static int do_p_maximal_order_batch(cxx_param_list & pl) /*{{{*/
 {
-    const char * tmp;
+    std::string const * tmp;
 
-    if ((tmp = param_list_lookup_string(pl, "batch")) == nullptr)
+    if ((tmp = pl.has("batch")) == nullptr)
         pl.fail("missing batch argument");
 
-    std::ifstream is(tmp);
+    std::ifstream is(*tmp);
     std::string s;
     int nok = 0;
     int nfail = 0;
@@ -187,7 +187,7 @@ static int do_factorization_of_prime(cxx_param_list & pl) /*{{{*/
 
     cxx_gmp_randstate state;
     unsigned long seed = 0;
-    if (param_list_parse_ulong(pl, "seed", &seed)) {
+    if (pl.parse("seed", seed)) {
         gmp_randseed_ui(state, seed);
     }
     fmt::print("{}.<{}>={:S}\n", K.name, K.varname, K);
@@ -210,12 +210,12 @@ static int do_factorization_of_prime(cxx_param_list & pl) /*{{{*/
 
 static int do_factorization_of_prime_batch(cxx_param_list & pl) /*{{{*/
 {
-    const char * tmp;
+    std::string const * tmp;
 
-    if ((tmp = param_list_lookup_string(pl, "batch")) == nullptr)
+    if ((tmp = pl.has("batch")) == nullptr)
         pl.fail("missing batch argument");
 
-    std::ifstream is(tmp);
+    std::ifstream is(*tmp);
     std::string s;
     int nok = 0;
     int nfail = 0;
@@ -249,7 +249,7 @@ static int do_factorization_of_prime_batch(cxx_param_list & pl) /*{{{*/
 
         cxx_gmp_randstate state;
         unsigned long seed = 0;
-        if (param_list_parse_ulong(pl, "seed", &seed)) {
+        if (pl.parse("seed", seed)) {
             gmp_randseed_ui(state, seed);
         }
 
@@ -285,12 +285,9 @@ static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
 
     /* Now read the element description */
     std::vector<cxx_mpz_poly> elements; 
-    {
-        auto tmp = param_list_parse_mandatory<std::string>(pl, "elements");
 
-        for(auto const & desc : split(tmp, ","))
-            elements.emplace_back(desc);
-    }
+    for(auto const & desc : split(pl.parse_mandatory<std::string>("elements"), ","))
+        elements.emplace_back(desc);
 
     number_field K(f);
     number_field_order O = K.p_maximal_order(p);
@@ -313,7 +310,7 @@ static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
 
     cxx_gmp_randstate state;
     unsigned long seed = 0;
-    if (param_list_parse_ulong(pl, "seed", &seed)) {
+    if (pl.parse("seed", seed)) {
         gmp_randseed_ui(state, seed);
     }
     std::vector<std::pair<number_field_prime_ideal, int> > F = O.factor(p, state);
@@ -335,12 +332,12 @@ static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
 
 static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
 {
-    const char * tmp;
+    std::string const * tmp;
 
-    if ((tmp = param_list_lookup_string(pl, "batch")) == nullptr)
+    if ((tmp = pl.has("batch")) == nullptr)
         pl.fail("missing batch argument");
 
-    std::ifstream is(tmp);
+    std::ifstream is(*tmp);
     std::string s;
     int nok = 0;
     int nfail = 0;
@@ -375,7 +372,7 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
 
         cxx_gmp_randstate state;
         unsigned long seed = 0;
-        if (param_list_parse_ulong(pl, "seed", &seed)) {
+        if (pl.parse("seed", seed)) {
             gmp_randseed_ui(state, seed);
         }
 
@@ -468,13 +465,11 @@ static int do_maximal_order(cxx_param_list & pl)
 {
     cxx_gmp_randstate state;
     unsigned long seed = 0;
-    if (param_list_parse_ulong(pl, "seed", &seed)) {
+    if (pl.parse("seed", seed)) {
         gmp_randseed_ui(state, seed);
     }
 
-    unsigned long bound;
-    if (!param_list_parse(pl, "bound", bound))
-        pl.fail("missing bound argument for maximal_order");
+    auto bound = pl.parse_mandatory<unsigned long>("bound");
 
     const cxx_mpz_poly f(pl.parse_mandatory<std::string>("poly"));
 
@@ -501,12 +496,12 @@ struct test_number_theory_object_interface {
     unsigned int n;
 
     explicit test_number_theory_object_interface(cxx_param_list & pl)
-        : polystr(param_list_parse_mandatory<std::string>(pl, "poly"))
+        : polystr(pl.parse_mandatory<std::string>("poly"))
         , f(polystr)
         , K(f)
         , n(static_cast<unsigned int>(K.degree()))
     {
-        param_list_parse_ulong(pl, "seed", &seed);
+        pl.parse("seed", seed);
         K.bless("K", "alpha");
     }
 

@@ -533,13 +533,13 @@ int main(int argc, char const * argv[])
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters: none here (so far). */
 
-    ASSERT_ALWAYS(!param_list_lookup_string(pl, "ys"));
+    ASSERT_ALWAYS(!pl.has("ys"));
     ASSERT_ALWAYS(param_list_lookup_string(pl, "solutions"));
 
     if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        if (!rank) pl.print_usage(stderr);
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 

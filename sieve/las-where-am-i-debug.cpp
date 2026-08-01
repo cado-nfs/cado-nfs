@@ -110,7 +110,7 @@ void where_am_I::interpret_parameters(cxx_param_list & pl)
         ab.b = r.second;
     }
 #else
-    const char *abstr = param_list_lookup_string(pl, "traceab");
+    const char *abstr = pl.lookup_old("traceab");
     if (abstr != NULL) {
         if (sscanf(abstr, "%" SCNd64",%" SCNu64, &ab.a, &ab.b) == 2)
             have_trace_ab = 1;
@@ -122,7 +122,7 @@ void where_am_I::interpret_parameters(cxx_param_list & pl)
     }
 #endif
 
-    const char *ijstr = param_list_lookup_string(pl, "traceij");
+    const char *ijstr = pl.lookup_old("traceij");
     if (ijstr != NULL) {
         if (sscanf(ijstr, "%d,%u", &ij.i, &ij.j) == 2) {
             have_trace_ij = 1;
@@ -133,7 +133,7 @@ void where_am_I::interpret_parameters(cxx_param_list & pl)
         }
     }
 
-    const char *Nxstr = param_list_lookup_string(pl, "traceNx");
+    const char *Nxstr = pl.lookup_old("traceNx");
     if (Nxstr != NULL) {
         if (sscanf(Nxstr, "%u,%u", &Nx.N, &Nx.x) == 2)
             have_trace_Nx = 1;

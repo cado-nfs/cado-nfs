@@ -43,14 +43,14 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
     declare_usage(pl);
 
-    param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
+    pl.process_command_line_and_extra_parameter_files(argc, argv);
 
 
     int mfb0 = -1, mfb1 = -1;
     double time_C = -1;
-    param_list_parse_int(pl, "mfb0", &mfb0);
-    param_list_parse_int(pl, "mfb1", &mfb1);
-    param_list_parse_double(pl, "t", &time_C);
+    pl.parse("mfb0", mfb0);
+    pl.parse("mfb1", mfb1);
+    pl.parse("t", time_C);
     if (mfb0 < 0 || mfb1 < 0 || time_C < 0)
 	pl.fail("The following parameters are mandatory:\n"
 	      "\t\t -mfb0 -mfb1 -time_C\n");
@@ -61,19 +61,19 @@ int main(int argc, char const * argv[])
     time_C *= 1000000;		//s-->ms 
 
     const char *pathname_C;
-    if ((pathname_C = param_list_lookup_string(pl, "dist")) == NULL)
+    if ((pathname_C = pl.lookup_old("dist")) == NULL)
 	pl.fail("missing option -dist"
 	      " followed by the pathname of the file which stores the"
 	      " distribution of our cofactors.\n");
 
     const char *pathname_st;
-    if ((pathname_st = param_list_lookup_string(pl, "st")) == NULL)
+    if ((pathname_st = pl.lookup_old("st")) == NULL)
 	pl.fail("missing option -st"
 	      " followed by the pathname of the directory which"
 	      " contains our strategies.\n");
 
     const char *pathname_output;
-    if ((pathname_output = param_list_lookup_string(pl, "out")) == NULL)
+    if ((pathname_output = pl.lookup_old("out")) == NULL)
 	pl.fail("missing option -out"
 	      " to specify where the result will be stored!\n");
 

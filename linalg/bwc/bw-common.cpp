@@ -220,7 +220,7 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
     okn += pl.parse("n", bw->n);
     if (!okm || !okn) {
         fprintf(stderr, "parameter m and/or n is missing\n");
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 

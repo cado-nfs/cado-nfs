@@ -53,8 +53,8 @@ void lingen_tune_cutoffs_decl_usage(cxx_param_list & pl)
 
 void lingen_tune_cutoffs_lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "B");
-    param_list_lookup_string(pl, "catchsig");
+    pl.lookup("B");
+    pl.lookup("catchsig");
 }
 
 /* interface to C programs for list of cutoffs we compute *//*{{{*/

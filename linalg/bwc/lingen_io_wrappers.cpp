@@ -7,12 +7,13 @@
 #endif
 
 #include <algorithm>
+#include <array>
+#include <ios>
+#include <sstream>
 #include <stdexcept>
 #include <type_traits>
-#include <sstream>
 #include <utility>
 #include <vector>
-#include <ios>
 
 
 #include <sys/types.h>

@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cstdio>
 
+#include <array>
+
 #include "lingen_fft_select.hpp"
 #include "lingen_mul_substeps.hpp"
 #include "lingen_matpoly_ft.hpp"

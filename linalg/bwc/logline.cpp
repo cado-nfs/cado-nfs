@@ -1,21 +1,21 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdint>      // for SIZE_MAX
-#include <cstring>      // for memset, strlen
-#include <cstdio>       // fprintf // IWYU pragma: keep
-#include <cstdarg>      // va_list // IWYU pragma: keep
+#include <cstdint>
+#include <cstring>
+#include <cstdio>
+#include <cstdarg>
 #include <cstdlib>
 
-#include <string>        // for string, basic_string
+#include <string>
 #include <vector>
 
 #include "logline.hpp"
-#include "memusage.h"   // Memusage2
-#include "params.hpp"     // param_list_parse_*
+#include "memusage.h"
+#include "params.hpp"
 #include "select_mpi.h"
-#include "timing.h"     // seconds
-#include "portability.h" // asprintf // IWYU pragma: keep
-#include "misc.h"       // size_disp_fine
+#include "timing.h"
+#include "portability.h"
+#include "misc.h"
 #include "macros.h"
 
 /* This is intended to provide progress info, and optionally also more
@@ -124,9 +124,9 @@ int logline_interpret_parameters(cxx_param_list & pl)
     for(int i = 0 ; i < n ; i++) {
         logline_thresholds[i] = thr[i];
     }
-    param_list_parse_int(pl, "logline_timings", &logline_timings);
-    param_list_parse_int(pl, "logline_report_wct", &logline_report_wct);
-    param_list_parse_int(pl, "logline_print_all_mpi_nodes", &logline_print_all_mpi_nodes);
+    pl.parse("logline_timings", logline_timings);
+    pl.parse("logline_report_wct", logline_report_wct);
+    pl.parse("logline_print_all_mpi_nodes", logline_print_all_mpi_nodes);
     return 0;
 }
 

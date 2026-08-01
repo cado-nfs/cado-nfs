@@ -68,14 +68,15 @@ int main(int argc, char const * argv[])
     parallelizing_info_decl_usage(pl);
     pl.declare_usage("v", "turn on some demo logging");
 
-    param_list_configure_switch(pl, "v", &verbose);
+    pl.configure_switch("v");
 
     pl.process_command_line(argc, argv, false);
 
+    pl.parse("v", verbose);
     parallelizing_info_lookup_parameters(pl);
 
     if (verbose)
-        param_list_display (pl, stderr);
+        pl.display_debug(stderr);
 
     if (pl.warn_unused())
         pl.fail("Unused parameters are given");

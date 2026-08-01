@@ -532,7 +532,7 @@ int main(int argc, char const * argv[])
       }
 
       fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-      param_list_print_usage(pl, argv0, stderr);
+      pl.print_usage(stderr);
       exit (EXIT_FAILURE);
   }
   verbose_interpret_parameters(pl);
@@ -541,7 +541,7 @@ int main(int argc, char const * argv[])
   const char * filename = pl.lookup_old("poly");
   if (!filename) {
       fmt::print(stderr, "Error: parameter -poly is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
+      pl.print_usage(stderr);
       exit(EXIT_FAILURE);
   }
 
@@ -553,7 +553,7 @@ int main(int argc, char const * argv[])
   pl.parse("shrink-factor", shrink_factor);
   if (shrink_factor < 1) {
       fmt::print(stderr, "Error: shrink factor must be an integer >= 1\n");
-      param_list_print_usage(pl, argv0, stderr);
+      pl.print_usage(stderr);
       exit(EXIT_FAILURE);
   }
 
@@ -573,14 +573,14 @@ int main(int argc, char const * argv[])
   pl.parse("sqside", sqside);
   if (sqside == -1 || sqside > 2) {
       fmt::print(stderr, "Error: sqside must be 0 or 1\n");
-      param_list_print_usage(pl, argv0, stderr);
+      pl.print_usage(stderr);
       exit(EXIT_FAILURE);
   }
 
   const char * renumberfile = pl.lookup_old("renumber");
   if (!renumberfile) {
       fmt::print(stderr, "Error: parameter -renumber is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
+      pl.print_usage(stderr);
       exit(EXIT_FAILURE);
   }
   fmt::print ("# Start reading renumber table\n");
@@ -601,7 +601,7 @@ int main(int argc, char const * argv[])
   const char * samplefile = pl.lookup_old("sample");
   if (!samplefile) {
       fmt::print(stderr, "Error: parameter -sample is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
+      pl.print_usage(stderr);
       exit(EXIT_FAILURE);
   }
 

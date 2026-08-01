@@ -219,12 +219,13 @@ struct lingen_tuner_base {
         }/*}}}*/
         static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
             lingen_platform::lookup_parameters(pl);
-            param_list_lookup_string(pl, "tuning_quiet");
-            param_list_lookup_string(pl, "tuning_log_filename");
+            pl.lookup("tuning_quiet");
+            pl.lookup("tuning_log_filename");
         }/*}}}*/
-        output_info(cxx_param_list & pl) {
-            tuning_log_filename = param_list_lookup_string(pl, "tuning_log_filename");
-            param_list_parse_int(pl, "tuning_quiet", &quiet);
+        output_info(cxx_param_list & pl)
+            : tuning_log_filename(pl.lookup_old("tuning_log_filename"))
+        {
+            pl.parse("tuning_quiet", quiet);
         }
     };/*}}}*/
     static void declare_usage(cxx_param_list & pl) {/*{{{*/
@@ -242,10 +243,10 @@ struct lingen_tuner_base {
     static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
         lingen_platform::lookup_parameters(pl);
         output_info::lookup_parameters(pl);
-        param_list_lookup_string(pl, "tuning_schedule_filename");
-        param_list_lookup_string(pl, "tuning_timing_cache_filename");
-        param_list_lookup_string(pl, "basecase-keep-until");
-        param_list_lookup_string(pl, "tuning_thresholds");
+        pl.lookup("tuning_schedule_filename");
+        pl.lookup("tuning_timing_cache_filename");
+        pl.lookup("basecase-keep-until");
+        pl.lookup("tuning_thresholds");
     }/*}}}*/
 };
 
@@ -293,9 +294,8 @@ struct lingen_tuner : public lingen_tuner_base {
             return has(key) ? at(key) : UINT_MAX;
         }
         tuning_thresholds_t(cxx_param_list & pl, std::ostream& os, lingen_platform const & P) {/*{{{*/
-            const char * tmp = param_list_lookup_string(pl, "tuning_thresholds");
-            if (!tmp) return;
-            std::string const tlist = tmp;
+            auto const tlist = pl.parse<std::string>("tuning_thresholds");
+            if (tlist.empty()) return;
             for(size_t pos = 0 ; pos != std::string::npos ; ) {
                 size_t const next = tlist.find(',', pos);
                 std::string tok;
@@ -356,21 +356,24 @@ struct lingen_tuner : public lingen_tuner_base {
     std::map<unsigned int, std::string> strat_name;
 
 
-    lingen_tuner(std::ostream& os, bw_dimensions<is_binary> & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :/*{{{*/
-        ab(&d.ab), 
-        m(d.m), n(d.n), L(L), P(comm, pl),
-        tuning_thresholds(pl, os, P)
+    lingen_tuner(std::ostream& os, bw_dimensions<is_binary> & d, size_t L, MPI_Comm comm, cxx_param_list & pl) /*{{{*/
+        : ab(&d.ab)
+        , m(d.m)
+        , n(d.n)
+        , L(L)
+        , P(comm, pl)
+        , timing_cache_filename(pl.lookup_old("tuning_timing_cache_filename"))
+        , schedule_filename(pl.lookup_old("tuning_schedule_filename"))
+        , tuning_thresholds(pl, os, P)
     {
-        mpz_set (p, ab->characteristic());
+        mpz_set(p, ab->characteristic());
         gmp_randseed_ui(rstate, 1);
 
-        param_list_parse_double(pl, "basecase-keep-until", &basecase_keep_until);
+        pl.parse("basecase-keep-until", basecase_keep_until);
 
-        schedule_filename = param_list_lookup_string(pl, "tuning_schedule_filename");
         /* only the leader will do the tuning, so only the leader cares
          * about loading/saving it...
          */
-        timing_cache_filename = param_list_lookup_string(pl, "tuning_timing_cache_filename");
         int rank;
         MPI_Comm_rank(P.comm, &rank);
         if (rank == 0)

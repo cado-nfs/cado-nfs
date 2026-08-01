@@ -61,9 +61,9 @@ void lingen_checkpoint<is_binary>::decl_usage(cxx_param_list & pl)
 template<bool is_binary>
 void lingen_checkpoint<is_binary>::lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "checkpoint-directory");
-    param_list_lookup_string(pl, "checkpoint-threshold");
-    param_list_lookup_string(pl, "lingen_checkpoint_save_gathered");
+    pl.lookup("checkpoint-directory");
+    pl.lookup("checkpoint-threshold");
+    pl.lookup("lingen_checkpoint_save_gathered");
 }
 
 template<bool is_binary>

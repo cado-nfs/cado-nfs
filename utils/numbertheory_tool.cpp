@@ -140,14 +140,13 @@ int main(int argc, char const * argv[])
     cxx_gmp_randstate state;
 
     unsigned long seed = 1;
-    if (param_list_parse_ulong(pl, "seed", &seed)) {
+    if (pl.parse("seed", seed)) {
         gmp_randseed_ui(state, seed);
     }
 
-    const char * tmp;
-    if ((tmp = param_list_lookup_string(pl, "polystr")) != nullptr) {
+    if (auto const * tmp = pl.has("polystr"); tmp != nullptr) {
         int const side = 0;
-        cxx_mpz_poly f(tmp);
+        cxx_mpz_poly f(*tmp);
 
         vector<badideal> const badideals = badideals_for_polynomial(f, side);
         cout << "--- .badideals data ---\n";
@@ -158,26 +157,24 @@ int main(int argc, char const * argv[])
         cout << "# bad ideals for poly"<<side<<"=" << f.print_poly("x") << "\n";
         for(auto const & b : badideals)
             b.print_dot_badidealinfo_file(cout, side);
-    } else if ((tmp = param_list_lookup_string(pl, "poly")) != nullptr) {
+    } else if (auto const * tmp = pl.has("poly"); tmp != nullptr) {
         cxx_cado_poly cpoly;
-        cpoly.read(tmp);
+        cpoly.read(*tmp);
 
         /* We're no longer using this functionality, but it's still
          * present.
          */
-        const char * fbname = param_list_lookup_string(pl, "badideals");
-        const char * fbiname = param_list_lookup_string(pl, "badidealinfo");
 
         std::unique_ptr<std::ofstream> fb;
         std::unique_ptr<std::ofstream> fbi;
 
-        if (fbname)
-            fb = std::make_unique<std::ofstream>(fbname);
-        if (fbname)
-            fbi = std::make_unique<std::ofstream>(fbiname);
+        if (auto const * f = pl.has("badideals"); f != nullptr)
+            fb = std::make_unique<std::ofstream>(*f);
+        if (auto const * f = pl.has("badidealinfo"); f != nullptr)
+            fbi = std::make_unique<std::ofstream>(*f);
 
         for(int side = 0 ; side < cpoly.nsides() ; side++) {
-            cxx_mpz_poly f(cpoly[side]);
+            cxx_mpz_poly const & f(cpoly[side]);
             if (f->deg == 1) continue;
             vector<badideal> const badideals = badideals_for_polynomial(f, side);
             if (fb) {
@@ -193,7 +190,7 @@ int main(int argc, char const * argv[])
             }
         }
         cxx_mpz ell;
-        if (param_list_parse_mpz(pl, "ell", ell)) {
+        if (pl.parse("ell", ell)) {
             for(int side = 0 ; side < cpoly.nsides() ; side++) {
                 sm_side_info const sm(cpoly[side], ell, false);
                 cout << "# nmaps" << side << " " << sm.nsm << "\n";

@@ -5,6 +5,7 @@
 #include <climits>
 
 #include <algorithm>
+#include <array>
 #include <fstream>
 #include <istream>
 #include <ostream>

@@ -5,6 +5,8 @@
 #include <cstdarg>
 #include <cstdint>
 
+#include <array>
+
 /* This header is common to the different matrix product implementations
  */
 #include "params.hpp"

@@ -75,17 +75,17 @@ void matmul_top_decl_usage(cxx_param_list & pl)
 
 void matmul_top_lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "matrix");
-    param_list_lookup_string(pl, "balancing");
-    param_list_lookup_string(pl, "random_matrix");
-    param_list_lookup_string(pl, "static_random_matrix");
-    param_list_lookup_string(pl, "rebuild_cache");
-    param_list_lookup_string(pl, "export_cachelist");
-    param_list_lookup_string(pl, "save_submatrices");
-    param_list_lookup_string(pl, "sequential_cache_build");
-    param_list_lookup_string(pl, "sequential_cache_read");
-    param_list_lookup_string(pl, "balancing_options");
-    param_list_lookup_string(pl, "multi_matrix");
+    pl.lookup("matrix");
+    pl.lookup("balancing");
+    pl.lookup("random_matrix");
+    pl.lookup("static_random_matrix");
+    pl.lookup("rebuild_cache");
+    pl.lookup("export_cachelist");
+    pl.lookup("save_submatrices");
+    pl.lookup("sequential_cache_build");
+    pl.lookup("sequential_cache_read");
+    pl.lookup("balancing_options");
+    pl.lookup("multi_matrix");
     balancing_lookup_parameters(pl);
     matmul_lookup_parameters(pl);
 }
@@ -842,7 +842,7 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
 static std::string matrix_list_get_item(cxx_param_list & pl, const char * key, int midx)
 {
     std::vector<std::string> m;
-    int const rc = param_list_parse(pl, key, m);
+    int const rc = pl.parse(key, m);
     if (rc == 0)
         return {};
     ASSERT_ALWAYS(midx < (int) m.size());
@@ -924,7 +924,7 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data & mmt, int i, 
 
     if (pi->m->jrank == 0 && pi->m->trank == 0) {
         if (Mloc.mname.empty()) {
-            random_matrix_fill_fake_balancing_header(Mloc.bal, pi, param_list_lookup_string(pl, "random_matrix"));
+            random_matrix_fill_fake_balancing_header(Mloc.bal, pi, pl.lookup_old("random_matrix"));
         } else {
             if (access(Mloc.bname.c_str(), R_OK) != 0) {
                 if (errno == ENOENT) {
@@ -940,7 +940,7 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data & mmt, int i, 
                     mba.skip_decorrelating_permutation = 0;
                     mba.do_perm[0] = mf_bal_args::MF_BAL_PERM_AUTO;
                     mba.do_perm[0] = mf_bal_args::MF_BAL_PERM_AUTO;
-                    mf_bal_adjust_from_option_string(&mba, param_list_lookup_string(pl, "balancing_options"));
+                    mf_bal_adjust_from_option_string(&mba, pl.lookup_old("balancing_options"));
                     /* withcoeffs being a switch for param_list, it is
                      * clobbered by the configure_switch mechanism */
                     mba.withcoeffs = !mmt.abase->is_characteristic_two();
@@ -1100,12 +1100,12 @@ matmul_top_data::matmul_top_data(
 
     int const nbals = param_list_get_list_count(pl, "balancing");
     int multimat = 0;
-    int nmatrices = param_list_lookup_string(pl, "matrix") != nullptr;
-    param_list_parse_int(pl, "multi_matrix", &multimat);
+    int nmatrices = pl.lookup_old("matrix") != nullptr;
+    pl.parse("multi_matrix", multimat);
     if (multimat)
         nmatrices = param_list_get_list_count(pl, "matrix");
-    const char * random_description = param_list_lookup_string(pl, "random_matrix");
-    const char * static_random_matrix = param_list_lookup_string(pl, "static_random_matrix");
+    const char * random_description = pl.lookup_old("random_matrix");
+    const char * static_random_matrix = pl.lookup_old("static_random_matrix");
 
 
     if (random_description || static_random_matrix) {
@@ -1139,9 +1139,9 @@ matmul_top_data::matmul_top_data(
             Mloc.bname = matrix_list_get_item(pl, "balancing", i);
         } else {
             const char * t;
-            t = param_list_lookup_string(pl, "matrix");
+            t = pl.lookup_old("matrix");
             Mloc.mname = t ? t : "";
-            t = param_list_lookup_string(pl, "balancing");
+            t = pl.lookup_old("balancing");
             Mloc.bname = t ? t : "";
         }
         if (static_random_matrix) {
@@ -1224,7 +1224,7 @@ unsigned int matmul_top_rank_upper_bound(matmul_top_data & mmt)
 
 static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizing_info_ptr pi, cxx_param_list & pl)
 {
-    const char * cachelist = param_list_lookup_string(pl, "export_cachelist");
+    const char * cachelist = pl.lookup_old("export_cachelist");
     if (!cachelist) return 0;
 
     std::string const myline = fmt::format("{} {}",
@@ -1321,7 +1321,7 @@ static unsigned int local_fraction(unsigned int normal, pi_comm_ptr wr)
 static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param_list & pl, int optimized_direction)
 {
     int rebuild = 0;
-    param_list_parse_int(pl, "rebuild_cache", &rebuild);
+    pl.parse("rebuild_cache", rebuild);
     int const can_print = (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0);
 
     matmul_top_matrix & Mloc = mmt.matrices[midx];
@@ -1336,7 +1336,7 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
     // *IF* we need to do a collective read of the matrix, we need to
     // provide the pointer *now*.
     unsigned int sqread = 0;
-    param_list_parse_uint(pl, "sequential_cache_read", &sqread);
+    pl.parse("sequential_cache_read", sqread);
 
     int cache_loaded = 0;
 
@@ -1408,7 +1408,7 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
     }
 
     unsigned int sqb = 0;
-    param_list_parse_uint(pl, "sequential_cache_build", &sqb);
+    pl.parse("sequential_cache_build", sqb);
 
     std::unique_ptr<matrix_u32> m;
     /* see remark in raw_matrix_u32.h about data ownership for type
@@ -1465,7 +1465,7 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
                     Mloc.mm->store_transposed)));
 
             int ssm = 0;
-            param_list_parse_int(pl, "save_submatrices", &ssm);
+            pl.parse("save_submatrices", ssm);
             if (ssm) {
                 std::string const submat = matrix_get_derived_submatrix_filename(Mloc.mname, mmt.pi);
                 fprintf(stderr, "DEBUG: creating %s\n", submat.c_str());

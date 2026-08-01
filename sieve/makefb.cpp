@@ -485,25 +485,19 @@ main (int argc, char const *argv[])
 
   declare_usage(pl);
 
-  param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
+  pl.process_command_line_and_extra_parameter_files(argc, argv);
 
   verbose_interpret_parameters(pl);
-  param_list_print_command_line(stdout, pl);
+  pl.print_command_line(stdout);
 
-  const char * filename;
-  if ((filename = param_list_lookup_string(pl, "poly")) == NULL)
-      pl.fail("Error: parameter -poly is mandatory\n");
-
-  param_list_parse_ulong(pl, "t"   , &nb_threads);
+  pl.parse("t", nb_threads);
   ASSERT_ALWAYS(1 <= nb_threads);
 
-  param_list_parse_ulong(pl, "lim", &lim);
-  if (lim == ULONG_MAX)
-      pl.fail("Error: parameter -lim is mandatory\n");
+  pl.parse_mandatory("lim", lim);
 
-  param_list_parse_int(pl, "maxbits", &maxbits);
+  pl.parse("maxbits", maxbits);
 
-  outfilename = param_list_lookup_string(pl, "out");
+  outfilename = pl.lookup_old("out");
   if (outfilename != NULL) {
     outputfile = fopen_maybe_compressed(outfilename, "w");
     if (!outputfile) {
@@ -519,16 +513,14 @@ main (int argc, char const *argv[])
   }
 
 
-  if (!cpoly.read(filename))
-    {
-      fprintf (stderr, "Error reading polynomial file %s\n", filename);
-      exit (EXIT_FAILURE);
-    }
+  if (auto f = pl.parse_mandatory<std::string>("poly"); !cpoly.read(f)) {
+      pl.fail("Error reading polynomial file {}\n", f);
+  }
 
-  param_list_parse_int(pl, "side", &side);
+  pl.parse("side", side);
   if (side >= (int)cpoly.nsides()){
       fprintf(stderr, "Error: side must be in [0..%d[\n", cpoly.nsides());
-      param_list_print_usage(pl, argv0, stderr);
+      pl.print_usage(stderr);
       exit(EXIT_FAILURE);
   }
 
@@ -541,7 +533,7 @@ main (int argc, char const *argv[])
               } else {
                   fprintf(stderr, "Error: there are more than one algebraic side;"
                           " parameter -side is therefore mandatory\n");
-                  param_list_print_usage(pl, argv0, stderr);
+                  pl.print_usage(stderr);
                   exit(EXIT_FAILURE);
               }
           }
@@ -549,7 +541,7 @@ main (int argc, char const *argv[])
       if (side == -1) {
           fprintf(stderr, "Error: there are no algebraic side;"
                   " parameter -side is therefore mandatory\n");
-          param_list_print_usage(pl, argv0, stderr);
+          pl.print_usage(stderr);
           exit(EXIT_FAILURE);
       }
   }

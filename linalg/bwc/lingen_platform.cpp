@@ -22,11 +22,11 @@
  * hwloc here, because this makes a difference.
  */
 void lingen_platform::lookup_parameters(cxx_param_list & pl) {
-    param_list_lookup_string(pl, "max_ram");
-    param_list_lookup_string(pl, "tuning_thr");
-    param_list_lookup_string(pl, "tuning_mpi");
-    param_list_lookup_string(pl, "mpi");
-    param_list_lookup_string(pl, "thr");
+    pl.lookup("max_ram");
+    pl.lookup("tuning_thr");
+    pl.lookup("tuning_mpi");
+    pl.lookup("mpi");
+    pl.lookup("thr");
 }
 
 void lingen_platform::declare_usage(cxx_param_list & pl) {
@@ -42,14 +42,14 @@ void lingen_platform::declare_usage(cxx_param_list & pl) {
 
 lingen_platform::lingen_platform(MPI_Comm comm, cxx_param_list & pl) : comm(comm) {
 
-    int mpi[2] = { 1, 1 };
-    int thr[2] = { 1, 1 };
+    std::array<int, 2> mpi = { 1, 1 };
+    std::array<int, 2> thr = { 1, 1 };
 
-    param_list_parse_intxint(pl, "mpi", mpi);
-    param_list_parse_intxint(pl, "tuning_mpi", mpi);
+    pl.parse("mpi", mpi, "x");
+    pl.parse("tuning_mpi", mpi, "x");
 
-    param_list_parse_intxint(pl, "thr", thr);
-    param_list_parse_intxint(pl, "tuning_thr", thr);
+    pl.parse("thr", thr, "x");
+    pl.parse("tuning_thr", thr, "x");
 
     T = thr[0] * thr[1];
     r = mpi[0];
@@ -70,7 +70,7 @@ lingen_platform::lingen_platform(MPI_Comm comm, cxx_param_list & pl) : comm(comm
      * peek at the real RAM amount.
      */
     double dtmp = 0;
-    param_list_parse_double(pl, "max_ram", &dtmp);
+    pl.parse("max_ram", dtmp);
     available_ram = dtmp * (1 << 30);
 
     openmp_threads = 1;

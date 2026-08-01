@@ -133,8 +133,8 @@ struct random_matrix_process_data {
     }
 
     static void configure_switches(cxx_param_list & pl) {
-        param_list_configure_switch(pl, "binary", nullptr);
-        param_list_configure_switch(pl, "freq", nullptr);
+        pl.configure_switch("binary");
+        pl.configure_switch("freq");
     }
 
     static void process_arguments(cxx_param_list & pl, int argc, char * argv[]);
@@ -191,7 +191,7 @@ struct random_matrix_process_data {
 // {{{ rhs_writer::rhs_writer
 rhs_writer::rhs_writer(random_matrix_process_data const & R, cxx_param_list & pl)
 {
-    const char * description = param_list_lookup_string(pl, "rhs");
+    const char * description = pl.lookup_old("rhs");
 
     if (!description)
         return;
@@ -239,12 +239,12 @@ random_matrix_process_data::random_matrix_process_data(
     ASSERT_ALWAYS(ncols > 10 && nrows > 10);
     /* }}} */
 
-    param_list_parse(pl, "seed", seed);
+    pl.parse("seed", seed);
     if (!seed) seed = static_cast<unsigned long>(time(nullptr));
-    param_list_parse(pl, "c", maxcoeff);
+    pl.parse("c", maxcoeff);
 
-    bool const binary = param_list_parse_switch(pl, "binary");
-    bool const freq = param_list_parse_switch(pl, "freq");
+    bool const binary = pl.parse<int>("binary");
+    bool const freq = pl.parse<int>("freq");
 
     ascii = !binary;
 
@@ -257,7 +257,7 @@ random_matrix_process_data::random_matrix_process_data(
 
     const char * ofilename = nullptr;
 
-    if ((ofilename = param_list_lookup_string(pl, "output"))) {
+    if ((ofilename = pl.lookup_old("output"))) {
         owned_out.reset(fopen(ofilename, binary ? "wb" : "w"));
         DIE_ERRNO_DIAG(!bool(owned_out), "fopen(%s)", ofilename);
         out = owned_out.get();
@@ -786,7 +786,7 @@ matrix_u32 random_matrix_ddata::get_bycolumns(cxx_gmp_randstate & rstate)
 
 matrix_u32 random_matrix_get_u32(parallelizing_info_ptr pi, cxx_param_list & pl, unsigned long data_nrows, unsigned long data_ncols, unsigned long padded_nrows, unsigned long padded_ncols, bool withcoeffs, bool transpose)
 {
-    const char * rtmp = param_list_lookup_string(pl, "random_matrix");
+    const char * rtmp = pl.lookup_old("random_matrix");
     ASSERT_ALWAYS(rtmp);
     random_matrix_process_data const r(rtmp);
 
@@ -968,21 +968,21 @@ int main(int argc, char const * argv[])
 
     pl.declare_usage("v", "turn verbosity on");
     pl.declare_usage("Z", "avoid zero columns");
-    param_list_configure_switch(pl, "v", nullptr);
-    param_list_configure_switch(pl, "Z", nullptr);
+    pl.configure_switch("v");
+    pl.configure_switch("Z");
 
     argv++, argc--;
     
     generic_params_process_loop(pl, argv, argv + argc);
 
-    verbose = param_list_parse_switch(pl, "v");
-    avoid_zero_columns = param_list_parse_switch(pl, "Z");
+    pl.parse("v", verbose);
+    pl.parse("Z", avoid_zero_columns);
 
     random_matrix_process_data r(pl);
 
     /* {{{ parse kernel size. default is to make the matrix invertible */
-    param_list_parse(pl, "kleft", kernel_left);
-    param_list_parse(pl, "kright", kernel_right);
+    pl.parse("kleft", kernel_left);
+    pl.parse("kright", kernel_right);
 
     ASSERT_ALWAYS(r.nrows <= INT_MAX);
     ASSERT_ALWAYS(r.ncols <= INT_MAX);

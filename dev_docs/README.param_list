@@ -66,12 +66,10 @@ config file hosting a (possibly large) number of options.
 
 
 
-To use params.[ch], your main() function must follow the following
+To use params.[ch]pp, your main() function must follow the following
 pattern.
 
-    param_list pl;
-
-    param_list_init(pl);
+    cxx_param_list pl;
 
     /* documentation, if any. See below */
     /* switches, if any. See below */
@@ -110,11 +108,11 @@ pattern.
     /* all parsing functions return 1 when the key was found, 0 if not.
      * If no key was found, no assignment is performed and the default
      * value set beforehand remains */
-    param_list_parse_int(pl, "hslices", &split[0]);
-    param_list_parse_int(pl, "vslices", &split[1]);
+    pl.parse("hslices", split[0]);
+    pl.parse("vslices", split[1]);
 
     int split[2] = {1,1};
-    param_list_parse_intxint(pl, "nbuckets", split);
+    pl.parse("nbuckets", split);
 
     /* Good practice mandates that unused parameters trigger a warning,
      * if not an error. Only unused parameters from command line are
@@ -124,19 +122,20 @@ pattern.
     if (pl.warn_unused()) {
         usage();
     }
-    param_list_clear(pl);
 
 
 It is also possible to configure switches. Configure switches goes toghether
 with specifying a pointer to the switch value, which must have type int.
 
-    param_list_configure_switch(pl, "--legacy", NULL);
-    param_list_configure_switch(pl, "--remove-input", NULL);
-    param_list_configure_switch(pl, "--pad", NULL);
+    pl.configure_switch("--legacy");
+    pl.configure_switch("--remove-input");
+    pl.configure_switch("--pad);
 
-    legacy = param_list_parse_switch(pl, "--legacy");
-    remove_input = param_list_parse_switch(pl, "--remove-input");
-    pad = param_list_parse_switch(pl, "--pad");
+    /* process argc and argv */
+
+    pl.parse("--legacy", legacy);
+    pl.parse("--remove-input", remove_input);
+    pl.parse("--pad", pad);
 
 
 Aliases:
@@ -211,8 +210,7 @@ Roadmap for use:
 
 start with:
 
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
 
     argv++, argc--;
     for( ; argc ; ) {

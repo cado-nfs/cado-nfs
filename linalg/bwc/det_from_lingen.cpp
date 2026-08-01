@@ -287,7 +287,7 @@ int main(int argc, char const * argv[])
     param_list_parse(pl, "ffile", ffile);
     if (ffile.empty()) {
         fmt::print(stderr, "Error, -ffile must be a nonempty string\n");
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -295,7 +295,7 @@ int main(int argc, char const * argv[])
     param_list_parse(pl, "charpoly-degree", charpoly_deg);
     if (charpoly_deg == UINT_MAX) {
         fmt::print(stderr, "Error, -charpoly-degree must be specified\n");
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
     /* }}} */
@@ -306,7 +306,7 @@ int main(int argc, char const * argv[])
     }
 
     if (pl.warn_unused()) {
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 

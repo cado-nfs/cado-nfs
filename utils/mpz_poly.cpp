@@ -18,9 +18,10 @@
 #include <cstring>
 
 #include <algorithm>
-#include <memory>
+#include <array>
 #include <ios>
 #include <istream>
+#include <memory>
 #include <ostream>
 #include <sstream>
 #include <string>
