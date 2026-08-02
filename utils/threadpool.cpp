@@ -162,14 +162,14 @@ void thread_pool::thread_work_on_tasks(worker_thread & I)
 
         if (!pop_local_or_steal(worker_id, queue, task)) {
             // No work found -> wait on condition variable
-            std::unique_lock<std::mutex> lock(pool_mutex);
-            nr_threads_waiting.fetch_add(1, std::memory_order_relaxed);
+           std::unique_lock<std::mutex> lock(pool_mutex);
+           nr_threads_waiting.fetch_add(1, std::memory_order_seq_cst);
 
             work_cv.wait(lock, [this, worker_id, queue, &task]() {
                 return kill_threads || pop_local_or_steal(worker_id, queue, task);
             });
 
-            nr_threads_waiting.fetch_sub(1, std::memory_order_relaxed);
+           nr_threads_waiting.fetch_sub(1, std::memory_order_seq_cst);
 
             if (kill_threads && task.is_terminal() && all_task_queues_empty()) {
                 break;
@@ -252,7 +252,12 @@ void thread_pool::enqueue_task(std::function<void(worker_thread*)> task_fn, size
         wq.count.store(wq.tasks.size(), std::memory_order_release);
     }
 
-    work_cv.notify_one();
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+
+    if (nr_threads_waiting.load(std::memory_order_seq_cst) > 0) {
+        const std::scoped_lock lock(pool_mutex);
+        work_cv.notify_one();
+    }
 }
 
 void thread_pool::drain_queue(size_t const queue, bool blocking)
