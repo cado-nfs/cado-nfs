@@ -285,6 +285,14 @@ void thread_pool::collect_traces(
         std::map<size_t, std::vector<chronograms::bubble>> & destination,
         size_t thread_index_offset)
 {
+    if (!threads.empty()) {
+        threads[0].chronogram.insert(
+                threads[0].chronogram.end(),
+                std::make_move_iterator(leader_chronogram.begin()),
+                std::make_move_iterator(leader_chronogram.end())
+                );
+        leader_chronogram.clear();
+    }
     for(size_t i = 0 ; i < threads.size() ; i++) {
         const size_t j = thread_index_offset + i;
         ASSERT_ALWAYS(!destination.contains(j));

@@ -205,6 +205,9 @@ private:
     // Distributed per-worker, per-queue work-stealing deques
     // worker_queues[worker_id][queue_id]
     std::vector<std::vector<worker_queue>> worker_queues;
+
+    /* must be distinct from worker 0's chronogram list! */
+    std::vector<chronograms::bubble> leader_chronogram;
     
     std::vector<std::mutex> exceptions_mutex;
     std::vector<std::queue<std::exception_ptr>> exceptions;
@@ -233,7 +236,7 @@ private:
 public:
     auto trace_on_leader(chronograms::bubble_info b)
     {
-        return threads.front().trace(b);
+        return chronograms::bubble_guard(leader_chronogram, b);
     }
     /* use this when you want to record on a _pointer_, without knowing
      * if the pointer can be dereferenced.

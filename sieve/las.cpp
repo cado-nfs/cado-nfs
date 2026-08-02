@@ -1138,7 +1138,11 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
     {
         /* add scoping to control dtor call */
         thread_pool pool(las.number_of_threads_per_subjob(), cumulated_wait_time, thread_pool::NQUEUES, sync_thread_pool);
-        auto dummy = call_dtor([&](){pool.collect_traces(las.chronogram_map, las.number_of_threads_per_subjob() * subjob);});
+        auto dummy = call_dtor([&](){
+            /* we can't collect traces of running threads, of course!! */
+            pool.drain_all_queues();
+            pool.collect_traces(las.chronogram_map, las.number_of_threads_per_subjob() * subjob);
+        });
         nfs_work ws(las, ALGO{});
 
         /* {{{ Doc on todo list handling
