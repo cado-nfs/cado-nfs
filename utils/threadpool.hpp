@@ -158,6 +158,7 @@ public:
 struct worker_queue {
     alignas(64) std::mutex mx;
     std::deque<thread_task> tasks;
+    std::atomic<size_t> count;  /* use this to provide lock-free info about emptiness */
 };
 
 class worker_thread {

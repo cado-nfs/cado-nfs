@@ -102,25 +102,28 @@ bool thread_pool::pop_local_or_steal(size_t worker_id, size_t preferred_queue, t
     // cache warmth)
     {
         auto & wq = worker_queues[worker_id][preferred_queue];
-        if (!wq.tasks.empty()) {
+        // Use lock-free atomic load for the fast-path check
+        if (wq.count.load(std::memory_order_acquire) > 0) {
             const std::scoped_lock lock(wq.mx);
             if (!wq.tasks.empty()) {
                 task = std::move(wq.tasks.back());
                 wq.tasks.pop_back();
+                wq.count.store(wq.tasks.size(), std::memory_order_release);
                 return true;
             }
         }
-    }
+}
 
     // 2. Try owner's local queue for other queues
     for (size_t q = 0; q < nq; ++q) {
         if (q == preferred_queue) continue;
         auto & wq = worker_queues[worker_id][q];
-        if (!wq.tasks.empty()) {
+        if (wq.count.load(std::memory_order_acquire) > 0) {
             const std::scoped_lock lock(wq.mx);
             if (!wq.tasks.empty()) {
                 task = std::move(wq.tasks.back());
                 wq.tasks.pop_back();
+                wq.count.store(wq.tasks.size(), std::memory_order_release);
                 return true;
             }
         }
@@ -132,11 +135,12 @@ bool thread_pool::pop_local_or_steal(size_t worker_id, size_t preferred_queue, t
         for (size_t q = 0; q < nq; ++q) {
             size_t const actual_q = (preferred_queue + q) % nq;
             auto & wq = worker_queues[victim][actual_q];
-            if (!wq.tasks.empty()) {
+            if (wq.count.load(std::memory_order_acquire) > 0) {
                 const std::scoped_lock lock(wq.mx);
                 if (!wq.tasks.empty()) {
                     task = std::move(wq.tasks.front());
                     wq.tasks.pop_front();
+                    wq.count.store(wq.tasks.size(), std::memory_order_release);
                     return true;
                 }
             }
@@ -244,6 +248,8 @@ void thread_pool::enqueue_task(std::function<void(worker_thread*)> task_fn, size
         } else {
             wq.tasks.push_back(std::move(t));
         }
+        // Update atomic counter under lock
+        wq.count.store(wq.tasks.size(), std::memory_order_release);
     }
 
     work_cv.notify_one();
