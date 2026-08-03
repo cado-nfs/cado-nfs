@@ -658,6 +658,7 @@ macros.h
 misc/CMakeLists.txt
 misc/check_rels.cpp
 misc/cl_structure_from_group_order.cpp
+misc/clamp_chronogram_trace.cpp
 misc/debug_renumber.cpp
 misc/descent_init_Fp.cpp
 misc/explain_indexed_relation.cpp
@@ -1126,6 +1127,8 @@ sieve/logapprox.hpp
 sieve/makefb.cpp
 sieve/makefb.sage
 sieve/plattice.sage
+sieve/relation_cache.cpp
+sieve/relation_cache.hpp
 sieve/sieve-methods.hpp
 sieve/siqs-fill-in-buckets.inl
 sieve/siqs-largesieve.hpp
@@ -1579,7 +1582,6 @@ tests/utils/test_gpf.c
 tests/utils/test_imaginary_quadratic_class_groups.cpp
 tests/utils/test_integer_partitions.cpp
 tests/utils/test_intinv.c
-tests/utils/test_json_parsing.cpp
 tests/utils/test_memusage.c
 tests/utils/test_min_max_heap.cpp
 tests/utils/test_mmappable_vector.cpp
@@ -1611,6 +1613,7 @@ tests/utils/test_strlcat.c
 tests/utils/test_strlcpy.c
 tests/utils/test_subdivide_primes_interval.cpp
 tests/utils/test_threadpool.cpp
+tests/utils/test_threadpool_taskgroup.cpp
 tests/utils/test_timing.c
 tests/utils/test_trial_division.cpp
 tests/utils/test_u64arith.cpp
@@ -1709,7 +1712,8 @@ utils/cado_popen.cpp
 utils/cado_popen.hpp
 utils/cado_subrange_streambuf.hpp
 utils/cado_type_traits.hpp
-utils/clonable-exception.hpp
+utils/chronograms.cpp
+utils/chronograms.hpp
 utils/coeff_proxy.hpp
 utils/crc.c
 utils/crc.h
@@ -1743,6 +1747,7 @@ utils/embedded/fmt/printf.h
 utils/embedded/fmt/ranges.h
 utils/embedded/fmt/std.h
 utils/embedded/fmt/xchar.h
+utils/embedded/nlohmann/json.hpp
 utils/extra_complex_overloads.hpp
 utils/fakempi.h
 utils/fd_streambuf.hpp
@@ -1784,8 +1789,6 @@ utils/indexed_relation.hpp
 utils/integer_partitions.hpp
 utils/intrinsics.hpp
 utils/iqsort.h
-utils/json.cpp
-utils/json.hpp
 utils/lll.c
 utils/lll.h
 utils/lock_guarded_container.hpp

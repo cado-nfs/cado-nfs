@@ -23,6 +23,7 @@
 
 #include "timing.h"
 #include "memusage.h"
+#include "utils_cxx.hpp"
 
 #if !defined(HAVE_RUSAGE_THREAD) && defined(__linux)
 #include <unistd.h>
@@ -36,69 +37,33 @@
 
 /* return total user time (all threads) */
 uint64_t
-microseconds (void)
+nanoseconds()
 {
-#ifdef HAVE_GETRUSAGE
-    struct rusage res[1];
-    getrusage(RUSAGE_SELF, res);
-    uint64_t r;
-    r = (uint64_t) res->ru_utime.tv_sec;
-    r *= (uint64_t) 1000000UL;
-    r += (uint64_t) res->ru_utime.tv_usec;
-    return r;
+#ifdef HAVE_CLOCK_PROCESS_CPUTIME_ID
+    struct timespec ts[1];
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, ts);
+    return static_cast<uint64_t>(ts->tv_sec) * 1000000000 + ts->tv_nsec;
 #else
-    return 0;
-#endif
-}
-
-/* only consider user time of the current thread */
-uint64_t
-microseconds_thread (void)
-{
 #ifdef HAVE_GETRUSAGE
     struct rusage ru[1];
-    uint64_t r;
-
-#ifdef HAVE_RUSAGE_THREAD
-    getrusage (RUSAGE_THREAD, ru);
-#else
     getrusage (RUSAGE_SELF, ru);
-#endif
-    r = (uint64_t) ru->ru_utime.tv_sec;
-    r *= (uint64_t) 1000000UL;
-    r += (uint64_t) ru->ru_utime.tv_usec;
-    return r;
+    return (static_cast<uint64_t>(ru->ru_utime.tv_sec) * 1000000 + ru->ru_utime.tv_usec) * 1000;
 #else
     return 0;
 #endif
+#endif
 }
 
-/* cputime */
-unsigned long 
-milliseconds (void)
-{
-    return (unsigned long) (microseconds() / (uint64_t) 1000);
-}
+uint64_t microseconds () { return nanoseconds() / 1000; }
+unsigned long milliseconds () { return microseconds() / 1000; }
+double seconds () { return double_ratio(nanoseconds(), 1.0e9); }
 
-/* cputime */
-unsigned long 
-milliseconds_thread (void)
-{
-    return (unsigned long) (microseconds_thread() / (uint64_t) 1000);
-}
-
-double
-seconds (void)
-{
-    return (double) microseconds() / 1.0e6;
-}
 
 /* Measuring thread seconds is a bit of a red herring. I'm gradually
  * changing my mind to the idea that wall clock (at least monotonic rdtsc
  * like) should suffice
  */
-double
-seconds_thread (void)
+uint64_t nanoseconds_thread ()
 {
     /* CLOCK_THREAD_CPUTIME_ID has better resolution than getrusage and
      * should probably be preferred. It does entail a system call,
@@ -107,9 +72,7 @@ seconds_thread (void)
 #ifdef HAVE_CLOCK_THREAD_CPUTIME_ID
     struct timespec ts[1];
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, ts);
-    double r = 1.0e-9 * (double) ts->tv_nsec;
-    r += (double) ts->tv_sec;
-    return r;
+    return static_cast<uint64_t>(ts->tv_sec) * 1000000000 + ts->tv_nsec;
 #else
 #ifdef HAVE_GETRUSAGE
     struct rusage ru[1];
@@ -118,14 +81,33 @@ seconds_thread (void)
 #else
     getrusage (RUSAGE_SELF, ru);
 #endif
-    double r = 1.0e-6 * ru->ru_utime.tv_usec;
-    r += ru->ru_utime.tv_sec;
-    return r;
+    return (static_cast<uint64_t>(ru->ru_utime.tv_sec) * 1000000 + ru->ru_utime.tv_usec) * 1000;
 #else
     return 0;
 #endif
 #endif
 }
+
+uint64_t microseconds_thread () { return nanoseconds_thread() / 1000; }
+unsigned long milliseconds_thread () { return microseconds_thread() / 1000; }
+double seconds_thread () { return double_ratio(nanoseconds_thread(), 1.0e9); }
+
+uint64_t wct_nanoseconds()
+{
+    struct timespec ts[1];
+#ifdef HAVE_CLOCK_MONOTONIC
+    clock_gettime(CLOCK_MONOTONIC, ts);
+#else
+    clock_gettime(CLOCK_REALTIME, ts);
+#endif
+    return static_cast<uint64_t>(ts->tv_sec) * 1000000000 + ts->tv_nsec;
+}
+
+uint64_t wct_microseconds () { return wct_nanoseconds() / 1000; }
+unsigned long wct_milliseconds () { return wct_microseconds() / 1000; }
+double wct_seconds () { return double_ratio(wct_nanoseconds(), 1.0e9); }
+
+
 
 void
 seconds_user_sys (double * res)
@@ -138,25 +120,6 @@ seconds_user_sys (double * res)
     res[1] = (double)ru->ru_stime.tv_sec + (double)ru->ru_stime.tv_usec/1.0e6;
 #else
     res[0] = res[1] = 0.;
-#endif
-}
-
-/* returns the number of seconds since the Epoch (1970-01-01 00:00:00 +0000).
-   Thus we have to call it twice and subtract to get the wall clock time of
-   a given program. */
-double
-wct_seconds (void)
-{
-#ifdef HAVE_CLOCK_MONOTONIC
-    struct timespec ts[1];
-    clock_gettime(CLOCK_MONOTONIC, ts);
-    double r = 1.0e-9 * (double) ts->tv_nsec;
-    r += (double) ts->tv_sec;
-    return r;
-#else
-    struct timeval tv[1];
-    gettimeofday (tv, nullptr);
-    return (double)tv->tv_sec + (double)tv->tv_usec*1.0e-6;
 #endif
 }
 

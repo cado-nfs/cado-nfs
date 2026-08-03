@@ -289,7 +289,7 @@ int main(int argc, char const * argv[])
             Adj.sieve_info_update_norm_data_Jmax();
 
         if (adjust_strategy >= 2)
-            Adj.adjust_with_estimated_yield();
+            Adj.adjust_with_estimated_yield(nullptr);
 
         if (adjust_strategy >= 3) {
             /* Let's change that again. We tell the code to keep logI as

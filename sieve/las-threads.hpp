@@ -8,6 +8,8 @@
 #include <vector>
 #include <queue>
 #include <utility>
+#include <mutex>
+#include <type_traits>
 
 #include "bucket.hpp"
 #include "las-bkmult.hpp"
@@ -21,8 +23,11 @@ class nfs_aux;
 
 /* A set of n bucket arrays, all of the same type, and methods to reserve one
    of them for exclusive use and to release it again. */
-template <typename T>
-class reservation_array_base : public monitor {
+template <bucket_array_type T>
+class reservation_array_base {
+    mutable std::mutex my_lock;
+    protected:
+    auto get_lock() const { return std::unique_lock(my_lock); }
     public:
     static constexpr int level = T::level;
     using update_t = T::update_t;
@@ -54,7 +59,7 @@ class reservation_array_base : public monitor {
     ATTRIBUTE_NODISCARD
     size_t rank(T const & BA) const { return &BA - BAs.data(); }
 
-    void reset_all_pointers(monitor::my_unique_lock &) {
+    void reset_all_pointers(std::unique_lock<std::mutex> &) {
         for(auto & A : BAs) A.reset_pointers();
     }
 
@@ -73,10 +78,10 @@ class reservation_array_base : public monitor {
 /* bucket arrays with shorthints are filled by competing threads, and we
  * want a priority queue so that threads pick the least full array.
  */
-template <typename T, bool has_longhint_v = T::update_t::hint_t::is_long_v>
+template <bucket_array_type T, bool has_longhint_v = T::update_t::hint_t::is_long_v>
 class reservation_array;
 
-template<typename T>
+template<bucket_array_type T>
 class reservation_array<T, false> : public reservation_array_base<T> {
     static constexpr bool has_longhint_v = false;
     using super = reservation_array_base<T>;
@@ -127,8 +132,8 @@ class reservation_array<T, false> : public reservation_array_base<T> {
     }
 
     void reset_all_pointers() {
-        typename super::monitor::my_unique_lock u(*this);
-        super::reset_all_pointers(u);
+        auto lock = super::get_lock();
+        super::reset_all_pointers(lock);
         available_buckets = decltype(available_buckets)();
         for(size_t i = 0 ; i < super::BAs.size() ; i++)
             available_buckets.emplace(0, i);
@@ -140,7 +145,7 @@ class reservation_array<T, false> : public reservation_array_base<T> {
 /* buckets with longhints are only used in downsort, and we can use a
  * much simpler mechanism in that case.
  */
-template <typename T>
+template <bucket_array_type T>
 class reservation_array<T, true> : public reservation_array_base<T> {
     static constexpr bool has_longhint_v = true;
     using super = reservation_array_base<T>;
@@ -149,8 +154,8 @@ class reservation_array<T, true> : public reservation_array_base<T> {
     explicit reservation_array(size_t n) : super(n) { }
 
     void reset_all_pointers() {
-        typename super::monitor::my_unique_lock u(*this);
-        super::reset_all_pointers(u);
+        auto lock = super::get_lock();
+        super::reset_all_pointers(lock);
     }
 
     T & acquire(size_t rank) { return super::BAs[rank]; }

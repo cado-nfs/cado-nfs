@@ -136,11 +136,36 @@ static void SminusS (unsigned char *S1, unsigned char *EndS1, unsigned char *S2)
 #endif 
 }/*}}}*/
 
-struct process_bucket_region_run : public process_bucket_region_spawn {/*{{{*/
+struct process_bucket_region_run {/*{{{*/
+    nfs_work & ws;
+    std::shared_ptr<nfs_work_cofac> wc_p;
+    std::shared_ptr<nfs_aux> aux_p;
+    ALGO::special_q_data const & Q;
+
     worker_thread * worker;
     nfs_aux::thread_data & taux;
     nfs_work::thread_data & tws;
     timetree_t & timer;
+
+    /* These two indices are set from within process_many_bucket_regions,
+     * prior to spawning all threads.
+     *
+     * first_region0_index is the bucket index of the first region for
+     * which we filled the buckets.
+     *
+     * already done is, relative to first_region0_index, the index of the
+     * first region for which the small sieve start position are
+     * available in ssdpos_many.
+     *
+     * The i-th process_bucket_region task thus handles the bucket region
+     * of index first_region0_index + already_done + i
+     *
+     * the two fields below must be set BY HAND before operator() is
+     * called. See the .cpp file.
+     */
+    int first_region0_index;
+    int already_done;
+
     int bucket_relative_index;
     las_report& rep;
     std::vector<unsigned char *> S;
@@ -148,7 +173,7 @@ struct process_bucket_region_run : public process_bucket_region_spawn {/*{{{*/
      * (within nfs_aux::th). However it might be just as easy to let this
      * field be defined here, and drop the latter.
      */
-    where_am_I & w;
+    where_am_I w;
     bool do_resieve;
 
     /* A note on SS versus S[side]
@@ -168,7 +193,7 @@ struct process_bucket_region_run : public process_bucket_region_spawn {/*{{{*/
      */
 
     unsigned char *SS;
-    
+
     struct side_data {/*{{{*/
         bucket_array_complete purged;   /* for purge_buckets */
         bucket_primes_t primes;         /* for resieving */
@@ -176,18 +201,17 @@ struct process_bucket_region_run : public process_bucket_region_spawn {/*{{{*/
 
     std::vector<side_data> sides;
 
-    process_bucket_region_run(process_bucket_region_spawn const & p, timetree_t & timer, worker_thread * worker, int id);
-
-    /* will be passed as results of functions
-    std::vector<uint32_t> survivors;
-    std::vector<bucket_update_t<1, shorthint_t>::br_index_t> survivors2;
-     * */
-
-    /* most probably useless, I guess
-    int N;
-    int cpt;
-    int copr;
-    */
+    process_bucket_region_run(
+        nfs_work & ws,
+        std::shared_ptr<nfs_work_cofac> wc_p,
+        std::shared_ptr<nfs_aux> aux_p,
+        ALGO::special_q_data const & Q,
+        where_am_I const & w_in,
+        int first_region0_index,
+        int already_done,
+        int bucket_relative_index,
+        timetree_t & timer,
+        worker_thread * worker);
 
     void init_norms(int side);
 
@@ -206,25 +230,39 @@ struct process_bucket_region_run : public process_bucket_region_spawn {/*{{{*/
 };
 /*}}}*/
 
-/* process_bucket_region, split into pieces. */
-process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn const & p, timetree_t & timer, worker_thread * worker, int id): /* {{{ */
-    process_bucket_region_spawn(p),
-    worker(worker),
-    taux(aux_p->th[worker->rank()]),
-    tws(ws.th[worker->rank()]),
-    timer(timer),
-    bucket_relative_index(id),
-    rep(taux.rep),
-    S(ws.las.cpoly.nsides()),
-    w(taux.w),
-    sides(ws.las.cpoly.nsides())
+/* Constructor for process_bucket_region_run */
+process_bucket_region_run::process_bucket_region_run(
+    nfs_work & ws,
+    std::shared_ptr<nfs_work_cofac> wc_p,
+    std::shared_ptr<nfs_aux> aux_p,
+    ALGO::special_q_data const & Q,
+    where_am_I const & w_in,
+    int first_region0_index,
+    int already_done,
+    int bucket_relative_index,
+    timetree_t & timer,
+    worker_thread * worker)
+  : ws(ws)
+  , wc_p(std::move(wc_p))
+  , aux_p(std::move(aux_p))
+  , Q(Q)
+  , worker(worker)
+  , taux(this->aux_p->th[worker->rank()])
+  , tws(ws.th[worker->rank()])
+  , timer(timer)
+  , first_region0_index(first_region0_index)
+  , already_done(already_done)
+  , bucket_relative_index(bucket_relative_index)
+  , rep(taux.rep)
+  , S(ws.las.cpoly.nsides())
+  , w(w_in)
+  , sides(ws.las.cpoly.nsides())
 {
-    w = w_saved;
     WHERE_AM_I_UPDATE(w, N, first_region0_index + already_done + bucket_relative_index);
 
     /* This is local to this thread */
     for(int side = 0 ; side < (int) sides.size() ; side++) {
-        nfs_work::side_data  const& wss(ws.sides[side]);
+        nfs_work::side_data const& wss(ws.sides[side]);
         if (wss.no_fb()) {
             S[side] = nullptr;
         } else {
@@ -236,20 +274,28 @@ process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn
     SS = tws.SS;
     memset(SS, 0, BUCKET_REGION);
 
-    /* see comment in process_bucket_region_run::operator()() */
     do_resieve = ws.conf.needs_resieving();
+}
 
-    /* we're ready to go ! processing is in the operator() method.
-    */
-}/*}}}*/
-void process_bucket_region_spawn::operator()(worker_thread * worker, int id) /*{{{{*/
+/* Entry point invoked by worker threads */
+static void process_one_bucket_region(
+        worker_thread * worker,
+        nfs_work & ws,
+        std::shared_ptr<nfs_work_cofac> wc_p,
+        std::shared_ptr<nfs_aux> aux_p,
+        ALGO::special_q_data const & Q,
+        where_am_I w,
+        int first_region0_index,
+        int already_done,
+        int i)
 {
     timetree_t & timer(aux_p->get_timer(worker));
     ENTER_THREAD_TIMER(timer);
-    /* create a temp object with more fields, and dispose it shortly
-     * afterwards once we're done.  */
-    process_bucket_region_run(*this, timer, worker, id)();
-}/*}}}*/
+    process_bucket_region_run(ws, std::move(wc_p), std::move(aux_p), Q, w,
+                              first_region0_index, already_done, i, timer, worker)();
+}
+
+/* process_bucket_region, split into pieces. */
 void process_bucket_region_run::init_norms(int side)/*{{{*/
 {
     CHILD_TIMER(timer, "init norms");
@@ -319,7 +365,7 @@ void process_bucket_region_run::apply_buckets(int side)/*{{{*/
 
 static void update_checksums(nfs_work::thread_data & tws, nfs_aux::thread_data & taux)
 {
-    for(int side = 0 ; side < (int) tws.sides.size() ; side++)
+    for(int side = 0 ; side < tws.nsides() ; side++)
         taux.update_checksums(side, tws.sides[side].bucket_region, BUCKET_REGION);
 }
 
@@ -782,8 +828,6 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             continue; /* we deal with all cofactors at the end of subjob */
         }
 
-        auto * D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
-
         /* It is probably not a very good idea to make one task out of
          * _each_ (a,b) pair that is to be cofactored...
          */
@@ -792,25 +836,31 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             /* We must make sure that we join the async threads at some
              * point, otherwise we'll leak memory. It seems more appropriate
              * to batch-join only, so this is done at the las_subjob level */
-            // worker->get_pool().get_result(1, false);
-            worker->get_pool().add_task(detached_cofac, D, N, 1); /* id N, queue 1 */
+
+            /* We need to _copy_ the shared_ptrs,
+             * and extend the lifetime of the corresponding objects to
+             * until when the detached cofactorization completes.
+             */
+            worker->get_pool().add_task(thread_pool::QUEUE_ECM,
+                    [wc_p = wc_p,
+                     aux_p = aux_p,
+                     cur_p = std::make_shared<cofac_standalone>(std::move(cur))
+                    ](worker_thread* w) {
+                        detached_cofac(w, *wc_p, *aux_p, std::move(*cur_p));
+                    });
         } else {
             /* We must proceed synchronously for the descent */
-            std::unique_ptr<detached_cofac_result> res(
-                    dynamic_cast<detached_cofac_result*>(
-                    detached_cofac(worker, D, N)));
+            auto rel = detached_cofac(worker, *wc_p, *aux_p, std::move(cur));
 
-            if (res->rel_p) {
-                ws.las.tree->new_candidate_relation(ws.las, ws.task, *res->rel_p);
+            if (rel) {
+                ws.las.tree->new_candidate_relation(ws.las, ws.task, rel);
                 break;
             }
         }
     }
 }/*}}}*/
 void process_bucket_region_run::operator()() {/*{{{*/
-
-    int const id = worker->rank();
-    auto tt = timer.trace(id, chronograms::PBR(
+    auto tt = worker->trace(chronograms::PBR(
                 first_region0_index / ws.nb_buckets[1],
                 bucket_relative_index));
 
@@ -904,7 +954,6 @@ void process_bucket_region_run::operator()() {/*{{{*/
     cofactoring_sync(survivors);
 }/*}}}*/
 
-
 void process_many_bucket_regions(
         nfs_work & ws,
         std::shared_ptr<nfs_work_cofac> wc_p,
@@ -918,11 +967,9 @@ void process_many_bucket_regions(
      * present function is also called from within downsort_tree when
      * toplevel > 1, and then first_region0_index may be larger.
      */
-    auto P = thread_pool::make_shared_task<process_bucket_region_spawn>(ws, wc_p, aux_p, Q, w);
 
     /* Make sure we don't schedule too many tasks when J was truncated
      * anyway */
-
     int first_skipped_br = ws.J;
 
     if (ws.conf.logI >= LOG_BUCKET_REGION)
@@ -934,59 +981,46 @@ void process_many_bucket_regions(
 
     for(int done = 0, ready = small_sieve_regions_ready ; done < ws.nb_buckets[1] ; ) {
 
-        /* yes, it's a bit ugly */
-        P->first_region0_index = first_region0_index;
-        P->already_done = done;
-
         for(int i = 0 ; i < ready ; i++) {
             if (first_region0_index + done + i >= first_skipped_br) {
                 /* Hmm, then we should also make sure that we truncated
                  * fill_in_buckets, right ? */
                 break;
             }
-            pool.add_shared_task(P, i, 0);
+            pool.add_task(thread_pool::QUEUE_GENERIC, 0.0,
+                    process_one_bucket_region,
+                    std::ref(ws), wc_p, aux_p, std::cref(Q), w,
+                    first_region0_index, done, i);
         }
 
-        /* it's only really done when we do drain_queue(0), of course */
+        /* it's only really done when we do
+         * drain_queue(thread_pool::QUEUE_GENERIC), of course */
         done += ready;
 
         if (done < ws.nb_buckets[1]) {
-
             /* We need to compute more init positions */
             int const more = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1] - done);
 
-            for(unsigned int side = 0 ; side < ws.sides.size() ; side++) {
-                nfs_work::side_data  const& wss(ws.sides[side]);
+            for(auto & wss : ws.sides) {
                 if (wss.no_fb()) continue;
-                pool.add_task_lambda([=,&ws](worker_thread * worker, int){
-                        timetree_t & timer(aux_p->get_timer(worker));
-                        ENTER_THREAD_TIMER(timer);
-                        MARK_TIMER_FOR_SIDE(timer, side);
-                        SIBLING_TIMER(timer, "prepare small sieve");
-                        nfs_work::side_data & wss(ws.sides[side]);
-                        // if (wss.no_fb()) return;
-                        SIBLING_TIMER(timer, "small sieve start positions");
-                        /* When we're doing 2-level sieving, there is probably
-                         * no real point in doing ssdpos initialization in
-                         * several passes.
-                         */
-                        wss.ssd->small_sieve_prepare_many_start_positions(
-                                first_region0_index + done,
-                                more,
-                                ws.conf.logI, Q.sublat);
-                        },0);
+
+                wss.ssd->small_sieve_prepare_many_start_positions(
+                        pool, nullptr,
+                        first_region0_index + done,
+                        more,
+                        ws.conf.logI, Q.sublat);
             }
 
-            pool.drain_queue(0);
+            pool.drain_queue(thread_pool::QUEUE_GENERIC);
 
             ready = more;
 
             /* Now these new start positions are ready to be used */
-            for(unsigned int side = 0 ; side < ws.sides.size() ; side++) {
-                nfs_work::side_data & wss(ws.sides[side]);
+            for(auto & wss : ws.sides) {
                 if (wss.no_fb()) continue;
                 wss.ssd->small_sieve_activate_many_start_positions();
             }
         }
     }
 }/*}}}*/
+

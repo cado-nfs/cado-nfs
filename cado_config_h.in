@@ -106,6 +106,7 @@
 #cmakedefine    HAVE_CLOCK_MONOTONIC
 #cmakedefine    HAVE_CLOCK_MONOTONIC_RAW
 #cmakedefine    HAVE_CLOCK_THREAD_CPUTIME_ID
+#cmakedefine    HAVE_CLOCK_PROCESS_CPUTIME_ID
 
 #cmakedefine    HAVE_SYNC_FETCH
 

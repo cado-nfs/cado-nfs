@@ -1,40 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstddef>
-#include <cstdint> // for SIZE_MAX
+#include <cstdint>
 
+#include <algorithm>
+#include <atomic>
 #include <condition_variable>
+#include <exception>
+#include <functional>
+#include <map>
 #include <mutex>
-#include <queue>   // for queue, priority_queue
+#include <thread>
+#include <utility>
 #include <vector>
-#include <pthread.h>
 
-#include "clonable-exception.hpp" // for clonable_exception
 #include "macros.h"
 #include "threadpool.hpp"
-#include "timing.h" // for seconds_thread
-#include "utils_cxx.hpp"
-
-/*
-  With multiple queues, when new work is added to a queue, we need to be able
-  to wake up one of the threads that prefer work from that queue. Thus we need
-  multiple condition variables. If no threads that prefer work from that queue
-  are currently waiting, we need to wake up some other thread.
-
-  With k queues, we need k condition variables c[] and k semaphores s[].
-  When a thread that prefers queue i waits for work, in increases s[i] and
-  starts waiting on c[i]. When a thread that was waiting is woken up, it
-  decreases s[i]. When work is added to queue j, it checks whether s[j] is
-  non-zero:
-    - if so, it signals c[j]
-    - if not, it tests whether any other c[l] is non-zero
-      - if so, it signals c[l]
-      - if not, then no threads are currently sleeping, and nothing needs to be
-  done
-
-  We use a simple size_t variable as the semaphore; accesses are
-  mutex-protected.
-*/
+#include "timing.h"
 
 worker_thread::worker_thread(thread_pool & _pool, size_t const _preferred_queue,
                              bool several_threads)
@@ -42,351 +24,278 @@ worker_thread::worker_thread(thread_pool & _pool, size_t const _preferred_queue,
     , preferred_queue(several_threads ? _preferred_queue : SIZE_MAX)
 {
     if (!several_threads) {
-        // the "pthread" member is uninitialized, but that is fine since
-        // it's only used in the dtor anyway, under the condition that
-        // preferred_queue != SIZE_MAX.
-        // coverity[uninit_member]
         return;
     }
-    int const rc = pthread_create(
-        &thread, nullptr, thread_pool::thread_work_on_tasks_static, this);
-    ASSERT_ALWAYS(rc == 0);
-}
-
-worker_thread::~worker_thread()
-{
-    if (preferred_queue == SIZE_MAX)
-        return;
-    int const rc = pthread_join(thread, nullptr);
-    // timer.self will be essentially lost here. the best thing to do is to
-    // create a phony task which collects the busy wait times for all
-    // threads, at regular intervals, so that timer.self will be
-    // insignificant.
-    // pool.timer += timer;
-    ASSERT_ALWAYS_NOTHROW(rc == 0);
+    thread = std::jthread([this]() {
+        pool.thread_work_on_tasks(*this);
+    });
 }
 
 int worker_thread::rank() const
 {
     return static_cast<int>(this - pool.threads.data());
 }
+
 int worker_thread::nthreads() const
 {
     return static_cast<int>(pool.threads.size());
 }
+
 bool worker_thread::is_synchronous() const
 {
     return pool.is_synchronous();
 }
 
-class thread_task
-{
-  public:
-    task_function_t func = nullptr;
-    task_parameters * parameters = nullptr;
-    int id = 0;
-    double cost = 0.0; // costly tasks are scheduled first.
-
-    bool is_terminal() const { return func == nullptr; }
-
-    thread_task(task_function_t _func, task_parameters * _parameters, int _id,
-                double _cost)
-        : func(_func)
-        , parameters(_parameters)
-        , id(_id)
-        , cost(_cost)
-    {
-    }
-    explicit thread_task(bool) {}
-    task_result * operator()(worker_thread * w) const
-    {
-        return (*func)(w, parameters, id);
-    }
-};
-
-struct thread_task_cmp {
-    bool operator()(thread_task const & x, thread_task const & y) const
-    {
-        if (x.cost < y.cost)
-            return true;
-        if (x.cost > y.cost)
-            return false;
-        // if costs are equal, compare ids (they should be distinct)
-        return x.id < y.id;
-    }
-};
-
-class tasks_queue
-    : public std::priority_queue<thread_task, std::vector<thread_task>,
-                                 thread_task_cmp>
-    , private NonCopyable
-{
-  public:
-    std::mutex mx;
-    std::condition_variable not_empty;
-    size_t nr_threads_waiting = 0;
-    tasks_queue() = default;
-};
-
-class results_queue
-    : public std::queue<task_result *>
-    , private NonCopyable
-{
-  public:
-    std::condition_variable not_empty;
-};
-
-class exceptions_queue
-    : public std::queue<clonable_exception *>
-    , private NonCopyable
-{
-  public:
-    std::condition_variable not_empty;
-};
-
 thread_pool::thread_pool(size_t const nr_threads, double & store_wait_time,
                          size_t const nr_queues, bool sync_thread_pool)
-    : monitor_or_synchronous(sync_thread_pool)
-    , tasks(nr_queues)
-    , results(nr_queues)
+    : tasks(nr_queues)
+    , exceptions_mutex(nr_queues)
     , exceptions(nr_queues)
-    , created(nr_queues, 0)
-    , joined(nr_queues, 0)
-    , kill_threads(false)
+    , created(nr_queues)
+    , joined(nr_queues)
     , store_wait_time(store_wait_time)
 {
     ASSERT_ALWAYS(nr_threads == 1 || !sync_thread_pool);
-    /* Threads start accessing the queues as soon as they run */
+    sync_mode = sync_thread_pool;
+
+    worker_queues.resize(nr_threads);
+    for (size_t i = 0; i < nr_threads; ++i) {
+        worker_queues[i] = std::vector<worker_queue>(nr_queues);
+    }
+
     threads.reserve(nr_threads);
     for (size_t i = 0; i < nr_threads; i++)
         threads.emplace_back(*this, 0, !is_synchronous());
 };
 
-// ok, if an exception is raised we'll die abruptly.
-// coverity[exn_spec_violation]
 thread_pool::~thread_pool()
 {
     drain_all_queues();
     {
-        my_unique_lock const u(*this);
+        const std::scoped_lock lock(pool_mutex);
         kill_threads = true;
-        for (auto & T: tasks)
-            broadcast(T.not_empty); /* Wakey wakey, time to die */
     }
-    drain_all_queues();
-    threads.clear(); /* does pthread_join */
-    for (auto const & T: tasks)
-        ASSERT_ALWAYS_NOTHROW(T.empty());
-    for (auto const & R: results)
-        ASSERT_ALWAYS_NOTHROW(R.empty());
+    work_cv.notify_all();
+
+    threads.clear();
+
     for (auto const & E: exceptions)
         ASSERT_ALWAYS_NOTHROW(E.empty());
     store_wait_time += cumulated_wait_time;
 }
 
-void * thread_pool::thread_work_on_tasks_static(void * arg)
+bool thread_pool::all_task_queues_empty() const
 {
-    auto * I = static_cast<worker_thread *>(arg);
-    I->pool.thread_work_on_tasks(*I);
-    return nullptr;
+    for (size_t q = 0; q < tasks.size(); ++q) {
+        if (joined[q].load(std::memory_order_relaxed) < created[q].load(std::memory_order_relaxed))
+            return false;
+    }
+    return true;
+}
+
+bool thread_pool::pop_local_or_steal(size_t worker_id, size_t preferred_queue, thread_task & task)
+{
+    size_t const nq = tasks.size();
+    size_t const nw = threads.size();
+
+    // 1. Try owner's local queue for preferred_queue (LIFO pop for local
+    // cache warmth)
+    {
+        auto & wq = worker_queues[worker_id][preferred_queue];
+        // Use lock-free atomic load for the fast-path check
+        if (wq.count.load(std::memory_order_acquire) > 0) {
+            const std::scoped_lock lock(wq.mx);
+            if (!wq.tasks.empty()) {
+                task = std::move(wq.tasks.back());
+                wq.tasks.pop_back();
+                wq.count.store(wq.tasks.size(), std::memory_order_release);
+                return true;
+            }
+        }
+}
+
+    // 2. Try owner's local queue for other queues
+    for (size_t q = 0; q < nq; ++q) {
+        if (q == preferred_queue) continue;
+        auto & wq = worker_queues[worker_id][q];
+        if (wq.count.load(std::memory_order_acquire) > 0) {
+            const std::scoped_lock lock(wq.mx);
+            if (!wq.tasks.empty()) {
+                task = std::move(wq.tasks.back());
+                wq.tasks.pop_back();
+                wq.count.store(wq.tasks.size(), std::memory_order_release);
+                return true;
+            }
+        }
+    }
+
+    // 3. Steal from other workers (FIFO steal from front)
+    for (size_t offset = 1; offset < nw; ++offset) {
+        size_t const victim = (worker_id + offset) % nw;
+        for (size_t q = 0; q < nq; ++q) {
+            size_t const actual_q = (preferred_queue + q) % nq;
+            auto & wq = worker_queues[victim][actual_q];
+            if (wq.count.load(std::memory_order_acquire) > 0) {
+                const std::scoped_lock lock(wq.mx);
+                if (!wq.tasks.empty()) {
+                    task = std::move(wq.tasks.front());
+                    wq.tasks.pop_front();
+                    wq.count.store(wq.tasks.size(), std::memory_order_release);
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
 void thread_pool::thread_work_on_tasks(worker_thread & I)
 {
-    /* we removed the per-thread timer, because that goes in the way
-     * of our intent to make threads more special-q agnostic: timers are
-     * attached to the nfs_aux structure, now. This implies that all
-     * routines that are called as worker threads must activate their timer
-     * on entry.
-     *
-     */
     ASSERT_ALWAYS(!is_synchronous());
+    auto const worker_id = static_cast<size_t>(I.rank());
     double tt = -seconds_thread();
+
     while (true) {
-        size_t queue = I.preferred_queue;
-        thread_task task = get_task(queue);
-        if (task.is_terminal())
-            break;
-        try {
-            tt += seconds_thread();
-            task_result * result = task(&I);
-            tt -= seconds_thread();
-            if (result != nullptr)
-                add_result(queue, result);
-        } catch (clonable_exception const & e) {
-            tt -= seconds_thread();
-            add_exception(queue, e.clone());
-            /* We need to wake the listener... */
-            add_result(queue, nullptr);
+        size_t const queue = I.preferred_queue;
+        thread_task task;
+
+        if (!pop_local_or_steal(worker_id, queue, task)) {
+            // No work found -> wait on condition variable
+           std::unique_lock<std::mutex> lock(pool_mutex);
+           nr_threads_waiting.fetch_add(1, std::memory_order_seq_cst);
+
+            work_cv.wait(lock, [this, worker_id, queue, &task]() {
+                return kill_threads || pop_local_or_steal(worker_id, queue, task);
+            });
+
+           nr_threads_waiting.fetch_sub(1, std::memory_order_seq_cst);
+
+            if (kill_threads && task.is_terminal() && all_task_queues_empty()) {
+                break;
+            }
         }
+
+        if (task.is_terminal()) {
+            if (kill_threads) break;
+            continue;
+        }
+
+        tt += seconds_thread();
+        try {
+            task(&I);
+        } catch (...) {
+            const std::scoped_lock guard(exceptions_mutex[task.id % tasks.size()]);
+            exceptions[task.id % tasks.size()].push(std::current_exception());
+        }
+
+        if (task.group) {
+            task.group->notify_joined();
+        }
+
+        size_t const queue_id = (task.id < 0) ? 0 : static_cast<size_t>(task.id) % tasks.size();
+        size_t const current_joined = joined[queue_id].fetch_add(1, std::memory_order_acq_rel) + 1;
+        size_t const target_created = created[queue_id].load(std::memory_order_acquire);
+
+        if (current_joined >= target_created) {
+            const std::scoped_lock lock(tasks[queue_id].mx);
+            tasks[queue_id].task_done.notify_all();
+        }
+
+        tt -= seconds_thread();
     }
+
     tt += seconds_thread();
-    /* tt is now the wall-clock time spent really within this function,
-     * waiting for mutexes and condition variables...  */
-    std::lock_guard<std::mutex> const dummy(mm_cumulated_wait_time);
+    const std::scoped_lock dummy(mm_cumulated_wait_time);
     cumulated_wait_time += tt;
 }
 
-bool thread_pool::all_task_queues_empty() const
+void thread_pool::enqueue_task(std::function<void(worker_thread*)> task_fn, size_t queue, double cost, task_group * tg)
 {
-    for (auto const & T: tasks)
-        if (!T.empty())
-            return false;
-    return true;
-}
+    if (tg) {
+        tg->created_count.fetch_add(1, std::memory_order_relaxed);
+    }
 
-void thread_pool::add_task(task_function_t func, task_parameters * params,
-                           int const id, size_t const queue, double cost)
-{
+    created[queue].fetch_add(1, std::memory_order_relaxed);
+
     if (is_synchronous()) {
-        /* Execute the function right away, simulate the action of a
-         * secondary thread fetching it from the task queue */
-        created[queue]++;
         try {
-            task_result * result = func(threads.data(), params, id);
-            if (result != nullptr)
-                results[queue].push(result);
-        } catch (clonable_exception const & e) {
-            exceptions[queue].push(e.clone());
-            /* We do this in the asynchronous case. It isn't clear that
-             * we need to do the same in the syncronous case. */
-            results[queue].push(nullptr);
+            worker_thread synchronous_worker(*this, queue, false);
+            task_fn(&synchronous_worker);
+        } catch (...) {
+            const std::scoped_lock guard(exceptions_mutex[queue]);
+            exceptions[queue].push(std::current_exception());
+        }
+        joined[queue].fetch_add(1, std::memory_order_release);
+        if (tg) {
+            tg->notify_joined();
         }
         return;
     }
-    ASSERT_ALWAYS(queue < tasks.size());
 
-    my_unique_lock const u(*this);
+    thread_task t(std::move(task_fn), static_cast<int>(queue), cost, tg);
 
-    ASSERT_ALWAYS(!kill_threads);
-    tasks[queue].push(thread_task(func, params, id, cost));
-    created[queue]++;
-
-    /* Find a queue with waiting threads, starting with "queue" */
-    size_t i = queue;
-    if (tasks[i].nr_threads_waiting == 0) {
-        for (i = 0; i < tasks.size() && tasks[i].nr_threads_waiting == 0; i++) {
+    size_t const victim = round_robin_counter.fetch_add(1, std::memory_order_relaxed) % threads.size();
+    auto & wq = worker_queues[victim][queue];
+    {
+        const std::scoped_lock lock(wq.mx);
+        if (!wq.tasks.empty()) {
+            auto it = std::ranges::lower_bound(wq.tasks, t,
+                [](thread_task const & a, thread_task const & b) {
+                    return a.cost < b.cost;
+                });
+            wq.tasks.insert(it, std::move(t));
+        } else {
+            wq.tasks.push_back(std::move(t));
         }
-    }
-    /* If any queue with waiting threads was found, wake up one of them */
-    if (i < tasks.size())
-        signal(tasks[i].not_empty);
-}
-
-thread_task thread_pool::get_task(size_t & preferred_queue)
-{
-    ASSERT(!is_synchronous());
-
-    my_unique_lock u(*this);
-
-    while (!kill_threads && all_task_queues_empty()) {
-        /* No work -> tell this thread to wait until work becomes available.
-           We also leave the loop when the thread needs to die.
-           The while() protects against spurious wake-ups that can fire even if
-           the queue is still empty. */
-        tasks[preferred_queue].nr_threads_waiting++;
-        wait(tasks[preferred_queue].not_empty, u);
-        tasks[preferred_queue].nr_threads_waiting--;
-    }
-    thread_task task(true);
-    if (kill_threads && all_task_queues_empty()) {
-        /* then the default object above is appropriate for signaling all
-         * workers so that they terminate.
-         */
-    } else {
-        /* Find a non-empty task queue, starting with the preferred one */
-        size_t & i(preferred_queue);
-        if (tasks[i].empty()) {
-            for (i = 0; i < tasks.size() && tasks[i].empty(); i++) {
-            }
-        }
-        /* There must have been a non-empty queue or we'd still be in the
-           while() loop above */
-        ASSERT_ALWAYS(i < tasks.size());
-        task = tasks[i].top();
-        tasks[i].pop();
+        // Update atomic counter under lock
+        wq.count.store(wq.tasks.size(), std::memory_order_release);
     }
 
-    return task;
-}
+    std::atomic_thread_fence(std::memory_order_seq_cst);
 
-void thread_pool::add_result(size_t const queue, task_result * const result)
-{
-    ASSERT(!is_synchronous()); // synchronous case: see add_task
-    ASSERT_ALWAYS(queue < results.size());
-    my_unique_lock const u(*this);
-    results[queue].push(result);
-    signal(results[queue].not_empty);
-}
-
-void thread_pool::add_exception(size_t const queue, clonable_exception * e)
-{
-    ASSERT(!is_synchronous()); // synchronous case: see add_task
-    ASSERT_ALWAYS(queue < results.size());
-    my_unique_lock const u(*this);
-    exceptions[queue].push(e);
-    // do we use it ?
-    signal(results[queue].not_empty);
-}
-
-/* Get a result from the specified results queue. If no result is available,
-   waits with blocking=true, and returns nullptr with blocking=false. */
-task_result * thread_pool::get_result(size_t const queue, bool const blocking)
-{
-    task_result * result;
-    ASSERT_ALWAYS(queue < results.size());
-
-    /* works both in synchronous and non-synchronous case */
-    my_unique_lock u(*this);
-    if (!blocking and results[queue].empty()) {
-        result = nullptr;
-    } else {
-        while (results[queue].empty())
-            wait(results[queue].not_empty, u);
-        result = results[queue].front();
-        results[queue].pop();
-        joined[queue]++;
+    if (nr_threads_waiting.load(std::memory_order_seq_cst) > 0) {
+        const std::scoped_lock lock(pool_mutex);
+        work_cv.notify_one();
     }
-    return result;
 }
 
-void thread_pool::drain_queue(size_t const queue, void (*f)(task_result *))
+void thread_pool::drain_queue(size_t const queue, bool blocking)
 {
-    /* works both in synchronous and non-synchronous case */
-    my_unique_lock u(*this);
-    for (size_t const cr = created[queue]; joined[queue] < cr;) {
-        while (results[queue].empty())
-            wait(results[queue].not_empty, u);
-        task_result * result = results[queue].front();
-        results[queue].pop();
-        joined[queue]++;
-        if (f)
-            f(result);
-        delete result;
-    }
+    if (!blocking) return;
+
+    size_t const target = created[queue].load(std::memory_order_acquire);
+    if (joined[queue].load(std::memory_order_acquire) >= target)
+        return;
+
+    std::unique_lock<std::mutex> lock(tasks[queue].mx);
+    tasks[queue].task_done.wait(lock, [this, queue]() {
+        return joined[queue].load(std::memory_order_acquire) >=
+               created[queue].load(std::memory_order_acquire);
+    });
 }
 
 void thread_pool::drain_all_queues()
 {
-    for (size_t queue = 0; queue < results.size(); ++queue) {
+    for (size_t queue = 0; queue < tasks.size(); ++queue) {
         drain_queue(queue);
     }
 }
-
-/* get an exception from the specified exceptions queue. This is
- * obviously non-blocking, because exceptions are exceptional. So when no
- * exception is there, we return nullptr. When there is one, we return a
- * pointer to a newly allocated copy of it.
- */
-clonable_exception * thread_pool::get_exception(size_t const queue)
+void thread_pool::collect_traces(
+        std::map<size_t, std::vector<chronograms::bubble>> & destination,
+        size_t thread_index_offset)
 {
-    clonable_exception * e = nullptr;
-    ASSERT_ALWAYS(queue < exceptions.size());
-    /* works both in synchronous and non-synchronous case */
-    my_unique_lock const u(*this);
-    if (!exceptions[queue].empty()) {
-        e = exceptions[queue].front();
-        exceptions[queue].pop();
+    if (!threads.empty()) {
+        threads[0].chronogram.insert(
+                threads[0].chronogram.end(),
+                std::make_move_iterator(leader_chronogram.begin()),
+                std::make_move_iterator(leader_chronogram.end())
+                );
+        leader_chronogram.clear();
     }
-    return e;
+    for(size_t i = 0 ; i < threads.size() ; i++) {
+        const size_t j = thread_index_offset + i;
+        ASSERT_ALWAYS(!destination.contains(j));
+        destination[j] = std::move(threads[i].chronogram);
+    }
 }

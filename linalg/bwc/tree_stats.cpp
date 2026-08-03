@@ -235,7 +235,7 @@ void tree_stats::print(unsigned int)
         char eta_string[32] = "not available yet\n";
         if (!has_untimed) {
             time_t eta[1];
-            *eta = wct_seconds() + time_to_go;
+            *eta = time(NULL) + time_to_go;
 #ifdef HAVE_CTIME_R
             ctime_r(eta, eta_string);
 #else
@@ -346,7 +346,7 @@ void tree_stats::final_print()
         /* print ETA */
         time_t eta[1];
         char eta_string[32];
-        *eta = wct_seconds();
+        *eta = time(NULL);
 #ifdef HAVE_CTIME_R
         ctime_r(eta, eta_string);
 #else

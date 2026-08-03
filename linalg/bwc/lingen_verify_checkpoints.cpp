@@ -179,12 +179,10 @@ public:
         int const nij = k * block_i + block_j;
         ASSERT_ALWAYS(nrows == M.nrows);
         ASSERT_ALWAYS(ncols == M.ncols);
-        unsigned int i0, i1;
-        unsigned int j0, j1;
         subdivision const Srows(M.nrows, k);
         subdivision const Scols(M.ncols, k);
-        std::tie(i0, i1) = Srows.nth_block(block_i);
-        std::tie(j0, j1) = Scols.nth_block(block_j);
+        auto [ i0, i1 ] = Srows.nth_block(block_i);
+        auto [ j0, j1 ] = Scols.nth_block(block_j);
         unsigned int const nix = Srows.block_size_upper_bound();
         unsigned int const njx = Scols.block_size_upper_bound();
         cxx_mpz tmp;

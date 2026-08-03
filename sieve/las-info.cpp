@@ -21,48 +21,53 @@
 #include "las-todo-list.hpp"
 #include "macros.h"
 #include "params.hpp"
+#include "relation_cache.hpp"
 
 /* las_info stuff */
 
-void las_info::configure_aliases(cxx_param_list & pl)
-{
-    cxx_cado_poly::configure_aliases(pl);
-}
-
-void las_info::configure_switches(cxx_param_list & pl)
-{
-    cxx_cado_poly::configure_switches(pl);
-    las_todo_list::configure_switches(pl);
-    pl.configure_switch_old("-dup", nullptr);
-    pl.configure_switch_old("-smallset-purge", nullptr);
-    pl.configure_switch_old("-batch", nullptr);
-}
-
-void las_info::declare_usage(cxx_param_list & pl)
+/* Note that both sieve_shared_data and las_info have a poly field, which
+ * is quite awkward. This should be cleaned up.
+ */
+void las_info::configure(cxx_param_list & pl)
 {
     cxx_cado_poly::declare_usage(pl);
-    siever_config_pool::declare_usage(pl);
-    sieve_shared_data::declare_usage(pl);
-    las_dlog_base::declare_usage(pl);
-    cofactorization_statistics::declare_usage(pl);
-    batch_side_config::declare_usage(pl);
+    cxx_cado_poly::configure_aliases(pl);
+    cxx_cado_poly::configure_switches(pl);
 
+    siever_config_pool::declare_usage(pl);
+
+    sieve_shared_data::declare_usage(pl);
+
+    las_dlog_base::declare_usage(pl);
+
+    cofactorization_statistics::declare_usage(pl);
+
+    batch_side_config::declare_usage(pl);
+    pl.declare_usage("batch", "use batch cofactorization");
+    pl.declare_usage("batch-print-survivors", "just print survivors to files with the given basename for an external cofactorization");
+    pl.declare_usage("batch-print-survivors-filesize", "write that many survivors per file");
+    pl.declare_usage("batch-print-survivors-number-of-printers", "use this number of I/O threads to write survivor files. defaults to 1, and should not be changed except in very unusual cases");
+    pl.configure_switch("-batch");
+
+    relation_cache::configure(pl);
 
     pl.declare_usage("galois", "depending on the specified galois automorphism, sieve only part of the q's");
 
     pl.declare_usage("dup", "suppress duplicate relations");
     pl.declare_usage("dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
     pl.declare_usage("dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
+    pl.configure_switch("-dup");
+
 
     pl.declare_usage("smallset-purge", "use experimental 'smallset' code in purge_buckets");
+    pl.configure_switch("-smallset-purge");
 
-    pl.declare_usage("batch", "use batch cofactorization");
-    pl.declare_usage("batch-print-survivors", "just print survivors to files with the given basename for an external cofactorization");
-    pl.declare_usage("batch-print-survivors-filesize", "write that many survivors per file");
-    pl.declare_usage("batch-print-survivors-number-of-printers", "use this number of I/O threads to write survivor files. defaults to 1, and should not be changed except in very unusual cases");
 
-    pl.declare_usage("relation_cache", "Directory with cache of collected relation for sampling within a known data set. Useful only with --random-sample\n");
     pl.declare_usage("dumpfile", "Dump entire sieve region to file for debugging.");
+
+
+    las_todo_list::declare_usage(pl);
+    las_todo_list::configure_switches(pl);
 }
 
 
@@ -115,6 +120,7 @@ las_info::las_info(cxx_param_list & pl, Algo)
 #endif
     , dlog_base(cpoly, pl)
     , tree(special_q_task_collection_base::create<Algo>(cpoly, pl))
+    , rel_cache(pl)
     , cofac_stats(pl)
       /*{{{*/
 {
@@ -132,8 +138,6 @@ las_info::las_info(cxx_param_list & pl, Algo)
 
     // }}}
 
-
-    pl.parse("relation_cache", relation_cache);
 
     // ----- stuff roughly related to the descent {{{
     descent_helper = nullptr;

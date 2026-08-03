@@ -18,6 +18,10 @@ target_link_libraries(explain_indexed_relation utils)
 add_executable(indexed_relations_to_density EXCLUDE_FROM_ALL indexed_relations_to_density.cpp)
 target_link_libraries(indexed_relations_to_density utils_with_io)
 
+add_executable(clamp_chronogram_trace EXCLUDE_FROM_ALL
+    clamp_chronogram_trace.cpp)
+target_link_libraries(clamp_chronogram_trace utils)
+
 mark_targets_as_openmp(indexed_relations_to_density)
 
 if(HAVE_GMPECM)

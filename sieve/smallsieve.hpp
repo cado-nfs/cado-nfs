@@ -1,9 +1,15 @@
 #ifndef CADO_SMALLSIEVE_HPP
 #define CADO_SMALLSIEVE_HPP
 
+#include <vector>
+#include <stdexcept>
+
 #include "fb.hpp"
 #include "las-forwardtypes.hpp"
 #include "las-qlattice.hpp"
+#include "threadpool.hpp"
+#include "fb-types.hpp"
+#include "macros.h"
 
 #define SSP_POW2            (1u<<0)
 #define SSP_PROJ            (1u<<1)
@@ -31,7 +37,7 @@ public:
             double)
     {
         throw std::runtime_error("small_sieve_init has not been implemented for"
-                                 "qlattice_basis as special_q_data_class");
+                                 "siqs_special_q_data as special_q_data_class");
     }
 
     virtual void small_sieve_init(
@@ -57,6 +63,17 @@ public:
             int logI,
             sublat_t const & sl) = 0;
 
+    virtual void small_sieve_prepare_many_start_positions(
+            thread_pool &,
+            task_group *,
+            unsigned int first_region_index,
+            int nregions,
+            int logI,
+            sublat_t const & sl)
+    {
+        // by default, fall back to the single-threaded code
+        small_sieve_prepare_many_start_positions(first_region_index, nregions, logI, sl);
+    }
     virtual void small_sieve_activate_many_start_positions() = 0;
 
     virtual void sieve_small_bucket_region(

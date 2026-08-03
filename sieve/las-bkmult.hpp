@@ -4,8 +4,8 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <exception>
 
-#include "clonable-exception.hpp"
 #include "utils_cxx.hpp"
 #include "fb.hpp"
 
@@ -41,7 +41,7 @@ class bkmult_specifier {
     std::string print_all() const;
 };
 
-struct buckets_are_full : public clonable_exception {
+struct buckets_are_full : public std::exception {
     bkmult_specifier::key_type key;
     int side;
     int bucket_number;
@@ -69,7 +69,6 @@ struct buckets_are_full : public clonable_exception {
         return operator<=>(o) < 0;
     }
 #endif
-    clonable_exception * clone() const override { return new buckets_are_full(*this); }
 };
 
 

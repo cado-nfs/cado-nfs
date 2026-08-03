@@ -86,7 +86,6 @@ void fill_in_buckets_toplevel_multiplex(
  */
 void fill_in_buckets_prepare_plattices(
         nfs_work & ws,
-        nfs_aux & aux,
         ALGO::special_q_data const & Q,
         thread_pool &pool,
         int side,

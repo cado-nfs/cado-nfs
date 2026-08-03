@@ -1,24 +1,26 @@
 #ifndef CADO_SIQS_FILL_IN_BUCKETS_INL
 #define CADO_SIQS_FILL_IN_BUCKETS_INL
 
+#include <cstdint>
+
+#include "threadpool.hpp"
+#include "las-threads-work-data.hpp"
+#include "las-qlattice.hpp"
+#include "las-plattice.hpp"
 
 template <int LEVEL, class FB_ENTRY_TYPE>
-static task_result * make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
-                                        task_parameters * _param, int)
+void make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
+        int side,
+        nfs_work & ws,
+        siqs_special_q_data const & Q,
+        precomp_plattice_t<LEVEL> & V,
+        fb_slice<FB_ENTRY_TYPE> const & slice)
 {
-    auto const * param =
-        static_cast<
-            make_lattice_bases_parameters<LEVEL, FB_ENTRY_TYPE> const *>(
-            _param);
-
-    nfs_work const & ws(param->ws);
-    auto const & Q(param->Q);
     int const logI = ws.conf.logI;
     ASSERT_ALWAYS(!Q.sublat.m);
-    auto & V(param->V);
-    auto const & slice(param->slice);
+    ASSERT_ALWAYS(side == 0);
 
-    auto const index0 = ws.sides[param->side].fbs->get_part(LEVEL).first_slice_index;
+    auto const index0 = ws.sides[side].fbs->get_part(LEVEL).first_slice_index;
     auto const index = slice.get_index();
     auto const relative_index = index - index0;
     ASSERT_ALWAYS(relative_index < V.size());
@@ -42,8 +44,6 @@ static task_result * make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
     }
     /* This is moved, not copied. Note that V is a reference. */
     V[relative_index] = std::move(result);
-    delete param;
-    return new task_result;
 }
 
 /* T1 and T2 are already computed for all the possible n lowest bit of j.
@@ -136,8 +136,8 @@ static void fill_in_buckets_toplevel_sublat(
     bucket_array_t<LEVEL, TARGET_HINT> &,
     nfs_work &,
     siqs_special_q_data const &,
-    fb_slice<FB_ENTRY_TYPE> const &,
     plattices_dense_vector_t *,
+    fb_slice<FB_ENTRY_TYPE> const &,
     where_am_I &)
 {
     throw std::runtime_error("sublat is not supported in SIQS");

@@ -23,7 +23,7 @@ set(F9_baseargs
 
 set(c90_21505_poly ${CMAKE_CURRENT_SOURCE_DIR}/c90_21505.poly)
 set(c90_21505_roots ${CMAKE_CURRENT_BINARY_DIR}/c90_21505.roots.gz)
-set(c90_21505_chrono ${CMAKE_CURRENT_BINARY_DIR}/c90_21505.chrono.gz)
+set(c90_21505_chrono ${CMAKE_CURRENT_BINARY_DIR}/c90_21505.chrono.json.gz)
 
 cado_define_test(c90_21505_makefb
         PROGRAM

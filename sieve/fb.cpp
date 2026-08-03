@@ -1492,124 +1492,38 @@ void fb_factorbase::make_linear()
     finalize();
 }
 /*}}}*/
-/* {{{ Parallel version, using thread pool. TODO: simplify ! */
 
-#define GROUP 1024
+/* {{{ Parallel version using modern threadpool and std::future */
 
-// A task will handle 1024 entries before returning the result to the
-// master thread.
-// This task_info structure contains:
-//   - general info (poly, number of valid entries)
-//   - input for the computation
-//   - output of the computation
-typedef struct {
-    mpz_poly_srcptr poly;
-    unsigned int n;
-    unsigned int index;
-
-    fbprime_t p[GROUP];
-    fbprime_t q[GROUP];
-    unsigned char k[GROUP];
-
-    fbroot_t r[GROUP];
-    bool proj[GROUP];
-    redc_invp_t invq[GROUP];
-} task_info_t;
-
-class make_linear_thread_param : public task_parameters
+static std::vector<fb_entry_general> get_next_chunk(
+    uint64_t & next_prime, prime_info & pi, fbprime_t const maxp,
+    size_t & next_pow, std::vector<fb_power_t> const & powers,
+    size_t chunk_size = 1024)
 {
-  public:
-    task_info_t * T;
-    make_linear_thread_param(task_info_t * _T)
-        : T(_T)
-    {
-    }
-    make_linear_thread_param() {}
-};
+    std::vector<fb_entry_general> chunk;
+    chunk.reserve(chunk_size);
 
-class make_linear_thread_result : public task_result
-{
-  public:
-    task_info_t * T;
-    make_linear_thread_param * orig_param;
-    make_linear_thread_result(task_info_t * _T, make_linear_thread_param * _p)
-        : T(_T)
-        , orig_param(_p)
-    {
-        ASSERT_ALWAYS(T == orig_param->T);
-    }
-};
-
-static task_result * process_one_task(worker_thread *, task_parameters * _param,
-                                      int)
-{
-    auto * param = static_cast<make_linear_thread_param *>(_param);
-    task_info_t * T = param->T;
-    for (unsigned int i = 0; i < T->n; ++i) {
-        auto R = fb_linear_root(T->poly, T->q[i]);
-        T->proj[i] = R.proj;
-        T->r[i] = R.r;
-        T->invq[i] = compute_invq(T->q[i]);
-    }
-    return new make_linear_thread_result(T, param);
-}
-
-// Prepare a new task. Return 0 if there are no new task to schedule.
-// Otherwise, return the number of ideals put in the task.
-static int get_new_task(task_info_t & T, uint64_t & next_prime, prime_info & pi,
-                        fbprime_t const maxp, size_t & next_pow,
-                        std::vector<fb_power_t> const & powers)
-{
-    unsigned int i;
-    for (i = 0; i < GROUP && next_prime <= uint64_t(maxp); ++i) {
+    while (chunk.size() < chunk_size && next_prime <= uint64_t(maxp)) {
+        fb_entry_general fb_cur;
         if (next_pow < powers.size() && powers[next_pow].q <= next_prime) {
             ASSERT_ALWAYS(powers[next_pow].q < next_prime);
-            T.q[i] = powers[next_pow].q;
-            T.p[i] = powers[next_pow].p;
-            T.k[i] = powers[next_pow].k;
+            fb_cur.q = powers[next_pow].q;
+            fb_cur.p = powers[next_pow].p;
+            fb_cur.k = powers[next_pow].k;
             next_pow++;
         } else {
-            T.q[i] = T.p[i] = next_prime;
-            T.k[i] = 1;
+            fb_cur.q = fb_cur.p = static_cast<fbprime_t>(next_prime);
+            fb_cur.k = 1;
             next_prime = getprime_mt(pi);
         }
+        chunk.push_back(fb_cur);
     }
-    T.n = i;
-    return i;
-}
-
-using pending_result_t = std::pair<unsigned int, task_info_t *>;
-/* priority queue is for lowest index first, here */
-static bool operator<(pending_result_t const & a, pending_result_t const & b)
-{
-    return a.first > b.first;
-}
-
-static void store_task_result(fb_factorbase & fb, task_info_t const & T)
-{
-    std::list<fb_entry_general> pool;
-    for (unsigned int j = 0; j < T.n; ++j) {
-        fb_entry_general fb_cur;
-        fb_cur.q = T.q[j];
-        fb_cur.p = T.p[j];
-        fb_cur.k = T.k[j];
-        fb_cur.nr_roots = 1;
-        fb_cur.roots[0].exp = fb_cur.k;
-        fb_cur.roots[0].oldexp = fb_cur.k - 1U;
-        fb_cur.roots[0].proj = T.proj[j];
-        fb_cur.roots[0].r = T.r[j];
-        fb_cur.invq = T.invq[j];
-        pool.push_back(fb_cur);
-    }
-    ASSERT(
-        std::ranges::is_sorted(pool, fb_entry_general::sort_byq()));
-    fb.append(pool);
+    return chunk;
 }
 
 void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
 {
     cxx_mpz_poly const & poly(f);
-    /* Prepare for computing powers up to that limit */
     decltype(powlim) const plim =
         (powlim == std::numeric_limits<decltype(powlim)>::max()) ? lim : powlim;
     std::vector<fb_power_t> const powers(fb_powers(plim));
@@ -1621,20 +1535,6 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
         " using threadpool of {} threads.\n",
         lim, powlim, nb_threads);
 
-#define MARGIN 3
-    // Prepare more tasks, so that threads keep being busy.
-    unsigned int const nb_tab = nb_threads + MARGIN;
-    auto * T = new task_info_t[nb_tab];
-    auto * params = new make_linear_thread_param[nb_tab];
-    for (unsigned int i = 0; i < nb_tab; ++i) {
-        T[i].poly = poly;
-        params[i].T = &T[i];
-    }
-
-    // maxp is of type fbprime_t because it corresponds to a value that
-    // will really be in the factor base. However, next_prime must be 64
-    // bit to avoid problems with overflows when computing
-    // next_prime(previous_prime(maxp)).
     fbprime_t const maxp = lim;
     uint64_t next_prime = 2;
 
@@ -1644,86 +1544,49 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
 
     thread_pool pool(nb_threads, wait_time);
 
-    // Stage 0: prepare tasks
-    unsigned int active_task = 0;
-    unsigned int scheduled_tasks = 0;
-    for (unsigned int i = 0; i < nb_tab; ++i) {
-        task_info_t * curr_T = &T[i];
+    constexpr size_t GROUP = 1024;
+    const size_t max_in_flight = nb_threads * 2;
 
-        if (!get_new_task(*curr_T, next_prime, pi, maxp, next_pow, powers))
-            break;
-        curr_T->index = scheduled_tasks++;
-        pool.add_task(process_one_task, &params[curr_T - T], 0);
-        active_task++;
+    std::deque<std::future<std::vector<fb_entry_general>>> futures;
+
+    auto submit_next_chunk = [&]() -> bool {
+        auto chunk = get_next_chunk(next_prime, pi, maxp, next_pow, powers, GROUP);
+        if (chunk.empty())
+            return false;
+
+        auto fut = pool.add_future_task([&poly, chunk = std::move(chunk)](worker_thread*) mutable {
+            for (auto & fb_cur : chunk) {
+                fb_cur.nr_roots = 1;
+                auto R = fb_linear_root(poly, fb_cur.q);
+                fb_cur.roots[0].exp = fb_cur.k;
+                fb_cur.roots[0].oldexp = fb_cur.k - 1U;
+                fb_cur.roots[0].proj = R.proj;
+                fb_cur.roots[0].r = R.r;
+                fb_cur.invq = compute_invq(fb_cur.q);
+            }
+            return std::move(chunk);
+        });
+
+        futures.push_back(std::move(fut));
+        return true;
+    };
+
+    while (futures.size() < max_in_flight && submit_next_chunk()) {}
+
+    while (!futures.empty()) {
+        std::vector<fb_entry_general> chunk = futures.front().get();
+        futures.pop_front();
+
+        std::list<fb_entry_general> pool_list(
+            std::make_move_iterator(chunk.begin()),
+            std::make_move_iterator(chunk.end()));
+
+        ASSERT(std::ranges::is_sorted(pool_list, fb_entry_general::sort_byq()));
+        append(pool_list);
+
+        while (futures.size() < max_in_flight && submit_next_chunk()) {}
     }
 
-    /* store_task_result is only called for tasks that get completed in
-     * order */
-    unsigned int completed_tasks = 0;
-    std::priority_queue<pending_result_t> pending;
-
-    // Stage 1: while there are still primes, wait for a result and
-    // schedule a new task.
-    for (; active_task;) {
-        task_result * result = pool.get_result();
-        auto * res = static_cast<make_linear_thread_result *>(result);
-        active_task--;
-        task_info_t * curr_T = res->T;
-
-        unsigned int const just_finished = curr_T->index;
-        if (just_finished == completed_tasks) {
-            store_task_result(*this, *curr_T);
-            completed_tasks++;
-        } else {
-            // coverity doesn't see that the "comp" member of the
-            // priority queue can sometimes be a trivial object that
-            // doesn't really require initialization...
-            // coverity[uninit_use_in_call]
-            pending.emplace(just_finished, new task_info_t(*curr_T));
-        }
-        delete result;
-
-        for (; !pending.empty() && pending.top().first == completed_tasks;) {
-            store_task_result(*this, *pending.top().second);
-            delete pending.top().second;
-            pending.pop();
-            completed_tasks++;
-        }
-
-        if (!get_new_task(*curr_T, next_prime, pi, maxp, next_pow, powers))
-            break;
-        curr_T->index = scheduled_tasks++;
-        pool.add_task(process_one_task, &params[curr_T - T], 0);
-        active_task++;
-    }
-
-    // Stage 2: purge last tasks
-    for (unsigned int i = 0; i < active_task; ++i) {
-        task_result * result = pool.get_result();
-        auto * res = static_cast<make_linear_thread_result *>(result);
-        task_info_t * curr_T = res->T;
-
-        unsigned int const just_finished = curr_T->index;
-        if (just_finished == completed_tasks) {
-            store_task_result(*this, *curr_T);
-            completed_tasks++;
-        } else {
-            pending.emplace(just_finished, new task_info_t(*curr_T));
-        }
-        delete result;
-
-        for (; !pending.empty() && pending.top().first == completed_tasks;) {
-            store_task_result(*this, *pending.top().second);
-            delete pending.top().second;
-            pending.pop();
-            completed_tasks++;
-        }
-    }
-    ASSERT_ALWAYS(pending.empty());
-    ASSERT_ALWAYS(completed_tasks == scheduled_tasks);
-
-    delete[] T;
-    delete[] params;
     prime_info_clear(pi);
     finalize();
 }

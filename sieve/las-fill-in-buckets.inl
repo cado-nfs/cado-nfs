@@ -1,33 +1,31 @@
 #ifndef CADO_LAS_FILL_IN_BUCKETS_INL
 #define CADO_LAS_FILL_IN_BUCKETS_INL
 
+#include "fb-types.hpp"
+#include "fb.hpp"
+#include "las-plattice.hpp"
+#include "las-qlattice.hpp"
+#include "threadpool.hpp"
+#include "las-threads-work-data.hpp"
 
 template <int LEVEL, class FB_ENTRY_TYPE>
-static task_result * make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
-                                        task_parameters * _param, int)
+void make_lattice_bases(
+        worker_thread * worker,
+        int side,
+        nfs_work & ws,
+        qlattice_basis const & Q,
+        precomp_plattice_t<LEVEL> & V,
+        fb_slice<FB_ENTRY_TYPE> const & slice)
 {
-    auto const * param =
-        static_cast<
-            make_lattice_bases_parameters<LEVEL, FB_ENTRY_TYPE> const *>(
-            _param);
-
-    int id = worker->rank();
-    nfs_aux::thread_data & taux(param->aux.th[id]);
-    timetree_t & timer(taux.timer);
-
-    nfs_work const & ws(param->ws);
-    auto const & Q(param->Q);
     int const logI = ws.conf.logI;
     sublat_t const & sublat(Q.sublat);
-    auto & V(param->V);
-    auto const & slice(param->slice);
 
-    auto const index0 = ws.sides[param->side].fbs->get_part(LEVEL).first_slice_index;
+    auto const index0 = ws.sides[side].fbs->get_part(LEVEL).first_slice_index;
     auto const index = slice.get_index();
     auto const relative_index = index - index0;
     ASSERT_ALWAYS(relative_index < V.size());
 
-    auto tt = timer.trace(worker->rank(), chronograms::PCLAT { param->side, LEVEL, index });
+    auto tt = worker->trace(chronograms::PCLAT { side, LEVEL, index });
 
     typename FB_ENTRY_TYPE::transformed_entry_t transformed;
     /* Create a transformed vector and store the index of the fb_slice we
@@ -64,8 +62,6 @@ static task_result * make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
     }
     /* This is moved, not copied. Note that V is a reference. */
     V[relative_index] = std::move(result);
-    delete param;
-    return new task_result;
 }
 
 /***********************************************************************/
@@ -95,8 +91,9 @@ template <int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
 static void fill_in_buckets_toplevel_sublat(
     bucket_array_t<LEVEL, TARGET_HINT> & orig_BA, nfs_work & ws,
     qlattice_basis const & Q,
+    plattices_dense_vector_t * p_precomp_slice,
     fb_slice<FB_ENTRY_TYPE> const & slice,
-    plattices_dense_vector_t * p_precomp_slice, where_am_I & w)
+    where_am_I & w)
 {
     int const logI = ws.conf.logI;
 

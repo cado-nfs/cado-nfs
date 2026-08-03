@@ -381,14 +381,7 @@ struct downlink_thread : public thread_link_common { // {{{
         batch.clear();
     }
 
-    std::thread worker;
-
-    downlink_thread(downlink_thread const &) = delete;
-    downlink_thread(downlink_thread &&) noexcept = delete;
-    downlink_thread & operator=(downlink_thread const &) = delete;
-    downlink_thread & operator=(downlink_thread &&) noexcept = delete;
-    downlink_thread() = delete;
-    ~downlink_thread() { worker.join(); }
+    std::jthread worker;
 
     downlink_thread(int id, std::vector<sm_side_info> const & sm_info)
         : thread_link_common(id)
