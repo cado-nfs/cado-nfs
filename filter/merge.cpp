@@ -1289,7 +1289,7 @@ apply_merges (const index_t * L, index_t total_merges, filter_matrix_t *mat,
 static double
 average_density (filter_matrix_t *mat)
 {
-  return (double) mat->tot_weight / (double) mat->rem_nrows;
+  return double_ratio(mat->tot_weight, mat->rem_nrows);
 }
 
 #ifdef DEBUG
@@ -1528,10 +1528,11 @@ int main(int argc, char const * argv[])
 #endif
     printf ("\n");
 
-    printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%zuM\n",
-            mat->rem_nrows, mat->tot_weight, average_density (mat),
+    fmt::print("N={} nc={} ({}) W={} W/N={:.2f} cpu={:.1f}s wct={:.1f}s mem={}\n",
+            mat->rem_nrows, mat->rem_ncols, mat->rem_nrows - mat->rem_ncols,
+            mat->tot_weight, average_density(mat),
             seconds () - cpu0, wct_seconds () - wct0,
-            PeakMemusage () >> 10U);
+            size_disp(PeakMemusage() << 10u));
 #ifdef BIG_BROTHER
     printf("$$$ N: %" PRId64 "\n", mat->nrows);
     printf("$$$ start:\n");
@@ -1663,15 +1664,23 @@ int main(int argc, char const * argv[])
                 double_ratio(mat->tot_weight, mat->rem_nrows),
                 size_disp((mat->rem_nrows + mat->tot_weight) * sizeof(index_t)));
 
-        fmt::print("N={} W={} ({}) W/N={:.2f}"
+        double av_fill_in;
+        if (mat->tot_weight >= lastW) {
+            av_fill_in = double_ratio(mat->tot_weight - lastW,
+                                        lastN - mat->rem_nrows);
+        } else {
+            av_fill_in = -double_ratio(lastW - mat->tot_weight,
+                                        lastN - mat->rem_nrows);
+        }
+        fmt::print("N={} nc={} ({}) W={} ({}) W/N={:.2f}"
                 " fill-in={:.2f} cpu={:.1f}s wct={:.1f}s mem={}"
                 " [pass={},cwmax={}]\n",
-                mat->rem_nrows, mat->tot_weight,
+                mat->rem_nrows, mat->rem_ncols, mat->rem_nrows - mat->rem_ncols,
+                mat->tot_weight,
                 size_disp((mat->rem_nrows + mat->tot_weight) * sizeof(index_t)),
-                double_ratio(mat->tot_weight, mat->rem_nrows),
-                double_ratio(mat->tot_weight - lastW, lastN - mat->rem_nrows),
+                double_ratio(mat->tot_weight, mat->rem_nrows), av_fill_in,
                 seconds () - cpu0, wct_seconds () - wct0,
-                size_disp(PeakMemusage ()), merge_pass, mat->cwmax);
+                size_disp(PeakMemusage () << 10u), merge_pass, mat->cwmax);
         fflush (stdout);
 
         if (average_density (mat) >= target_density)
