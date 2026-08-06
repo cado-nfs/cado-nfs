@@ -4728,8 +4728,7 @@ class PurgeTask(Task):
 
     @property
     def programs(self):
-        override = ("nrels", "out", "outdel",
-                    "nprimes", "filelist", "required_excess")
+        override = ("nrels", "out", "outdel", "filelist", "required_excess")
         return ((cadoprograms.Purge, override,
                  {"_freerel": Request.GET_FREEREL_FILENAME}),)
 
@@ -4773,21 +4772,6 @@ class PurgeTask(Task):
                 self.logger.critical(
                     "No Galois unique relation count received")
                 return False
-
-        nprimes = self.send_request(Request.GET_RENUMBER_PRIMECOUNT)
-        # If the user didn't give col_min_index, let's compute it.
-        col_min_index = int(self.progparams[0].get("col_min_index", -1))
-        if col_min_index == -1:
-            # Note: on RSA-120, reducing col_min_index from nprimes/20 to
-            # nprimes/40 decreases the matrix size after purge by 3.1%,
-            # and the final matrix by 1.4%, while not increasing the memory
-            # usage of purge, and increasing the cpu time of purge by only 13%.
-            col_min_index = int(nprimes / 40.0)
-            # For small cases, we want to avoid degenerated cases, so let's
-            # keep most of the ideals: memory is not an issue in that case.
-            if (col_min_index < 10000):
-                col_min_index = min(500, nprimes-1)
-            self.progparams[0].setdefault("col_min_index", col_min_index)
 
         if "purgedfile" in self.state and not self.have_new_input_files() and \
                 input_nrels == self.state["input_nrels"]:
@@ -4841,7 +4825,6 @@ class PurgeTask(Task):
             p = cadoprograms.Purge(*files,
                                    out=purgedfile,
                                    outdel=relsdelfile, keep=keep,
-                                   nprimes=nprimes,
                                    stdout=str(stdoutpath),
                                    stderr=str(stderrpath),
                                    **self.progparams[0])
@@ -4849,7 +4832,6 @@ class PurgeTask(Task):
             filelistname = self.make_filelist(files, prefix=self.name)
             p = cadoprograms.Purge(out=purgedfile,
                                    outdel=relsdelfile, keep=keep,
-                                   nprimes=nprimes,
                                    filelist=filelistname,
                                    stdout=str(stdoutpath),
                                    stderr=str(stderrpath),

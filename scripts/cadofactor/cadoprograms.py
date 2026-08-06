@@ -1214,9 +1214,6 @@ class Purge(Program):
                  subdirlist: Parameter() = None,
                  outdel: Parameter(is_output_file=True) = None,
                  keep: Parameter(checktype=int) = None,
-                 col_min_index: Parameter(dash=True, checktype=int) = None,
-                 nprimes: Parameter("col-max-index",  # noqa: F821
-                                    checktype=int) = None,
                  threads: Parameter("t", checktype=int) = None,  # noqa: F821
                  npass: Parameter(checktype=int) = None,
                  force_posix_threads: Toggle(dash=True) = None,

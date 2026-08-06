@@ -36,5 +36,5 @@ tasks.sieve.rels_wanted = 250
 ###########################################################################
 
 # needed for small input, otherwise coeffs of the matrix will overflow
-tasks.filter.target_density = 18
+tasks.filter.target_density = 10
 tasks.nmatrices = 2
