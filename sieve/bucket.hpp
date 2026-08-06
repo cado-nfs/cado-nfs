@@ -389,7 +389,7 @@ template <int LEVEL, hint_type HINT> class bucket_array_t
     las_output * output_p = nullptr;
 
   public:
-    static int const level = LEVEL;
+    static constexpr int const level = LEVEL;
     using update_t = bucket_update_t<LEVEL, HINT>;
     using row_update_t = bucket_row_update_t<LEVEL, HINT>;
 

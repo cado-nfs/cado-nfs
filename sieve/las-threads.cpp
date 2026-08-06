@@ -61,7 +61,7 @@ reservation_array_base<T>::allocate_buckets(las_memory_accessor & memory, int n_
 template <bucket_array_type T>
 T & reservation_array<T, false>::inner_reserve()
 {
-    auto lock = super::get_lock();
+    auto lock = get_lock();
 
     while (available_buckets.empty())
         cv.wait(lock);
@@ -81,41 +81,10 @@ T & reservation_array<T, false>::inner_reserve()
 
 template <bucket_array_type T>
 void reservation_array<T, false>::release(T &BA) {
-    auto lock = super::get_lock();
+    auto lock = get_lock();
     const double ratio = BA.average_full();
     available_buckets.emplace(ratio, super::rank(BA));
     cv.notify_one();
-}
-
-/* Reserve the required number of bucket arrays. For shorthint BAs, we
- * need at least as many as there are threads filling them (or more, for
- * balancing). This is controlled by the nr_workspaces field in
- * nfs_work.  For longhint, the parallelization scheme is a bit
- * different, hence we specify directly here the number of threads that
- * will fill these bucket arrays by downsosrting. Older code had that
- * downsorting single-threaded.
- */
-reservation_group::reservation_group(int nr_bucket_arrays)
-  : RA1_short(nr_bucket_arrays)
-  , RA1_empty(nr_bucket_arrays)
-#if MAX_TOPLEVEL >= 2
-    /* currently the parallel downsort imposes restrictions on the number
-     * of bucket arrays we must have here and there. In particular #2s ==
-     * #1l.
-     */
-  , RA2_short(nr_bucket_arrays)
-  , RA2_empty(nr_bucket_arrays)
-  , RA1_long(nr_bucket_arrays)
-  , RA1_logp(nr_bucket_arrays)
-#endif
-#if MAX_TOPLEVEL >= 3
-  , RA3_short(nr_bucket_arrays)
-  , RA3_empty(nr_bucket_arrays)
-  , RA2_long(nr_bucket_arrays)
-  , RA2_logp(nr_bucket_arrays)
-#endif
-{
-    static_assert(MAX_TOPLEVEL == 3);
 }
 
 

@@ -203,7 +203,7 @@ class nfs_work {
         template <int LEVEL, hint_type HINT>
             std::vector<bucket_array_t<LEVEL, HINT>> const &
             bucket_arrays() const {
-                return group.cget<LEVEL, HINT>().bucket_arrays();
+                return group.get<LEVEL, HINT>().bucket_arrays();
             }
 
         dumpfile_t dumpfile;
