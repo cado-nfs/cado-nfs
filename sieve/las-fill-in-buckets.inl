@@ -1,12 +1,15 @@
 #ifndef CADO_LAS_FILL_IN_BUCKETS_INL
 #define CADO_LAS_FILL_IN_BUCKETS_INL
 
+#include "bucket.hpp"
+#include "bucket-push-update.hpp"
 #include "fb-types.hpp"
 #include "fb.hpp"
 #include "las-plattice.hpp"
 #include "las-qlattice.hpp"
 #include "threadpool.hpp"
 #include "las-threads-work-data.hpp"
+#include "las-fill-in-buckets.hpp"
 
 template <int LEVEL, class FB_ENTRY_TYPE>
 void make_lattice_bases(

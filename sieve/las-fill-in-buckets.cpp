@@ -12,15 +12,14 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <vector>
-#include <type_traits>
 
-#include "fmt/compile.h"
-
-#include "bucket-push-update.hpp"
 #include "bucket.hpp"
+#include "bucket-push-update.hpp"       // IWYU pragma: keep
 #include "chronograms.hpp"
 #include "fb-types.hpp"
 #include "fb.hpp"
@@ -28,12 +27,10 @@
 #include "las-bkmult.hpp"
 #include "las-config.hpp"
 #include "las-fill-in-buckets.hpp"
-#include "las-process-bucket-region.hpp"
-#include "las-qlattice.hpp"
 #include "las-globals.hpp"
+#include "las-process-bucket-region.hpp"
 #include "las-report-stats.hpp"
 #include "las-siever-config.hpp"
-#include "las-smallsieve.hpp"
 #include "las-threads-work-data.hpp"
 #include "las-where-am-i-proxy.hpp"
 #include "las-where-am-i.hpp"
@@ -41,14 +38,7 @@
 #include "multityped_array.hpp"
 #include "tdict.hpp"
 #include "threadpool.hpp"
-#include "utils_cxx.hpp"
 #include "verbose.hpp"
-
-/* is this in the std library or not ? */
-template <typename T> static inline T const & const_ref(T & x)
-{
-    return x;
-}
 
 /***************************************************************************/
 /********        Main bucket sieving functions                    **********/
