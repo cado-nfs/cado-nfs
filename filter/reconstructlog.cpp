@@ -15,6 +15,7 @@
 #include <utility>
 #include <string>
 #include <limits>
+#include <ios>
 
 #include <gmp.h>
 #include "fmt/base.h"
