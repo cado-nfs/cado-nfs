@@ -1,5 +1,5 @@
 
-include(FindOpenMP)
+find_package(OpenMP)
 
 if (OPENMP_FOUND)
     set (HAVE_OPENMP 1)
@@ -32,7 +32,8 @@ macro(mark_targets_as_openmp)
             # else()
             #     set_property(TARGET ${t} APPEND PROPERTY LIBRARIES ${OpenMP_C_LIBRARIES})
             # endif()
-            target_link_libraries(${t} ${OpenMP_C_LIBRARIES})
+            # target_link_libraries(${t} ${OpenMP_C_LIBRARIES})
+            target_link_libraries(${t} PRIVATE OpenMP::OpenMP_C OpenMP::OpenMP_CXX)
         endforeach()
     endif()
 endmacro()

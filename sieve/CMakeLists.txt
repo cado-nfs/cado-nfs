@@ -9,7 +9,7 @@ link_directories (${CMAKE_CURRENT_BINARY_DIR}/ecm)
 
 # ugly (copied from linalg/bwc/CMakeLists.txt...)
 add_executable (makefb makefb.cpp)
-target_link_libraries (makefb utils)
+target_link_libraries (makefb PRIVATE utils)
 
 add_library (trialdiv OBJECT trialdiv.cpp)
 
@@ -17,7 +17,9 @@ add_library(las_core_0 OBJECT
         las-side-config.cpp)
 
 add_executable(freerel freerel.cpp $<TARGET_OBJECTS:las_core_0>)
-target_link_libraries(freerel utils)
+target_link_libraries(freerel PRIVATE utils)
+mark_targets_as_openmp(freerel)
+
 
 # las_core_a has just very very basic types and code that can be used
 # (and are actually used) by some unit tests.
@@ -110,7 +112,7 @@ add_executable(las
     $<TARGET_OBJECTS:las_core_0>
     $<TARGET_OBJECTS:trialdiv>
     )
-target_link_libraries (las facul utils)
+    target_link_libraries (las PRIVATE facul utils)
 
 add_executable(las_tracek
     las-where-am-i-debug.cpp
@@ -123,7 +125,7 @@ add_executable(las_tracek
     $<TARGET_OBJECTS:las_core_0>
     $<TARGET_OBJECTS:trialdiv>
     )
-target_link_libraries (las_tracek facul utils)
+    target_link_libraries (las_tracek PRIVATE facul utils)
 set_property(TARGET las_tracek PROPERTY COMPILE_DEFINITIONS TRACE_K=1)
 
 add_executable(siqs
@@ -137,7 +139,7 @@ add_executable(siqs
     $<TARGET_OBJECTS:las_core_0>
     $<TARGET_OBJECTS:trialdiv>
     )
-target_link_libraries (siqs facul utils)
+    target_link_libraries (siqs PRIVATE facul utils)
 set_property(TARGET siqs PROPERTY COMPILE_DEFINITIONS SUPPORT_LARGE_Q=1 SIQS_SIEVE=1)
 
 add_executable(siqs_tracek
@@ -151,7 +153,7 @@ add_executable(siqs_tracek
     $<TARGET_OBJECTS:las_core_0>
     $<TARGET_OBJECTS:trialdiv>
     )
-target_link_libraries (siqs_tracek facul utils)
+    target_link_libraries (siqs_tracek PRIVATE facul utils)
 set_property(TARGET siqs_tracek PROPERTY COMPILE_DEFINITIONS SUPPORT_LARGE_Q=1 SIQS_SIEVE=1 TRACE_K=1)
 
 add_executable(las_descent
@@ -165,7 +167,7 @@ add_executable(las_descent
     $<TARGET_OBJECTS:las_core_0>
     $<TARGET_OBJECTS:trialdiv>
     )
-target_link_libraries (las_descent facul utils)
+    target_link_libraries (las_descent PRIVATE facul utils)
 set_property(TARGET las_descent PROPERTY COMPILE_DEFINITIONS DLP_DESCENT SUPPORT_LARGE_Q)
 
 add_subdirectory(ecm)
@@ -180,10 +182,10 @@ add_executable(dupsup dupsup.cpp
     $<TARGET_OBJECTS:las_core_0>
     $<TARGET_OBJECTS:trialdiv>
     )
-target_link_libraries(dupsup facul utils)
+    target_link_libraries(dupsup PRIVATE facul utils)
 
 add_executable(fake_rels EXCLUDE_FROM_ALL fake_rels.cpp)
-target_link_libraries(fake_rels utils_with_io)
+target_link_libraries(fake_rels PRIVATE utils_with_io)
 
 install(TARGETS makefb las las_descent freerel RUNTIME DESTINATION ${LIBSUFFIX}/sieve) 
 

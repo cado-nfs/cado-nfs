@@ -70,12 +70,6 @@
 #error "Choice for reduce-scatter strategy is invalid or not supported"
 #endif
 
-/* we no longer use this.
-#ifdef  HAVE_MPI3_API
-#define MPI_LIBRARY_NONBLOCKING_COLLECTIVES
-#endif
-*/
-
 /* {{{ mmt_vec_broadcast (generic interface) */
 /* mmt_vec_broadcast reads data in mmt.wr[d]->v, and broadcasts it across the
  * communicator mmt.pi.wr[d] ; eventually everybody on the communicator

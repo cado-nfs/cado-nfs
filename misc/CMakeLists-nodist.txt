@@ -1,14 +1,14 @@
 
 add_executable(psi EXCLUDE_FROM_ALL psi.c)
-target_link_libraries (psi utils)
+target_link_libraries(psi PRIVATE utils)
 
 add_executable(convert_poly EXCLUDE_FROM_ALL convert_poly.c)
-target_link_libraries(convert_poly utils)
+target_link_libraries(convert_poly PRIVATE utils)
 
 add_executable(convert_rels EXCLUDE_FROM_ALL convert_rels.cpp)
-target_link_libraries(convert_rels utils)
+target_link_libraries(convert_rels PRIVATE utils)
 
 add_executable(svsm EXCLUDE_FROM_ALL svsm.c)
-target_link_libraries(svsm utils)
+target_link_libraries(svsm PRIVATE utils)
 
 # vim: set ft=cmake:

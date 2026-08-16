@@ -2,7 +2,7 @@
 include_directories(${CADO_NFS_SOURCE_DIR}/numbertheory)
 
 add_executable(test-ant test-ant.cpp)
-target_link_libraries(test-ant utils)
+target_link_libraries(test-ant PRIVATE utils)
 
 if (SAGE)
     macro(numbertheory_sagemath_test name)

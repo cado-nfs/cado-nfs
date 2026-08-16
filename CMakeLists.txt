@@ -456,23 +456,6 @@ configure_file(cado_mpi_config_h.in cado_mpi_config.h ESCAPE_QUOTES @ONLY)
 # set)
 include(config/gmpecm.cmake)
 
-#####################################################################
-# OK, it's freakin ugly. Don't look.
-
-# there would have been ways to do it without a generated helper script,
-# I guess -- unfortunately I couldn't find one ;-((
-configure_file(config/ccwrap.pl.in ccwrap.pl ESCAPE_QUOTES @ONLY)
-configure_file(config/cxxwrap.pl.in cxxwrap.pl ESCAPE_QUOTES @ONLY)
-
-set(CMAKE_C_COMPILER "${CADO_NFS_BINARY_DIR}/ccwrap.pl")
-set(CMAKE_CXX_COMPILER "${CADO_NFS_BINARY_DIR}/cxxwrap.pl")
-
-# It's weird. This thing does not seem to apply, or at least not always. I've
-# cured the problem by tweaking ccwrap, and let it decide whether it's linking
-# or not. If yes, then it uses g++ rather than gcc (or mpic++ vs mpicc)
-set(CMAKE_C_LINKER_PREFERENCE "${CADO_NFS_BINARY_DIR}/cxxwrap.pl")
-set(CMAKE_CXX_LINKER_PREFERENCE "${CADO_NFS_BINARY_DIR}/cxxwrap.pl")
-
 if (NOT "$ENV{IWYU}" MATCHES "^(0|NO|no|OFF|off|)$")
     message(STATUS "Enabling iwyu when compiling c++ code")
     set(findprog_flags)

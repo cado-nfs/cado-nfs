@@ -67,7 +67,7 @@ macro(cado_nfs_test_handle_script_or_binary)
     # TARGET_DEPENDENCIES is probably for scripts anyway.
     if (nSCRIPT EQUAL 0)
         add_executable(${TEST_NAME} ${SOURCES})
-        target_link_libraries(${TEST_NAME} ${LIBRARIES})
+        target_link_libraries(${TEST_NAME} PUBLIC ${LIBRARIES})
         set(EXECUTABLE ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME})
         list(APPEND TARGET_DEPENDENCIES ${TEST_NAME})
         list(LENGTH TARGET_DEPENDENCIES nTARGET_DEPENDENCIES)

@@ -462,12 +462,14 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     add_executable(time_matpoly_ft_parallel_${layer} EXCLUDE_FROM_ALL
         time_matpoly_ft_parallel.cpp)
     target_link_libraries(time_matpoly_ft_parallel_${layer}
+        PRIVATE
         lingen_${layer}_support)
 
     add_executable(test_lingen_mini_${layer} EXCLUDE_FROM_ALL
         test_lingen_mini.cpp
     )
     target_link_libraries(test_lingen_mini_${layer}
+        PRIVATE
         lingen_${layer}_core)
 
     mark_targets_as_mpi(
@@ -521,6 +523,7 @@ foreach(layer b64)
     add_executable(time_matpoly_ft_parallel_${layer} EXCLUDE_FROM_ALL
         time_matpoly_ft_parallel.cpp)
     target_link_libraries(time_matpoly_ft_parallel_${layer}
+        PRIVATE
         lingen_${layer}_support)
 
     mark_targets_as_mpi(
@@ -636,7 +639,7 @@ endif()
 #########################################################################
 
 add_executable(test-parallelizing_info test-parallelizing_info.cpp)
-target_link_libraries(test-parallelizing_info utils bwc_base)
+target_link_libraries(test-parallelizing_info PRIVATE utils bwc_base)
 mark_targets_as_mpi(test-parallelizing_info)
 set(mpiconfs mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
 if (NOT HAVE_MPI OR CMAKE_VERSION VERSION_LESS 3.9)
@@ -690,10 +693,10 @@ endif()
 
 add_executable(spmv_test EXCLUDE_FROM_ALL spmv_test.cpp)
 mark_targets_as_mpi(spmv_test)
-target_link_libraries(spmv_test bwc_base)
+target_link_libraries(spmv_test PRIVATE bwc_base)
 
 add_executable(short_matmul short_matmul.c)
-target_link_libraries(short_matmul bwc_base)
+target_link_libraries(short_matmul PRIVATE bwc_base)
 
 set(test_spmv_binary_b64_alltests YES)
 set(test_spmv_binary_b128_alltests YES)
@@ -879,7 +882,7 @@ include_directories(${PROJECT_BINARY_DIR}/linalg/bwc)
 #########################################################################
 
 add_executable(test_hello test_hello.cpp)
-target_link_libraries(test_hello bwc_base)
+target_link_libraries(test_hello PRIVATE bwc_base)
 mark_targets_as_mpi(test_hello)
 set(mpiconfs mpi_rect1 mpi_square1)
 if(DEFINED ENV{CHECKS_EXPENSIVE})

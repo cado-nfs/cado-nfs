@@ -107,17 +107,17 @@ set(bwc_base_sources
 
 mpi_add_library(bwc_base ${CADO_SHARED} ${bwc_base_sources})
 
-target_link_libraries(bwc_base bwc_parallelization)
+target_link_libraries(bwc_base PUBLIC bwc_parallelization)
 
-target_link_libraries(bwc_base ${gmp_libname})
+target_link_libraries(bwc_base PUBLIC ${gmp_libname})
 if (HAVE_CURL)
-target_link_libraries(bwc_base curl)
+    target_link_libraries(bwc_base PUBLIC curl)
 endif()
 
-target_link_libraries(bwc_base bblas)
+target_link_libraries(bwc_base PUBLIC bblas)
 
 if(HAVE_HWLOC)
-target_link_libraries(bwc_base hwloc)
+    target_link_libraries(bwc_base PUBLIC hwloc)
 endif()
 
 
@@ -128,13 +128,13 @@ endif()
 ### end bwc_base
 
 mpi_add_executable(mf_scan2 ${EXCLUDE_FROM_RELEASE_BUILD} mf_scan2.cpp)
-target_link_libraries(mf_scan2 bwc_base)
+target_link_libraries(mf_scan2 PRIVATE bwc_base)
 
 
 include_directories(${CADO_NFS_SOURCE_DIR}/linalg)
 
 mpi_add_executable(mf_bal mf_bal_main.cpp)
-target_link_libraries(mf_bal bwc_base m)
+target_link_libraries(mf_bal PRIVATE bwc_base m)
 install(TARGETS mf_bal RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 
 
@@ -143,7 +143,7 @@ configure_file(bwc.pl ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl ESCAPE_QUOTES @ONLY)
 add_executable(random_matrix ${EXCLUDE_FROM_RELEASE_BUILD}
     random_matrix.cpp)
 set_property(TARGET random_matrix PROPERTY COMPILE_DEFINITIONS WANT_MAIN)
-target_link_libraries(random_matrix utils)
+target_link_libraries(random_matrix PRIVATE utils)
 mark_targets_as_mpi(random_matrix)
 
 if(BUILD_DYNAMICALLY_LINKABLE_BWC)
@@ -238,7 +238,7 @@ endmacro()
 
 
 add_library(bwc_arith ${CADO_SHARED} arith-generic.cpp)
-target_link_libraries(bwc_arith utils)
+target_link_libraries(bwc_arith PUBLIC utils)
 mark_targets_as_mpi(bwc_arith)
 
 
@@ -275,7 +275,7 @@ if(BUILD_DYNAMICALLY_LINKABLE_BWC)
         # include arith-hard.hpp
 
         add_library(arithmetic_${v} ${CADO_SHARED} arith-generic.cpp)
-        target_link_libraries(arithmetic_${v} utils)
+        target_link_libraries(arithmetic_${v} PUBLIC utils)
         mark_targets_as_mpi(arithmetic_${v})
         set_property(TARGET arithmetic_${v}
             APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
@@ -297,7 +297,7 @@ if(BUILD_DYNAMICALLY_LINKABLE_BWC)
     set_target_properties(bwc_arith PROPERTIES BUILD_RPATH
         "${CMAKE_CURRENT_BINARY_DIR}")
 
-    target_link_libraries(bwc_arith dl)
+    target_link_libraries(bwc_arith PUBLIC dl)
 
     install(TARGETS bwc_arith DESTINATION ${LIBSUFFIX}/linalg/bwc)
 else()
@@ -312,7 +312,7 @@ endif()
 ### link dependencies
 
 # we will probably need to link bwc_base with bwc_mpfq
-target_link_libraries(bwc_base utils ${pthread_libs} bwc_arith)
+target_link_libraries(bwc_base PUBLIC utils ${pthread_libs} bwc_arith)
 
 # matmul_common is a dependency of all the impl-specific libs. When doing
 # dynamic linking, there's no real need to make matmul_common *also*
@@ -320,7 +320,7 @@ target_link_libraries(bwc_base utils ${pthread_libs} bwc_arith)
 # Unfortunately, we do want matmul_common to be compiled with -fPIC,
 # then. Which is easiest to trigger by making it a shared object.
 mpi_add_library(matmul_common ${CADO_SHARED} matmul-common.cpp)
-target_link_libraries(matmul_common utils)
+target_link_libraries(matmul_common PUBLIC utils)
 if(ENABLE_SHARED)
     install(TARGETS matmul_common DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endif()
@@ -362,7 +362,7 @@ macro(CONFIGURE_MATMUL_LIB v i)
         endif()
 
         add_library(matmul_${v}_${i} ${CADO_SHARED} ${sources})
-        target_link_libraries(matmul_${v}_${i} matmul_common)#  bwc_mpfq)
+        target_link_libraries(matmul_${v}_${i} PUBLIC matmul_common)#  bwc_mpfq)
         mark_targets_as_mpi(matmul_${v}_${i})
         set_property(TARGET matmul_${v}_${i}
             APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
@@ -409,7 +409,7 @@ configure_file(bwc_config_h.in bwc_config.h ESCAPE_QUOTES @ONLY)
 # possible implementation for just any single run of bwc. Define
 # ENABLE_SHARED=1 in local.sh to avoid this pitfall.
 if(NOT BUILD_DYNAMICALLY_LINKABLE_BWC)
-target_link_libraries(bwc_base ${all_matmul_gf2_libs} ${all_matmul_gfp_libs})
+    target_link_libraries(bwc_base PUBLIC ${all_matmul_gf2_libs} ${all_matmul_gfp_libs})
 endif()
 
 macro(bwc_program_base v)
@@ -417,7 +417,7 @@ macro(bwc_program_base v)
     set_target_properties(${v} PROPERTIES
             LINKER_LANGUAGE CXX)
         # -Wl,-rpath,${CMAKE_CURRENT_BINARY_DIR}")
-    target_link_libraries(${v} bwc_base)
+        target_link_libraries(${v} PRIVATE bwc_base)
 endmacro()
 
 # The macro bwc_program_extra is mostly used by the binaries specific to
@@ -433,8 +433,8 @@ endmacro()
 
 bwc_program(acollect acollect.cpp)
 bwc_program(prep prep.cpp xdotprod.cpp)
-target_link_libraries(prep bitlinalg)
-target_link_libraries(prep bblas)
+target_link_libraries(prep PRIVATE bitlinalg)
+target_link_libraries(prep PRIVATE bblas)
 bwc_program(krylov krylov.cpp xdotprod.cpp)
 bwc_program(bwccheck bwccheck.cpp xdotprod.cpp bwc_filenames.cpp)
 bwc_program(dispatch dispatch.cpp xdotprod.cpp)
@@ -443,8 +443,8 @@ bwc_program(det_from_lingen det_from_lingen.cpp)
 bwc_program(gather gather.cpp)
 bwc_program(secure secure.cpp)
 bwc_program(blocklanczos blocklanczos.cpp blocklanczos_extraction.cpp)
-target_link_libraries(blocklanczos bitlinalg)
-target_link_libraries(blocklanczos bblas)
+target_link_libraries(blocklanczos PRIVATE bitlinalg)
+target_link_libraries(blocklanczos PRIVATE bblas)
 
 # bwc_program_base is good for programs that we don't want to see when we
 # do "make install"
@@ -473,7 +473,7 @@ set_property(SOURCE lingen_qcode_binary.cpp
     APPEND PROPERTY COMPILE_DEFINITIONS GF2X_CANTOR_BASE_FIELD_SIZE=128)
 
 add_executable(cleanup cleanup.cpp)
-target_link_libraries(cleanup bitlinalg utils)
+target_link_libraries(cleanup PRIVATE bitlinalg utils)
 
 install(TARGETS cleanup RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 
@@ -507,7 +507,7 @@ add_library(lingen_common_support
 if(ENABLE_SHARED)
     set_property(TARGET lingen_common_support PROPERTY POSITION_INDEPENDENT_CODE ON)
 endif()
-# not-for-OBJECT target_link_libraries(lingen_common_support ${gmp_libname} utils)
+# not-for-OBJECT target_link_libraries(lingen_common_support PUBLIC ${gmp_libname} utils)
 mark_targets_as_openmp(lingen_common_support)
 mark_targets_as_mpi(lingen_common_support)
 
@@ -572,7 +572,7 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     mark_targets_as_openmp(lingen_verify_checkpoints_${v})
     set_property(TARGET lingen_verify_checkpoints_${v}
         APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
-    target_link_libraries(lingen_verify_checkpoints_${v} utils)
+    target_link_libraries(lingen_verify_checkpoints_${v} PRIVATE utils)
 
     # lingen_bz could make sense for testing, but we certainly do not
     # want to  use it.
@@ -588,29 +588,31 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     endif()
     install(TARGETS lingen_${v}_support DESTINATION ${LIBSUFFIX}/linalg/bwc)
 
-    target_link_libraries(lingen_${v}_support lingen_common_support)
-    target_link_libraries(lingen_${v}_core lingen_${v}_support)
+    target_link_libraries(lingen_${v}_support PUBLIC lingen_common_support)
+    target_link_libraries(lingen_${v}_core PUBLIC lingen_${v}_support)
 
-    target_link_libraries(lingen_${v}_support 
+    target_link_libraries(lingen_${v}_support PUBLIC 
         lingen_common_support utils)
 
     if (v STREQUAL "b64")
         if(NOT HAVE_GF2X)
             add_dependencies(lingen_${v}_support gf2x-build)
         endif()
-        target_link_libraries(lingen_${v}_support gf2x bblas)
+        target_link_libraries(lingen_${v}_support PUBLIC gf2x bblas)
     else()
         # In fact the dependency could be put on lingen_${v} instead ;
         # however time_matpoly_parallel relies on _support to provide the
         # full thing.
-        target_link_libraries(lingen_${v}_support flint-fft)
+        target_link_libraries(lingen_${v}_support PUBLIC flint-fft)
     endif()
 
     target_link_libraries(lingen_${v}
+        PUBLIC
         lingen_${v}_core
         lingen_${v}_support
     )
     target_link_libraries(lingen_verify_checkpoints_${v}
+        PUBLIC
         lingen_${v}_support
     )
 
@@ -653,9 +655,9 @@ add_dependencies(bwc_full bwc_full_gf2 bwc_full_gfp)
 
 # Those are used only for tests.
 bwc_program_extra(build_matcache build_matcache.cpp)
-target_link_libraries(build_matcache bwc_base)
+target_link_libraries(build_matcache PRIVATE bwc_base)
 bwc_program_extra(bench_matcache bench_matcache.cpp worker-threads.c)
-target_link_libraries(bench_matcache bwc_base)
+target_link_libraries(bench_matcache PRIVATE bwc_base)
 
 add_executable(bench_polmatmul EXCLUDE_FROM_ALL bench_polmatmul.cpp)
 set_property(SOURCE bench_polmatmul.cpp
@@ -665,7 +667,7 @@ mark_targets_as_openmp(bench_polmatmul)
 if(NOT HAVE_GF2X)
 add_dependencies(bench_polmatmul gf2x-build)
 endif()
-target_link_libraries(bench_polmatmul utils gf2x)
+target_link_libraries(bench_polmatmul PRIVATE utils gf2x)
 
 
 include(CMakeLists-nodist.txt OPTIONAL)

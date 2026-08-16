@@ -1,14 +1,14 @@
 add_executable (rotate rotate.cpp)
-target_link_libraries (rotate polyselect_common)
+target_link_libraries(rotate PRIVATE polyselect_common)
 
 add_executable (rotate_all rotate_all.cpp)
-target_link_libraries (rotate_all polyselect_common)
+target_link_libraries(rotate_all PRIVATE polyselect_common)
 
 add_executable (twoquadratics EXCLUDE_FROM_ALL twoquadratics.cpp)
-target_link_libraries (twoquadratics polyselect_common)
+target_link_libraries(twoquadratics PRIVATE polyselect_common)
 
 add_executable (sopt sopt.cpp)
-target_link_libraries (sopt polyselect_common)
+target_link_libraries(sopt PRIVATE polyselect_common)
 
 # this one has failed to compile for several years.
 # add_executable (twocubics
@@ -17,10 +17,10 @@ target_link_libraries (sopt polyselect_common)
 #     $<TARGET_OBJECTS:polyselect_middle>
 #     )
 # mark_targets_as_openmp(twocubics)
-# target_link_libraries (twocubics polyselect_common utils ${pthread_libs})
+# target_link_libraries (twocubics PRIVATE polyselect_common utils ${pthread_libs})
  
 add_executable (rootsieve1 EXCLUDE_FROM_ALL rootsieve1.cpp ${ropt_sources})
 mark_targets_as_openmp(rootsieve1)
-target_link_libraries (rootsieve1 polyselect_common)
+target_link_libraries (rootsieve1 PRIVATE polyselect_common)
 
 # vim: set ft=cmake:

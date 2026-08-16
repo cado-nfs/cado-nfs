@@ -8,7 +8,7 @@ include_directories(bblas)
 # the bitlinalg library will almost surely go away at some point, or
 # possibly be incorporated in bblas
 add_library(bitlinalg OBJECT blockmatrix.cpp)
-target_link_libraries(bitlinalg bblas)
+target_link_libraries(bitlinalg PUBLIC bblas)
 
 if(NOT HAVE_GF2X)
 add_dependencies(bitlinalg gf2x-build)
@@ -16,7 +16,7 @@ endif()
 
 
 add_executable(characters characters.cpp bwc/worker-threads.c)
-target_link_libraries(characters bitlinalg utils_with_io pthread)
+target_link_libraries(characters PRIVATE bitlinalg utils_with_io pthread)
 install(TARGETS characters RUNTIME DESTINATION ${LIBSUFFIX}/linalg)
 
 if(HAVE_M4RI)

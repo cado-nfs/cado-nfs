@@ -1,6 +1,6 @@
 
 add_executable(issmooth issmooth.c)
-target_link_libraries(issmooth utils)
+target_link_libraries(issmooth PRIVATE utils)
 
 # vim: set ft=cmake:
 
