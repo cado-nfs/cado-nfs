@@ -184,7 +184,10 @@ struct logtab { /* {{{ */
             {
                 const std::scoped_lock dummy(log.lock);
                 if (is_known_unlocked()) {
-                    cxx_mpz v0 { *this };
+                    /* Do not rely on the parent accessor, because its
+                     * "ugly" field was accessed outside the lock.
+                     */
+                    cxx_mpz v0 { std::as_const(log)[h] };
                     fmt::print(stderr,
                             "ERROR, inconsistent log for h = {} ;"
                             " we previously had {} in the database,"
