@@ -52,6 +52,7 @@ config/cado_check_cxx_source_compiles.cmake
 config/check_cpu_feature.cmake
 config/check_types.cmake
 config/clock_gettime.cmake
+config/compiler-bugs.cmake
 config/compression.cmake
 config/cxxabi.cmake
 config/detect-coverage.cmake
@@ -63,7 +64,6 @@ config/fmt.cmake
 config/fmtbase.h.in
 config/gas-assembly.cmake
 config/gcc-bug-58805.c
-config/gcc-bugs.cmake
 config/gcc-inline-assembly.cmake
 config/gcc-ubuntu-bug.c
 config/gdb.cmake
@@ -83,6 +83,7 @@ config/iwyu.pl.in
 config/jevents.cmake
 config/libstdc++-bug-114153.cpp
 config/linux.cmake
+config/llvm-bug-201065.c
 config/m4ri.cmake
 config/math-special.cmake
 config/math-special.cpp

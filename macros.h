@@ -217,6 +217,33 @@ LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,(X),(Y),(Z))
 #endif
 #endif
 
+#ifndef CLANG_VERSION
+#ifndef __clang__
+#define CLANG_VERSION(X,Y,Z) 0
+#else
+#define CLANG_VERSION(X,Y,Z)     \
+(__clang_major__ == (X) && __clang_minor__ == (Y) && __clang_patchlevel__ == (Z))
+#endif
+#endif
+
+#ifndef CLANG_VERSION_ATLEAST
+#ifndef __clang__
+#define CLANG_VERSION_ATLEAST(X,Y,Z) 0
+#else
+#define CLANG_VERSION_ATLEAST(X,Y,Z)     \
+LEXGE3(__clang_major__,__clang_minor__,__clang_patchlevel__,(X),(Y),(Z))
+#endif
+#endif
+
+#ifndef CLANG_VERSION_ATMOST
+#ifndef __clang__
+#define CLANG_VERSION_ATMOST(X,Y,Z) 0
+#else
+#define CLANG_VERSION_ATMOST(X,Y,Z)     \
+LEXLE3(__clang_major__,__clang_minor__,__clang_patchlevel__,(X),(Y),(Z))
+#endif
+#endif
+
 #ifndef INTEL_CC_VERSION
 #ifndef __INTEL_COMPILER
 #define INTEL_CC_VERSION(X, Y, Z) 0
