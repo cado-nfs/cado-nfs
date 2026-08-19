@@ -236,7 +236,7 @@ using delete_FILE = std::default_delete<FILE>;
 // NOLINTEND(bugprone-macro-parentheses)
 
 
-static inline std::vector<std::string> split(
+inline std::vector<std::string> split(
         const std::string& s,
         const std::string& delimiter)
 {
@@ -253,7 +253,7 @@ static inline std::vector<std::string> split(
 }
 
 template<typename Iterable>
-static inline std::string join(Iterable first, Iterable last,
+inline std::string join(Iterable first, Iterable last,
         const std::string& delimiter)
 {
     std::string ret;
@@ -265,7 +265,7 @@ static inline std::string join(Iterable first, Iterable last,
 }
 
 template<typename Lambda, typename Iterable>
-static inline std::string join(Iterable first, Iterable last,
+inline std::string join(Iterable first, Iterable last,
         const std::string& delimiter,
         Lambda lambda)
 {
@@ -278,7 +278,7 @@ static inline std::string join(Iterable first, Iterable last,
 }
 
 template<typename ItemType>
-static inline std::string join(std::vector<ItemType> const & items,
+inline std::string join(std::vector<ItemType> const & items,
         const std::string& delimiter)
 {
     return join(items.begin(), items.end(), delimiter);
@@ -288,7 +288,7 @@ static inline std::string join(std::vector<ItemType> const & items,
  * generic map construction
  */
 template<typename Lambda, typename ItemType>
-static inline std::string join(std::vector<ItemType> const & items,
+inline std::string join(std::vector<ItemType> const & items,
         const std::string& delimiter,
         Lambda lambda)
 {
@@ -296,7 +296,7 @@ static inline std::string join(std::vector<ItemType> const & items,
 }
 
 template<typename ItemType, size_t N>
-static inline std::string join(std::array<ItemType, N> const & items,
+inline std::string join(std::array<ItemType, N> const & items,
         const std::string& delimiter)
 {
     return join(items.begin(), items.end(), delimiter);
@@ -306,7 +306,7 @@ static inline std::string join(std::array<ItemType, N> const & items,
  * generic map construction
  */
 template<typename Lambda, typename ItemType, size_t N>
-static inline std::string join(std::array<ItemType, N> const & items,
+inline std::string join(std::array<ItemType, N> const & items,
         const std::string& delimiter,
         Lambda lambda)
 {
@@ -429,7 +429,7 @@ void checked_realloc(T * & var, size_t N)
     }
 }
 
-static inline std::unique_ptr<FILE, delete_FILE> fopen_helper(std::string const & filename, const char * mode, bool accept_failure = false)
+inline std::unique_ptr<FILE, delete_FILE> fopen_helper(std::string const & filename, const char * mode, bool accept_failure = false)
 {
     std::unique_ptr<FILE, delete_FILE> f(fopen(filename.c_str(), mode));
     DIE_ERRNO_DIAG(!f && !accept_failure, "fopen(%s)", filename.c_str());
@@ -495,10 +495,10 @@ struct expect_string {
     std::string s;
 };
 
-static inline expect_string expect(std::string const & s) { return { s }; }
+inline expect_string expect(std::string const & s) { return { s }; }
 
 
-static inline std::istream& operator>>(std::istream & is, expect_string const & e)
+inline std::istream& operator>>(std::istream & is, expect_string const & e)
 {
     if(!std::equal(std::begin(e.s), std::end(e.s), std::istreambuf_iterator<char>{is})) {
         is.setstate(is.rdstate() | std::ios::failbit);
