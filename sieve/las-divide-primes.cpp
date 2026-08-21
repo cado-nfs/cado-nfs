@@ -250,7 +250,8 @@ void divide_known_primes(std::vector<uint64_t> & fl, cxx_mpz & norm,
     if (very_verbose) {
         auto p = [](auto const & e) { return e.p; };
         verbose_fmt_print(TRACE_CHANNEL, 0, "# Trial division by {}\n",
-               fmt::join(td | std::views::transform(p), " "));
+                // see llvm issue 190333
+                fmt::join(std::ranges::transform_view(td, p), " "));
     }
 
     td.trial_divide(fl, norm);

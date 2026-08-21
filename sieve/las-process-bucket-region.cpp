@@ -421,8 +421,9 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
                 S[i] ? S[i][trace_Nx.x] : ~0u,
                 S[i] ? (S[i][trace_Nx.x] <= bound ? 0 : bound) : ~0u);
         };
-        auto v1 = std::views::iota(0u, S.size()) | std::views::transform(p1);
-        auto v2 = std::views::iota(0u, S.size()) | std::views::transform(p2);
+        // see llvm issue 190333
+        auto v1 = std::ranges::transform_view(std::views::iota(0u, S.size()), p1);
+        auto v2 = std::ranges::transform_view(std::views::iota(0u, S.size()), p2);
         verbose_fmt_print(TRACE_CHANNEL, 0,
                 "# When entering factor_survivors for bucket {}: {}\n"
                 "# Remaining norms which have not been accounted for in "

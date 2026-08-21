@@ -64,7 +64,7 @@ else()
     set(HAVE_LIBSTDCXX_BUG_114153 0)
 endif()
 
-if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+if(CMAKE_C_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Test for llvm bug 201065
     try_run(llvm-bug-201065_runs llvm-bug-201065_compiles
         ${PROJECT_BINARY_DIR}/config
@@ -80,6 +80,29 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
     else()
         message(STATUS "Testing known compiler bugs -- Error (cannot compile)")
     endif()
+
+    # # Test for llvm bug 190333 (C++20 modules ambiguity with std::views)
+    # execute_process(
+    #     COMMAND ${CMAKE_CXX_COMPILER} -std=c++20 -Wno-eager-load-cxx-named-modules --precompile ${PROJECT_SOURCE_DIR}/config/llvm-bug-190333.cppm -o ${PROJECT_BINARY_DIR}/config/llvm-bug-190333.pcm
+    #     RESULT_VARIABLE llvm_bug_190333_precompile_res
+    #     ERROR_QUIET
+    # )
+    # if(llvm_bug_190333_precompile_res EQUAL 0)
+    #     execute_process(
+    #         COMMAND ${CMAKE_CXX_COMPILER} -std=c++20 -Wno-eager-load-cxx-named-modules -fmodule-file=llvm_bug_190333=${PROJECT_BINARY_DIR}/config/llvm-bug-190333.pcm -c ${PROJECT_SOURCE_DIR}/config/llvm-bug-190333.cpp -o ${PROJECT_BINARY_DIR}/config/llvm-bug-190333.o
+    #         RESULT_VARIABLE llvm_bug_190333_compile_res
+    #         ERROR_QUIET
+    #     )
+    #     if(llvm_bug_190333_compile_res EQUAL 0)
+    #         set(HAVE_LLVM_BUG_190333 0)
+    #     else()
+    #         list(APPEND COMPILER_BUGS_LIST "llvm-bug-190333")
+    #         set(HAVE_LLVM_BUG_190333 1)
+    #     endif()
+    # else()
+    #     # If precompilation fails, it might just be lack of modules support or other issues
+    #     set(HAVE_LLVM_BUG_190333 0)
+    # endif()
 endif()
 
 

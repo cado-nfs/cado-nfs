@@ -67,6 +67,9 @@ case "$JOB_NAME" in
     *"mysql specific"*)
         export mysql=1
         ;;
+    *"ninja build"*)
+        export ninja_build=1
+        ;;
 esac
 
 case "$JOB_NAME" in
@@ -78,6 +81,17 @@ case "$JOB_NAME" in
 esac
 
 project_package_selection() {
+    if [ "$ninja_build" ] ; then
+        debian_packages="$debian_packages     ninja-build"
+        opensuse_packages="$opensuse_packages ninja"
+        fedora_packages="$fedora_packages     ninja"
+        centos_packages="$centos_packages     ninja"
+        # alpine has ninja-build that only puts ninja in
+        # /usr/lib/ninja-build/bin/ninja
+        alpine_packages="$alpine_packages     ninja-build"
+        freebsd_packages="$freebsd_packages   ninja"
+    fi
+
     if [ "$valgrind" ] ; then
         echo " + valgrind is set"
         debian_packages="$debian_packages     valgrind"
@@ -146,6 +160,21 @@ project_package_selection() {
         alpine_packages="$alpine_packages     curl m4"
     fi
 
+    # None of the tweaks below is strictly required, except if we want to
+    # try with c++20 modules.
+    #
+    # if (is_debian || is_ubuntu) && [ "$icc" ] ; then
+    #     debian_packages="$debian_packages     clang clang-tools"
+    # fi
+    # if is_ubuntu ; then
+    #     . /etc/lsb-release
+    #     case "$DISTRIB_RELEASE" in
+    #         24*)
+    #             debian_packages="$debian_packages     g++-14";;
+    #     esac
+    # fi
+
+
     # add this so that we get the gdb tests as well (at least with the
     # shared libs on debian-testing case)
     debian_packages="$debian_packages     gdb"
@@ -183,6 +212,9 @@ after_package_install() {
             make -j$NCPUS
             make install
         )
+    fi
+    if [ "$ninja_build" ] && is_alpine; then
+        ln -s /usr/lib/ninja-build/bin/ninja /usr/bin/ninja
     fi
 }
 

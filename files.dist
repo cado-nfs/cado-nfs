@@ -83,6 +83,8 @@ config/iwyu.pl.in
 config/jevents.cmake
 config/libstdc++-bug-114153.cpp
 config/linux.cmake
+config/llvm-bug-190333.cpp
+config/llvm-bug-190333.cppm
 config/llvm-bug-201065.c
 config/m4ri.cmake
 config/math-special.cmake

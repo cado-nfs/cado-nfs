@@ -152,6 +152,9 @@ checks on ubuntu system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
+# among other things, ubuntu jammy has only very old cmake. If we ever
+# want to seriously investigate using c++20 modules, it is definitely a
+# no-go.
 checks on ubuntu jammy system using package libfmt-dev with gcc:
   <<: *common-template
   stage: early
@@ -161,6 +164,7 @@ checks on ubuntu jammy system using package libfmt-dev with gcc:
   script:
     - *checks-script
   <<: *checks-junit-report
+
 
 checks on ubuntu rolling system with gcc:
   <<: *common-template
@@ -188,6 +192,18 @@ checks using cmake directly on alpine system with gcc:
   image: alpine
   before_script:
     - ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks using cmake directly on alpine system with gcc and ninja build:
+  <<: *common-template
+  stage: early
+  image: alpine
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  variables:
+    pass_flags_to_cmake: -GNinja
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -277,6 +293,9 @@ checks on fedora system with gcc:
 #     - *checks-script
 #   <<: *checks-junit-report
  
+# centos is dead and buried, I believe. Obviously, nothing bleeding edge
+# can be envisioned based on this, so this test will disappear if we go
+# to c++20 modules someday.
 checks on centos9 system with gcc:
   allow_failure: true
   <<: *common-template
@@ -287,7 +306,7 @@ checks on centos9 system with gcc:
   script:
     - *checks-script
   <<: *checks-junit-report
-
+ 
 # Despite what the description on docker hub says, silkeh/clang:latest is
 # not always the latest stable build, which is a pity.
 checks with clang:
@@ -303,6 +322,9 @@ checks with clang:
 checks with clangdev:
   <<: *common-template
   image: silkeh/clang:dev
+  # note that clang:dev is (quite unexplainably) based on a very old
+  # debian distro).
+  # image: silkeh/clang:dev-unstable
   stage: early
   before_script:
     - ci/ci/00-prepare-docker.sh
@@ -310,6 +332,8 @@ checks with clangdev:
     - *checks-script
   <<: *checks-junit-report
 
+# As of 2026, C++20 modules with Intel compilers are only possible with
+# clang-scan-deps manually pulled from clang-tools.
 checks with icc:
   <<: *common-template
   image: intel/oneapi-hpckit:latest
@@ -347,19 +371,6 @@ expensive checks with gcc:
   <<: *checks-junit-report
 
 mysql specific expensive checks on debian-testing system with gcc:
-  <<: *common-template
-  image: debian:testing
-  stage: thorough
-  # this is #30114
-  allow_failure: true
-  needs: []
-  before_script:
-    - ci/ci/00-prepare-docker.sh
-  script:
-    - *checks-script
-  <<: *checks-junit-report
-
-mysql specific expensive checks on debian12 system with gcc:
   <<: *common-template
   image: debian:testing
   stage: thorough
@@ -535,6 +546,11 @@ checks on osx system:
   <<: *common-template
   # do it early. It's one of our quickest runners.
   stage: early
+  # if we want to substitute the compiler, we can do the following.
+  # variables:
+  #   CMAKE_PREFIX_PATH: /opt/homebrew/opt/llvm
+  #   CC: /opt/homebrew/opt/llvm/bin/clang
+  #   CXX: /opt/homebrew/opt/llvm/bin/clang++
   tags:
     - osx
   before_script:
@@ -628,6 +644,9 @@ containers:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - apk update
     - apk add make bash git
+    # optional:
+    # - apk add make bash git ninja-build
+    # - ln -s /usr/lib/ninja-build/bin/ninja /usr/bin/ninja
     - make -f docker/Makefile PUSH=yes NOW=$(date +%Y%m%d%H%M-$CI_COMMIT_SHA)
   retry:
     max: 2
@@ -668,6 +687,9 @@ dry-run containers:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - apk update
     - apk add make bash git
+    # optional:
+    # - apk add make bash git ninja-build
+    # - ln -s /usr/lib/ninja-build/bin/ninja /usr/bin/ninja
     - make -f docker/Makefile NOW=$(date +%Y%m%d%H%M-$CI_COMMIT_SHA)
 
 

@@ -352,12 +352,12 @@ macro(CONFIGURE_MATMUL_LIB v i)
                         matmul-sub-vsc-combine.S
                         matmul-sub-vsc-dispatch.S
                         )
-                set_property(SOURCE matmul-sub-small1.S PROPERTY LANGUAGE C)
-                set_property(SOURCE matmul-sub-small2.S PROPERTY LANGUAGE C)
-                set_property(SOURCE matmul-sub-large-fbi.S PROPERTY LANGUAGE C)
-                set_property(SOURCE matmul-sub-large-fbd.S PROPERTY LANGUAGE C)
-                set_property(SOURCE matmul-sub-vsc-dispatch.S PROPERTY LANGUAGE C)
-                set_property(SOURCE matmul-sub-vsc-combine.S PROPERTY LANGUAGE C)
+                set_property(SOURCE matmul-sub-small1.S PROPERTY LANGUAGE ASM)
+                set_property(SOURCE matmul-sub-small2.S PROPERTY LANGUAGE ASM)
+                set_property(SOURCE matmul-sub-large-fbi.S PROPERTY LANGUAGE ASM)
+                set_property(SOURCE matmul-sub-large-fbd.S PROPERTY LANGUAGE ASM)
+                set_property(SOURCE matmul-sub-vsc-dispatch.S PROPERTY LANGUAGE ASM)
+                set_property(SOURCE matmul-sub-vsc-combine.S PROPERTY LANGUAGE ASM)
             endif()
         endif()
 
