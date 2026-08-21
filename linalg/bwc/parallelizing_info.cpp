@@ -855,7 +855,7 @@ void pi_go(
 
 void pi_comm::log_init()
 {
-    log_book = std::make_unique<pi_log_book>();;
+    log_book = std::make_unique<pi_log_book>();
 
     char commname[MPI_MAX_OBJECT_NAME];
     int namelen = sizeof(commname);
