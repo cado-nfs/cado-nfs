@@ -574,6 +574,8 @@ install(CODE "execute_process(COMMAND ${GMAKE_EXECUTABLE} install WORKING_DIRECT
 endif()
 
 
+include(config/pch.cmake)
+
 add_subdirectory (utils)
 add_subdirectory (polyselect)
 add_subdirectory (sieve)

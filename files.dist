@@ -101,6 +101,7 @@ config/neon.c
 config/openmp.cmake
 config/pagesize.c
 config/pagesize.cmake
+config/pch.cmake
 config/pclmul.c
 config/perl.cmake
 config/popcnt.c

@@ -97,8 +97,11 @@ set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/version_info.c" PROPERT
 # matmul shared libs in bwc), and therefore must be shared.
 add_library (utils ${CADO_SHARED} ${sources})
 set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/modified_files.c" PROPERTIES GENERATED TRUE)
+
 add_dependencies(utils list_modified_files)
 mark_targets_as_openmp(utils)
+cado_apply_pch(utils)
+
 target_link_libraries(utils PUBLIC pthread ${gmp_libname} m)
 if(HAVE_HWLOC)
     target_link_libraries(utils PUBLIC hwloc)
@@ -115,6 +118,7 @@ endif()
 
 add_library (utils_with_io ${CADO_SHARED} ${sources_io})
 target_link_libraries(utils_with_io PUBLIC utils)
+cado_apply_pch(utils_with_io)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     message(STATUS "Disabling antebuffer on ${CMAKE_SYSTEM_NAME}, see #21410")
@@ -135,6 +139,7 @@ if(ENABLE_SHARED)
 endif()
 
 add_executable(numbertheory_tool numbertheory_tool.cpp)
+cado_apply_pch(numbertheory_tool)
 target_link_libraries (numbertheory_tool PRIVATE utils)
 
 install(TARGETS numbertheory_tool RUNTIME DESTINATION ${LIBSUFFIX}/utils)

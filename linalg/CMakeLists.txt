@@ -8,6 +8,7 @@ include_directories(bblas)
 # the bitlinalg library will almost surely go away at some point, or
 # possibly be incorporated in bblas
 add_library(bitlinalg OBJECT blockmatrix.cpp)
+cado_apply_pch(bitlinalg)
 target_link_libraries(bitlinalg PUBLIC bblas)
 
 if(NOT HAVE_GF2X)
@@ -16,6 +17,7 @@ endif()
 
 
 add_executable(characters characters.cpp bwc/worker-threads.c)
+cado_apply_pch(characters)
 target_link_libraries(characters PRIVATE bitlinalg utils_with_io pthread)
 install(TARGETS characters RUNTIME DESTINATION ${LIBSUFFIX}/linalg)
 

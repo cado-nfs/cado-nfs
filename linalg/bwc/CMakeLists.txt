@@ -40,24 +40,7 @@ set(BWC_EXTRA_BACKENDS "" CACHE STRING "list of pairs (arithmetic,matmul) backen
 
 ### end bwc-specific configuration.
 
-# These are just shorthands. Some targets also like to define compile and
-# link flags for their own, so it's really messy, because I don't know
-# how to have cmake *append* to the target's link flags.
-
-# Note that whenever a target (at least very certainly an executable)
-# links an mpi compiled library, it must be marked as mpi as well.
-
-macro(mpi_add_library target)
-    add_library(${target} ${ARGN})
-    mark_targets_as_mpi(${target})
-endmacro()
-macro(mpi_add_executable target)
-    add_executable(${target} ${ARGN})
-    mark_targets_as_mpi(${target})
-endmacro()
-
 ### bwc_base
-
 set(bwc_parallelization_sources
     parallelizing_info.cpp
     )
@@ -79,10 +62,12 @@ endif()
 #
 # Therefore we get away with the exact same solution, although it feels a
 # bit cumbersome.
-mpi_add_library(bwc_parallelization ${CADO_SHARED} OBJECT ${bwc_parallelization_sources})
+add_library(bwc_parallelization ${CADO_SHARED} OBJECT ${bwc_parallelization_sources})
 if(ENABLE_SHARED)
     set_property(TARGET bwc_parallelization PROPERTY POSITION_INDEPENDENT_CODE ON)
 endif()
+mark_targets_as_mpi(bwc_parallelization)
+cado_apply_pch(bwc_parallelization)
 
 set(bwc_base_sources
     intersections.c
@@ -105,7 +90,9 @@ set(bwc_base_sources
     bwc_filenames.cpp
 )
 
-mpi_add_library(bwc_base ${CADO_SHARED} ${bwc_base_sources})
+add_library(bwc_base ${CADO_SHARED} ${bwc_base_sources})
+mark_targets_as_mpi(bwc_base)
+cado_apply_pch(bwc_base)
 
 target_link_libraries(bwc_base PUBLIC bwc_parallelization)
 
@@ -127,13 +114,17 @@ endif()
 
 ### end bwc_base
 
-mpi_add_executable(mf_scan2 ${EXCLUDE_FROM_RELEASE_BUILD} mf_scan2.cpp)
+add_executable(mf_scan2 ${EXCLUDE_FROM_RELEASE_BUILD} mf_scan2.cpp)
+mark_targets_as_mpi(mf_scan2)
+cado_apply_pch(mf_scan2)
 target_link_libraries(mf_scan2 PRIVATE bwc_base)
 
 
 include_directories(${CADO_NFS_SOURCE_DIR}/linalg)
 
-mpi_add_executable(mf_bal mf_bal_main.cpp)
+add_executable(mf_bal mf_bal_main.cpp)
+mark_targets_as_mpi(mf_bal)
+cado_apply_pch(mf_bal)
 target_link_libraries(mf_bal PRIVATE bwc_base m)
 install(TARGETS mf_bal RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 
@@ -145,6 +136,7 @@ add_executable(random_matrix ${EXCLUDE_FROM_RELEASE_BUILD}
 set_property(TARGET random_matrix PROPERTY COMPILE_DEFINITIONS WANT_MAIN)
 target_link_libraries(random_matrix PRIVATE utils)
 mark_targets_as_mpi(random_matrix)
+cado_apply_pch(random_matrix)
 
 if(BUILD_DYNAMICALLY_LINKABLE_BWC)
     set(SOLIB_PREFIX ${CMAKE_SHARED_LIBRARY_PREFIX})
@@ -154,7 +146,8 @@ endif()
 
 include_directories (${CMAKE_CURRENT_BINARY_DIR})
 
-
+# FIXME: It's a false positive, but the command line flags below will
+# probably invalidate the pch...
 macro(parse_arith_layer v outlist)
     set(${outlist})
     list(APPEND ${outlist} -DARITH_LAYER_${v})
@@ -240,6 +233,7 @@ endmacro()
 add_library(bwc_arith ${CADO_SHARED} arith-generic.cpp)
 target_link_libraries(bwc_arith PUBLIC utils)
 mark_targets_as_mpi(bwc_arith)
+cado_apply_pch(bwc_arith)
 
 
 
@@ -277,6 +271,7 @@ if(BUILD_DYNAMICALLY_LINKABLE_BWC)
         add_library(arithmetic_${v} ${CADO_SHARED} arith-generic.cpp)
         target_link_libraries(arithmetic_${v} PUBLIC utils)
         mark_targets_as_mpi(arithmetic_${v})
+        cado_apply_pch(arithmetic_${v})
         set_property(TARGET arithmetic_${v}
             APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
         install(TARGETS arithmetic_${v} DESTINATION ${LIBSUFFIX}/linalg/bwc)
@@ -319,7 +314,9 @@ target_link_libraries(bwc_base PUBLIC utils ${pthread_libs} bwc_arith)
 # shared, as embarking the code within the impl-specific .so is fine.
 # Unfortunately, we do want matmul_common to be compiled with -fPIC,
 # then. Which is easiest to trigger by making it a shared object.
-mpi_add_library(matmul_common ${CADO_SHARED} matmul-common.cpp)
+add_library(matmul_common ${CADO_SHARED} matmul-common.cpp)
+mark_targets_as_mpi(matmul_common)
+cado_apply_pch(matmul_common)
 target_link_libraries(matmul_common PUBLIC utils)
 if(ENABLE_SHARED)
     install(TARGETS matmul_common DESTINATION ${LIBSUFFIX}/linalg/bwc)
@@ -364,6 +361,7 @@ macro(CONFIGURE_MATMUL_LIB v i)
         add_library(matmul_${v}_${i} ${CADO_SHARED} ${sources})
         target_link_libraries(matmul_${v}_${i} PUBLIC matmul_common)#  bwc_mpfq)
         mark_targets_as_mpi(matmul_${v}_${i})
+        cado_apply_pch(matmul_${v}_${i})
         set_property(TARGET matmul_${v}_${i}
             APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
         if(ENABLE_SHARED)
@@ -413,11 +411,11 @@ if(NOT BUILD_DYNAMICALLY_LINKABLE_BWC)
 endif()
 
 macro(bwc_program_base v)
-    mpi_add_executable(${v} ${ARGN})
-    set_target_properties(${v} PROPERTIES
-            LINKER_LANGUAGE CXX)
-        # -Wl,-rpath,${CMAKE_CURRENT_BINARY_DIR}")
-        target_link_libraries(${v} PRIVATE bwc_base)
+    add_executable(${v} ${ARGN})
+    mark_targets_as_mpi(${v})
+    cado_apply_pch(${v})
+    set_target_properties(${v} PROPERTIES LINKER_LANGUAGE CXX)
+    target_link_libraries(${v} PRIVATE bwc_base)
 endmacro()
 
 # The macro bwc_program_extra is mostly used by the binaries specific to
@@ -473,6 +471,7 @@ set_property(SOURCE lingen_qcode_binary.cpp
     APPEND PROPERTY COMPILE_DEFINITIONS GF2X_CANTOR_BASE_FIELD_SIZE=128)
 
 add_executable(cleanup cleanup.cpp)
+cado_apply_pch(cleanup)
 target_link_libraries(cleanup PRIVATE bitlinalg utils)
 
 install(TARGETS cleanup RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
@@ -489,6 +488,9 @@ mark_targets_as_mpi(flint-fft flint-fft-debug)
 mark_targets_as_openmp(flint-fft flint-fft-debug)
 set_property(TARGET flint-fft-debug
     APPEND PROPERTY COMPILE_DEFINITIONS DEBUG_FFT)
+# we're getting internal compiler errors on these
+# cado_apply_pch(flint-fft)
+# cado_apply_pch(flint-fft-debug)
 
 # These files are not dependent on the mpfq layer, therefore it's ok to
 # put all of them in a common convenience library.
@@ -510,6 +512,7 @@ endif()
 # not-for-OBJECT target_link_libraries(lingen_common_support PUBLIC ${gmp_libname} utils)
 mark_targets_as_openmp(lingen_common_support)
 mark_targets_as_mpi(lingen_common_support)
+cado_apply_pch(lingen_common_support)
 
 foreach(v ${internal_arithmetic_backends_gfp} b64)
     parse_arith_layer(${v} our_compile_flags)
@@ -565,11 +568,10 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
             )
     endif()
 
-    add_executable(lingen_verify_checkpoints_${v}
-        lingen_verify_checkpoints.cpp
-        )
+    add_executable(lingen_verify_checkpoints_${v} lingen_verify_checkpoints.cpp)
     mark_targets_as_mpi(lingen_verify_checkpoints_${v})
     mark_targets_as_openmp(lingen_verify_checkpoints_${v})
+    cado_apply_pch(lingen_verify_checkpoints_${v})
     set_property(TARGET lingen_verify_checkpoints_${v}
         APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
     target_link_libraries(lingen_verify_checkpoints_${v} PRIVATE utils)
@@ -623,6 +625,9 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     mark_targets_as_openmp(lingen_${v}_support lingen_${v}_core lingen_${v})
     set_property(TARGET lingen_${v}_support lingen_${v}_core lingen_${v}
         APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
+    cado_apply_pch(lingen_${v}_support)
+    cado_apply_pch(lingen_${v}_core)
+    cado_apply_pch(lingen_${v})
 endforeach(v)
 
 add_custom_target(bwc_matmul_gf2)
@@ -663,6 +668,7 @@ add_executable(bench_polmatmul EXCLUDE_FROM_ALL bench_polmatmul.cpp)
 set_property(SOURCE bench_polmatmul.cpp
     APPEND PROPERTY COMPILE_DEFINITIONS GF2X_CANTOR_BASE_FIELD_SIZE=128)
 mark_targets_as_openmp(bench_polmatmul)
+cado_apply_pch(bench_polmatmul)
 
 if(NOT HAVE_GF2X)
 add_dependencies(bench_polmatmul gf2x-build)

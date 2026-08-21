@@ -7,15 +7,19 @@ set (purge_sources purge_matrix.cpp
 
 # the utils library is already linked with -lgmp and -lm
 add_executable(dup1 dup1.cpp)
+cado_apply_pch(dup1)
 target_link_libraries(dup1 PRIVATE utils_with_io)
 
 add_executable(dup2 dup2.cpp)
+cado_apply_pch(dup2)
 target_link_libraries(dup2 PRIVATE utils_with_io)
 
 add_executable(filter_galois filter_galois.cpp)
+cado_apply_pch(filter_galois)
 target_link_libraries(filter_galois PRIVATE utils_with_io)
 
 add_executable(purge ${purge_sources})
+cado_apply_pch(purge)
 target_link_libraries(purge PRIVATE utils_with_io)
 
 
@@ -24,6 +28,7 @@ add_executable(merge merge.cpp merge_heap.c merge_bookkeeping.c
     read_purgedfile_in_parallel.cpp mst.c merge_replay_matrix.c sparse.c)
 target_link_libraries(merge PRIVATE utils_with_io)
 mark_targets_as_openmp(merge)
+cado_apply_pch(merge)
 
 macro(mark_targets_as_dl t)
     set_property(TARGET ${t} APPEND PROPERTY COMPILE_OPTIONS -DFOR_DL)
@@ -35,36 +40,43 @@ add_executable(merge-dl merge.cpp merge_heap.c merge_bookkeeping.c
 target_link_libraries(merge-dl PRIVATE utils_with_io)
 mark_targets_as_dl(merge-dl)
 mark_targets_as_openmp(merge-dl)
+cado_apply_pch(merge-dl)
 
 add_executable(replay replay.cpp sparse.c)
 target_link_libraries(replay PRIVATE utils_with_io)
+cado_apply_pch(replay)
 
 add_executable(replay-dl replay.cpp sparse.c)
 target_link_libraries(replay-dl PRIVATE utils_with_io)
 mark_targets_as_dl(replay-dl)
+cado_apply_pch(replay-dl)
 
 add_executable(reconstructlog-dl reconstructlog.cpp)
 target_link_libraries(reconstructlog-dl PRIVATE utils_with_io)
+cado_apply_pch(reconstructlog-dl)
 
 add_executable(sm_simple sm_simple.cpp)
 target_link_libraries(sm_simple PRIVATE utils)
+cado_apply_pch(sm_simple)
 
 add_executable(shrink_rels shrink_rels.cpp)
 target_link_libraries(shrink_rels PRIVATE utils)
+cado_apply_pch(shrink_rels)
 
 if (${WITH_MPI})
     add_definitions(-DWITH_MPI)
 endif()
 
 add_executable(sm sm.cpp)
-target_link_libraries(sm PRIVATE utils_with_io)
-
 add_executable(sm_append sm_append.cpp)
+target_link_libraries(sm PRIVATE utils_with_io)
 target_link_libraries(sm_append PRIVATE utils)
-
-
 mark_targets_as_openmp(sm sm_append)
 mark_targets_as_mpi(sm sm_append)
+
+cado_apply_pch(sm)
+cado_apply_pch(sm_append)
+
 
 
 install(TARGETS ${bin_list} RUNTIME DESTINATION ${LIBSUFFIX}/filter)
