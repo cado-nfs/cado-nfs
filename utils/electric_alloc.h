@@ -1,5 +1,6 @@
 #ifndef CADO_UTILS_ELECTRIC_ALLOC_H
 #define CADO_UTILS_ELECTRIC_ALLOC_H
+#include "macros.h"
 
 /* This file is a debugging aid. It carries good chances of working on
  * POSIX system, but I wouldn't bet much on it, since mmap is kind of
@@ -31,7 +32,7 @@
 #include <new>  /* for std::bad_alloc */
 #endif
 
-static inline
+CADO_INLINE
 void * electric_alloc(size_t s)
 {
     /* Use the method of the good old days from electric fence. */
@@ -60,7 +61,7 @@ void * electric_alloc(size_t s)
     return (void *) p;
 }
 
-static inline
+CADO_INLINE
 void electric_free(void * p0, size_t s)
 {
     char * p = (char *) p0;
@@ -77,7 +78,7 @@ void electric_free(void * p0, size_t s)
     munmap(p, (multip + 1) * r);
 }
 
-static inline
+CADO_INLINE
 void * electric_alloc_nosize(size_t s)
 {
     void * ptr = electric_alloc(s + sizeof(s));
@@ -85,7 +86,7 @@ void * electric_alloc_nosize(size_t s)
     return (void *) (((size_t *) ptr) + 1);
 }
 
-static inline
+CADO_INLINE
 void electric_free_nosize(void * p0)
 {
     p0 = (void*) (((size_t *)p0)-1);

@@ -1,5 +1,6 @@
 #ifndef CADO_BIT_VECTOR_H
 #define CADO_BIT_VECTOR_H
+#include "macros.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -42,7 +43,7 @@ extern int bit_vector_flipbit(bit_vector_ptr b, size_t pos);
 extern size_t bit_vector_popcount(bit_vector_ptr b);
 extern size_t bit_vector_memory_footprint(bit_vector_srcptr b);
 
-static inline void bit_vector_swap(bit_vector_ptr b1, bit_vector_ptr b2)
+CADO_INLINE void bit_vector_swap(bit_vector_ptr b1, bit_vector_ptr b2)
 {
     bit_vector b0;
     b0->p = b1->p ; b1->p = b2->p ; b2->p = b0->p;

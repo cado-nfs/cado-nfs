@@ -1,5 +1,6 @@
 #ifndef CADO_FIX_ENDIANNESS_H
 #define CADO_FIX_ENDIANNESS_H
+#include "macros.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -23,7 +24,7 @@ size_t fwrite64_little(const uint64_t * ptr, size_t nmemb, FILE * stream);
 
 #ifdef HAVE_BSWAP32
 /* Freebsd already has bswap32.  */
-static inline uint32_t bswap32(uint32_t x)
+CADO_INLINE uint32_t bswap32(uint32_t x)
 {
     // x is 3210
     uint32_t lohi = (x >> 16) | (x << 16);
@@ -35,9 +36,9 @@ static inline uint32_t bswap32(uint32_t x)
 #endif
 
 #ifdef CADO_LITTLE_ENDIAN
-static inline uint32_t bfix32(uint32_t x) { return x; }
+CADO_INLINE uint32_t bfix32(uint32_t x) { return x; }
 #elif defined(CADO_BIG_ENDIAN)
-static inline uint32_t bfix32(uint32_t x) { return bswap32(x); }
+CADO_INLINE uint32_t bfix32(uint32_t x) { return bswap32(x); }
 #else
 #error "implement me"
 #endif

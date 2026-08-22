@@ -600,7 +600,7 @@ namespace cado {
     /* this trait can be used in ctors and assignment operators, for
      * instance */
     template<typename T, typename U>
-    static constexpr bool converts_via =
+    inline constexpr bool converts_via =
         integral_fits_v<T, U> &&
         is_non_narrowing_conversion_v<T, U>;
 
@@ -714,7 +714,7 @@ namespace cado {
      * function would be rather ill-placed (I think)
      */
     template<typename AllocatorType, typename... Args>
-    static inline unique_ptr_from_allocator<AllocatorType>
+    inline unique_ptr_from_allocator<AllocatorType>
     make_unique_from_allocator(AllocatorType & alloc, std::size_t size, Args... args) {
 
         using T = AllocatorType::value_type;
@@ -735,7 +735,7 @@ namespace cado {
     }
 
     template<typename T>
-    static inline std::unique_ptr<T[]>
+    inline std::unique_ptr<T[]>
     make_unique_from_allocator(std::allocator<T> &, std::size_t size)
     {
         return std::make_unique<T[]>(size);

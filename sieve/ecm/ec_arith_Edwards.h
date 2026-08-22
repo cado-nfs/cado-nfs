@@ -1,5 +1,6 @@
 #ifndef CADO_EC_ARITH_EDWARDS_H
 #define CADO_EC_ARITH_EDWARDS_H
+#include "macros.h"
 
 /* a=-1 Twisted Edwards elliptic curves
  *
@@ -51,7 +52,7 @@ extern "C" {
 
 /* Compute d = -(A-2)/(A+2). A and d can be the same variable. */
 #define edwards_d_from_montgomery_A MOD_APPEND_TYPE(edwards_d_from_montgomery_A)
-static inline void
+CADO_INLINE void
 edwards_d_from_montgomery_A (residue_t d, const residue_t A, const modulus_t m)
 {
   residue_t (t);
@@ -67,7 +68,7 @@ edwards_d_from_montgomery_A (residue_t d, const residue_t A, const modulus_t m)
 }
 
 #define edwards_ext_curve_fprintf MOD_APPEND_TYPE(edwards_ext_curve_fprintf)
-static inline void
+CADO_INLINE void
 edwards_ext_curve_fprintf (FILE *out, const char *prefix, residue_t d,
                            ec_point_t P, const modulus_t m)
 {
@@ -97,7 +98,7 @@ edwards_ext_curve_fprintf (FILE *out, const char *prefix, residue_t d,
  *    (0:1:1)       if coord is TWISTED_EDWARDS_proj
  */
 #define edwards_point_set_zero MOD_APPEND_TYPE(edwards_point_set_zero)
-static inline void
+CADO_INLINE void
 edwards_point_set_zero (ec_point_t P, const modulus_t m,
                         const ec_point_coord_type_t coord)
 {
@@ -110,7 +111,7 @@ edwards_point_set_zero (ec_point_t P, const modulus_t m,
 }
 
 #define edwards_neg MOD_APPEND_TYPE(edwards_neg)
-static inline void
+CADO_INLINE void
 edwards_neg (ec_point_t Q, const ec_point_t P, const modulus_t m)
 {
   mod_neg (Q->x, P->x, m);
@@ -136,7 +137,7 @@ edwards_neg (ec_point_t Q, const ec_point_t P, const modulus_t m)
  *    http://eprint.iacr.org/2008/522
  */
 #define edwards_addsub MOD_APPEND_TYPE(edwards_addsub)
-static inline void
+CADO_INLINE void
 edwards_addsub (ec_point_t R, const ec_point_t P, const ec_point_t Q, int sub,
                 const modulus_t m, const ec_point_coord_type_t output_type)
 {
@@ -232,7 +233,7 @@ edwards_addsub (ec_point_t R, const ec_point_t P, const ec_point_t Q, int sub,
 }
 
 #define edwards_add MOD_APPEND_TYPE(edwards_add)
-static inline void
+CADO_INLINE void
 edwards_add (ec_point_t R, const ec_point_t P, const ec_point_t Q,
              const modulus_t m, const ec_point_coord_type_t output_type)
 {
@@ -240,7 +241,7 @@ edwards_add (ec_point_t R, const ec_point_t P, const ec_point_t Q,
 }
 
 #define edwards_sub MOD_APPEND_TYPE(edwards_sub)
-static inline void
+CADO_INLINE void
 edwards_sub (ec_point_t R, const ec_point_t P, const ec_point_t Q,
              const modulus_t m, const ec_point_coord_type_t output_type)
 {
@@ -262,7 +263,7 @@ edwards_sub (ec_point_t R, const ec_point_t P, const ec_point_t Q,
  *    http://eprint.iacr.org/2008/013.
  */
 #define edwards_dbl MOD_APPEND_TYPE(edwards_dbl)
-static inline void
+CADO_INLINE void
 edwards_dbl (ec_point_t R, const ec_point_t P,
              const modulus_t m, const ec_point_coord_type_t output_type)
 {
@@ -318,7 +319,7 @@ edwards_dbl (ec_point_t R, const ec_point_t P,
  * Source: 2015 Chuengsatiansup.
  */
 #define edwards_tpl MOD_APPEND_TYPE(edwards_tpl)
-static inline void
+CADO_INLINE void
 edwards_tpl (ec_point_t R, const ec_point_t P,
              const modulus_t m, const ec_point_coord_type_t output_type)
 {
@@ -387,7 +388,7 @@ edwards_tpl (ec_point_t R, const ec_point_t P,
  */
 #define edwards_smul_ui MOD_APPEND_TYPE(edwards_smul_ui)
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 edwards_smul_ui (ec_point_t R, const ec_point_t P, const unsigned long k,
                  const modulus_t m)
 {

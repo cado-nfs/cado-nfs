@@ -107,16 +107,16 @@ class barrier {
 extern "C" {
 #endif
 
-static inline int my_pthread_barrier_init(barrier_t * /* restrict */ barrier,
+CADO_INLINE int my_pthread_barrier_init(barrier_t * /* restrict */ barrier,
         const int * /* restrict */ attr MAYBE_UNUSED, unsigned count)
 {
     return barrier_init(barrier, NULL, count);
 }
-static inline int my_pthread_barrier_wait(barrier_t * b)
+CADO_INLINE int my_pthread_barrier_wait(barrier_t * b)
 {
     return barrier_wait(b, NULL, NULL, NULL);
 }
-static inline int my_pthread_barrier_destroy(barrier_t * b)
+CADO_INLINE int my_pthread_barrier_destroy(barrier_t * b)
 {
     return barrier_destroy(b, NULL);
 }

@@ -31,7 +31,7 @@ extern "C" {
 
 #ifdef DEAD_CODE /* Unused and untested. Here be dragons. */
 /* Increases r if a != 0 */
-static inline void
+CADO_INLINE void
 ularith_inc_nz (unsigned long *r, const unsigned long a)
 {
 #ifdef ULARITH_VERBOSE_ASM
@@ -60,10 +60,10 @@ ularith_inc_nz (unsigned long *r, const unsigned long a)
 
 /* Let a = a1 + 2^k * a2, b = b1 + 2^k * b2, where k is number of bits
    in an unsigned long. Return 1 if a > b, and 0 if a <= b. */
-static inline int
+CADO_INLINE int
 ularith_gt_2ul_2ul(unsigned long, unsigned long,
                    unsigned long, unsigned long) ATTRIBUTE((const));
-static inline int
+CADO_INLINE int
 ularith_gt_2ul_2ul(const unsigned long a1, const unsigned long a2,
                    const unsigned long b1, const unsigned long b2)
 {
@@ -73,7 +73,7 @@ ularith_gt_2ul_2ul(const unsigned long a1, const unsigned long a2,
 /* Add an unsigned long to two unsigned longs with carry propagation from 
    low word (r1) to high word (r2). Any carry out from high word is lost. */
 
-static inline void
+CADO_INLINE void
 ularith_add_ul_2ul (unsigned long *r1, unsigned long *r2,
                     const unsigned long a)
 {
@@ -107,7 +107,7 @@ ularith_add_ul_2ul (unsigned long *r1, unsigned long *r2,
 /* Add two unsigned longs to two unsigned longs with carry propagation from 
    low word (r1) to high word (r2). Any carry out from high word is lost. */
 
-static inline void
+CADO_INLINE void
 ularith_add_2ul_2ul (unsigned long *r1, unsigned long *r2, 
 			 const unsigned long a1, const unsigned long a2)
 {
@@ -139,7 +139,7 @@ ularith_add_2ul_2ul (unsigned long *r1, unsigned long *r2,
    from low word (r1) to high word (r2). Returns 1 if there was a carry out 
    from high word, otherwise returns 0. */
 
-static inline char
+CADO_INLINE char
 ularith_add_2ul_2ul_cy (unsigned long *r1, unsigned long *r2, 
 			const unsigned long a1, const unsigned long a2)
 {
@@ -179,7 +179,7 @@ ularith_add_2ul_2ul_cy (unsigned long *r1, unsigned long *r2,
 
 /* Requires a < m and b <= m, then r == a+b (mod m) and r < m */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 ularith_addmod_ul_ul (unsigned long *r, const unsigned long a,
                const unsigned long b, const unsigned long m)
 {
@@ -211,7 +211,7 @@ ularith_addmod_ul_ul (unsigned long *r, const unsigned long a,
    from low word (r1) to high word (r2). Any borrow out from high word is 
    lost. */
 
-static inline void
+CADO_INLINE void
 ularith_sub_ul_2ul (unsigned long *r1, unsigned long *r2, 
 			const unsigned long a)
 {
@@ -246,7 +246,7 @@ ularith_sub_ul_2ul (unsigned long *r1, unsigned long *r2,
    from low word (r1) to high word (r2). Any borrow out from high word is 
    lost. */
 
-static inline void
+CADO_INLINE void
 ularith_sub_2ul_2ul (unsigned long *r1, unsigned long *r2, 
 			 const unsigned long a1, const unsigned long a2)
 {
@@ -281,7 +281,7 @@ ularith_sub_2ul_2ul (unsigned long *r1, unsigned long *r2,
    from low word (r1) to high word (r2). Returns 1 if there was a borrow out 
    from high word, otherwise returns 0. */
 
-static inline char
+CADO_INLINE char
 ularith_sub_2ul_2ul_cy (unsigned long *r1, unsigned long *r2, 
 			const unsigned long a1, const unsigned long a2)
 {
@@ -319,7 +319,7 @@ ularith_sub_2ul_2ul_cy (unsigned long *r1, unsigned long *r2,
 
 /* Subtract only if result is non-negative */
 
-static inline void
+CADO_INLINE void
 ularith_sub_ul_ul_ge (unsigned long *r, const unsigned long a)
 {
   unsigned long t = *r;
@@ -349,7 +349,7 @@ ularith_sub_ul_ul_ge (unsigned long *r, const unsigned long a)
 }
 
 
-static inline void
+CADO_INLINE void
 ularith_sub_2ul_2ul_ge (unsigned long *r1, unsigned long *r2, 
 			const unsigned long a1, const unsigned long a2)
 {
@@ -386,7 +386,7 @@ ularith_sub_2ul_2ul_ge (unsigned long *r1, unsigned long *r2,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 ularith_submod_ul_ul (unsigned long *r, const unsigned long a,
                       const unsigned long b, const unsigned long m)
 {
@@ -423,7 +423,7 @@ ularith_submod_ul_ul (unsigned long *r, const unsigned long a,
 /* Multiply two unsigned long "a" and "b" and put the result as 
    r2:r1 (r2 being the high word) */
 
-static inline void
+CADO_INLINE void
 ularith_mul_ul_ul_2ul (unsigned long *r1, unsigned long *r2, 
 			   const unsigned long a, const unsigned long b)
 {
@@ -480,7 +480,7 @@ ularith_mul_ul_ul_2ul (unsigned long *r1, unsigned long *r2,
 }
 
 
-static inline void
+CADO_INLINE void
 ularith_sqr_ul_2ul (unsigned long *r1, unsigned long *r2, 
 		    const unsigned long a)
 {
@@ -541,7 +541,7 @@ ularith_sqr_ul_2ul (unsigned long *r1, unsigned long *r2,
 /* Integer division of a two ulong value a2:a1 by a ulong divisor. Returns
    quotient and remainder. */
 
-static inline void
+CADO_INLINE void
 ularith_div_2ul_ul_ul (unsigned long *q, unsigned long *r, 
 			   const unsigned long a1, const unsigned long a2, 
 			   const unsigned long b)
@@ -575,7 +575,7 @@ ularith_div_2ul_ul_ul (unsigned long *q, unsigned long *r,
 /* Integer division of a two longint value by a longint divisor. Returns
    only remainder. */
 
-static inline void
+CADO_INLINE void
 ularith_div_2ul_ul_ul_r (unsigned long *r, unsigned long a1,
                  const unsigned long a2, const unsigned long b)
 {
@@ -607,7 +607,7 @@ ularith_div_2ul_ul_ul_r (unsigned long *r, unsigned long a1,
 /* Set *r to lo shifted right by i bits, filling in the low bits from hi into the high
    bits of *r. I.e., *r = (hi * 2^ULONG_BITS + lo) / 2^i. Assumes 0 <= i < ULONG_BITS. */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 ularith_shrd (unsigned long *r, const unsigned long hi, const unsigned long lo,
               const unsigned char i)
 {
@@ -655,7 +655,7 @@ ularith_shrd (unsigned long *r, const unsigned long hi, const unsigned long lo,
 /* Set *r to hi shifted left by i bits, filling in the high bits from lo into the low
    bits of *r. I.e., *r = (hi + lo*2^-ULONG_BITS) * 2^i. Assumes 0 <= i < ULONG_BITS. */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 ularith_shld (unsigned long *r, const unsigned long lo, const unsigned long hi,
               const unsigned char i)
 {
@@ -696,7 +696,7 @@ ularith_shld (unsigned long *r, const unsigned long lo, const unsigned long hi,
 
 /* Returns number of trailing zeros in a. a must not be zero */
 MAYBE_UNUSED
-static inline unsigned int
+CADO_INLINE unsigned int
 ularith_ctz (const unsigned long a)
 {
 #if !defined (ULARITH_NO_ASM) && defined(__GNUC__) && \
@@ -727,7 +727,7 @@ ularith_ctz (const unsigned long a)
 
 /* Returns number of leading zeros in a. a must not be zero */
 MAYBE_UNUSED
-static inline unsigned int
+CADO_INLINE unsigned int
 ularith_clz (const unsigned long a)
 {
 #if !defined (ULARITH_NO_ASM) && defined(__GNUC__) && \
@@ -747,7 +747,7 @@ ularith_clz (const unsigned long a)
 
 /* Compute 1/n (mod 2^wordsize) */
 MAYBE_UNUSED
-static inline unsigned long
+CADO_INLINE unsigned long
 ularith_invmod (const unsigned long n)
 {
   /* T[i] = 1/(2i+1) mod 2^8 */
@@ -768,7 +768,7 @@ ularith_invmod (const unsigned long n)
 }
 
 /* Compute n/2 (mod m), where m must be odd. */
-static inline unsigned long
+CADO_INLINE unsigned long
 ularith_div2mod (const unsigned long n, const unsigned long m)
 {
 #if (defined(__i386__) && defined(__GNUC__)) || defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
@@ -793,7 +793,7 @@ ularith_div2mod (const unsigned long n, const unsigned long m)
 
 
 /* Integer (truncated) square root of n */
-static inline unsigned long
+CADO_INLINE unsigned long
 ularith_sqrt (const unsigned long n)
 {
   unsigned int i;
@@ -849,7 +849,7 @@ ularith_sqrt (const unsigned long n)
 
    Finally we compute (t + ratio)/2^k mod p = num/(den*2^k) mod p.  */
 
-static inline unsigned long
+CADO_INLINE unsigned long
 ularith_post_process_inverse(const unsigned long r, const unsigned long p,
   const unsigned long rem, const unsigned long den_inv,
   const unsigned long ratio, const unsigned long k)
@@ -873,7 +873,7 @@ ularith_post_process_inverse(const unsigned long r, const unsigned long p,
 /* Computes r = ((phigh * 2^LONG_BITS + plow) / 2^LONG_BITS) % m
    Requires phigh < m and invm = -1/m (mod 2^LONG_BITS). */
 
-static inline void
+CADO_INLINE void
 ularith_redc(unsigned long *r, const unsigned long plow,
              const unsigned long phigh, const unsigned long m,
              const unsigned long invm)

@@ -54,7 +54,7 @@
 extern "C" {
 #endif
 
-static inline void MPZ_INIT_SET_MPN(mpz_ptr DST, const mp_limb_t * SRC, size_t NLIMBS)
+CADO_INLINE void MPZ_INIT_SET_MPN(mpz_ptr DST, const mp_limb_t * SRC, size_t NLIMBS)
 {
 #if GMP_VERSION_ATLEAST(6, 0, 0)
     mpz_t foo;
@@ -68,7 +68,7 @@ static inline void MPZ_INIT_SET_MPN(mpz_ptr DST, const mp_limb_t * SRC, size_t N
 #endif
 }
 
-static inline void MPZ_SET_MPN(mpz_ptr DST, const mp_limb_t * SRC, size_t NLIMBS)
+CADO_INLINE void MPZ_SET_MPN(mpz_ptr DST, const mp_limb_t * SRC, size_t NLIMBS)
 {
 #if GMP_VERSION_ATLEAST(6, 0, 0)
     mpn_copyi(mpz_limbs_write(DST, NLIMBS),(SRC),(NLIMBS));
@@ -88,7 +88,7 @@ static inline void MPZ_SET_MPN(mpz_ptr DST, const mp_limb_t * SRC, size_t NLIMBS
 #endif
 }
 
-static inline void MPN_SET_MPZ(mp_limb_t * DST, size_t NLIMBS, mpz_srcptr SRC)
+CADO_INLINE void MPN_SET_MPZ(mp_limb_t * DST, size_t NLIMBS, mpz_srcptr SRC)
 {
 #if GMP_VERSION_ATLEAST(6, 0, 0)
     mp_size_t r = MIN((size_t) mpz_size(SRC), NLIMBS);

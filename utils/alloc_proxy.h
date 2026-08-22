@@ -19,19 +19,19 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-static inline void * mymalloc(size_t s);
-static inline void myfree(void * p, size_t s);
+CADO_INLINE void * mymalloc(size_t s);
+CADO_INLINE void myfree(void * p, size_t s);
 #ifdef __cplusplus
 }
 #endif
 
 #ifdef USE_ELECTRIC_ALLOC
 #include "electric_alloc.h"
-static inline void * mymalloc(size_t s) { return electric_alloc(s); }
-static inline void myfree(void * p, size_t s) { electric_free(p, s); }
+CADO_INLINE void * mymalloc(size_t s) { return electric_alloc(s); }
+CADO_INLINE void myfree(void * p, size_t s) { electric_free(p, s); }
 #else
-static inline void * mymalloc(size_t s) { return malloc(s); }
-static inline void myfree(void * p, size_t s MAYBE_UNUSED) { free(p); }
+CADO_INLINE void * mymalloc(size_t s) { return malloc(s); }
+CADO_INLINE void myfree(void * p, size_t s MAYBE_UNUSED) { free(p); }
 #endif
 
 #ifdef __cplusplus

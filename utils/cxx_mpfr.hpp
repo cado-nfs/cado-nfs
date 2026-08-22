@@ -279,7 +279,7 @@ namespace fmt
         };
 } // namespace fmt
 
-static inline std::partial_ordering operator<=>(cxx_mpfr const & a, cxx_mpfr const & b)
+inline std::partial_ordering operator<=>(cxx_mpfr const & a, cxx_mpfr const & b)
 {
     if (mpfr_nan_p((mpfr_srcptr) a))
         return std::partial_ordering::unordered;
@@ -287,18 +287,18 @@ static inline std::partial_ordering operator<=>(cxx_mpfr const & a, cxx_mpfr con
         return std::partial_ordering::unordered;
     return mpfr_auxx::cado_mpfr_cmp(a, b) <=> 0;
 }
-static inline bool operator==(cxx_mpfr const & a, cxx_mpfr const & b)
+inline bool operator==(cxx_mpfr const & a, cxx_mpfr const & b)
 {
     return (a <=> b) == 0;
 }
 #ifdef HAVE_LIBSTDCXX_BUG_114153
-static inline bool operator<(cxx_mpfr const & a, cxx_mpfr const & b)
+inline bool operator<(cxx_mpfr const & a, cxx_mpfr const & b)
 {
     return (a <=> b) < 0;
 }
 #endif
 
-static inline std::partial_ordering operator<=>(cxx_mpfr const & a, mpfr_srcptr b)
+inline std::partial_ordering operator<=>(cxx_mpfr const & a, mpfr_srcptr b)
 {
     if (mpfr_nan_p((mpfr_srcptr) a))
         return std::partial_ordering::unordered;
@@ -307,19 +307,19 @@ static inline std::partial_ordering operator<=>(cxx_mpfr const & a, mpfr_srcptr 
     return mpfr_auxx::cado_mpfr_cmp(a, b) <=> 0;
 }
 template <typename T>
-static inline std::partial_ordering operator<=>(cxx_mpfr const & a, const T b)
+inline std::partial_ordering operator<=>(cxx_mpfr const & a, const T b)
     requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
 {
     if (mpfr_nan_p((mpfr_srcptr) a))
         return std::partial_ordering::unordered;
     return mpfr_auxx::cado_mpfr_cmp(a, b) <=> 0;
 }
-static inline bool operator==(cxx_mpfr const & a, mpfr_srcptr b)
+inline bool operator==(cxx_mpfr const & a, mpfr_srcptr b)
 {
     return (a <=> b) == 0;
 }
 template <typename T>
-static inline bool operator==(cxx_mpfr const & a, const T b)
+inline bool operator==(cxx_mpfr const & a, const T b)
     requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
 {
     return (a <=> b) == 0;

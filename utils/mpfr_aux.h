@@ -19,7 +19,7 @@ extern "C" {
 /* {{{ mpfr_set_{int64,uin64}{,_2exp} */
 #if ULONG_BITS < 64
 /* Set z to q*2^e. On 32-bit machines, we can't use mpfr_set_ui! */
-static inline int mpfr_set_uint64_2exp(mpfr_ptr z, uint64_t const q, mpfr_exp_t e, mpfr_rnd_t rnd)
+CADO_INLINE int mpfr_set_uint64_2exp(mpfr_ptr z, uint64_t const q, mpfr_exp_t e, mpfr_rnd_t rnd)
 {
     if (q <= ULONG_MAX)
         return mpfr_set_ui_2exp(z, (unsigned long)q, e, rnd);
@@ -40,12 +40,12 @@ static inline int mpfr_set_uint64_2exp(mpfr_ptr z, uint64_t const q, mpfr_exp_t 
     }
 }
 /* Set z to q. On 32-bit machines, we can't use mpfr_set_ui! */
-static inline int mpfr_set_uint64(mpfr_ptr z, uint64_t q, mpfr_rnd_t rnd)
+CADO_INLINE int mpfr_set_uint64(mpfr_ptr z, uint64_t q, mpfr_rnd_t rnd)
 {
     return mpfr_set_uint64_2exp(z, q, 0, rnd);
 }
 
-static inline void mpfr_set_int64_2exp(mpfr_ptr z, int64_t q, int e, mpfr_rnd_t rnd)
+CADO_INLINE void mpfr_set_int64_2exp(mpfr_ptr z, int64_t q, int e, mpfr_rnd_t rnd)
 {
     if (LONG_MIN <= q && q <= LONG_MAX)
         return mpfr_set_si_2exp(z, (long)q, e, rnd);
@@ -57,24 +57,24 @@ static inline void mpfr_set_int64_2exp(mpfr_ptr z, int64_t q, int e, mpfr_rnd_t 
         return -r;
     }
 }
-static inline int mpfr_set_int64(mpfr_ptr z, int64_t q, mpfr_rnd_t rnd)
+CADO_INLINE int mpfr_set_int64(mpfr_ptr z, int64_t q, mpfr_rnd_t rnd)
 {
     return mpfr_set_int64_2exp(z, q, 0, rnd);
 }
 #else
-static inline int mpfr_set_uint64(mpfr_ptr a, uint64_t const b, mpfr_rnd_t rnd)
+CADO_INLINE int mpfr_set_uint64(mpfr_ptr a, uint64_t const b, mpfr_rnd_t rnd)
 {
     return mpfr_set_ui(a, b, rnd);
 }
-static inline int mpfr_set_int64(mpfr_ptr a, int64_t const b, mpfr_rnd_t rnd)
+CADO_INLINE int mpfr_set_int64(mpfr_ptr a, int64_t const b, mpfr_rnd_t rnd)
 {
     return mpfr_set_si(a, b, rnd);
 }
-static inline int mpfr_set_uint64_2exp(mpfr_ptr a, uint64_t const b, mpfr_exp_t e, mpfr_rnd_t rnd)
+CADO_INLINE int mpfr_set_uint64_2exp(mpfr_ptr a, uint64_t const b, mpfr_exp_t e, mpfr_rnd_t rnd)
 {
     return mpfr_set_ui_2exp(a, b, e, rnd);
 }
-static inline int mpfr_set_int64_2exp(mpfr_ptr a, int64_t const b, mpfr_exp_t e, mpfr_rnd_t rnd)
+CADO_INLINE int mpfr_set_int64_2exp(mpfr_ptr a, int64_t const b, mpfr_exp_t e, mpfr_rnd_t rnd)
 {
     return mpfr_set_si_2exp(a, b, e, rnd);
 }
@@ -87,25 +87,25 @@ static inline int mpfr_set_int64_2exp(mpfr_ptr a, int64_t const b, mpfr_exp_t e,
  * mpfr_t is initalized with mpfr_get_default_prec()
  */
 #if ULONG_BITS < 64
-static inline void mpfr_init_set_uint64(mpfr_ptr z, uint64_t x, mpfr_rnd_t rnd)
+CADO_INLINE void mpfr_init_set_uint64(mpfr_ptr z, uint64_t x, mpfr_rnd_t rnd)
 {
     mpfr_init2(z, mpfr_get_default_prec());
     mpfr_set_uint64(z, x, rnd);
 }
 
-static inline void mpfr_init_set_int64(mpfr_ptr z, int64_t x, mpc_rnd_t rnd)
+CADO_INLINE void mpfr_init_set_int64(mpfr_ptr z, int64_t x, mpc_rnd_t rnd)
 {
     mpfr_init2(z, mpfr_get_default_prec());
     mpfr_set_int64(z, x, rnd);
 }
 
 #else
-static inline void mpfr_init_set_uint64(mpfr_ptr a, const uint64_t b,
+CADO_INLINE void mpfr_init_set_uint64(mpfr_ptr a, const uint64_t b,
                                         mpfr_rnd_t rnd)
 {
     mpfr_init_set_ui(a, b, rnd);
 }
-static inline void mpfr_init_set_int64(mpfr_ptr a, int64_t const b,
+CADO_INLINE void mpfr_init_set_int64(mpfr_ptr a, int64_t const b,
                                        mpfr_rnd_t rnd)
 {
     mpfr_init_set_si(a, b, rnd);
@@ -115,7 +115,7 @@ static inline void mpfr_init_set_int64(mpfr_ptr a, int64_t const b,
 
 #if ULONG_BITS < 64
 #define MPFR_AUX_DEFINE_COMPARISON(OP)                                         \
-    static inline int mpfr_##OP##_uint64(mpfr_srcptr a, uint64_t c)            \
+    CADO_INLINE int mpfr_##OP##_uint64(mpfr_srcptr a, uint64_t c)            \
     {                                                                          \
         if (c <= ULONG_MAX)                                                    \
             return mpfr_##OP##_ui(a, (unsigned long)c);                        \
@@ -126,7 +126,7 @@ static inline void mpfr_init_set_int64(mpfr_ptr a, int64_t const b,
         mpfr_clear(cc);                                                        \
         return r;                                                              \
     }                                                                          \
-    static inline int mpfr_##OP##_int64(mpfr_srcptr a, int64_t c)              \
+    CADO_INLINE int mpfr_##OP##_int64(mpfr_srcptr a, int64_t c)              \
     {                                                                          \
         if (LONG_MIN <= c && c <= LONG_MAX)                                    \
             return mpfr_##OP##_ui(a, (long)c);                                 \
@@ -138,7 +138,7 @@ static inline void mpfr_init_set_int64(mpfr_ptr a, int64_t const b,
         return r;                                                              \
     }
 #define MPFR_AUX_DEFINE_FUNC3(OP)                                              \
-    static inline int mpfr_##OP##_uint64(mpfr_ptr a, mpfr_srcptr b,            \
+    CADO_INLINE int mpfr_##OP##_uint64(mpfr_ptr a, mpfr_srcptr b,            \
                                          uint64_t c, mpfr_rnd_t rnd)           \
     {                                                                          \
         if (c <= ULONG_MAX)                                                    \
@@ -150,7 +150,7 @@ static inline void mpfr_init_set_int64(mpfr_ptr a, int64_t const b,
         mpfr_clear(cc);                                                        \
         return r;                                                              \
     }                                                                          \
-    static inline int mpfr_##OP##_int64(mpfr_ptr a, mpfr_srcptr b, int64_t c,  \
+    CADO_INLINE int mpfr_##OP##_int64(mpfr_ptr a, mpfr_srcptr b, int64_t c,  \
                                         mpfr_rnd_t rnd)                        \
     {                                                                          \
         if (LONG_MIN <= c && c <= LONG_MAX)                                    \
@@ -164,21 +164,21 @@ static inline void mpfr_init_set_int64(mpfr_ptr a, int64_t const b,
     }
 #else
 #define MPFR_AUX_DEFINE_COMPARISON(OP)                                         \
-    static inline int mpfr_##OP##_uint64(mpfr_srcptr a, uint64_t c)            \
+    CADO_INLINE int mpfr_##OP##_uint64(mpfr_srcptr a, uint64_t c)            \
     {                                                                          \
         return mpfr_##OP##_ui(a, c);                                           \
     }                                                                          \
-    static inline int mpfr_##OP##_int64(mpfr_srcptr a, int64_t c)              \
+    CADO_INLINE int mpfr_##OP##_int64(mpfr_srcptr a, int64_t c)              \
     {                                                                          \
         return mpfr_##OP##_si(a, c);                                           \
     }
 #define MPFR_AUX_DEFINE_FUNC3(OP)                                              \
-    static inline int mpfr_##OP##_uint64(mpfr_ptr a, mpfr_srcptr b,            \
+    CADO_INLINE int mpfr_##OP##_uint64(mpfr_ptr a, mpfr_srcptr b,            \
                                          uint64_t c, mpfr_rnd_t rnd)           \
     {                                                                          \
         return mpfr_##OP##_ui(a, b, c, rnd);                                   \
     }                                                                          \
-    static inline int mpfr_##OP##_int64(mpfr_ptr a, mpfr_srcptr b, int64_t c,  \
+    CADO_INLINE int mpfr_##OP##_int64(mpfr_ptr a, mpfr_srcptr b, int64_t c,  \
                                         mpfr_rnd_t rnd)                        \
     {                                                                          \
         return mpfr_##OP##_si(a, b, c, rnd);                                   \
@@ -189,13 +189,13 @@ static inline void mpfr_init_set_int64(mpfr_ptr a, int64_t const b,
 
 /* mpfr doesn't have any addmul functions, but it does have FMA's */
 
-static inline int mpfr_addmul(mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c,
+CADO_INLINE int mpfr_addmul(mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c,
                               mpfr_rnd_t rnd)
 {
     return mpfr_fma(a, b, c, a, rnd);
 }
 
-static inline int mpfr_submul(mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c,
+CADO_INLINE int mpfr_submul(mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c,
                               mpfr_rnd_t rnd)
 {
     int const r = mpfr_fms(a, b, c, a, rnd);
@@ -203,7 +203,7 @@ static inline int mpfr_submul(mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c,
     return -r;
 }
 
-static inline int mpfr_addmul_ui(mpfr_ptr a, mpfr_srcptr b,
+CADO_INLINE int mpfr_addmul_ui(mpfr_ptr a, mpfr_srcptr b,
                                  unsigned long const c, mpfr_rnd_t rnd)
 {
     mpfr_t cc;
@@ -214,7 +214,7 @@ static inline int mpfr_addmul_ui(mpfr_ptr a, mpfr_srcptr b,
     return r;
 }
 
-static inline int mpfr_submul_ui(mpfr_ptr a, mpfr_srcptr b,
+CADO_INLINE int mpfr_submul_ui(mpfr_ptr a, mpfr_srcptr b,
                                  unsigned long const c, mpfr_rnd_t rnd)
 {
     mpfr_t cc;
@@ -225,7 +225,7 @@ static inline int mpfr_submul_ui(mpfr_ptr a, mpfr_srcptr b,
     return r;
 }
 
-static inline int mpfr_addmul_si(mpfr_ptr a, mpfr_srcptr b, long const c,
+CADO_INLINE int mpfr_addmul_si(mpfr_ptr a, mpfr_srcptr b, long const c,
                                  mpfr_rnd_t rnd)
 {
     mpfr_t cc;
@@ -236,7 +236,7 @@ static inline int mpfr_addmul_si(mpfr_ptr a, mpfr_srcptr b, long const c,
     return r;
 }
 
-static inline int mpfr_submul_si(mpfr_ptr a, mpfr_srcptr b, long const c,
+CADO_INLINE int mpfr_submul_si(mpfr_ptr a, mpfr_srcptr b, long const c,
                                  mpfr_rnd_t rnd)
 {
     mpfr_t cc;
@@ -247,7 +247,7 @@ static inline int mpfr_submul_si(mpfr_ptr a, mpfr_srcptr b, long const c,
     return r;
 }
 
-static inline int mpfr_addmul_d(mpfr_ptr a, mpfr_srcptr b, double c,
+CADO_INLINE int mpfr_addmul_d(mpfr_ptr a, mpfr_srcptr b, double c,
                               mpfr_rnd_t rnd)
 {
     mpfr_t cc;
@@ -259,7 +259,7 @@ static inline int mpfr_addmul_d(mpfr_ptr a, mpfr_srcptr b, double c,
     return r;
 }
 
-static inline int mpfr_submul_d(mpfr_ptr a, mpfr_srcptr b, double c,
+CADO_INLINE int mpfr_submul_d(mpfr_ptr a, mpfr_srcptr b, double c,
                               mpfr_rnd_t rnd)
 {
     mpfr_t cc;
@@ -271,7 +271,7 @@ static inline int mpfr_submul_d(mpfr_ptr a, mpfr_srcptr b, double c,
     return r;
 }
 
-static inline int mpfr_addmul_ld(mpfr_ptr a, mpfr_srcptr b, long double c,
+CADO_INLINE int mpfr_addmul_ld(mpfr_ptr a, mpfr_srcptr b, long double c,
                               mpfr_rnd_t rnd)
 {
     mpfr_t cc;
@@ -283,7 +283,7 @@ static inline int mpfr_addmul_ld(mpfr_ptr a, mpfr_srcptr b, long double c,
     return r;
 }
 
-static inline int mpfr_submul_ld(mpfr_ptr a, mpfr_srcptr b, long double c,
+CADO_INLINE int mpfr_submul_ld(mpfr_ptr a, mpfr_srcptr b, long double c,
                               mpfr_rnd_t rnd)
 {
     mpfr_t cc;
@@ -299,7 +299,7 @@ static inline int mpfr_submul_ld(mpfr_ptr a, mpfr_srcptr b, long double c,
 
 /* {{{ mpfr_{div,remainder}_{ui,si} */
 
-static inline int mpfr_remainder_ui(mpfr_ptr a, mpfr_srcptr b,
+CADO_INLINE int mpfr_remainder_ui(mpfr_ptr a, mpfr_srcptr b,
                                     unsigned long const c, mpfr_rnd_t rnd)
 {
     mpfr_t cc;
@@ -310,7 +310,7 @@ static inline int mpfr_remainder_ui(mpfr_ptr a, mpfr_srcptr b,
     return r;
 }
 
-static inline int mpfr_remainder_si(mpfr_ptr a, mpfr_srcptr b, long const c,
+CADO_INLINE int mpfr_remainder_si(mpfr_ptr a, mpfr_srcptr b, long const c,
                                     mpfr_rnd_t rnd)
 {
     mpfr_t cc;
@@ -333,7 +333,7 @@ MPFR_AUX_DEFINE_FUNC3(div)
 MPFR_AUX_DEFINE_FUNC3(remainder)
 
 #define MPFR_AUX_DEFINE_D_LD_FUNCTION(OP, TYP, SUF)			\
-    static inline int mpfr_##OP##SUF(mpfr_ptr a, mpfr_srcptr b,		\
+    CADO_INLINE int mpfr_##OP##SUF(mpfr_ptr a, mpfr_srcptr b,		\
                                      long double c, mpfr_rnd_t rnd)	\
     {									\
         mpfr_t r;							\

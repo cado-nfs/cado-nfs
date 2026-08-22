@@ -27,7 +27,7 @@ void convert_ij_to_Nx(unsigned int & N, unsigned int &  x, int i, unsigned int j
 // int convert_ab_to_X(uint64_t *x, const int64_t a, const uint64_t b, int logI, qlattice_basis const & Q);
 // int convert_ab_to_Nx(unsigned int * N, unsigned int *x, const int64_t a, const uint64_t b, int logI, qlattice_basis const & Q);
 
-static inline uint64_t convert_Nx_to_X(
+inline uint64_t convert_Nx_to_X(
         const unsigned int N,
         const unsigned int x)
 {
@@ -35,7 +35,7 @@ static inline uint64_t convert_Nx_to_X(
 }
 
 /* Warning: b might be negative, in which case we return (-a,-b) */
-static inline void convert_X_to_ab(
+inline void convert_X_to_ab(
         int64_t & a,
         uint64_t & b,
         const uint64_t x,
@@ -48,7 +48,7 @@ static inline void convert_X_to_ab(
     Q.convert_ij_to_ab(a, b, i, j);
 }
 
-static inline void convert_Nx_to_ab(
+inline void convert_Nx_to_ab(
         int64_t & a,
         uint64_t & b,
         const unsigned int N,
@@ -62,7 +62,7 @@ static inline void convert_Nx_to_ab(
 // this is only used with SUPPORT_LARGE_Q, obviously, but having them
 // doesn't hurt
 /* Warning: b might be negative, in which case we return (-a,-b) */
-static inline void convert_X_to_abmpz(
+inline void convert_X_to_abmpz(
         cxx_mpz & a,
         cxx_mpz & b,
         const uint64_t x,
@@ -75,7 +75,7 @@ static inline void convert_X_to_abmpz(
     Q.convert_ij_to_ab(a, b, i, j);
 }
 
-static inline void convert_Nx_to_abmpz(
+inline void convert_Nx_to_abmpz(
         cxx_mpz & a,
         cxx_mpz & b,
         const unsigned int N,

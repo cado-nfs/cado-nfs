@@ -1,5 +1,6 @@
 #ifndef CADO_GPF_H
 #define CADO_GPF_H
+#include "macros.h"
 
 /* A look-up table of the largest prime factor of a non-negative integer i.
 
@@ -18,7 +19,7 @@ extern unsigned int *gpf;
 void gpf_init(unsigned int);
 
 unsigned int gpf_safe_get(const unsigned long i);
-static inline unsigned int gpf_get(const unsigned long i) {
+CADO_INLINE unsigned int gpf_get(const unsigned long i) {
 #ifndef NDEBUG
     return gpf_safe_get(i);
 #else

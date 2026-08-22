@@ -85,35 +85,35 @@ extern struct trace_ij_t trace_ij;
 
 extern std::vector<cxx_mpz> traced_norms;
 
-static inline int trace_on_spot_N(unsigned int N) {
+inline int trace_on_spot_N(unsigned int N) {
     if (trace_Nx.x == UINT_MAX) return 0;
     return N == trace_Nx.N;
 }
 
-static inline int trace_on_spot_Nx(unsigned int N, unsigned int x) {
+inline int trace_on_spot_Nx(unsigned int N, unsigned int x) {
     if (trace_Nx.x == UINT_MAX) return 0;
     return N == trace_Nx.N && x == trace_Nx.x;
 }
 
-static inline int trace_on_range_Nx(unsigned int N, unsigned int x0, unsigned int x1) {
+inline int trace_on_range_Nx(unsigned int N, unsigned int x0, unsigned int x1) {
     if (trace_Nx.x == UINT_MAX) return 0;
     return N == trace_Nx.N && x0 <= trace_Nx.x && trace_Nx.x < x1;
 }
 
-static inline int trace_on_spot_x(uint64_t x) {
+inline int trace_on_spot_x(uint64_t x) {
     return x == (((uint64_t)trace_Nx.N) << LOG_BUCKET_REGION)
         + (uint64_t)trace_Nx.x;
 }
 
-static inline int trace_on_spot_ab(cxx_mpz const & a, cxx_mpz const & b) {
+inline int trace_on_spot_ab(cxx_mpz const & a, cxx_mpz const & b) {
     return a == trace_ab.a && b == trace_ab.b;
 }
 
-static inline int trace_on_spot_ab(int64_t a, uint64_t b) {
+inline int trace_on_spot_ab(int64_t a, uint64_t b) {
     return a == trace_ab.a && b == trace_ab.b;
 }
 
-static inline int trace_on_spot_ij(int i, unsigned int j) {
+inline int trace_on_spot_ij(int i, unsigned int j) {
     return i == trace_ij.i && j == trace_ij.j;
 }
 

@@ -37,11 +37,11 @@
 
 
 template <typename RT, typename ST>
-static inline
+inline
 RT mm_set1_m(const ST & d);
 
 template <typename T>
-static inline
+inline
 unsigned mm_movemask_epi8(const T d);
 
 template <>

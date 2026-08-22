@@ -21,14 +21,14 @@
 namespace mpc_auxx
 {
 #define MPC_AUXX_DEFINE_FUNC2(DTYPE, OP)                                \
-    static inline void cado_mpc_##OP(DTYPE a, mpc_srcptr b,             \
+    inline void cado_mpc_##OP(DTYPE a, mpc_srcptr b,             \
                                       mpc_rnd_t rnd)                    \
     {                                                                   \
         mpc_##OP(a, b, rnd);                                            \
     }                                                                   \
                                                                         \
     template <typename T>                                               \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpc_##OP(DTYPE a, T const b, mpc_rnd_t rnd)                    \
     requires cado::converts_via<T, long>                                \
     {                                                                   \
@@ -36,7 +36,7 @@ namespace mpc_auxx
     }                                                                   \
                                                                         \
     template <typename T>                                               \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpc_##OP(DTYPE a, T const b, mpc_rnd_t rnd)                    \
     requires cado::converts_via<T, unsigned long>                       \
     {                                                                   \
@@ -44,7 +44,7 @@ namespace mpc_auxx
     }                                                                   \
                                                                         \
     template <typename T>                                               \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpc_##OP(DTYPE a, T const b, mpc_rnd_t rnd)                    \
         requires(!cado::converts_via<T, long> &&                        \
                   cado::converts_via<T, int64_t>)                       \
@@ -53,7 +53,7 @@ namespace mpc_auxx
     }                                                                   \
                                                                         \
     template <typename T>                                               \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpc_##OP(DTYPE a, T const b, mpc_rnd_t rnd)                    \
         requires(!cado::converts_via<T, unsigned long> &&               \
                   cado::converts_via<T, uint64_t>)                      \
@@ -61,46 +61,46 @@ namespace mpc_auxx
         mpc_##OP##_uint64(a, b, rnd);                                   \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpc_##OP(DTYPE a, float const b, mpc_rnd_t rnd)                \
     {                                                                   \
         /* use _d for floats. mpc's _f functions are for mpf ! */       \
         mpc_##OP##_d(a, b, rnd);                                        \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpc_##OP(DTYPE a, double const b, mpc_rnd_t rnd)               \
     {                                                                   \
         mpc_##OP##_d(a, b, rnd);                                        \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpc_##OP(DTYPE a, long double const b, mpc_rnd_t rnd)          \
     {                                                                   \
         mpc_##OP##_ld(a, b, rnd);                                       \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpc_##OP(DTYPE a, std::complex<float> const b, mpc_rnd_t rnd)  \
     {                                                                   \
         /* use _d for floats. mpc's _f functions are for mpf ! */       \
         mpc_##OP##_d_d(a, b.real(), b.imag(), rnd);                     \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpc_##OP(DTYPE a, std::complex<double> const b, mpc_rnd_t rnd) \
     {                                                                   \
         mpc_##OP##_d_d(a, b.real(), b.imag(), rnd);                     \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpc_##OP(DTYPE a, std::complex<long double> const b, mpc_rnd_t rnd) \
     {                                                                   \
         mpc_##OP##_ld_ld(a, b.real(), b.imag(), rnd);                   \
     }
 
 /* This is missing in mpc.h */
-static inline void mpc_init_set(mpc_ptr a, mpc_srcptr b, mpc_rnd_t rnd)
+inline void mpc_init_set(mpc_ptr a, mpc_srcptr b, mpc_rnd_t rnd)
 {
     mpc_init2(a, mpfr_get_default_prec());
     mpc_set(a, b, rnd);
@@ -111,13 +111,13 @@ MPC_AUXX_DEFINE_FUNC2(mpc_ptr, set)
 
 
 /*****************************************************************/
-static inline int cado_mpc_cmp(mpc_srcptr a, mpc_srcptr b)
+inline int cado_mpc_cmp(mpc_srcptr a, mpc_srcptr b)
 {
     return mpc_cmp(a, b);
 }
 
 template <typename T>
-static inline int
+inline int
 cado_mpc_cmp(mpc_srcptr a, T const b)
     requires cado::converts_via<T, long>
 {
@@ -125,7 +125,7 @@ cado_mpc_cmp(mpc_srcptr a, T const b)
 }
 
 template <typename T>
-static inline int
+inline int
 cado_mpc_cmp(mpc_srcptr a, T const b)
     requires cado::converts_via<T, unsigned long>
 {
@@ -133,7 +133,7 @@ cado_mpc_cmp(mpc_srcptr a, T const b)
 }
 
 template <typename T>
-static inline int
+inline int
 cado_mpc_cmp(mpc_srcptr a, T const b)
     requires(!cado::converts_via<T, long> &&
               cado::converts_via<T, int64_t>)
@@ -142,7 +142,7 @@ cado_mpc_cmp(mpc_srcptr a, T const b)
 }
 
 template <typename T>
-static inline int
+inline int
 cado_mpc_cmp(mpc_srcptr a, T const b)
     requires(!cado::converts_via<T, unsigned long> &&
               cado::converts_via<T, uint64_t>)
@@ -150,45 +150,45 @@ cado_mpc_cmp(mpc_srcptr a, T const b)
     return mpc_cmp_uint64(a, b);
 }
 
-static inline int
+inline int
 cado_mpc_cmp(mpc_srcptr a, float b)
 {
     /* no mpc_cmp_* for float */
     return mpc_cmp_d(a, b);
 }
 
-static inline int
+inline int
 cado_mpc_cmp(mpc_srcptr a, double b)
 {
     return mpc_cmp_d(a, b);
 }
 
-static inline int
+inline int
 cado_mpc_cmp(mpc_srcptr a, long double b)
 {
     return mpc_cmp_ld(a, b);
 }
 
-static inline int
+inline int
 cado_mpc_cmp(mpc_srcptr a, std::complex<float> b)
 {
     /* no mpc_cmp_* for float */
     return mpc_cmp_d_d(a, b.real(), b.imag());
 }
 
-static inline int
+inline int
 cado_mpc_cmp(mpc_srcptr a, std::complex<double> b)
 {
     return mpc_cmp_d_d(a, b.real(), b.imag());
 }
 
-static inline int
+inline int
 cado_mpc_cmp(mpc_srcptr a, std::complex<long double> b)
 {
     return mpc_cmp_ld_ld(a, b.real(), b.imag());
 }
 
-static inline int
+inline int
 cado_mpc_cmp(mpc_srcptr a, mpfr_srcptr b)
 {
     return mpc_cmp_fr(a, b);
@@ -197,21 +197,21 @@ cado_mpc_cmp(mpc_srcptr a, mpfr_srcptr b)
 /*****************************************************************/
 
 #define MPC_AUXX_DEFINE_FUNC3(OP)                                       \
-    static inline int cado_mpc_##OP(mpc_ptr a,                          \
+    inline int cado_mpc_##OP(mpc_ptr a,                          \
                                     mpc_srcptr b, mpc_srcptr c,         \
                                     mpc_rnd_t rnd)                      \
     {                                                                   \
         return ::mpc_##OP(a, b, c, rnd);                                \
     }                                                                   \
     template <typename T>                                               \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, const T c, mpc_rnd_t rnd)    \
     requires cado::converts_via<T, unsigned long>                       \
     {                                                                   \
         return mpc_##OP##_ui(a, b, c, rnd);                             \
     }                                                                   \
     template <typename T>                                               \
-    static inline int cado_mpc_##OP(mpc_ptr a, mpc_srcptr b,            \
+    inline int cado_mpc_##OP(mpc_ptr a, mpc_srcptr b,            \
                                     const T c, mpc_rnd_t rnd)           \
     requires(!cado::converts_via<T, unsigned long> &&                   \
               cado::converts_via<T, uint64_t>)                          \
@@ -219,14 +219,14 @@ cado_mpc_cmp(mpc_srcptr a, mpfr_srcptr b)
         return mpc_##OP##_uint64(a, b, c, rnd);                         \
     }                                                                   \
     template <typename T>                                               \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, const T c, mpc_rnd_t rnd)    \
     requires cado::converts_via<T, long>                                \
     {                                                                   \
         return mpc_##OP##_si(a, b, c, rnd);                             \
     }                                                                   \
     template <typename T>                                               \
-    static inline int cado_mpc_##OP(mpc_ptr a, mpc_srcptr b,            \
+    inline int cado_mpc_##OP(mpc_ptr a, mpc_srcptr b,            \
                                      const T c, mpc_rnd_t rnd)          \
     requires(!cado::converts_via<T, long> &&                            \
               cado::converts_via<T, int64_t>)                           \
@@ -234,45 +234,45 @@ cado_mpc_cmp(mpc_srcptr a, mpfr_srcptr b)
         return mpc_##OP##_int64(a, b, c, rnd);                          \
     }                                                                   \
                                                                         \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, float c, mpc_rnd_t rnd)      \
     {                                                                   \
         /* use _d for floats. mpc's _f functions are for mpf ! */       \
         return mpc_##OP##_d(a, b, c, rnd);                                     \
     }                                                                   \
                                                                         \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, double c, mpc_rnd_t rnd)     \
     {                                                                   \
         return mpc_##OP##_d(a, b, c, rnd);                                     \
     }                                                                   \
                                                                         \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, long double c, mpc_rnd_t rnd)\
     {                                                                   \
         return mpc_##OP##_ld(a, b, c, rnd);                                    \
     }                                                                   \
                                                                         \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, mpfr_srcptr c, mpc_rnd_t rnd)\
     {                                                                   \
         return mpc_##OP##_fr(a, b, c, rnd);                                    \
     }                                                                   \
                                                                         \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, std::complex<float> c, mpc_rnd_t rnd)          \
     {                                                                   \
         /* use _d for floats. mpc's _f functions are for mpf ! */       \
         return mpc_##OP##_d_d(a, b, c.real(), c.imag(), rnd);                  \
     }                                                                   \
                                                                         \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, std::complex<double> c, mpc_rnd_t rnd)          \
     {                                                                   \
         return mpc_##OP##_d_d(a, b, c.real(), c.imag(), rnd);                  \
     }                                                                   \
                                                                         \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, std::complex<long double> c, mpc_rnd_t rnd)          \
     {                                                                   \
         return mpc_##OP##_ld_ld(a, b, c.real(), c.imag(), rnd);                \
@@ -280,7 +280,7 @@ cado_mpc_cmp(mpc_srcptr a, mpfr_srcptr b)
 
 #define MPC_AUXX_DEFINE_FUNC3_REFLEX(OP, FIXUP)                         \
     template <typename T>                                               \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, const T b, mpc_srcptr c,                   \
                    mpc_rnd_t rnd)                                       \
     requires cado::converts_via<T, unsigned long>                       \
@@ -290,7 +290,7 @@ cado_mpc_cmp(mpc_srcptr a, mpfr_srcptr b)
         return r;                                                       \
     }                                                                   \
     template <typename T>                                               \
-    static inline int cado_mpc_##OP(mpc_ptr a, const T b,               \
+    inline int cado_mpc_##OP(mpc_ptr a, const T b,               \
                                      mpc_srcptr c, mpc_rnd_t rnd)       \
     requires(!cado::converts_via<T, unsigned long> &&                   \
               cado::converts_via<T, uint64_t>)                          \
@@ -300,7 +300,7 @@ cado_mpc_cmp(mpc_srcptr a, mpfr_srcptr b)
         return r;                                                       \
     }                                                                   \
     template <typename T>                                               \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, const T b, mpc_srcptr c,                   \
                    mpc_rnd_t rnd)                                       \
     requires cado::integral_fits_v<T, long>                             \
@@ -310,7 +310,7 @@ cado_mpc_cmp(mpc_srcptr a, mpfr_srcptr b)
         return r;                                                       \
     }                                                                   \
     template <typename T>                                               \
-    static inline int cado_mpc_##OP(mpc_ptr a, const T b,               \
+    inline int cado_mpc_##OP(mpc_ptr a, const T b,               \
                                      mpc_srcptr c, mpc_rnd_t rnd)       \
     requires(!cado::converts_via<T, long> &&                            \
               cado::converts_via<T, int64_t>)                           \
@@ -319,7 +319,7 @@ cado_mpc_cmp(mpc_srcptr a, mpfr_srcptr b)
         FIXUP;                                                          \
         return r;                                                       \
     }                                                                   \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpfr_srcptr b, mpc_srcptr c,               \
                    mpc_rnd_t rnd)                                       \
     {                                                                   \
@@ -345,7 +345,7 @@ MPC_AUXX_DEFINE_FUNC3_REFLEX(mul, /* no fixup for commutative op */)
 MPC_AUXX_DEFINE_FUNC3_REFLEX(div, mpc_ui_div(a, 1, a, rnd); r = -r)
 
 template <typename T>
-    static inline int
+    inline int
     cado_mpc_remainder(mpc_ptr a, const T b, mpc_srcptr c, mpc_rnd_t rnd)
     requires (std::is_integral_v<T> || std::is_floating_point_v<T> || std::is_same_v<T, mpfr_srcptr>)
 {

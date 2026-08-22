@@ -117,7 +117,7 @@ extern int mmt_vec_load(mmt_vec & v, std::string const & name, unsigned int item
 extern int mmt_vec_save(mmt_vec & v, std::string const & name, unsigned int itemsondisk, unsigned int block_position);
 extern void mmt_vec_clear_padding(mmt_vec & v, size_t unpadded, size_t padded);
 
-static inline int mmt_vec_is_shared(mmt_vec const & v) {
+inline int mmt_vec_is_shared(mmt_vec const & v) {
     return v.siblings.get() == nullptr;
 }
 

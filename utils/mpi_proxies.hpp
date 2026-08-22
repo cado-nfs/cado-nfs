@@ -160,7 +160,7 @@ broadcast(T * in, size_t n, int root, MPI_Comm comm)
     MPI_Bcast(in, runtime_numeric_cast<int>(n), type_tag<T>::value(), root, comm);
 }
 
-static inline void
+inline void
 broadcast(mpz_ptr z, int root, MPI_Comm comm)
 {
     int k;
@@ -177,7 +177,7 @@ broadcast(mpz_ptr z, int root, MPI_Comm comm)
     // broadcast(z->_mp_size, root, comm);
 }
 
-static inline void
+inline void
 broadcast(cxx_mpz & z, int root, MPI_Comm comm)
 {
     broadcast((mpz_ptr) z, root, comm);

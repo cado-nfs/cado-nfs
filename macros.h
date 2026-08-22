@@ -567,4 +567,10 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,(X),(
 #define CADO_STRINGIZE(x) CADO_STRINGIZE_(x)
 #endif
 
+#ifdef __cplusplus
+#define CADO_INLINE inline
+#else
+#define CADO_INLINE static inline
+#endif
+
 #endif	/* CADO_MACROS_H */

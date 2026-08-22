@@ -62,15 +62,15 @@ typedef struct __modulusredc15ul_t modulusredc15ul_t[1];
 
 /* ==================== Functions used internally ==================== */
 
-static inline void
+CADO_INLINE void
 modredc15ul_add (residueredc15ul_t r, const residueredc15ul_t a, 
 		 const residueredc15ul_t b, const modulusredc15ul_t m);
-static inline void
+CADO_INLINE void
 modredc15ul_get_int (modintredc15ul_t r, const residueredc15ul_t s, 
 		     const modulusredc15ul_t m MAYBE_UNUSED);
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_tomontgomery (residueredc15ul_t r, const residueredc15ul_t s,
 			  const modulusredc15ul_t m)
 {
@@ -79,7 +79,7 @@ modredc15ul_tomontgomery (residueredc15ul_t r, const residueredc15ul_t s,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_frommontgomery (residueredc15ul_t r, const residueredc15ul_t s,
 			    const modulusredc15ul_t m)
 {
@@ -88,7 +88,7 @@ modredc15ul_frommontgomery (residueredc15ul_t r, const residueredc15ul_t s,
 
 /* Do a one-word REDC, i.e., divide by 2^ULONG_BITS */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_redc1 (residueredc15ul_t r, const residueredc15ul_t s,
 		   const modulusredc15ul_t m)
 {
@@ -102,7 +102,7 @@ modredc15ul_redc1 (residueredc15ul_t r, const residueredc15ul_t s,
  */
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_intinit (modintredc15ul_t r)
 {
     modredc2ul2_intinit(r);
@@ -110,7 +110,7 @@ modredc15ul_intinit (modintredc15ul_t r)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_intclear (modintredc15ul_t r MAYBE_UNUSED)
 {
     modredc2ul2_intclear(r);
@@ -118,21 +118,21 @@ modredc15ul_intclear (modintredc15ul_t r MAYBE_UNUSED)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_intset (modintredc15ul_t r, const modintredc15ul_t s)
 {
     modredc2ul2_intset(r, s);
 }
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_intset_ul (modintredc15ul_t r, const unsigned long s)
 {
     modredc2ul2_intset_ul(r, s);
 }
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_intset_uls (modintredc15ul_t r, const unsigned long *s, 
                         const size_t n)
 {
@@ -141,35 +141,35 @@ modredc15ul_intset_uls (modintredc15ul_t r, const unsigned long *s,
 
 /* Get the least significant unsigned long of r */
 MAYBE_UNUSED
-static inline unsigned long 
+CADO_INLINE unsigned long 
 modredc15ul_intget_ul (const modintredc15ul_t r)
 {
     return modredc2ul2_intget_ul(r);
 }
 
 MAYBE_UNUSED
-static inline size_t  
+CADO_INLINE size_t  
 modredc15ul_intget_uls (unsigned long *r, const modintredc15ul_t s)
 {
     return modredc2ul2_intget_uls(r, s);
 }
 
 MAYBE_UNUSED
-static inline double
+CADO_INLINE double
 modredc15ul_intget_double (const modintredc15ul_t s)
 {
     return modredc2ul2_intget_double(s);
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc15ul_intequal (const modintredc15ul_t a, const modintredc15ul_t b)
 {
     return modredc2ul2_intequal(a, b);
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc15ul_intequal_ul (const modintredc15ul_t a, const unsigned long b)
 {
     return modredc2ul2_intequal_ul(a, b);
@@ -177,42 +177,42 @@ modredc15ul_intequal_ul (const modintredc15ul_t a, const unsigned long b)
 
 /* Returns 1 if a < b, 0 otherwise */
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc15ul_intlt (const modintredc15ul_t a, const modintredc15ul_t b)
 {
     return modredc2ul2_intlt(a, b);
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc15ul_intcmp (const modintredc15ul_t a, const modintredc15ul_t b)
 {
     return modredc2ul2_intcmp(a, b);
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc15ul_intcmp_ul (const modintredc15ul_t a, const unsigned long b)
 {
     return modredc2ul2_intcmp_ul(a, b);
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc15ul_intcmp_uint64 (const modintredc15ul_t a, const uint64_t b)
 {
     return modredc2ul2_intcmp_uint64(a, b);
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc15ul_intfits_ul (const modintredc15ul_t a)
 {
     return modredc2ul2_intfits_ul(a);
 }
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_intadd (modintredc15ul_t r, const modintredc15ul_t a,
 		    const modintredc15ul_t b)
 {
@@ -220,7 +220,7 @@ modredc15ul_intadd (modintredc15ul_t r, const modintredc15ul_t a,
 }
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_intsub (modintredc15ul_t r, const modintredc15ul_t a,
 		    const modintredc15ul_t b)
 {
@@ -230,7 +230,7 @@ modredc15ul_intsub (modintredc15ul_t r, const modintredc15ul_t a,
 /* Returns the number of bits in a, that is, floor(log_2(a))+1. 
    For a == 0 returns 0. */
 MAYBE_UNUSED
-static inline size_t 
+CADO_INLINE size_t 
 modredc15ul_intbits (const modintredc15ul_t a)
 {
     return modredc2ul2_intbits(a);
@@ -239,7 +239,7 @@ modredc15ul_intbits (const modintredc15ul_t a)
 
 /* r = trunc(s / 2^i) */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_intshr (modintredc15ul_t r, const modintredc15ul_t s, const unsigned int i)
 {
     modredc2ul2_intshr(r, s, i);
@@ -248,7 +248,7 @@ modredc15ul_intshr (modintredc15ul_t r, const modintredc15ul_t s, const unsigned
 
 /* r = (s * 2^i) % (2^(2 * ULONG_BITS)) */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_intshl (modintredc15ul_t r, const modintredc15ul_t s, const unsigned int i)
 {
     modredc2ul2_intshl(r, s, i);
@@ -257,7 +257,7 @@ modredc15ul_intshl (modintredc15ul_t r, const modintredc15ul_t s, const unsigned
 
 /* r = n/d. We require d|n */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_intdivexact (modintredc15ul_t r, const modintredc15ul_t n,
                          const modintredc15ul_t d)
 {
@@ -265,7 +265,7 @@ modredc15ul_intdivexact (modintredc15ul_t r, const modintredc15ul_t n,
 }
 
 MAYBE_UNUSED
-static inline unsigned long
+CADO_INLINE unsigned long
 modredc15ul_intmod_ul (const modintredc15ul_t n, const unsigned long d)
 {
     return modredc2ul2_intmod_ul(n, d);
@@ -273,7 +273,7 @@ modredc15ul_intmod_ul (const modintredc15ul_t n, const unsigned long d)
 
 /* r = n%d */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_intmod (modintredc15ul_t r, const modintredc15ul_t n,
                     const modintredc15ul_t d)
 {
@@ -285,7 +285,7 @@ modredc15ul_intmod (modintredc15ul_t r, const modintredc15ul_t n,
 
 /* Init the modulus from a modintredc15ul_t. */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_initmod_int (modulusredc15ul_t m, const modintredc15ul_t s)
 {
     modredc2ul2_initmod_int((struct __modulusredc2ul2_t *) m, s);
@@ -294,7 +294,7 @@ modredc15ul_initmod_int (modulusredc15ul_t m, const modintredc15ul_t s)
 
 /* Returns the modulus as an modintredc15ul_t. */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_getmod_int (modintredc15ul_t r, const modulusredc15ul_t m)
 {
     modredc2ul2_getmod_int(r, (const struct __modulusredc2ul2_t *) m);
@@ -302,7 +302,7 @@ modredc15ul_getmod_int (modintredc15ul_t r, const modulusredc15ul_t m)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_clearmod (modulusredc15ul_t m)
 {
     modredc2ul2_clearmod((struct __modulusredc2ul2_t *) m);
@@ -313,7 +313,7 @@ modredc15ul_clearmod (modulusredc15ul_t m)
 
 /* Initialises a residueredc15ul_t and sets it to zero */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_init (residueredc15ul_t r, const modulusredc15ul_t m MAYBE_UNUSED)
 {
     modredc2ul2_init(r, (const struct __modulusredc2ul2_t *) m);
@@ -323,7 +323,7 @@ modredc15ul_init (residueredc15ul_t r, const modulusredc15ul_t m MAYBE_UNUSED)
 /* Initialises a residueredc15ul_t, but does not set it to zero. For fixed 
    length residueredc15ul_t, that leaves nothing to do at all. */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_init_noset0 (residueredc15ul_t r MAYBE_UNUSED, 
 			 const modulusredc15ul_t m MAYBE_UNUSED)
 {
@@ -332,7 +332,7 @@ modredc15ul_init_noset0 (residueredc15ul_t r MAYBE_UNUSED,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_clear (residueredc15ul_t r MAYBE_UNUSED, 
 		   const modulusredc15ul_t m MAYBE_UNUSED)
 {
@@ -341,7 +341,7 @@ modredc15ul_clear (residueredc15ul_t r MAYBE_UNUSED,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_set (residueredc15ul_t r, const residueredc15ul_t s, 
 		 const modulusredc15ul_t m MAYBE_UNUSED)
 {
@@ -350,7 +350,7 @@ modredc15ul_set (residueredc15ul_t r, const residueredc15ul_t s,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_set_ul (residueredc15ul_t r, const unsigned long s, 
 		    const modulusredc15ul_t m)
 {
@@ -362,7 +362,7 @@ modredc15ul_set_ul (residueredc15ul_t r, const unsigned long s,
    Assumes that s is reduced (mod m), i.e. 0 <= s < m */
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_set_ul_reduced (residueredc15ul_t r, const unsigned long s, 
 			    const modulusredc15ul_t m MAYBE_UNUSED)
 {
@@ -371,7 +371,7 @@ modredc15ul_set_ul_reduced (residueredc15ul_t r, const unsigned long s,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_set_int (residueredc15ul_t r, const modintredc15ul_t s, 
 		     const modulusredc15ul_t m)
 {
@@ -380,7 +380,7 @@ modredc15ul_set_int (residueredc15ul_t r, const modintredc15ul_t s,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_set_int_reduced (residueredc15ul_t r, const modintredc15ul_t s, 
 			     const modulusredc15ul_t m)
 {
@@ -389,7 +389,7 @@ modredc15ul_set_int_reduced (residueredc15ul_t r, const modintredc15ul_t s,
 
 
 MAYBE_UNUSED 
-static inline void 
+CADO_INLINE void 
 modredc15ul_set0 (residueredc15ul_t r, const modulusredc15ul_t m MAYBE_UNUSED) 
 { 
     modredc2ul2_set0(r, (const struct __modulusredc2ul2_t *) m);
@@ -397,7 +397,7 @@ modredc15ul_set0 (residueredc15ul_t r, const modulusredc15ul_t m MAYBE_UNUSED)
 
 
 MAYBE_UNUSED 
-static inline void 
+CADO_INLINE void 
 modredc15ul_set1 (residueredc15ul_t r, const modulusredc15ul_t m) 
 { 
     modredc2ul2_set1(r, (const struct __modulusredc2ul2_t *) m);
@@ -407,7 +407,7 @@ modredc15ul_set1 (residueredc15ul_t r, const modulusredc15ul_t m)
 /* Exchanges the values of the two arguments */
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_swap (residueredc15ul_t a, residueredc15ul_t b, 
 		  const modulusredc15ul_t m MAYBE_UNUSED)
 {
@@ -419,7 +419,7 @@ modredc15ul_swap (residueredc15ul_t a, residueredc15ul_t b,
    if the residue does not fit in one unsigned long? */
 
 MAYBE_UNUSED
-static inline unsigned long
+CADO_INLINE unsigned long
 modredc15ul_get_ul (const residueredc15ul_t s, 
 		    const modulusredc15ul_t m MAYBE_UNUSED)
 {
@@ -430,7 +430,7 @@ modredc15ul_get_ul (const residueredc15ul_t s,
 /* Returns the residue as a modintredc15ul_t */
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_get_int (modintredc15ul_t r, const residueredc15ul_t s, 
 		     const modulusredc15ul_t m MAYBE_UNUSED)
 {
@@ -439,7 +439,7 @@ modredc15ul_get_int (modintredc15ul_t r, const residueredc15ul_t s,
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc15ul_equal (const residueredc15ul_t a, const residueredc15ul_t b, 
 		   const modulusredc15ul_t m MAYBE_UNUSED)
 {
@@ -448,7 +448,7 @@ modredc15ul_equal (const residueredc15ul_t a, const residueredc15ul_t b,
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc15ul_is0 (const residueredc15ul_t a, const modulusredc15ul_t m MAYBE_UNUSED)
 {
     return modredc2ul2_is0(a, (const struct __modulusredc2ul2_t *) m);
@@ -456,7 +456,7 @@ modredc15ul_is0 (const residueredc15ul_t a, const modulusredc15ul_t m MAYBE_UNUS
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc15ul_is1 (const residueredc15ul_t a, const modulusredc15ul_t m MAYBE_UNUSED)
 {
     return modredc2ul2_is1(a, (const struct __modulusredc2ul2_t *) m);
@@ -464,7 +464,7 @@ modredc15ul_is1 (const residueredc15ul_t a, const modulusredc15ul_t m MAYBE_UNUS
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_add (residueredc15ul_t r, const residueredc15ul_t a, 
 		 const residueredc15ul_t b, const modulusredc15ul_t m)
 {
@@ -473,7 +473,7 @@ modredc15ul_add (residueredc15ul_t r, const residueredc15ul_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_sub (residueredc15ul_t r, const residueredc15ul_t a, 
 		 const residueredc15ul_t b, const modulusredc15ul_t m)
 {
@@ -482,7 +482,7 @@ modredc15ul_sub (residueredc15ul_t r, const residueredc15ul_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_add1 (residueredc15ul_t r, const residueredc15ul_t a, 
 		  const modulusredc15ul_t m)
 {
@@ -491,7 +491,7 @@ modredc15ul_add1 (residueredc15ul_t r, const residueredc15ul_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_add_ul (residueredc15ul_t r, const residueredc15ul_t a,
 		    const unsigned long b, const modulusredc15ul_t m)
 {
@@ -500,7 +500,7 @@ modredc15ul_add_ul (residueredc15ul_t r, const residueredc15ul_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_sub_ul (residueredc15ul_t r, const residueredc15ul_t a,
 		    const unsigned long b, const modulusredc15ul_t m)
 {
@@ -509,7 +509,7 @@ modredc15ul_sub_ul (residueredc15ul_t r, const residueredc15ul_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_neg (residueredc15ul_t r, const residueredc15ul_t a, 
 		 const modulusredc15ul_t m)
 {
@@ -518,7 +518,7 @@ modredc15ul_neg (residueredc15ul_t r, const residueredc15ul_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_div2 (residueredc15ul_t r, const residueredc15ul_t a, 
 		  const modulusredc15ul_t m)
 {
@@ -537,7 +537,7 @@ modredc15ul_div2 (residueredc15ul_t r, const residueredc15ul_t a,
 #endif
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_mul (residueredc15ul_t r, const residueredc15ul_t a, 
                  const residueredc15ul_t b, const modulusredc15ul_t m)
 {
@@ -693,7 +693,7 @@ modredc15ul_mul (residueredc15ul_t r, const residueredc15ul_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc15ul_sqr (residueredc15ul_t r, const residueredc15ul_t a, 
                  const modulusredc15ul_t m)
 {
@@ -826,7 +826,7 @@ modredc15ul_sqr (residueredc15ul_t r, const residueredc15ul_t a,
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc15ul_next (residueredc15ul_t r, const modulusredc15ul_t m)
 {
     return modredc2ul2_next(r, (const struct __modulusredc2ul2_t *) m);
@@ -834,7 +834,7 @@ modredc15ul_next (residueredc15ul_t r, const modulusredc15ul_t m)
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc15ul_finished (const residueredc15ul_t r, const modulusredc15ul_t m)
 {
     return modredc2ul2_finished(r, (const struct __modulusredc2ul2_t *) m);
@@ -850,7 +850,7 @@ modredc15ul_finished (const residueredc15ul_t r, const modulusredc15ul_t m)
    c = n^(-1) (mod word base)
 */
 
-static inline int
+CADO_INLINE int
 modredc15ul_divn (residueredc15ul_t r, const residueredc15ul_t a, 
 		  const unsigned long n, const unsigned long w_mod_n, 
 		  const unsigned long *inv_n, const unsigned long c,
@@ -859,7 +859,7 @@ modredc15ul_divn (residueredc15ul_t r, const residueredc15ul_t a,
     return modredc2ul2_divn(r, a, n, w_mod_n, inv_n, c, (const struct __modulusredc2ul2_t *) m);
 }
 
-static inline int
+CADO_INLINE int
 modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A, 
 		 const modulusredc15ul_t m) 
 {

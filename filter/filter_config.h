@@ -1,5 +1,6 @@
 #ifndef CADO_FILTER_CONFIG_H
 #define CADO_FILTER_CONFIG_H
+#include "macros.h"
 
 #include "typedefs.h"
 
@@ -86,17 +87,17 @@
 extern "C" {
 #endif
 
-static inline int cmp_ideal_merge (const void *p, const void *q);
+CADO_INLINE int cmp_ideal_merge (const void *p, const void *q);
 /* compare two index_t's */
-static inline int cmp_index (const void *p, const void *q);
-static inline int cmp_index2 (const void *p, const void *q);
+CADO_INLINE int cmp_index (const void *p, const void *q);
+CADO_INLINE int cmp_index2 (const void *p, const void *q);
 
 #ifdef __cplusplus
 }
 #endif
 
 
-static inline int
+CADO_INLINE int
 cmp_ideal_merge (const void *p, const void *q)
 {
   ideal_merge_t x = *((ideal_merge_t *)p);
@@ -105,7 +106,7 @@ cmp_ideal_merge (const void *p, const void *q)
 }
 
 /* compare two index_t's */
-static inline int
+CADO_INLINE int
 cmp_index (const void *p, const void *q)
 {
   index_t x = *((index_t *)p);
@@ -117,7 +118,7 @@ cmp_index (const void *p, const void *q)
    We also compare x[1] and y[1] to make the code deterministic
    since in case x[0] = y[0], qsort() may give different results on
    different machines. */
-static inline int
+CADO_INLINE int
 cmp_index2 (const void *p, const void *q)
 {
   index_t *x = (index_t*) p;
@@ -131,7 +132,7 @@ cmp_index2 (const void *p, const void *q)
     return (x[1] < y[1]) ? 1 : -1;
 }
 
-static inline int cmp_typerow_t(const void * a, const void * b) {
+CADO_INLINE int cmp_typerow_t(const void * a, const void * b) {
 #ifndef FOR_DL
     return cmp_index(a, b);
 #else

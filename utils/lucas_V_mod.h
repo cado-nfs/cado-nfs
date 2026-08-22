@@ -30,7 +30,7 @@ extern "C" {
 /* Given a = V_n (x), b = V_m (x) and d = V_{n-m} (x), compute V_{m+n} (x).
  * r can be the same variable as a or b but must not be the same variable as d.
  */
-static inline void
+CADO_INLINE void
 mod_V_dadd (residue_t r, const residue_t a, const residue_t b,
             const residue_t d, const modulus_t m)
 {
@@ -42,7 +42,7 @@ mod_V_dadd (residue_t r, const residue_t a, const residue_t b,
 /* Given a = V_n (x) and two = 2, compute V_{2n} (x).
  * r can be the same variable as a but must not be the same variable as two.
  */
-static inline void
+CADO_INLINE void
 mod_V_dbl (residue_t r, const residue_t a, const residue_t two,
            const modulus_t m)
 {

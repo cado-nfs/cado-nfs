@@ -281,19 +281,19 @@ struct gf2_override<128, T> : public gf2_base<128, T>
       : gf2_base<G, T> { std::forward<Args>(args)... }
     {}
     /* {{{ assignments */
-    static inline void set_random(elt& x, cxx_gmp_randstate & rstate)
+    inline void set_random(elt& x, cxx_gmp_randstate & rstate)
     {
         __m64 lo = _mm_cvtsi64_m64(u64_random(rstate));
         __m64 hi = _mm_cvtsi64_m64(u64_random(rstate));
         x = _mm_setr_epi64(lo, hi);
     }
     /* }}} */
-    static inline void add(elt& dst, elt const& a, elt const& b)
+    inline void add(elt& dst, elt const& a, elt const& b)
     {
         dst.x = _mm_xor_si128(a.x, b.x);
     }
     /*{{{ simd*/
-    static inline int simd_hamming_weight(elt const& p)
+    inline int simd_hamming_weight(elt const& p)
     {
         return _mm_popcnt_u64(_mm_extract_epi64(p.x, 0)) +
                _mm_popcnt_u64(_mm_extract_epi64(p.x, 1));
