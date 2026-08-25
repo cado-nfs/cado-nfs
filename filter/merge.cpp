@@ -66,6 +66,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "params.hpp"
 #include "purgedfile.h"
 #include "read_purgedfile_in_parallel.hpp"
+#include "runtime_numeric_cast.hpp"
 #include "sparse.h"
 #include "timing.h"
 #include "typedefs.h"
@@ -143,6 +144,9 @@ declare_usage(cxx_param_list & pl)
   param_list_decl_usage(pl, "out", "output history file");
   param_list_decl_usage(pl, "target_density", "stop when the average row density exceeds this value"
                             " (default " CADO_STRINGIZE(DEFAULT_MERGE_TARGET_DENSITY) ")");
+  param_list_decl_usage(pl, "target_excess", "if given and excess is larger at "
+                            "the end of merge, rows will be deleted to reach "
+                            "this value (default: no value)");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "t", "number of threads");
   param_list_decl_usage(pl, "v", "verbose mode");
@@ -1286,10 +1290,65 @@ apply_merges (const index_t * L, index_t total_merges, filter_matrix_t *mat,
   return nmerges;
 }
 
+int64_t excess(filter_matrix_t const *mat)
+{
+    if (mat->rem_nrows >= mat->rem_ncols)
+        return runtime_numeric_cast<int64_t>(mat->rem_nrows - mat->rem_ncols);
+    else
+        return -runtime_numeric_cast<int64_t>(mat->rem_ncols - mat->rem_nrows);
+}
+
 static double
 average_density (filter_matrix_t *mat)
 {
   return double_ratio(mat->tot_weight, mat->rem_nrows);
+}
+
+/* Remove rows until excess is target_excess.
+ * Return the number of deleted rows.
+ */
+uint64_t
+removeHeaviestRows(filter_matrix_t *mat, int64_t target_excess,
+                   buffer_type & buf)
+{
+    uint64_t nremoved = 0u;
+    std::vector<uint64_t> C;
+    constexpr uint64_t EMPTY = std::numeric_limits<uint64_t>::max();
+    /* comp := is weight of row j > weight of row k */
+    auto comp = [&mat](uint64_t j, uint64_t k){
+        if (j == EMPTY)
+            return false;
+        else
+            return k == EMPTY or matLengthRow(mat, j) > matLengthRow(mat, k);
+    };
+
+    /* Put in C the index of the heaviest rows, at most the difference between
+     * the current excess and the target excess.
+     */
+    C.assign(excess(mat) - target_excess, EMPTY);
+    for (uint64_t i = 0u; i < mat->nrows; ++i) {
+        if (mat->rows[i] != nullptr && comp(i, C.back())) {
+            auto pos = std::ranges::upper_bound(C, i, comp);
+            std::shift_right(pos, C.end(), 1);
+            *pos = i;
+        }
+    }
+
+    /* Remove the rows */
+    char s[MERGE_CHAR_MAX];
+    int n MAYBE_UNUSED;
+    for (auto const & r: C) {
+        if (r != EMPTY and excess(mat) > target_excess) {
+            index_signed_t i = runtime_numeric_cast<index_signed_t>(r);
+            n = sreportn (s, MERGE_CHAR_MAX, &i, 1, 0 /* irrelevant */);
+            ASSERT(n < MERGE_CHAR_MAX);
+            buffer_add (buf, s);
+            remove_row(mat, r);
+            nremoved++;
+        }
+    }
+    mat->rem_nrows -= nremoved;
+    return nremoved;
 }
 
 #ifdef DEBUG
@@ -1411,6 +1470,7 @@ int main(int argc, char const * argv[])
     int nthreads = 1, cbound_incr;
     uint32_t skip = DEFAULT_MERGE_SKIP;
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
+    int64_t target_excess = std::numeric_limits<int64_t>::max();
 
     double tt;
     double cpu0 = seconds ();
@@ -1445,6 +1505,7 @@ int main(int argc, char const * argv[])
       cbound_incr = CBOUND_INCR_DEFAULT;
 
     pl.parse("target_density", target_density);
+    pl.parse("target_excess", target_excess);
 
     /* Some checks on command line arguments */
     if (param_list_warn_unused(pl))
@@ -1529,9 +1590,8 @@ int main(int argc, char const * argv[])
     printf ("\n");
 
     fmt::print("N={} nc={} ({}) W={} W/N={:.2f} cpu={:.1f}s wct={:.1f}s mem={}\n",
-            mat->rem_nrows, mat->rem_ncols, mat->rem_nrows - mat->rem_ncols,
-            mat->tot_weight, average_density(mat),
-            seconds () - cpu0, wct_seconds () - wct0,
+            mat->rem_nrows, mat->rem_ncols, excess(mat), mat->tot_weight,
+            average_density(mat), seconds () - cpu0, wct_seconds () - wct0,
             size_disp(PeakMemusage() << 10u));
 #ifdef BIG_BROTHER
     printf("$$$ N: %" PRId64 "\n", mat->nrows);
@@ -1675,8 +1735,7 @@ int main(int argc, char const * argv[])
         fmt::print("N={} nc={} ({}) W={} ({}) W/N={:.2f}"
                 " fill-in={:.2f} cpu={:.1f}s wct={:.1f}s mem={}"
                 " [pass={},cwmax={}]\n",
-                mat->rem_nrows, mat->rem_ncols, mat->rem_nrows - mat->rem_ncols,
-                mat->tot_weight,
+                mat->rem_nrows, mat->rem_ncols, excess(mat), mat->tot_weight,
                 size_disp((mat->rem_nrows + mat->tot_weight) * sizeof(index_t)),
                 double_ratio(mat->tot_weight, mat->rem_nrows), av_fill_in,
                 seconds () - cpu0, wct_seconds () - wct0,
@@ -1696,6 +1755,12 @@ int main(int argc, char const * argv[])
     }
     /****** end main loop ******/
     merge_pass++;
+
+    if (excess(mat) > target_excess)
+    {
+        removeHeaviestRows(mat, target_excess, thread_buffers[0]);
+        buffer_flush (thread_buffers, history);
+    }
 
 #if defined(DEBUG) && defined(FOR_DL)
     min_exp = 0; max_exp = 0;

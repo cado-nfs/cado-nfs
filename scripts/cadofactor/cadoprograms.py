@@ -1232,6 +1232,7 @@ class Merge(Program):
                  out: Parameter(is_output_file=True),
                  skip: Parameter(checktype=int) = None,
                  target_density: Parameter(checktype=float) = None,
+                 target_excess: Parameter(checktype=int) = None,
                  threads: Parameter("t", checktype=int) = None,  # noqa: F821
                  force_posix_threads: Toggle(dash=True) = None,
                  **kwargs):
@@ -1248,6 +1249,7 @@ class MergeDLP(Program):
                  out: Parameter(is_output_file=True),
                  skip: Parameter(checktype=int) = None,
                  target_density: Parameter(checktype=float) = None,
+                 target_excess: Parameter(checktype=int) = None,
                  threads: Parameter("t", checktype=int) = None,  # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
