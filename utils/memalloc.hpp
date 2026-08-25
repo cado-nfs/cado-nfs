@@ -19,9 +19,10 @@ struct simple_minded_chunk_allocator {
     T * alloc(size_t n) {
         const std::scoped_lock dummy(m);
         if (used_in_last_block + n > block_size) {
-            blocks.emplace_back(new T[block_size]);
+            size_t alloc_size = std::max(n, block_size);
+            blocks.emplace_back(new T[alloc_size]);
             used_in_last_block = 0;
-            total_allocated_bytes += block_size * sizeof(T);
+            total_allocated_bytes += alloc_size * sizeof(T);
         }
         T * p = blocks.back().get() + used_in_last_block;
         used_in_last_block += n;
