@@ -38,7 +38,6 @@ tasks.sieve.rels_wanted = 2500000
 # Filtering
 ###########################################################################
 
-tasks.filter.purge.col_min_index = 10000
 tasks.filter.target_density = 170.0
 tasks.nmatrices = 2
 
