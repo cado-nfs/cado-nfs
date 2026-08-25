@@ -2073,6 +2073,10 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         self.logger.info("Cancelling remaining workunits")
         self.wuar.cancel_all_available()
 
+    def cancel_assigned_wus(self):
+        self.logger.info("Cancelling assigned workunits")
+        self.wuar.cancel_all_assigned()
+
     def get_number_outstanding_wus(self):
         return self.state["wu_submitted"] \
                 - self.state["wu_received"] \
@@ -2173,6 +2177,15 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         """
         if message.get_exitcode(0) == 0:
             return False
+        wuid = message.get_wu_id()
+        results = self.wuar.query(eq={"wuid": wuid})
+        assert len(results) == 1  # There must be exactly 1 WU
+        if results[0]["status"] == wudb.WuStatus.CANCELLED:
+            # The workunit was cancelled, we assume that the error comes from
+            # the fact that the client killed the subprocess.
+            self.logger.debug("Ignoring data for cancelled workunit {wuid}")
+            return True
+
         self.log_failed_command_error(message, 0)
         key = "wu_failed"
         maxfailed = self.params["maxfailed"]
@@ -2181,8 +2194,6 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
             self.logger.error("Exceeded maximum number of failed "
                               "workunits, maxfailed=%d ", maxfailed)
             raise Exception("Too many failed work units")
-        results = self.wuar.query(eq={"wuid": message.get_wu_id()})
-        assert len(results) == 1  # There must be exactly 1 WU
         assert results[0]["status"] == wudb.WuStatus.RECEIVED_ERROR
         wu = workunit.Workunit(results[0]["wu"])
         self.state.update({key: self.state[key] + 1}, commit=False)
@@ -5650,9 +5661,6 @@ class LinAlgClTask(ClientServerTask, HasStatistics):
                         self.submit_command(p, identifier, commit=False)
                         self.state.update({f"prime{i}": ell}, commit=True)
 
-            self.logger.info("Cancelling remaining workunits")
-            self.wuar.cancel_all_available()
-
             h = 0
             for i in range(self.params["nmatrices"]):
                 h = xgcd(h, self.state[f"h{i}"])[0]
@@ -7933,13 +7941,14 @@ class CompleteFactorization(HasState,
                     self.stop_all_clients()
                 else:
                     self.sieving.cancel_available_wus()
+                    self.sieving.cancel_assigned_wus()
             else:
                 raise Exception("Got HAVE_ENOUGH_RELATIONS"
                                 " from unknown sender")
         elif key is Notification.FOUND_CLASS_NUMBER:
             if sender is self.linalg:
                 self.servertask.stop_serving_wus()
-                self.sieving.cancel_available_wus()
+                self.linalg.cancel_available_wus()
                 self.stop_all_clients()
             else:
                 raise Exception("Got FOUND_CLASS_NUMBER from unknown sender")

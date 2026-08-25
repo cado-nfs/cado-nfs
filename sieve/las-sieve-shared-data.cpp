@@ -27,7 +27,7 @@ void sieve_shared_data::declare_usage(cxx_param_list & pl)
 {
     cxx_cado_poly::declare_usage(pl);
     siever_side_config::declare_usage(pl);
-    param_list_decl_usage(pl, "fbc",  "factor base cache file");
+    pl.declare_usage("fbc",  "factor base cache file");
 }
 
 void sieve_shared_data::lookup_parameters(cxx_param_list & pl, int nsides)
@@ -36,7 +36,7 @@ void sieve_shared_data::lookup_parameters(cxx_param_list & pl, int nsides)
      * there's no reason to thaw it.
      */
     siever_side_config::lookup_parameters(pl, nsides);
-    param_list_lookup_string(pl, "fbc");
+    pl.lookup("fbc");
 }
 
 sieve_shared_data::side_data::side_data(int side,
@@ -44,7 +44,7 @@ sieve_shared_data::side_data::side_data(int side,
                                         cxx_param_list& pl,
                                         int nthreads)
   : f(cpoly[side])
-  , fb(cpoly, side, pl, param_list_lookup_string(pl, "fbc"), nthreads)
+  , fb(cpoly, side, pl, pl.lookup_old("fbc"), nthreads)
 {}
 
 
@@ -62,7 +62,7 @@ sieve_shared_data::sieve_shared_data( /*{{{*/
         cxx_param_list & pl)
     : cpoly(cpoly)
     , sides{(size_t) cpoly.nsides()}
-    , cofactfilename { param_list_lookup_string (pl, "file-cofact") }
+    , cofactfilename { pl.lookup_old("file-cofact") }
 {
 }
 void sieve_shared_data::load_factor_base(cxx_param_list & pl, int nthreads) /*{{{*/

@@ -14,6 +14,7 @@
 #include <climits>
 
 
+#include <array>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -178,12 +179,10 @@ public:
         int const nij = k * block_i + block_j;
         ASSERT_ALWAYS(nrows == M.nrows);
         ASSERT_ALWAYS(ncols == M.ncols);
-        unsigned int i0, i1;
-        unsigned int j0, j1;
         subdivision const Srows(M.nrows, k);
         subdivision const Scols(M.ncols, k);
-        std::tie(i0, i1) = Srows.nth_block(block_i);
-        std::tie(j0, j1) = Scols.nth_block(block_j);
+        auto [ i0, i1 ] = Srows.nth_block(block_i);
+        auto [ j0, j1 ] = Scols.nth_block(block_j);
         unsigned int const nix = Srows.block_size_upper_bound();
         unsigned int const njx = Scols.block_size_upper_bound();
         cxx_mpz tmp;
@@ -652,7 +651,7 @@ static int all_tests(cxx_param_list & pl,
      * product of the two pi matrices at the level below, and that
      * the short product E_{level+1,t0}*pi_{level+1,t0} is also zero.
      */
-    if ((tmp = param_list_lookup_string(pl, "sanity-check")) != NULL) {
+    if ((tmp = pl.lookup_old("sanity-check")) != NULL) {
         ret = sanity_check<is_binary>(tmp);
     } else {
         for(auto const & x : todo) {
@@ -686,16 +685,13 @@ int main(int argc, char const * argv[])
 
     declare_usage(pl);
 
-    const char* argv0 = argv[0];
-
     std::vector<std::pair<const char **, int> > todo;
     std::string cpdir;
 
-    param_list_configure_switch(pl, "-v", &verbose);
+    pl.configure_switch("-v");
     for (argc--, argv++; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
+        if (pl.update_cmdline(argc, argv))
             continue;
-        }
         if (strcmp(argv[0], "--") == 0) {
             argc--, argv++;
             if (argc == 2 || argc == 3) {
@@ -718,41 +714,42 @@ int main(int argc, char const * argv[])
             }
         }
         fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        param_list_print_usage(pl, argv0, stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 
-    param_list_parse(pl, "cpdir", cpdir);
+    pl.parse("-v", verbose);
+    pl.parse("cpdir", cpdir);
     if (!cpdir.empty() && cpdir.back() != '/')
             cpdir += '/';
 
-    if (!param_list_parse_mpz(pl, "prime", (mpz_ptr)prime)) {
+    if (!pl.parse("prime", prime)) {
         fprintf(stderr, "Missing parameter: prime\n");
-        param_list_print_usage(pl, argv0, stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
-    int mpi_dims[2] = { 0, 0 };
-    if (param_list_parse_int_and_int(pl, "mpi", mpi_dims, "x")) {
+    std::array<int, 2> mpi_dims = { 0, 0 };
+    if (pl.parse("mpi", mpi_dims, "x")) {
         ASSERT_ALWAYS(mpi_dims[0] == mpi_dims[0]);
         mpi_k = mpi_dims[0];
     }
-    param_list_parse_ulong(pl, "seed", &seed);
-    if (!param_list_parse_uint(pl, "m", &bw_parameters.m)) {
+    pl.parse("seed", seed);
+    if (!pl.parse("m", bw_parameters.m)) {
         fmt::print(stderr, "Missing parameter: m\n");
-        param_list_print_usage(pl, argv0, stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
-    if (!param_list_parse_uint(pl, "n", &bw_parameters.n)) {
+    if (!pl.parse("n", bw_parameters.n)) {
         fmt::print(stderr, "Missing parameter: n\n");
-        param_list_print_usage(pl, argv0, stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
-    param_list_parse_uint(pl, "restrict_E", &restrict_E);
-    param_list_lookup_string(pl, "sanity-check");
+    pl.parse("restrict_E", restrict_E);
+    pl.lookup("sanity-check");
 
     const char * tmp;
 
-    if ((tmp = param_list_lookup_string(pl, "tuning_schedule_filename")) != NULL) {
+    if ((tmp = pl.lookup_old("tuning_schedule_filename")) != NULL) {
         std::ifstream is(tmp);
         if (is && is >> hints) {
             /* This one _always_ goes to stdout */
@@ -763,8 +760,8 @@ int main(int argc, char const * argv[])
         }
     }
 
-    if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, argv0, stderr);
+    if (pl.warn_unused()) {
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 

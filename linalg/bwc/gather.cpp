@@ -46,11 +46,11 @@
 
 static int exitcode = 0;
 
-static std::vector<bwc_iteration_range> prelude(parallelizing_info_ptr pi)/*{{{*/
+static std::vector<bwc_iteration_range> prelude(parallelizing_info & pi)/*{{{*/
 {
-    int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
+    int const leader = pi.m.jrank == 0 && pi.m.trank == 0;
     std::vector<bwc_iteration_range> iteration_ranges;
-    serialize_threads(pi->m);
+    pi.m.serialize_threads(__FILE__, __LINE__);
 
     if (leader) {
         std::map<bwc_iteration_range, std::vector<bwc_S_file>> by_iter;
@@ -112,15 +112,14 @@ static std::vector<bwc_iteration_range> prelude(parallelizing_info_ptr pi)/*{{{*
         }
     }
 
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
     unsigned long s = iteration_ranges.size();
-    pi_bcast(&s, 1, BWC_PI_UNSIGNED_LONG, 0, 0, pi->m);
+    pi.m.bcast(&s, 1, BWC_PI_UNSIGNED_LONG, 0, 0);
     if (!leader)
         iteration_ranges.assign(s, {});
-    pi_bcast(iteration_ranges.data(),
-            s * sizeof(decltype(iteration_ranges)::value_type), BWC_PI_BYTE,
-            0, 0, pi->m);
-    serialize(pi->m);
+    pi.m.bcast(iteration_ranges.data(),
+            s * sizeof(bwc_iteration_range), BWC_PI_BYTE, 0, 0);
+    pi.m.serialize(__FILE__, __LINE__);
     return iteration_ranges;
 }/*}}}*/
 
@@ -142,11 +141,11 @@ static void fprint_signed(FILE * f, arith_generic * A, arith_generic::elt const 
 static std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, unsigned int maxidx, int want_nonzero)/*{{{*/
 {
     arith_generic * A = y.abase;
-    parallelizing_info_ptr pi = y.pi;
+    parallelizing_info & pi = y.pi;
 
     std::vector<unsigned int> myz;
 
-    if (pi->wr[y.d]->trank == 0 && pi->wr[y.d]->jrank == 0) {
+    if (pi.wr[y.d].trank == 0 && pi.wr[y.d].jrank == 0) {
         for(unsigned int i = 0 ; i < maxidx ; i++) {
             if (y.i0 <= i && i < y.i1) {
                 if (!!want_nonzero == !A->is_zero(A->vec_item(y.v, i - y.i0))) {
@@ -156,7 +155,7 @@ static std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, 
         }
 
         /* in fact, a single gather at node 0 thread 0 would do */
-        parallelizing_info_experimental::allgather(myz, pi->wr[!y.d]);
+        parallelizing_info_experimental::allgather(myz, pi.wr[!y.d]);
     }
 
     parallelizing_info_experimental::broadcast(myz, pi);    /* And broadcast that to everyone as well. */
@@ -176,8 +175,8 @@ static std::vector<unsigned int> indices_of_nonzero_values(mmt_vec & y, unsigned
 
 static std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{*/
 {
-    parallelizing_info_ptr pi = mmt.pi;
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    parallelizing_info & pi = mmt.pi;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
 
     std::vector<unsigned int> allz;
 
@@ -195,15 +194,15 @@ static std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mm
 
     cxx_gmp_randstate rstate;
 
-    if (pi->m->trank == 0 && !bw->seed) {
+    if (pi.m.trank == 0 && !bw->seed) {
         /* note that bw is shared between threads, thus only thread 0 should
          * test and update it here.
-         * at pi->m->jrank > 0, we don't care about the seed anyway
+         * at pi.m->jrank > 0, we don't care about the seed anyway
          */
         bw->seed = (int) time(nullptr);
-        MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m->pals);
+        MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi.m.pals);
     }
-    serialize_threads(pi->m);
+    pi.m.serialize_threads(__FILE__, __LINE__);
 
     gmp_randseed_ui(rstate, bw->seed);
     if (tcan_print)
@@ -224,7 +223,7 @@ static std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mm
     mmt_apply_identity(mz, z);
     mmt_vec_allreduce(mz);
     mmt_vec_unapply_T(mmt, mz);
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
 
     /* Check the indices of columns in the principal part. We're
      * interested in column indices which are still zero. So it's
@@ -246,7 +245,7 @@ static std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mm
     mmt_apply_identity(mz, z);
     mmt_vec_allreduce(mz);
     mmt_vec_unapply_T(mmt, mz);
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
 
     ASSERT_ALWAYS(mz.d == bw->dir);
     std::set<unsigned int> allz_set(allz.begin(), allz.end());
@@ -310,9 +309,9 @@ struct rhs /*{{{*/ {
     {
         if (!rhs_name) return;
 
-        parallelizing_info_ptr pi = mmt.pi;
-        int const tcan_print = bw->can_print && pi->m->trank == 0;
-        int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
+        parallelizing_info & pi = mmt.pi;
+        int const tcan_print = bw->can_print && pi.m.trank == 0;
+        int const leader = pi.m.jrank == 0 && pi.m.trank == 0;
 
         /* This is just for a check -- in truth, it might be that the
          * code here works correctly for inhomogeneous characteristic 2,
@@ -325,7 +324,7 @@ struct rhs /*{{{*/ {
 
         if (leader)
             get_rhs_file_header(rhs_name, nullptr, &nrhs, nullptr);
-        pi_bcast(&nrhs, 1, BWC_PI_UNSIGNED, 0, 0, pi->m);
+        pi.m.bcast(&nrhs, 1, BWC_PI_UNSIGNED, 0, 0);
 
         if (tcan_print) {
             fmt::print("** Informational note about GF(p) inhomogeneous system:\n");
@@ -376,7 +375,7 @@ struct rhs /*{{{*/ {
                 }
             }
         }
-        pi_bcast(rhscoeffs, nrhs, mmt.pitype, 0, 0, pi->m);
+        pi.m.bcast(rhscoeffs, nrhs, mmt.pitype, 0, 0);
     }/*}}}*/
 
     ~rhs() {/*{{{*/
@@ -411,7 +410,7 @@ struct rhs /*{{{*/ {
     {
         if (!nrhs) return;
 
-        parallelizing_info_ptr pi = mmt.pi;
+        parallelizing_info & pi = mmt.pi;
         arith_generic * A = mmt.abase;
         ASSERT_ALWAYS(y.abase == A);
         unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
@@ -419,7 +418,7 @@ struct rhs /*{{{*/ {
 
         abase_proxy natural = abase_proxy::most_natural(pi);
         arith_generic * Av = natural.A.get();
-        pi_datatype_ptr Av_pi = natural.A_pi;
+        pi_datatype * Av_pi = natural.A_pi;
 
         mmt_vec vi(mmt,Av,Av_pi, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
 
@@ -483,8 +482,8 @@ static std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int max
                 mmt_my_own_subvec(y), my_input_coordinates),
             my_pad_coordinates);
 
-    pi_allreduce(nullptr, &input_is_zero, 1, BWC_PI_INT, BWC_PI_MIN, y.pi->m);
-    pi_allreduce(nullptr, &pad_is_zero, 1, BWC_PI_INT, BWC_PI_MIN, y.pi->m);
+    y.pi.m.allreduce(nullptr, &input_is_zero, 1, BWC_PI_INT, BWC_PI_MIN);
+    y.pi.m.allreduce(nullptr, &pad_is_zero, 1, BWC_PI_INT, BWC_PI_MIN);
 
     return std::make_tuple(input_is_zero, pad_is_zero);
 }/*}}}*/
@@ -492,7 +491,7 @@ static std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int max
 static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vector_pair & ymy, rhs const & R)
 {
     arith_generic * A = mmt.abase;
-    parallelizing_info_ptr pi = mmt.pi;
+    parallelizing_info & pi = mmt.pi;
 
     mmt_vec & y = ymy[0];
 
@@ -501,13 +500,13 @@ static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vect
     int hamming_out = -1;
     std::tie(input_is_zero, pad_is_zero) = check_zero_and_padding(y, mmt.n0[bw->dir]);
     if (!input_is_zero) {
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
         mmt_vec_apply_T(mmt, y);
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
         mmt_vec_twist(mmt, y);
         matmul_top_mul(mmt, ymy.vectors(), nullptr);
         mmt_vec_untwist(mmt, y);
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
         /* Add the contributions from the right-hand side vectors, to see
          * whether that makes the sum equal to zero */
         if (R) {
@@ -522,7 +521,7 @@ static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vect
          * course, so we don't heave the same headache as above */
         int is_zero = A->vec_is_zero(
                 mmt_my_own_subvec(y), mmt_my_own_size_in_items(y));
-        pi_allreduce(nullptr, &is_zero, 1, BWC_PI_INT, BWC_PI_MIN, pi->m);
+        pi.m.allreduce(nullptr, &is_zero, 1, BWC_PI_INT, BWC_PI_MIN);
 
         hamming_out = is_zero ? 0 : mmt_vec_hamming_weight(y);
     }
@@ -533,18 +532,18 @@ static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vect
  * and my */
 static std::tuple<int, int, int> expanded_test(matmul_top_data & mmt, mmt_vector_pair & ymy, mmt_vec const & y_saved, rhs const& R)
 {
-    parallelizing_info_ptr pi = mmt.pi;
+    parallelizing_info & pi = mmt.pi;
     mmt_vec & y = ymy[0];
     mmt_vec & my = ymy[ymy.size()-1];
     mmt_full_vec_set(y, y_saved);
     auto res = test_one_vector(mmt, ymy, R);
 
     /* Need to get the indices with respect to !bw->dir...  */
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
     mmt_apply_identity(my, y);
     mmt_vec_allreduce(my);
     mmt_vec_unapply_T(mmt, my);
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
     return res;
 }
 
@@ -554,7 +553,7 @@ static std::tuple<int, int, int> expanded_test(matmul_top_data & mmt, mmt_vector
 class parasite_fixer {/*{{{*/
     matmul_top_data & mmt;
     arith_generic * A;
-    parallelizing_info_ptr pi;
+    parallelizing_info & pi;
 
     // using pre_matrix_t = std::map<std::pair<unsigned int, unsigned int>, cxx_mpz>;
 
@@ -572,7 +571,7 @@ class parasite_fixer {/*{{{*/
         , A(mmt.abase)
         , pi(mmt.pi)
     {/*{{{*/
-        int const tcan_print = bw->can_print && pi->m->trank == 0;
+        int const tcan_print = bw->can_print && pi.m.trank == 0;
 
         cols = get_possibly_wrong_columns(mmt);
 
@@ -603,7 +602,7 @@ class parasite_fixer {/*{{{*/
     /*{{{ row_coordinates_of_nonzero_cols(matmul_top_data & mmt) */
     std::vector<unsigned int> row_coordinates_of_nonzero_cols(matmul_top_data & mmt, std::vector<unsigned int> const& cols)
     {
-        // int tcan_print = bw->can_print && pi->m->trank == 0;
+        // int tcan_print = bw->can_print && pi.m.trank == 0;
 
         arith_generic * A = mmt.abase;
 
@@ -628,7 +627,7 @@ class parasite_fixer {/*{{{*/
             mmt_apply_identity(my, y);
             mmt_vec_allreduce(my);
             mmt_vec_unapply_T(mmt, my);
-            serialize(pi->m);
+            pi.m.serialize(__FILE__, __LINE__);
 
             /* This reads the global list */
             std::vector<unsigned int> kk = indices_of_nonzero_values(my, mmt.n0[!bw->dir]);
@@ -646,7 +645,7 @@ class parasite_fixer {/*{{{*/
             }
 #endif
             rows.insert(rows.end(), kk.begin(), kk.end());
-            serialize(pi->m);
+            pi.m.serialize(__FILE__, __LINE__);
         }
         std::ranges::sort(rows);
         auto [ last, end ] = std::ranges::unique(rows);
@@ -659,7 +658,7 @@ class parasite_fixer {/*{{{*/
     /* this one could live outside the class */
     void pre_matrix_to_matrix(pre_matrix_t & pre_matrix)/*{{{*/
     {
-        if (pi->wr[!bw->dir]->jrank == 0 && pi->wr[!bw->dir]->trank == 0) {
+        if (pi.wr[!bw->dir].jrank == 0 && pi.wr[!bw->dir].trank == 0) {
             unsigned int kk = 0;
             for(unsigned int ii = 0 ; ii < rows.size() ; ii++) {
                 unsigned int i = rows[ii];
@@ -674,9 +673,9 @@ class parasite_fixer {/*{{{*/
             }
         }
 
-        pi_allreduce(nullptr, matrix,
+        pi.m.allreduce(nullptr, matrix,
                 rows.size() * cols.size(),
-                mmt.pitype, BWC_PI_SUM, pi->m);
+                mmt.pitype, BWC_PI_SUM);
     }/*}}}*/
 #endif
 
@@ -689,7 +688,7 @@ class parasite_fixer {/*{{{*/
         size_t const nc = cols.size();
         fmt::print("# Dump of the full matrix{} as seen by J{}T{}\n",
                 nz ? " (with coefficients of the vector encountered)" : "",
-                pi->m->jrank, pi->m->trank);
+                pi.m.jrank, pi.m.trank);
         unsigned int kk = 0;
         unsigned int const B = A->simd_groupsize();
         unsigned int const cblocks = iceildiv(nc, B);
@@ -716,11 +715,11 @@ class parasite_fixer {/*{{{*/
 #if 0
     void debug_print_all_local_matrices(arith_generic::elt * nz = nullptr)/*{{{*/
     {
-        for(unsigned int jr = 0 ; jr < pi->m->njobs ; jr++) {
-            for(unsigned int tr = 0 ; tr < pi->m->ncores ; tr++) {
-                if (pi->m->jrank == jr && pi->m->trank == tr)
+        for(unsigned int jr = 0 ; jr < pi.m.njobs ; jr++) {
+            for(unsigned int tr = 0 ; tr < pi.m.ncores ; tr++) {
+                if (pi.m.jrank == jr && pi.m.trank == tr)
                     debug_print_local_matrix(rows.size(), cols.size(), nz);
-                serialize(pi->m);
+                pi.m.serialize(__FILE__, __LINE__);
             }
         }
     }/*}}}*/
@@ -729,8 +728,8 @@ class parasite_fixer {/*{{{*/
     void compute_pivot_list() {/*{{{*/
         if (!attempt_to_fix) return;
 
-        int const tcan_print = bw->can_print && pi->m->trank == 0;
-        int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
+        int const tcan_print = bw->can_print && pi.m.trank == 0;
+        int const leader = pi.m.jrank == 0 && pi.m.trank == 0;
 
         rows = row_coordinates_of_nonzero_cols(mmt, cols);
 
@@ -797,16 +796,16 @@ class parasite_fixer {/*{{{*/
                 mmt_apply_identity(my, y);
                 mmt_vec_allreduce(my);
                 mmt_vec_unapply_T(mmt, my);
-                serialize(pi->m);
+                pi.m.serialize(__FILE__, __LINE__);
 
                 compress_vector_to_sparse(*pmat, jjq, cblocks, my, vrows);
 
-                serialize(pi->m);
+                pi.m.serialize(__FILE__, __LINE__);
             }
 
-            pi_allreduce(nullptr, *pmat,
+            pi.m.allreduce(nullptr, *pmat,
                     cblocks * vrows.size(),
-                    mmt.pitype, BWC_PI_SUM, pi->m);
+                    mmt.pitype, BWC_PI_SUM);
 
             if (leader) {
                 fmt::print("Print matrix of size {}*{}\n", srows.size(), scols.size());
@@ -890,7 +889,7 @@ class parasite_fixer {/*{{{*/
 
         A->free(dummy);
 
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
     }/*}}}*/
 
     ~parasite_fixer() {/*{{{*/
@@ -901,8 +900,8 @@ class parasite_fixer {/*{{{*/
     std::tuple<int, int, int> attempt(matmul_top_data & mmt, mmt_vector_pair & ymy, mmt_vec & y_saved, rhs const& R)/*{{{*/
     {
         mmt_vec & my = ymy[ymy.size()-1];
-        int const tcan_print = bw->can_print && pi->m->trank == 0;
-        int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
+        int const tcan_print = bw->can_print && pi.m.trank == 0;
+        int const leader = pi.m.jrank == 0 && pi.m.trank == 0;
 
         int input_is_zero;
         int pad_is_zero;
@@ -940,7 +939,7 @@ class parasite_fixer {/*{{{*/
         nz = A->alloc(rows.size(), ALIGNMENT_ON_ALL_BWC_VECTORS);
         A->vec_set_zero(nz, rows.size());
         compress_vector_to_sparse(nz, 0, 1, my, rows);
-        pi_allreduce(nullptr, nz, rows.size(), mmt.pitype, BWC_PI_SUM, pi->m); 
+        pi.m.allreduce(nullptr, nz, rows.size(), mmt.pitype, BWC_PI_SUM); 
 
         if (leader) debug_print_local_matrix(matrix, rows, cols, nz);
 
@@ -952,12 +951,12 @@ class parasite_fixer {/*{{{*/
             unsigned int const j = pp.first[1];
             int const v = pp.second;
             if (!v) {
-                serialize(pi->m);
+                pi.m.serialize(__FILE__, __LINE__);
                 res = expanded_test(mmt, ymy, y_saved, R);
                 std::tie(input_is_zero, pad_is_zero, hamming_out) = res;
                 A->vec_set_zero(nz, rows.size());
                 compress_vector_to_sparse(nz, 0, 1, my, rows);
-                pi_allreduce(nullptr, nz, rows.size(), mmt.pitype, BWC_PI_SUM, pi->m); 
+                pi.m.allreduce(nullptr, nz, rows.size(), mmt.pitype, BWC_PI_SUM); 
 
                 if (leader) debug_print_local_matrix(matrix, rows, cols, nz);
                 continue;
@@ -996,7 +995,7 @@ class parasite_fixer {/*{{{*/
             y_saved.consistency = 1;
             mmt_vec_broadcast(y_saved);
         }
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
 
         if (tcan_print)
             fmt::print("# After fix, Hamming weight is {}\n", hamming_out);
@@ -1009,12 +1008,12 @@ class parasite_fixer {/*{{{*/
     }/*}}}*/
 };/*}}}*/
 
-static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * gather_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
-    ASSERT_ALWAYS(!pi->interleaved);
+    ASSERT_ALWAYS(!pi.interleaved);
 
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
-    int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
+    int const leader = pi.m.jrank == 0 && pi.m.trank == 0;
 
     bwc_solution_range sol_range { bw->solutions[0], bw->solutions[1], };
     int const char2 = mpz_cmp_ui(bw->p, 2) == 0;
@@ -1065,20 +1064,20 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
             fmt::print(stderr, "Found zero S files for solution range {}..{}. "
                     "Problem with command line ?\n",
                     sol_range[0], sol_range[1]);
-            pthread_mutex_lock(pi->m->th->m);
+            pthread_mutex_lock(pi.m.th->m);
             exitcode=1;
-            pthread_mutex_unlock(pi->m->th->m);
+            pthread_mutex_unlock(pi.m.th->m);
         }
-        serialize_threads(pi->m);
+        pi.m.serialize_threads(__FILE__, __LINE__);
         return nullptr;
     }
 
-    rhs R(mmt, param_list_lookup_string(pl, "rhs"), sol_range);
+    rhs R(mmt, pl.lookup_old("rhs"), sol_range);
 
     if (tcan_print)
         fmt::print("Trying to build solutions {}..{}\n", sol_range[0], sol_range[1]);
 
-    serialize(mmt.pi->m);
+    mmt.pi.m.serialize(__FILE__, __LINE__);
 
     { /* {{{ Collect now the sum of the LHS contributions */
         mmt_vec svec(mmt, nullptr, nullptr, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
@@ -1101,7 +1100,7 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
         mmt_vec_broadcast(y);
     } /* }}} */
 
-    serialize(mmt.pi->m);
+    mmt.pi.m.serialize(__FILE__, __LINE__);
 
     auto w = mmt_vec_hamming_weight(y);
 
@@ -1205,10 +1204,10 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
                             " is stored in zero{}.\n",
                             Kfile);
                 }
-                serialize(pi->m);
-                pthread_mutex_lock(pi->m->th->m);
+                pi.m.serialize(__FILE__, __LINE__);
+                pthread_mutex_lock(pi.m.th->m);
                 exitcode=1;
-                pthread_mutex_unlock(pi->m->th->m);
+                pthread_mutex_unlock(pi.m.th->m);
                 return nullptr;
             }
         }
@@ -1269,9 +1268,9 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
                  */
             }
         }
-        pthread_mutex_lock(pi->m->th->m);
+        pthread_mutex_lock(pi.m.th->m);
         exitcode=1;
-        pthread_mutex_unlock(pi->m->th->m);
+        pthread_mutex_unlock(pi.m.th->m);
         return nullptr;
     }
 
@@ -1336,7 +1335,7 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
         }
     }
 
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
 
     return nullptr;
 }
@@ -1348,42 +1347,42 @@ int main(int argc, char const * argv[])
 
     bw_common_init(bw, &argc, &argv);
 
-    parallelizing_info_init();
+    parallelizing_info::init_attribute_things();
 
     bw_common_decl_usage(pl);
-    parallelizing_info_decl_usage(pl);
+    parallelizing_info::declare_usage(pl);
     matmul_top_decl_usage(pl);
     /* declare local parameters and switches */
-    param_list_decl_usage(pl, "rhs",
+    pl.declare_usage("rhs",
             "file with the right-hand side vectors for inhomogeneous systems mod p (only the header is read by this program, while the actual contents are recovered from the V*.0 files)");
-    param_list_decl_usage(pl, "rhscoeffs",
+    pl.declare_usage("rhscoeffs",
             "for the solution vector(s), this corresponds to the contribution(s) on the columns concerned by the rhs");
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
 
-    param_list_remove_key(pl, "interleaving");
+    pl.remove_key("interleaving");
 
     bw_common_interpret_parameters(bw, pl);
-    parallelizing_info_lookup_parameters(pl);
+    parallelizing_info::lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters */
 
-    ASSERT_ALWAYS(!param_list_lookup_string(pl, "ys"));
-    ASSERT_ALWAYS(param_list_lookup_string(pl, "solutions"));
+    ASSERT_ALWAYS(!pl.has("ys"));
+    ASSERT_ALWAYS(pl.has("solutions"));
 
-    param_list_lookup_string(pl, "rhs");
-    param_list_lookup_string(pl, "rhscoeffs");
+    pl.lookup("rhs");
+    pl.lookup("rhscoeffs");
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        if (!rank) pl.print_usage(stderr);
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     pi_go(gather_prog, pl, nullptr);
 
-    parallelizing_info_finish();
+    parallelizing_info::clear_attribute_things();
 
     bw_common_clear(bw);
 

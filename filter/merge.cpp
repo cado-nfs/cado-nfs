@@ -141,15 +141,15 @@ buffer_flush (std::vector<buffer_type> & Buf, FILE *out)
 static void
 declare_usage(cxx_param_list & pl)
 {
-  param_list_decl_usage(pl, "out", "output history file");
-  param_list_decl_usage(pl, "target_density", "stop when the average row density exceeds this value"
+  pl.declare_usage("out", "output history file");
+  pl.declare_usage("target_density", "stop when the average row density exceeds this value"
                             " (default " CADO_STRINGIZE(DEFAULT_MERGE_TARGET_DENSITY) ")");
-  param_list_decl_usage(pl, "target_excess", "if given and excess is larger at "
+  pl.declare_usage("target_excess", "if given and excess is larger at "
                             "the end of merge, rows will be deleted to reach "
                             "this value (default: no value)");
-  param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
-  param_list_decl_usage(pl, "t", "number of threads");
-  param_list_decl_usage(pl, "v", "verbose mode");
+  pl.declare_usage("path_antebuffer", "path to antebuffer program");
+  pl.declare_usage("t", "number of threads");
+  pl.declare_usage("v", "verbose mode");
 }
 
 /* check that mat->tot_weight and mat->wt say the same thing.
@@ -1481,34 +1481,34 @@ int main(int argc, char const * argv[])
     declare_usage(pl);
     purged_file_reader::declare_usage(pl);
 
-    param_list_configure_switch (pl, "-v", &merge_verbose);
+    pl.configure_switch_old("-v", &merge_verbose);
     cado::filter_io_details::configure(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     verbose_interpret_parameters (pl);
     cado::filter_io_details::interpret_parameters(pl);
-    param_list_print_command_line (stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
-    const char *outname = param_list_lookup_string (pl, "out");
-    const char *path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
+    const char *outname = pl.lookup_old("out");
+    const char *path_antebuffer = pl.lookup_old("path_antebuffer");
 
-    param_list_parse_int (pl, "t", &nthreads);
+    pl.parse("t", nthreads);
 #ifdef HAVE_OPENMP
     omp_set_num_threads (nthreads);
 #endif
 
     purged_file_reader pf(mat, pl);
 
-    if (param_list_parse_int (pl, "incr", &cbound_incr) == 0)
+    if (!pl.parse("incr", cbound_incr))
       cbound_incr = CBOUND_INCR_DEFAULT;
 
     pl.parse("target_density", target_density);
     pl.parse("target_excess", target_excess);
 
     /* Some checks on command line arguments */
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
       pl.fail("Error, unused parameters are given\n");
 
 

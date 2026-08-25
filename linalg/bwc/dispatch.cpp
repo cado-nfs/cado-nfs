@@ -33,7 +33,7 @@ static void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
 
 #if 0
     /* this should be equivalent to the other branch */
-    if (!mmt_vec_is_shared(y) || y.pi->wr[y.d]->trank == 0) {
+    if (!mmt_vec_is_shared(y) || y.pi.wr[y.d].trank == 0) {
         for(unsigned int i = y.i0 ; i < y.i1 && i < unpadded ; i++) {
             arith_generic::elt * dst = y.abase->vec_subvec(y.v, i - y.i0);
             uint64_t value = DUMMY_VECTOR_COORD_VALUE(i);
@@ -41,12 +41,12 @@ static void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
         }
     }
     if (!mmt_vec_is_shared(y)) {
-        serialize_threads(y.pi->wr[y.d]);
+        y.pi.wr[y.d].serialize_threads(__FILE__, __LINE__);
         y.abase->vec_set(y.v, mmt_vec_sibling(y, 0).v, y.i1 - y.i0);
     }
-    serialize_threads(y.pi->wr[y.d]);
+    y.pi.wr[y.d].serialize_threads(__FILE__, __LINE__);
 #else
-    for(unsigned int j = 0 ; j < y.pi->wr[y.d]->njobs ; j++) {
+    for(unsigned int j = 0 ; j < y.pi.wr[y.d].njobs ; j++) {
         for(size_t di = 0 ; di < mmt_my_own_size_in_items(y) ; di++) {
             size_t const i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
             if (i >= unpadded)
@@ -56,7 +56,7 @@ static void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
             memcpy(dst, &value, sizeof(uint64_t));
         }
     }
-    serialize_threads(y.pi->wr[y.d]);
+    y.pi.wr[y.d].serialize_threads(__FILE__, __LINE__);
     y.consistency = 1;
     mmt_vec_share_across_threads(y);
 #endif
@@ -69,7 +69,7 @@ static void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
 
 #if 0
     /* this should be equivalent to the other branch */
-    if (!mmt_vec_is_shared(y) || y.pi->wr[y.d]->trank == 0) {
+    if (!mmt_vec_is_shared(y) || y.pi.wr[y.d].trank == 0) {
         for(unsigned int i = y.i0 ; i < y.i1 && i < unpadded ; i++) {
             arith_generic::elt * dst = y.abase->vec_subvec(y.v, i - y.i0);
             uint64_t value = DUMMY_VECTOR_COORD_VALUE2(i);
@@ -77,12 +77,12 @@ static void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
         }
     }
     if (!mmt_vec_is_shared(y)) {
-        serialize_threads(y.pi->wr[y.d]);
+        y.pi.wr[y.d].serialize_threads(__FILE__, __LINE__);
         y.abase->vec_set(y.v, mmt_vec_sibling(y, 0).v, y.i1 - y.i0);
     }
-    serialize_threads(y.pi->wr[y.d]);
+    y.pi.wr[y.d].serialize_threads(__FILE__, __LINE__);
 #else
-    for(unsigned int j = 0 ; j < y.pi->wr[y.d]->njobs ; j++) {
+    for(unsigned int j = 0 ; j < y.pi.wr[y.d].njobs ; j++) {
         for(size_t di = 0 ; di < mmt_my_own_size_in_items(y) ; di++) {
             size_t const i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
             if (i >= unpadded)
@@ -92,27 +92,24 @@ static void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
             memcpy(dst, &value, sizeof(uint64_t));
         }
     }
-    serialize_threads(y.pi->wr[y.d]);
+    y.pi.wr[y.d].serialize_threads(__FILE__, __LINE__);
     y.consistency = 1;
     mmt_vec_share_across_threads(y);
 #endif
     y.consistency = 2;
 }
 
-static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * dispatch_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
+    bool fake = pl.has("random_matrix") || pl.has("static_random_matrix");
+    if (fake) bw->skip_online_checks = 1;
 
-    int const ys[2] = { bw->ys[0], bw->ys[1], };
-    /*
-     * Hmm. Interleaving doesn't make a lot of sense for this program,
-     * right ? Furthermore, it gets in the way for the sanity checks. We
-     * tend to always receive ys=0..64 as an argument.
-    if (pi->interleaved) {
-        ASSERT_ALWAYS((bw->ys[1]-bw->ys[0]) % 2 == 0);
-        ys[0] = bw->ys[0] + pi->interleaved->idx * (bw->ys[1]-bw->ys[0])/2;
+    int ys[2] = { bw->ys[0], bw->ys[1], };
+    if (pi.interleaved) {
+        ASSERT_ALWAYS((bw->ys[1] - bw->ys[0]) % 2 == 0);
+        ys[0] = bw->ys[0] + pi.interleaved->idx * (bw->ys[1]-bw->ys[0])/2;
         ys[1] = ys[0] + (bw->ys[1]-bw->ys[0])/2;
     }
-    */
 
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
     std::unique_ptr<arith_cross_generic> AxA(arith_cross_generic::instance(A.get(), A.get()));
@@ -143,8 +140,8 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
 
     unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
-    const char * sanity_check_vector = param_list_lookup_string(pl, "sanity_check_vector");
-    int const only_export = param_list_lookup_string(pl, "export_cachelist") != nullptr;
+    const char * sanity_check_vector = pl.lookup_old("sanity_check_vector");
+    bool const only_export = pl.has("export_cachelist");
 
     // in no situation shall we try to do our sanity check if we've just
     // been told to export our cache list. Note also that this sanity
@@ -174,7 +171,7 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
         mmt_vec_save(y, "Hx{}-{}", unpadded, 0);
 
         // compare if files are equal.
-        if (pi->m->jrank == 0 && pi->m->trank == 0) {
+        if (pi.m.jrank == 0 && pi.m.trank == 0) {
             char cmd[1024];
             int rc = snprintf(cmd, 80, "diff -q %s Hx0-64", sanity_check_vector);
             ASSERT_ALWAYS(rc>=0);
@@ -191,7 +188,7 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
                 printf("%s : ok\n", checkname);
             }
         }
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
 
         checkname = "2nd check: (arbitrary2, M*arbitrary1) == (arbitrary2*M==Hy, arbitrary1)";
 
@@ -213,7 +210,7 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
                 A->vec_subvec(my.v, offset_c),
                 A->vec_subvec(y.v, offset_v),
                 how_many);
-        pi_allreduce(nullptr, dp0, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM, pi->m);
+        pi.m.allreduce(nullptr, dp0, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM);
 
         /* now we can throw away Hx */
 
@@ -237,9 +234,9 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
                 A->vec_subvec(my.v, offset_c),
                 A->vec_subvec(y.v, offset_v),
                 how_many);
-        pi_allreduce(nullptr, dp1, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM, pi->m);
+        pi.m.allreduce(nullptr, dp1, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM);
         int const diff = memcmp(dp0, dp1, A->vec_elt_stride(A->simd_groupsize()));
-        if (pi->m->jrank == 0 && pi->m->trank == 0) {
+        if (pi.m.jrank == 0 && pi.m.trank == 0) {
             if (diff) {
                 printf("%s : failed\n", checkname);
                 fprintf(stderr, "aborting on sanity check failure.\n");
@@ -261,38 +258,38 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    parallelizing_info_init();
+    parallelizing_info::init_attribute_things();
 
     bw_common_decl_usage(pl);
-    parallelizing_info_decl_usage(pl);
+    parallelizing_info::declare_usage(pl);
     matmul_top_decl_usage(pl);
     /* declare local parameters and switches */
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
 
     bw_common_interpret_parameters(bw, pl);
-    parallelizing_info_lookup_parameters(pl);
+    parallelizing_info::lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters: none here (so far). */
 
-    ASSERT_ALWAYS(param_list_lookup_string(pl, "ys"));
-    ASSERT_ALWAYS(!param_list_lookup_string(pl, "solutions"));
+    ASSERT_ALWAYS(pl.has("ys"));
+    ASSERT_ALWAYS(!pl.has("solutions"));
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        if (!rank) pl.print_usage(stderr);
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     if (bw->ys[0] < 0) { fprintf(stderr, "no ys value set\n"); exit(1); }
 
     /* Forcibly disable interleaving here */
-    param_list_remove_key(pl, "interleaving");
+    pl.remove_key("interleaving");
 
     pi_go(dispatch_prog, pl, 0);
 
-    parallelizing_info_finish();
+    parallelizing_info::clear_attribute_things();
     bw_common_clear(bw);
 
     return 0;

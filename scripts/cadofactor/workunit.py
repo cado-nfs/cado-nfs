@@ -1,3 +1,4 @@
+import collections
 import json
 import hashlib
 
@@ -51,6 +52,26 @@ Workunit:
             required:
               - filename
 """
+
+
+# Dummy class for defining "constants" with reverse lookup
+STATUS_NAMES = ["AVAILABLE", "ASSIGNED", "NEED_RESUBMIT", "RECEIVED_OK",
+                "RECEIVED_ERROR", "VERIFIED_OK",
+                "VERIFIED_ERROR", "CANCELLED"]
+STATUS_VALUES = range(len(STATUS_NAMES))
+WuStatusBase = collections.namedtuple("WuStatusBase", STATUS_NAMES)
+
+
+class WuStatusClass(WuStatusBase):
+    def check(self, status):
+        assert status in self
+
+    def get_name(self, status):
+        self.check(status)
+        return STATUS_NAMES[status]
+
+
+WuStatus = WuStatusClass(*STATUS_VALUES)
 
 
 class Workunit(dict):

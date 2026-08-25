@@ -4,18 +4,19 @@
 
 #include <algorithm>
 #include <ostream>
-#include <string>
 #include <sstream>
 #include <utility>
 
+#include "fmt/base.h"
+
 #include "bucket.hpp"
-#include "ecm/batch.hpp"
 #include "las-config.hpp"
 #include "las-bkmult.hpp"
 #include "las-info.hpp"
 #include "las-memory.hpp"
 #include "las-threads-work-data.hpp"
 #include "multityped_array.hpp"
+#include "las-special-q-task.hpp"
 #include "macros.h"
 #include "threadpool.hpp"
 #include "verbose.hpp"
@@ -169,7 +170,7 @@ void nfs_work::allocate_buckets(nfs_aux & aux, thread_pool & pool)
                 conf.logI,
                 aux, pool, do_resieve);
     }
-    pool.drain_queue(2);
+    pool.drain_queue(thread_pool::QUEUE_MISC);
 }
 
 /* only used once a siever_config has been attached to the structure */
@@ -229,6 +230,7 @@ nfs_work::buckets_max_full() const
 
         throw buckets_are_full(
                 k,
+                side,
                 maxfull_index,
                 maxfull_updates,
                 maxfull_room);
@@ -293,45 +295,6 @@ double nfs_work::check_buckets_max_full_toplevel(int level) const
 
 }
 
-#if 0
-template <typename HINT>
-double nfs_work::check_buckets_max_full(int level)
-    requires (HINT::allowed_at_toplevel)
-{
-    static_assert(MAX_TOPLEVEL == 3);
-
-#if MAX_TOPLEVEL >= 3
-    if (level == 3)
-        return buckets_max_full<3, HINT>();
-#endif
-#if MAX_TOPLEVEL >= 2
-    if (level == 2)
-        return buckets_max_full<2, HINT>();
-#endif
-    if (level == 1)
-        return buckets_max_full<1, HINT>();
-    ASSERT_ALWAYS(0);
-}
-template <typename HINT>
-double nfs_work::check_buckets_max_full(int level)
-    requires (!(HINT::allowed_at_toplevel))
-{
-    static_assert(MAX_TOPLEVEL == 3);
-
-#if MAX_TOPLEVEL >= 3
-    if (level == 2)
-        return buckets_max_full<2, HINT>();
-#endif
-
-#if MAX_TOPLEVEL >= 2
-    if (level == 1)
-        return buckets_max_full<1, HINT>();
-#endif
-
-    ASSERT_ALWAYS(0);
-}
-#endif
-
 template double nfs_work::buckets_max_full<1, shorthint_t>() const;
 template double nfs_work::buckets_max_full<1, emptyhint_t>() const;
 
@@ -351,39 +314,13 @@ template double nfs_work::buckets_max_full<2, logphint_t>() const;
 
 static_assert(MAX_TOPLEVEL == 3);
 
-#if 0
-template double nfs_work::check_buckets_max_full<shorthint_t>(int) const;
-template double nfs_work::check_buckets_max_full<emptyhint_t>(int) const;
-template double nfs_work::check_buckets_max_full<longhint_t>(int) const;
-template double nfs_work::check_buckets_max_full<logphint_t>(int) const;
-#endif
-
-template <int LEVEL, typename HINT>
-void
-nfs_work::side_data::reset_all_pointers() {
-    group.get<LEVEL, HINT>().reset_all_pointers();
-}
-
-template void nfs_work::side_data::reset_all_pointers<1, shorthint_t>();
-template void nfs_work::side_data::reset_all_pointers<1, emptyhint_t>();
-#if MAX_TOPLEVEL >= 2
-template void nfs_work::side_data::reset_all_pointers<2, shorthint_t>();
-template void nfs_work::side_data::reset_all_pointers<2, emptyhint_t>();
-#endif
-#if MAX_TOPLEVEL >= 3
-template void nfs_work::side_data::reset_all_pointers<3, shorthint_t>();
-template void nfs_work::side_data::reset_all_pointers<3, emptyhint_t>();
-#endif
-static_assert(MAX_TOPLEVEL == 3);
-
 void nfs_work::compute_toplevel_and_buckets()
 {
     // Now that fb have been initialized, we can set the toplevel.
     // XXX TODO: we should decouple the toplevel and the sieving side,
     // really.
     toplevel = -1;
-    for(unsigned int side = 0 ; side < sides.size() ; side++) {
-        side_data  const& wss(sides[side]);
+    for(auto const & wss : sides) {
         if (wss.no_fb()) continue;
 
         toplevel = std::max(toplevel, wss.fbs->get_toplevel());

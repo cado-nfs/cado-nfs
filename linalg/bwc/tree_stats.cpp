@@ -7,34 +7,34 @@
 #include <ctime>
 #include <cctype>
 
-#include <map>             // for map<>::iterator, _Rb_tree_iterator, _Rb_tr...
-#include <string>          // for operator<<, string, basic_string, operator+
-#include <utility>         // for pair, make_pair, move, operator!=
-#include <vector>          // for vector, vector<>::value_type
-#include <sstream> // IWYU pragma: keep
-#include <ostream> // ostream operator<<
-#include <stdexcept>     // for runtime_error
+#include <map>
+#include <string>
+#include <utility>
+#include <vector>
+#include <sstream>
+#include <ostream>
+#include <stdexcept>
 
 #include "fmt/base.h"
 #include "fmt/format.h"
 
-#include "params.hpp"      // for cxx_param_list, param_list_decl_usage, param...
+#include "params.hpp"
 #include "select_mpi.h"
 #include "tree_stats.hpp"
-#include "timing.h"     // wct_seconds
+#include "timing.h"
 #include "macros.h"
 
 int tree_stats::max_nesting = 0;
 
 void tree_stats::interpret_parameters(cxx_param_list & pl)
 {
-    param_list_parse_int(pl, "tree_stats_max_nesting", &max_nesting);
+    pl.parse("tree_stats_max_nesting", max_nesting);
 }
 
 
 void tree_stats::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "tree_stats_max_nesting", "max nesting level of small steps to display within lingen");
+    pl.declare_usage("tree_stats_max_nesting", "max nesting level of small steps to display within lingen");
 }
 
 double tree_stats::level_stats::projected_time()
@@ -235,7 +235,7 @@ void tree_stats::print(unsigned int)
         char eta_string[32] = "not available yet\n";
         if (!has_untimed) {
             time_t eta[1];
-            *eta = wct_seconds() + time_to_go;
+            *eta = time(NULL) + time_to_go;
 #ifdef HAVE_CTIME_R
             ctime_r(eta, eta_string);
 #else
@@ -346,7 +346,7 @@ void tree_stats::final_print()
         /* print ETA */
         time_t eta[1];
         char eta_string[32];
-        *eta = wct_seconds();
+        *eta = time(NULL);
 #ifdef HAVE_CTIME_R
         ctime_r(eta, eta_string);
 #else

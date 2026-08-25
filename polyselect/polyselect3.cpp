@@ -31,13 +31,13 @@
 static void
 declare_usage (cxx_param_list & pl)
 {
-  param_list_decl_usage(pl, "poly", "polynomial prefix");
-  param_list_decl_usage(pl, "t", "number of threads");
-  param_list_decl_usage(pl, "num", "number of files to process");
-  param_list_decl_usage(pl, "Bf", "factor base bound on the algebraic side");
-  param_list_decl_usage(pl, "Bg", "factor base bound on the linear side");
-  param_list_decl_usage(pl, "area", "sieving area");
-  param_list_decl_usage(pl, "v", "verbose level");
+  pl.declare_usage("poly", "polynomial prefix");
+  pl.declare_usage("t", "number of threads");
+  pl.declare_usage("num", "number of files to process");
+  pl.declare_usage("Bf", "factor base bound on the algebraic side");
+  pl.declare_usage("Bg", "factor base bound on the linear side");
+  pl.declare_usage("area", "sieving area");
+  pl.declare_usage("v", "verbose level");
   verbose_decl_usage(pl);
 }
 
@@ -51,31 +51,26 @@ main (int argc, char const * argv[])
   int verbose = 0;
 
   declare_usage(pl);
-  param_list_configure_switch (pl, "-v", &verbose);
+  pl.configure_switch_old("-v", &verbose);
 
-  param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
+  pl.process_command_line_and_extra_parameter_files(argc, argv);
 
   verbose_interpret_parameters (pl);
-  param_list_print_command_line (stdout, pl);
+  pl.print_command_line(stdout);
 
-  param_list_parse_int (pl, "t", &nthreads);
+  pl.parse("t", nthreads);
 #ifdef HAVE_OPENMP
   omp_set_num_threads (nthreads);
 #endif
-  param_list_parse_int (pl, "num", &num);
+  pl.parse("num", num);
 
-  const char * filename;
-  if ((filename = param_list_lookup_string (pl, "poly")) == NULL)
+  const char * filename = pl.lookup_old("poly");
+  if (!filename)
       pl.fail("Error: parameter -poly is mandatory\n");
 
-  if (param_list_parse_double (pl, "Bf", &Bf) == 0)
-      pl.fail("Error: parameter -Bf is mandatory\n");
-
-  if (param_list_parse_double (pl, "Bg", &Bg) == 0)
-      pl.fail("Error: parameter -Bg is mandatory\n");
-
-  if (param_list_parse_double (pl, "area", &area) == 0)
-      pl.fail("Error: parameter -area is mandatory\n");
+  pl.parse_mandatory("Bf", Bf);
+  pl.parse_mandatory("Bg", Bg);
+  pl.parse_mandatory("area", area);
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for

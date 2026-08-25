@@ -478,14 +478,14 @@ struct matmul_bucket : public matmul_interface {
     private:
     static unsigned int npack_initial(cxx_param_list & pl) {
         unsigned int npack = L1_CACHE_SIZE;
-        param_list_parse(pl, "l1_cache_size", npack);
+        pl.parse("l1_cache_size", npack);
         npack /= sizeof(elt);
         return npack;
     }
 
     static size_t scratch1size_initial(cxx_param_list & pl) {
         size_t scratch1size = L2_CACHE_SIZE/2;
-        param_list_parse(pl, "l2_cache_size", scratch1size);
+        pl.parse("l2_cache_size", scratch1size);
         scratch1size /= sizeof(elt);
         return scratch1size;
     }
@@ -514,14 +514,14 @@ matmul_bucket<Arith>::matmul_bucket(matmul_public && P, arith_concrete_base * px
     int const suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
     store_transposed = suggest;
 
-    param_list_parse(pl, "mm_store_transposed", store_transposed);
+    pl.parse("mm_store_transposed", store_transposed);
 
     if (store_transposed != suggest) {
         fmt::print(stderr, "Warning, mm_store_transposed"
                 " overrides suggested matrix storage ordering\n");
     }   
 
-    methods = matmul_bucket_methods<Arith>(param_list_lookup_string(pl, "matmul_bucket_methods"));
+    methods = matmul_bucket_methods<Arith>(pl.lookup_old("matmul_bucket_methods"));
 }
 
 /* This moves an element at the tail of a list with no copy, transferring

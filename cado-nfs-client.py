@@ -157,7 +157,7 @@ sys.path.append(pathdict["pylib"])
 
 # END OF THE PART THAT MUST BE IDENTICAL IN cado-nfs.py and cado-nfs-client.py
 
-from cadofactor.workunit import Workunit    # noqa: E402
+from cadofactor.workunit import Workunit, WuStatus  # noqa: E402
 from cadofactor import cadologger           # noqa: E402
 
 # }}}
@@ -373,7 +373,8 @@ def close_exclusive(fileobj):
 
 
 # {{{ run shell command, capture std streams
-def run_command(command, stdin=None, print_error=True, **kwargs):
+def run_command(command, stdin=None, print_error=True, statuschecker=None,
+                **kwargs):
     """ Run command, wait for it to finish, return exit status, stdout
     and stderr
 
@@ -390,6 +391,13 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
     # clients are not killed when merge starts
     # see https://gforge.inria.fr/tracker/?func=detail&aid=21718
     close_fds = False
+
+    if statuschecker is not None:
+        assert callable(statuschecker)
+        assert hasattr(statuschecker, "interval_nsecs")
+        statuscheck_interval = statuschecker.interval_nsecs
+    else:
+        statuscheck_interval = None
 
     logging.info("Running %s", command_str)
 
@@ -417,16 +425,27 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
 
     # Wait for command to finish executing, capturing stdout and stderr
     # in output tuple
-    try:
-        (stdout, stderr) = child.communicate()
-    except KeyboardInterrupt:
-        logging.critical("[%s] KeyboardInterrupt received, killing child "
-                         "process with PID %d", time.asctime(), child.pid)
-        child.terminate()
-        (stdout, stderr) = child.communicate()
-        logging.error("[%s] Terminated command resulted in exit code %d",
-                      time.asctime(), child.returncode)
-        raise  # Re-raise KeyboardInterrupt to terminate cado-nfs-client.py
+    done = False
+    while not done:
+        try:
+            (stdout, stderr) = child.communicate(timeout=statuscheck_interval)
+            done = True
+        except KeyboardInterrupt:
+            logging.critical("[%s] KeyboardInterrupt received, killing child "
+                             "process with PID %d", time.asctime(), child.pid)
+            child.terminate()
+            (stdout, stderr) = child.communicate()
+            logging.error("[%s] Terminated command resulted in exit code %d",
+                          time.asctime(), child.returncode)
+            raise  # Re-raise KeyboardInterrupt to terminate cado-nfs-client.py
+        except subprocess.TimeoutExpired:
+            still_ok = statuschecker()
+            if not still_ok:
+                logging.info("[%s] statuscheck failed, killing child "
+                             "process with PID %d", time.asctime(), child.pid)
+                child.terminate()
+                (stdout, stderr) = child.communicate()
+                done = True
 
     # Un-install our handler and revert to the default handler
     signal.signal(signal.SIGTERM, signal.SIG_DFL)
@@ -692,6 +711,38 @@ class ServerPool(object):  # {{{
 # }}}
 
 
+# {{{ WorkunitStatusChecker: this object can be used to periodically checked
+# the status of a workunit
+class WorkunitStatusChecker:
+    def __init__(self, workunit, settings):
+        self.wuid = workunit.get_id()
+        self.peer = workunit.peer
+        self.interval_nsecs = settings["WUSTATUSCHECK_INTERVAL"]
+        if self.interval_nsecs is not None:
+            self.interval_nsecs = int(self.interval_nsecs)
+            assert self.interval_nsecs > 0
+
+    def __call__(self):
+        try:
+            resp = self.peer.get(f"WUstatus/{self.wuid}")
+            resp.raise_for_status()
+            status = resp.json()["status"]
+            logging.debug(f"WUstatuscheck for {self.wuid}: got {status=}"
+                          f" ({WuStatus.get_name(status)})")
+            if status != WuStatus.ASSIGNED:
+                logging.info(f"WUstatuscheck for {self.wuid} failed with "
+                             f"{status=} ({WuStatus.get_name(status)})")
+                return False
+            else:
+                return True
+        except Exception as e:
+            logging.info(f"WUstatuscheck for {self.wuid} failed with: "
+                         f"{type(e).__name__}('{e}')")
+            return False
+
+# }}}
+
+
 # {{{ WorkunitProcessor: this object processes once workunit, and owns
 # the result files until they get collected by the server.
 class WorkunitProcessor(object):
@@ -855,9 +906,12 @@ class WorkunitProcessor(object):
             if stdin is not None:
                 stdin = stdin.encode()
 
+            wustatuscheck = WorkunitStatusChecker(self.workunit, self.settings)
+
             rc, stdout, stderr = run_command(command,
                                              stdin=stdin,
-                                             preexec_fn=renice_func)
+                                             preexec_fn=renice_func,
+                                             statuschecker=wustatuscheck)
 
             # steal stdout/stderr, put them to files.
             out = files.get(my_stdout_filename)
@@ -1778,7 +1832,11 @@ OPTIONAL_SETTINGS = {
     "LOGFILE":         (None,
                         "File to which to write log output. "
                         "In daemon mode, if no file is specified, a "
-                        "default of <workdir>/<clientid>.log is used")
+                        "default of <workdir>/<clientid>.log is used"),
+    "WUSTATUSCHECK_INTERVAL":  (None,
+                                "A number of seconds to wait between each "
+                                "check of the status of workunit. If set to "
+                                "None (the default) no check is performed"),
     }
 
 

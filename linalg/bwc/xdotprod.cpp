@@ -17,7 +17,7 @@ void x_dotprod(arith_generic::elt * dst, std::vector<uint32_t> const & xv,
      * be lingering in reduce operations, so we have to wait for them
      */
     if (mmt_vec_is_shared(v)) {
-        serialize_threads(v.pi->wr[v.d]);
+        v.pi.wr[v.d].serialize_threads(__FILE__, __LINE__);
     } else {
         // I'd presume that no locking is needed here. But it's unchecked
         // ASSERT_ALWAYS(0);

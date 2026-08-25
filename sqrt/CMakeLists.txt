@@ -15,7 +15,7 @@ install(TARGETS mgmsqrt RUNTIME DESTINATION ${LIBSUFFIX}/sqrt)
 
 
 add_executable(crtalgsqrt ${EXCLUDE_FROM_RELEASE_BUILD} crtalgsqrt.cpp
-    powers_of_p.cpp abfiles.cpp knapsack.c
+    powers_of_p.cpp ab_source.cpp knapsack.c
     sqrt_cachefiles.cpp)
 target_link_libraries(crtalgsqrt utils)
 

@@ -15,7 +15,7 @@
 
 static std::ostream * bind(cxx_param_list & pl, const char * option_name, std::shared_ptr<std::ostream>& b)
 {
-    const char * filename = param_list_lookup_string(pl, option_name);
+    const char * filename = pl.lookup_old(option_name);
 
     if (!filename)
         return nullptr;
@@ -39,10 +39,10 @@ int main(int argc, char const * argv[])
 
     int direction = 0;
 
-    param_list_configure_switch(pl, "--columns", &direction);
+    pl.configure_switch("--columns");
 
     for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) continue;
+        if (pl.update_cmdline(argc, argv)) continue;
         if (argv[0][0] != '-' && wild.size() < 3) {
             wild.emplace_back(argv[0]);
             argv++, argc--;
@@ -50,6 +50,7 @@ int main(int argc, char const * argv[])
         }
     }
 
+    pl.parse("--columns", direction);
     if (wild.empty())
         throw std::runtime_error("missing verb");
 

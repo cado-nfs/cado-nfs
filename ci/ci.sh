@@ -129,8 +129,8 @@ project_package_selection() {
             pip_packages="$pip_packages flask"
         fi
         alpine_packages="$alpine_packages     py3-flask py3-requests"
-        # py311-sqlite3 is in the python stdlib, but trimmed on on fbsd
-        freebsd_packages="$freebsd_packages   py311-sqlite3 py311-flask py311-requests"
+        # py312-sqlite3 is in the python stdlib, but trimmed on on fbsd
+        freebsd_packages="$freebsd_packages   py312-sqlite3 py312-flask py312-requests"
         freebsd_packages="$freebsd_packages   pkgconf" # added PZ
     fi
 

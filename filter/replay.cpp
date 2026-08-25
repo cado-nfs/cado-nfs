@@ -21,29 +21,30 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cinttypes>        // for PRIu64, PRIu32, PRIx64
-#include <cstdint>          // for uint64_t, uint32_t, UINT32_MAX
+#include <cinttypes>
+#include <cstdint>
 
 #include <string>
 
 #include "fmt/base.h"
 
-#include "purgedfile.h"      // for purgedfile_read_firstline
-#include "typedefs.h"        // for index_t, ideal_merge_t, index_signed_t
+#include "purgedfile.h"
+#include "typedefs.h"
 #include "filter_config.h"
-#include "filter_io.hpp"  // earlyparsed_relation_ptr
-#include "fix-endianness.h" // fwrite32_little
-#include "gzip.h"       // fopen_maybe_compressed
-#include "misc.h"       // derived_filename
-#include "params.hpp"     // param_list_parse_*
+#include "filter_io.hpp"
+#include "fix-endianness.h"
+#include "gzip.h"
+#include "misc.h"
+#include "params.hpp"
 #include "sparse.h"
-#include "stats.h"      // stats_data_t
-#include "timing.h"     // seconds
-#include "verbose.hpp"    // verbose_decl_usage
-#include "portability.h" // strdup  // IWYU pragma: keep
+#include "stats.h"
+#include "timing.h"
+#include "verbose.hpp"
+#include "portability.h"
 #include "macros.h"
 #include "merge_replay_matrix.h"
 #include "runtime_numeric_cast.hpp"
@@ -914,29 +915,29 @@ int main(int argc, char const * argv[])
 
     replay_read_data::configure(pl);
 
-    param_list_configure_switch(pl, "for_msieve", &for_msieve);
+    pl.configure_switch_old("for_msieve", &for_msieve);
     cado::filter_io_details::configure(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     verbose_interpret_parameters(pl);
     cado::filter_io_details::interpret_parameters(pl);
-    param_list_print_command_line (stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
-    const char * hisname = param_list_lookup_string(pl, "his");
-    const char * sparsename = param_list_lookup_string(pl, "out");
-    const char * indexname = param_list_lookup_string(pl, "index");
-    const char * idealsfilename = param_list_lookup_string(pl, "ideals");
+    const char * hisname = pl.lookup_old("his");
+    const char * sparsename = pl.lookup_old("out");
+    const char * indexname = pl.lookup_old("index");
+    const char * idealsfilename = pl.lookup_old("ideals");
 #ifndef FOR_DL
-    param_list_parse_int(pl, "skip", &skip);
+    pl.parse("skip", skip);
 #endif
-    param_list_parse_uint64(pl, "Nmax", &Nmax);
-    const char *path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
+    pl.parse("Nmax", Nmax);
+    const char * path_antebuffer = pl.lookup_old("path_antebuffer");
 
 
     unsigned int nsquare_matrices = 0;
-    param_list_parse_uint(pl, "nsquare_matrices", &nsquare_matrices);
+    pl.parse("nsquare_matrices", nsquare_matrices);
     if (nsquare_matrices)
     {
         printf ("# Will output %u square matri%s\n", nsquare_matrices,
@@ -948,7 +949,7 @@ int main(int argc, char const * argv[])
     replay_read_data rr(pl);
 
     /* Some checks on command line arguments */
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Error, unused parameters are given\n");
 
     if (hisname == NULL)

@@ -43,7 +43,7 @@
 #include "fb-types.hpp"
 #include "fb.hpp"
 #include "gmp_aux.h"
-#include "json.hpp"
+#include "relation_cache.hpp"
 #include "las-auxiliary-data.hpp"
 #include "las-bkmult.hpp"
 #include "las-choose-sieve-area.hpp"
@@ -80,6 +80,7 @@
 #include "multityped_array.hpp"
 #include "params.hpp"
 #include "relation.hpp"
+#include "smallsieve.hpp"
 #include "special-q.hpp"
 #include "sieve-methods.hpp"
 #include "tdict.hpp"
@@ -98,48 +99,41 @@
 
 static void configure_aliases(cxx_param_list & pl)
 {
-    las_info::configure_aliases(pl);
-    param_list_configure_alias(pl, "log-bucket-region", "B");
-    param_list_configure_alias(pl, "log-bucket-region-step", "Bi");
+    pl.configure_alias("log-bucket-region", "B");
+    pl.configure_alias("log-bucket-region-step", "Bi");
     las_output::configure_aliases(pl);
     tdict::configure_aliases(pl);
 }
 
 static void configure_switches(cxx_param_list & pl)
 {
-    las_info::configure_switches(pl);
     las_output::configure_switches(pl);
     tdict::configure_switches(pl);
 
-    param_list_configure_switch(pl, "-allow-largesq", &allow_largesq);
+    pl.configure_switch("-allow-largesq");
     if (dlp_descent)
-        param_list_configure_switch(pl, "-recursive-descent", &recursive_descent);
+        pl.configure_switch("-recursive-descent");
 
-    param_list_configure_switch(pl, "-prepend-relation-time", &prepend_relation_time);
-    param_list_configure_switch(pl, "-sync", &sync_at_special_q);
-    param_list_configure_switch(pl, "-sync-thread-pool", &sync_thread_pool);
-    param_list_configure_switch(pl, "-never-discard", &never_discard);
-    param_list_configure_switch(pl, "-production", &las_production_mode);
+    pl.configure_switch("-prepend-relation-time");
+    pl.configure_switch("-sync");
+    pl.configure_switch("-sync-thread-pool");
+    pl.configure_switch("-never-discard");
+
+    pl.configure_switch("print-slice-statistics");
+
+    chronograms::configure_switches(pl);
 }
 
 static void declare_usage(cxx_param_list & pl)/*{{{*/
 {
-    pl.declare_usage_header(
-            "In the names and in the descriptions of the parameters, below there are often\n"
-            "aliases corresponding to the convention that 0 is the rational side and 1\n"
-            "is the algebraic side. If the two sides are algebraic, then the word\n"
-            "'rational' just means the side number 0. Note also that for a rational\n"
-            "side, the factor base is recomputed on the fly (or cached), and there is\n"
-            "no need to provide a fb0 parameter.\n"
-            );
-
-    las_info::declare_usage(pl);
     las_parallel_desc::declare_usage(pl);
     ALGO::todo_list::declare_usage(pl);
     las_output::declare_usage(pl);
     tdict::declare_usage(pl);
 
     pl.declare_usage("trialdiv-first-side", "begin trial division on this side");
+    pl.declare_usage("print-slice-statistics",
+            "print statistics on how the factor bases are split in slices");
     pl.declare_usage("allow-largesq", "allows large special-q, e.g. for a DL descent");
 
     pl.declare_usage("sublat", "modulus for sublattice sieving");
@@ -165,9 +159,27 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
      */
     pl.declare_usage("never-discard", "Disable the discarding process for special-q's. This is dangerous. See bug #15617");
 
-    pl.declare_usage("production", "Sort of an opposite to -v. Disable all diagnostics except the cheap or critical ones. See #21688 and #21825.");
+    chronograms::declare_usage(pl);
     verbose_decl_usage(pl);
 }/*}}}*/
+
+void configure(cxx_param_list & pl)
+{
+    pl.declare_usage_header(
+            "In the names and in the descriptions of the parameters, below there are often\n"
+            "aliases corresponding to the convention that 0 is the rational side and 1\n"
+            "is the algebraic side. If the two sides are algebraic, then the word\n"
+            "'rational' just means the side number 0. Note also that for a rational\n"
+            "side, the factor base is recomputed on the fly (or cached), and there is\n"
+            "no need to provide a fb0 parameter.\n"
+            );
+
+    las_info::configure(pl);
+
+    declare_usage(pl);
+    configure_switches(pl);
+    configure_aliases(pl);
+}
 
 struct round_me {
     slice_index_t initial = 1;
@@ -756,53 +768,70 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
          */
         BOOKKEEPING_TIMER(timer_special_q);
 
+        std::vector<task_group> sss_tgs(nsides);
+
         for(int side = 0 ; side < nsides ; side++) {
             nfs_work::side_data  const& wss(ws.sides[side]);
             if (wss.no_fb()) continue;
-            pool.add_task_lambda([&ws,aux_p,&Q,side](worker_thread * worker,int){
-                    timetree_t & timer(aux_p->get_timer(worker));
-                    ENTER_THREAD_TIMER(timer);
-                    MARK_TIMER_FOR_SIDE(timer, side);
+            auto & sss_tg(sss_tgs[side]);
+            pool.add_task(
+                    sss_tg,
+                    thread_pool::QUEUE_GENERIC,
+                    std::numeric_limits<double>::max(),
+                    [&ws, &aux, &Q, side](
+                        worker_thread * worker)
+                    {
+                        timetree_t & timer(aux.get_timer(worker));
+                        ENTER_THREAD_TIMER(timer);
+                        MARK_TIMER_FOR_SIDE(timer, side);
+                        SIBLING_TIMER(timer, "prepare small sieve");
+                        auto tt = worker->trace(chronograms::SSS(side, ws.toplevel));
+                        nfs_work::side_data & wss(ws.sides[side]);
 
-                    SIBLING_TIMER(timer, "prepare small sieve");
+                        wss.ssd->small_sieve_init(
+                                wss.fbs->small_sieve_entries.resieved,
+                                wss.fbs->small_sieve_entries.rest,
+                                ws.conf.logI,
+                                side,
+                                wss.fbK,
+                                Q,
+                                wss.lognorms.scale);
 
-                    nfs_work::side_data & wss(ws.sides[side]);
-                    // if (wss.no_fb()) return;
+                        wss.ssd->small_sieve_info("small sieve", side);
+                    });
 
-                    wss.ssd->small_sieve_init(
-                            wss.fbs->small_sieve_entries.resieved,
-                            wss.fbs->small_sieve_entries.rest,
-                            ws.conf.logI,
-                            side,
-                            wss.fbK,
-                            Q,
-                            wss.lognorms.scale);
-
-                    wss.ssd->small_sieve_info("small sieve", side);
-
-                    if (ws.toplevel == 1) {
-                        /* when ws.toplevel > 1, this start_many call is done
-                         * several times.
-                         */
-                        SIBLING_TIMER(timer, "small sieve start positions ");
+            if (ws.toplevel == 1) {
+                /* when ws.toplevel > 1, this start_many call
+                 * is done several times.
+                 */
+                sss_tg.on_complete([&ws, &Q, side, &pool, &sss_tg]() {
+                        nfs_work::side_data & wss(ws.sides[side]);
                         wss.ssd->small_sieve_prepare_many_start_positions(
+                                pool, &sss_tg,
                                 0,
                                 std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1]),
                                 ws.conf.logI, Q.sublat);
-                        wss.ssd->small_sieve_activate_many_start_positions();
-                    }
-            },0);
+                        });
+            }
         }
 
         /* Note: we haven't done any downsorting yet ! */
-
-        pool.drain_queue(0);
+        for(int side = 0 ; side < nsides ; side++) {
+            nfs_work::side_data  const& wss(ws.sides[side]);
+            if (wss.no_fb()) continue;
+            auto & sss_tg(sss_tgs[side]);
+            sss_tg.wait();
+            if (ws.toplevel == 1)
+                wss.ssd->small_sieve_activate_many_start_positions();
+        }
+            
+        pool.drain_queue(thread_pool::QUEUE_GENERIC);
 
         ws.check_buckets_max_full_toplevel(ws.toplevel);
 
-        auto exc = pool.get_exceptions<buckets_are_full>(0);
+        auto exc = pool.get_exceptions<buckets_are_full>(thread_pool::QUEUE_GENERIC);
         if (!exc.empty())
-            throw *std::ranges::max_element(exc);
+            throw buckets_are_full(*std::ranges::max_element(exc));
     }
 
     {
@@ -820,6 +849,8 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
             size_t  const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
             static_assert(MAX_TOPLEVEL == 3);
             for (int i = 0; i < ws.nb_buckets[ws.toplevel]; i++) {
+                if (ws.task->must_take_decision())
+                    break;
                 /* Dividing by BRS[1] is actually correct if we want to
                  * fill the first_region0_index parameter. Of course we
                  * must make sure that for the recursive downsort, this
@@ -856,7 +887,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
     if (sync_at_special_q) {
         pool.drain_all_queues();
     } else {
-        pool.drain_queue(0);
+        pool.drain_queue(thread_pool::QUEUE_GENERIC);
     }
 }/*}}}*/
 
@@ -886,7 +917,7 @@ do_one_special_q(
      *
      */
     ALGO::special_q_data Q;
-    if (!choose_sieve_area(las, aux_p, aux.doing, ws.conf, Q, ws.J))
+    if (!choose_sieve_area(las, pool, aux.doing, ws.conf, Q, ws.J))
         return false;
     ws.doing = Q.doing;
 
@@ -894,7 +925,10 @@ do_one_special_q(
 
     BOOKKEEPING_TIMER(timer_special_q);
 
-    ws.prepare_for_new_q<ALGO>(las, &aux.doing, Q);
+    {
+        auto tt = pool.trace_on_leader(chronograms::INIT());
+        ws.prepare_for_new_q<ALGO>(las, &aux.doing, Q);
+    }
 
     /* the where_am_I structure is store in nfs_aux. We have a few
      * adjustments to make, and we want to make sure that the threads,
@@ -916,6 +950,7 @@ do_one_special_q(
     std::shared_ptr<nfs_work_cofac> wc_p;
 
     {
+        auto tt = pool.trace_on_leader(chronograms::INIT());
         wc_p = std::make_shared<nfs_work_cofac>(las, ws);
 
         rep.total_logI += ws.conf.logI;
@@ -1102,12 +1137,12 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
     double cumulated_wait_time = 0;     /* for this subjob only */
     {
         /* add scoping to control dtor call */
-        /* queue 0: main
-         * queue 1: ECM
-         * queue 2: things that we join almost immediately, but are
-         * multithreaded nevertheless: alloc buckets, ...
-         */
-        thread_pool pool(las.number_of_threads_per_subjob(), cumulated_wait_time, 3, sync_thread_pool);
+        thread_pool pool(las.number_of_threads_per_subjob(), cumulated_wait_time, thread_pool::NQUEUES, sync_thread_pool);
+        auto dummy = call_dtor([&](){
+            /* we can't collect traces of running threads, of course!! */
+            pool.drain_all_queues();
+            pool.collect_traces(las.chronogram_map, las.number_of_threads_per_subjob() * subjob);
+        });
         nfs_work ws(las, ALGO{});
 
         /* {{{ Doc on todo list handling
@@ -1139,7 +1174,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
              * decide on the relevance of creating a new output object */
 
             /* (non-blocking) join results from detached cofac */
-            for(task_result * r ; (r = pool.get_result(1, false)) ; delete r);
+            pool.drain_queue(thread_pool::QUEUE_ECM, false);
 
             nq++;
 
@@ -1170,7 +1205,12 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
                      * since it is an essential property ot the timer trees
                      * that the root of the trees must not have a nontrivial
                      * category */
-                    auto aux_p = std::make_shared<nfs_aux>(las, *task, rel_hash_p, las.number_of_threads_per_subjob());
+                    auto aux_p = std::make_shared<nfs_aux>(
+                            las,
+                            subjob,
+                            *task,
+                            rel_hash_p,
+                            las.number_of_threads_per_subjob());
                     nfs_aux & aux(*aux_p);
                     las_report & rep(aux.rt.rep);
                     timetree_t & timer_special_q(aux.rt.timer);
@@ -1264,96 +1304,14 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
         global_rt.rep.waste += botched.timer.total_counted_time();
     }
 
+    // not sure what I wanted to achieve here.
+    // global_rt.timer.append_botched_chart(botched.timer);
+
     verbose_fmt_print(0, 1, "# subjob {} done ({} special-q's), now waiting for other jobs\n", subjob, nq);
 }/*}}}*/
 
-static std::string relation_cache_subdir_name(std::vector<unsigned long> const & splits, std::vector<unsigned long> const & split_q)/*{{{*/
-{
-    std::string d;
-    /* find the file */
-    for(unsigned int i = 0 ; i + 1 < split_q.size() ; i++) {
-        int l = 0;
-        for(unsigned long s = 1 ; splits[i] > s ; s*=10, l++);
-        d += fmt::format("/{:0{}}", split_q[i], l);
-    }
-    return d;
-}/*}}}*/
-
-static std::string relation_cache_find_filepath_inner(std::string const & d, unsigned long qq)/*{{{*/
-{
-    std::string filepath;
-    DIR * dir = opendir(d.c_str());
-    DIE_ERRNO_DIAG(dir == nullptr, "opendir(%s)", d.c_str());
-    for(struct dirent * ent ; (ent = readdir(dir)) != nullptr ; ) {
-        unsigned long q0, q1;
-        if (sscanf(ent->d_name, "%lu-%lu", &q0, &q1) != 2) continue;
-        if (qq < q0 || qq >= q1) continue;
-        filepath = d + "/" + ent->d_name;
-        break;
-    }
-    closedir(dir);
-
-    return filepath;
-}/*}}}*/
-
-static std::string relation_cache_find_filepath(std::string const & cache_path, std::vector<unsigned long> const & splits, cxx_mpz q)/*{{{*/
-{
-    std::vector<std::string> searched;
-
-    /* write q in the variable basis given by the splits */
-    cxx_mpz oq = q;
-    std::vector<unsigned long> split_q = splits;
-    for(unsigned int i = splits.size() ; i-- ; ) {
-        split_q[i] = mpz_fdiv_ui(q, splits[i]);
-        mpz_fdiv_q_ui(q, q, splits[i]);
-    }
-    if (mpz_cmp_ui(q, 0) != 0) {
-        fmt::print(stderr, "# q is too large for relation cache\n", oq);
-        exit(EXIT_FAILURE);
-    }
-
-    std::string d = cache_path + relation_cache_subdir_name(splits, split_q);
-
-    std::string filepath = relation_cache_find_filepath_inner(d, split_q.back());
-
-    if (filepath.empty() && split_q.size() > 1) {
-        searched.push_back(d);
-
-        /* Try the previous directory, if qranges cross the
-         * boundaries at powers of ten */
-        split_q[split_q.size() - 2] -= 1;
-        split_q[split_q.size() - 1] += splits[splits.size() - 1];
-        d = cache_path + relation_cache_subdir_name(splits, split_q);
-        filepath = relation_cache_find_filepath_inner(d, split_q.back());
-    }
-
-    if (filepath.empty()) {
-        searched.push_back(d);
-        fmt::print(stderr, "# no file found in relation cache for q={} (searched directories: {})\n", q, join(searched, " "));
-        exit(EXIT_FAILURE);
-    }
-
-    return filepath;
-}
-/*}}}*/
-
 static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
 {
-    std::vector<unsigned long> splits;
-
-    try {
-        /* recover the list of splits from the config file */
-        json dirinfo;
-        if (!(std::ifstream(las.relation_cache + "/dirinfo.json") >> dirinfo))
-            throw std::exception();
-        for(size_t i = 0 ; i < dirinfo["splits"].size() ; i++) {
-            splits.push_back((long) dirinfo["splits"][i]);
-        }
-    } catch (std::exception const & e) {
-        fmt::print(stderr, "# Cannot read relation cache, or dirinfo.json in relation cache\n");
-        exit(EXIT_FAILURE);
-    }
-
     /* the inner mechanism of the descent loop entails breaking early on
      * when a relation is found. This doesn't interact well with what
      * we're doing here.
@@ -1386,7 +1344,7 @@ static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
         verbose_fmt_print(0, 2, "# Sieving {}; I={}; J={};\n",
                 Q, 1U << conf.logI, J);
 
-        std::string const filepath = relation_cache_find_filepath(las.relation_cache, splits, doing.p);
+        std::string const filepath = las.rel_cache.find_filepath(doing.p);
 
         std::ifstream rf(filepath);
         DIE_ERRNO_DIAG(!rf, "open(%s)", filepath.c_str());
@@ -1441,39 +1399,50 @@ int main (int argc0, char const * argv0[])/*{{{*/
     cxx_param_list pl;
     cado_sighandlers_install();
 
-    declare_usage(pl);
-    configure_switches(pl);
-    configure_aliases(pl);
+    configure(pl);
 
     argv++, argc--;
     for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
+        if (pl.update_cmdline(argc, argv))
+            continue;
         /* Could also be a file */
         FILE * f = fopen(argv[0], "r");
         if (f) {
-            param_list_read_stream(pl, f, 0);
+            pl.read(f, false);
             fclose(f);
             argv++,argc--;
             continue;
         }
         fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        param_list_print_usage(pl, argv0[0], stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 
-    param_list_parse_int(pl, "trialdiv-first-side", &trialdiv_first_side);
-    param_list_parse_int(pl, "exit-early", &exit_after_rel_found);
+    pl.parse("-allow-largesq", allow_largesq);
     if (dlp_descent)
-        param_list_parse_double(pl, "grace-time-ratio", &general_grace_time_ratio);
-    param_list_parse_int(pl, "log-bucket-region", &LOG_BUCKET_REGION);
-    param_list_parse_int(pl, "log-bucket-region-step", &LOG_BUCKET_REGION_step);
+        pl.parse("-recursive-descent", recursive_descent);
+
+    pl.parse("-prepend-relation-time", prepend_relation_time);
+    pl.parse("-sync", sync_at_special_q);
+    pl.parse("-sync-thread-pool", sync_thread_pool);
+    pl.parse("-never-discard", never_discard);
+
+    pl.parse("trialdiv-first-side", trialdiv_first_side);
+    pl.parse("print-slice-statistics", print_slice_statistics);
+    pl.parse("exit-early", exit_after_rel_found);
+    if (dlp_descent)
+        pl.parse("grace-time-ratio", general_grace_time_ratio);
+    pl.parse("log-bucket-region", LOG_BUCKET_REGION);
+    pl.parse("log-bucket-region-step", LOG_BUCKET_REGION_step);
     set_LOG_BUCKET_REGION();
 
-    main_output = std::unique_ptr<las_output>(new las_output(pl));
+    tdict::interpret_parameters(pl);
+    chronograms::interpret_parameters(pl);
 
-    if (las_production_mode) {
-        tdict::global_enable = 0;
-    }
+    /* fix the lifetime of this object to this function only, so that we
+     * don't get killed by the static destruction order fiasco */
+    las_output main_output_obj(pl);
+    main_output = &main_output_obj;
 
     las_info las(pl, ALGO{});    /* side effects: prints cmdline and flags */
 #ifdef SAFE_BUCKET_ARRAYS
@@ -1561,7 +1530,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     sieve_shared_data::lookup_parameters(pl, las.cpoly.nsides());
     batch_side_config::lookup_parameters(pl, las.cpoly.nsides());
 
-    param_list_warn_unused(pl);
+    pl.warn_unused();
 
     /* In the random-sample + relation cache case, we're going to proceed
      * through a special case, as this will spare us the need to load the
@@ -1574,7 +1543,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
      * Nevertheless, this strategies stuff can easily become the dominant
      * factor in cached relations processing.
      */
-    if (!las.relation_cache.empty()) {
+    if (las.rel_cache.active()) {
         quick_subjob_loop_using_cache(las);
         return EXIT_SUCCESS;
     }
@@ -1626,6 +1595,8 @@ int main (int argc0, char const * argv0[])/*{{{*/
                     );
         }
         for(auto & t : subjobs) t.join();
+
+        chronograms::display(las.chronogram_map);
 
         las.tree->display_summary(0, 0);
 
@@ -1771,7 +1742,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     auto D = global_rt.timer.filter_by_category();
     timetree_t::timer_data_type const tcpu = global_rt.timer.total_counted_time();
 
-    if (tdict::global_enable >= 2) {
+    if (tdict::is_enabled() >= 1) {
         verbose_fmt_print (0, 1, "#\n# Hierarchical timings:\n{}",
                 global_rt.timer.display());
 
@@ -1791,7 +1762,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     /*{{{ Display tally */
     display_bucket_prime_stats();
 
-    if (las_production_mode) {
+    if (tdict::is_production_mode()) {
         verbose_fmt_print (2, 1, "# Total cpu time {:1.2f}s [remove -production flag for timings]\n", t0);
     } else {
         verbose_fmt_print (2, 1, "# Wasted cpu time due to {} bkmult adjustments: {:1.2f}\n", global_rt.rep.nwaste, global_rt.rep.waste);
@@ -1855,6 +1826,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     /*}}}*/
 
     las.cofac_stats.print();
+
 
     return EXIT_SUCCESS;
 }/*}}}*/

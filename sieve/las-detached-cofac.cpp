@@ -1,6 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <memory>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -28,12 +27,13 @@
 
 /* asynchronous cofactorization */
 
-static detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_cofac_parameters * param)
+static relation detached_cofac_inner(worker_thread * worker,
+        nfs_work_cofac & wc,
+        nfs_aux & aux,
+        cofac_standalone && cur)
 {
     /* Import some contextual stuff. */
-    int const id = int(worker->rank());
-    nfs_work_cofac & wc(*param->wc_p);
-    nfs_aux & aux(*param->aux_p);
+    int const id = worker->rank();
     nfs_aux::thread_data & taux(aux.th[id]);
     las_info const & las(wc.las);
     las_report & rep(taux.rep);
@@ -41,7 +41,7 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
 
     nfs_aux::rel_hash_t& rel_hash(aux.get_rel_hash());
 
-    cofac_standalone & cur(*param);
+    auto tt = worker->trace(chronograms::ECM());
 
     int const nsides = las.cpoly.nsides();
 
@@ -54,8 +54,6 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
     int const pass = cur.factor_leftover_norms(wc);
     rep.survivors.cofactored += (pass != 0);
 
-    auto * res = new detached_cofac_result;
-
     if (cur.trace_on_spot() && pass == 0) {
         verbose_fmt_print(TRACE_CHANNEL, 0,
                 "# factor_leftover_norm failed for ({},{}),"
@@ -66,7 +64,7 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
     if (pass <= 0) {
         /* a factor was > 2^lpb, or some
            factorization was incomplete */
-        return res;
+        return {};
     }
 
     rep.survivors.smooth++;
@@ -97,7 +95,12 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
 
         const char * dup_comment = nullptr;
 
-        if (do_check && relation_is_duplicate(rel, wc.doing, wc.las)) {
+        auto dupcheck = [&]() {
+          auto tt = worker->trace(chronograms::DUPCHECK());
+          return relation_is_duplicate(rel, wc.doing, wc.las);
+        };
+
+        if (do_check && dupcheck()) {
             dup_comment = "# DUPE ";
             rep.duplicates ++;
         } else {
@@ -137,16 +140,22 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
 
         /* print all in one go */
         verbose_fmt_print(0, 1, "{}", os.str());
+
         if (dlp_descent)
-            res->rel_p = std::make_shared<relation>(std::move(rel));
+            return rel;
     }
-    return res;
+
+    /* Build histogram of lucky S[x] values. Not sure it still works... */
+    // rep.mark_report(cur.S);
+
+    return {};
 }
 
-task_result * detached_cofac(worker_thread * worker, task_parameters * _param, int) /* {{{ */
+relation detached_cofac(worker_thread * worker,
+        nfs_work_cofac & wc,
+        nfs_aux & aux,
+        cofac_standalone && cur) /* {{{ */
 {
-    auto clean_param = call_dtor([_param]() { delete _param; });
-
     /* We must exit by cleaning the param structure we've been given. But
      * everything we do with the objects whose life is dependent on our
      * param structure must of course be completed at this point. This
@@ -154,33 +163,25 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param, i
      * some stuff to be done at dtor time, so it's important that we
      * clean up the parameters *after* the timer cleans up.
      */
-    auto * param = dynamic_cast<detached_cofac_parameters *>(_param);
 
     /* Import some contextual stuff. */
-    int const id = int(worker->rank());
-    nfs_aux & aux(*param->aux_p);
-    nfs_aux::thread_data & taux(aux.th[id]);
-    las_report & rep(taux.rep);
     timetree_t & timer(aux.get_timer(worker));
     /* The timer is normally not running, as we're in a thread task.
      * However, in descent mode, this is called synchronously, and then
      * the situation is different since the timer has already been
      * activated above.
      */
-    cofac_standalone & cur(*param);
-    detached_cofac_result * res;
+
+    relation res;
     if (dlp_descent) {
         CHILD_TIMER(timer, __func__);
-        res = detached_cofac_inner(worker, param);
+        res = detached_cofac_inner(worker, wc, aux, std::move(cur));
     } else {
         ENTER_THREAD_TIMER(timer);
-        res = detached_cofac_inner(worker, param);
+        res = detached_cofac_inner(worker, wc, aux, std::move(cur));
     }
 
-    /* Build histogram of lucky S[x] values. Not sure it still works... */
-    rep.mark_report(cur.S);
-
-    return (task_result*) res;
+    return res;
 }
 
 /* }}} */

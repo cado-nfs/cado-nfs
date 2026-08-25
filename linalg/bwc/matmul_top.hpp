@@ -56,13 +56,13 @@ struct matmul_top_matrix {
     /* XXX XXX XXX dangerous: has_perm_local is only a local thing!
      * Some threads/jobs may have has_perm_local(d)==false while others don't!
      */
-    inline bool has_perm_local(int d) const { return !perm[d].empty(); }
+    bool has_perm_local(int d) const { return !perm[d].empty(); }
 
     /* This is the global version, as prepared by
      * matmul_top_init_prepare_local_permutations
      */
     int has_perm_map[2];
-    inline bool has_perm(int d) const { return has_perm_map[d]; }
+    bool has_perm(int d) const { return has_perm_map[d]; }
 
     /* It's shared because of interleaving.
      * Note that when we get the interface from a shared lib, the shared
@@ -73,8 +73,8 @@ struct matmul_top_matrix {
 
 struct matmul_top_data {
     arith_generic * abase;
-    parallelizing_info_ptr pi;
-    pi_datatype_ptr pitype;
+    parallelizing_info & pi;
+    pi_datatype * pitype;
     /* These n[] and n0[] correspond to the dimensions of the product
      *
      * n[0] is matrices[0]->n[0] (number of rows, includding padding.)
@@ -93,7 +93,7 @@ struct matmul_top_data {
     std::vector<matmul_top_matrix> matrices;
     matmul_top_data(
         arith_generic * abase,
-        parallelizing_info_ptr pi,
+        parallelizing_info & pi,
         cxx_param_list & pl,
         int optimized_direction);
     ~matmul_top_data();

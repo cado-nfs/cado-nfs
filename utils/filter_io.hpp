@@ -1507,12 +1507,12 @@ namespace cado::filter_io_details {
 
         /*{{{ filter_rels consumer thread */
         template<size_t level>
-            void spawn_threads(std::vector<std::thread> &,
+            void spawn_threads(std::vector<std::jthread> &,
                     timingstats_dict_ptr)
             {}
 
         template<size_t level, typename F, typename... Functions>
-            void spawn_threads(std::vector<std::thread> & pool,
+            void spawn_threads(std::vector<std::jthread> & pool,
                     timingstats_dict_ptr stats,
                     F const & fk, Functions const & ...ff)
             {
@@ -1710,7 +1710,7 @@ struct filter_rels_obj {
          * which instantiates and calls us.
          */
 
-        std::vector<std::thread> consumers;
+        std::vector<std::jthread> consumers;
         consumers.reserve(number_of_consumers);
         inflight.template spawn_threads<0, Functions...>(
                 consumers, tstats, std::forward<Functions>(FF)...);
@@ -1779,8 +1779,7 @@ struct filter_rels_obj {
         /*}}}*/
 
         /* {{{ join all threads */
-        for(auto & t : consumers)
-            t.join();
+        consumers.clear();
         P.join();
         /*}}}*/
 

@@ -590,17 +590,17 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
 
         timing_check(pi, timing, s+i+1, tcan_print);
     }
-    serialize(pi->m);
+    pi->m.serialize(__FILE__, __LINE__);
 
     /* See remark above. */
-    pi_interleaving_flip(pi);
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
+    pi.interleaving_flip();
 
     if (!bw->skip_online_checks) {
         /* Last dot product. This must cancel ! */
         x_dotprod(ahead, gxvecs, nchecks, nx, ymy[0], -1);
 
-        pi_allreduce(nullptr, ahead, nchecks, mmt->pitype, BWC_PI_SUM, pi->m);
+        pi->m.allreduce(nullptr, ahead, nchecks, mmt->pitype, BWC_PI_SUM);
         if (!Ac->vec_is_zero(Ac, ahead, nchecks)) {
             printf("Failed check at iteration %d\n", s + bw->interval);
             exit(1);
@@ -610,9 +610,9 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
     mmt_vec_untwist(mmt, ymy[0]);
 
     /* Now (and only now) collect the xy matrices */
-    pi_allreduce(nullptr, xymats,
+    pi.m.allreduce(nullptr, xymats,
             bw->m * bw->interval,
-            mmt->pitype, BWC_PI_SUM, pi->m);
+            mmt->pitype, BWC_PI_SUM);
 
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
         char * tmp;
@@ -635,7 +635,7 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
     if (pi->m->trank == 0 && pi->m->jrank == 0)
         keep_rolling_checkpoints(v_name, s + bw->interval);
 
-    serialize(pi->m);
+    pi->m.serialize(__FILE__, __LINE__);
 
     // reached s + bw->interval. Count our time on cpu, and compute the sum.
     timing_disp_collective_oneline(pi, timing, s + bw->interval, tcan_print, "check");
@@ -669,10 +669,10 @@ int main(int argc, char const * argv[])
 
     bw_common_interpret_parameters(bw, pl);
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        if (!rank) pl.print_usage(stderr);
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 

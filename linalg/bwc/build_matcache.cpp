@@ -23,13 +23,13 @@
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "matrix-file", "matrix file to work with");
-    param_list_decl_usage(pl, "prime", "characteristic of the base field [default=2]");
-    param_list_decl_usage(pl, "direction", "direction of the product, left for v*M, right for M*v [default=left for p=2, right otherwise]");
-    param_list_decl_usage(pl, "withcoeffs", "whether we have coefficients in the matrix (i.e. not only 1's). Defaults to 1 (true) for p>2");
-    param_list_decl_usage(pl, "impl", "name of the implementation backend. Defaults to bucket for p==2, basicp for p>2");
-    param_list_decl_usage(pl, "groupsize", "number of vectors to consider together (defaults to 64 for p==2, 1 for p>2)");
-    param_list_decl_usage(pl, "tmpdir", "directory where matrix cache file is saved (defaults to /tmp)\n");
+    pl.declare_usage("matrix-file", "matrix file to work with");
+    pl.declare_usage("prime", "characteristic of the base field [default=2]");
+    pl.declare_usage("direction", "direction of the product, left for v*M, right for M*v [default=left for p=2, right otherwise]");
+    pl.declare_usage("withcoeffs", "whether we have coefficients in the matrix (i.e. not only 1's). Defaults to 1 (true) for p>2");
+    pl.declare_usage("impl", "name of the implementation backend. Defaults to bucket for p==2, basicp for p>2");
+    pl.declare_usage("groupsize", "number of vectors to consider together (defaults to 64 for p==2, 1 for p>2)");
+    pl.declare_usage("tmpdir", "directory where matrix cache file is saved (defaults to /tmp)\n");
 }
 
 struct direction_flag {
@@ -66,24 +66,24 @@ int main(int argc, char const * argv[])
 
     declare_usage(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
-    param_list_parse(pl, "prime", prime);
+    pl.parse("prime", prime);
 
     int withcoeffs = mpz_cmp_ui(prime, 2) != 0;     /* 0 == no coeffs */
     int const groupsize = mpz_cmp_ui(prime, 2) == 0 ? 64 : 1;
     direction_flag direction { mpz_cmp_ui(prime, 2) != 0 };     // 0 = left
     std::string impl = mpz_cmp_ui(prime, 2) == 0 ? "bucket" : "basicp";
 
-    param_list_parse(pl, "withcoeffs", withcoeffs);
-    param_list_parse(pl, "direction", direction);
-    param_list_parse(pl, "tmpdir", tmpdir);
-    param_list_parse(pl, "impl", impl);
+    pl.parse("withcoeffs", withcoeffs);
+    pl.parse("direction", direction);
+    pl.parse("tmpdir", tmpdir);
+    pl.parse("impl", impl);
 
-    if (!param_list_parse(pl, "matrix-file", matrixfile))
+    if (!pl.parse("matrix-file", matrixfile))
         pl.fail("Error: argument matrix-file is mandatory\n");
 
-    param_list_warn_unused(pl);
+    pl.warn_unused();
 
     std::unique_ptr<arith_generic> const xx(arith_generic::instance(prime, groupsize));
 

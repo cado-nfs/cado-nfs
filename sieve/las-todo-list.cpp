@@ -10,12 +10,13 @@
 
 #include <algorithm>
 #include <fstream>
+#include <memory>
+#include <mutex>
 #include <sstream>
+#include <stdexcept>
+#include <string>
 #include <thread>
 #include <vector>
-#include <mutex>
-#include <string>
-#include <stdexcept>
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -35,43 +36,44 @@
 
 void todo_list_base::configure_switches(cxx_param_list & pl)
 {
-    param_list_configure_switch(pl, "-allow-compsq", nullptr);
-    param_list_configure_switch(pl, "-print-todo-list", nullptr);
+    pl.configure_switch("-allow-compsq");
+    pl.configure_switch("-print-todo-list");
 }
 
 void todo_list_base::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "sqside", "put special-q on this side");
-    param_list_decl_usage(pl, "seed", "Use this seed for random state seeding (currently used only by --random-sample)");
-    param_list_decl_usage(pl, "random-sample", "Sample this number of special-q's at random, within the range [q0,q1[");
-    param_list_decl_usage(pl, "nq", "Process this number of special-q's and stop");
-    param_list_decl_usage(pl, "todo", "provide file with a list of special-q to sieve instead of qrange");
-    param_list_decl_usage(pl, "allow-compsq", "allows composite special-q");
-    param_list_decl_usage(pl, "qfac-min", "factors of q must be at least that");
-    param_list_decl_usage(pl, "qfac-max", "factors of q must be at most that");
-    param_list_decl_usage(pl, "print-todo-list", "only print the special-q's to be sieved");
+    pl.declare_usage("sqside", "put special-q on this side");
+    pl.declare_usage("seed", "Use this seed for random state seeding (currently used only by --random-sample)");
+    pl.declare_usage("random-sample", "Sample this number of special-q's at random, within the range [q0,q1[");
+    pl.declare_usage("nq", "Process this number of special-q's and stop");
+    pl.declare_usage("todo", "provide file with a list of special-q to sieve instead of qrange");
+    pl.declare_usage("allow-compsq", "allows composite special-q");
+    pl.declare_usage("qfac-min", "factors of q must be at least that");
+    pl.declare_usage("qfac-max", "factors of q must be at most that");
+    pl.declare_usage("print-todo-list", "only print the special-q's to be sieved");
 }
 
 todo_list_base::todo_list_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
-    : cpoly(cpoly), galois(param_list_lookup_string(pl, "galois"))
+    : cpoly(cpoly)
+    , galois(pl.lookup("galois"))
 {
     unsigned long seed = 0;
-    if (param_list_parse_ulong(pl, "seed", &seed))
+    if (pl.parse("seed", seed))
         gmp_randseed_ui(rstate, seed);
 
-    if (param_list_parse(pl, "random-sample", nq_max)) {
+    if (pl.parse("random-sample", nq_max)) {
         random_sampling = 1;
-        if (param_list_parse(pl, "nq", nq_max)) {
+        if (pl.parse("nq", nq_max)) {
             fmt::print(stderr, "# Warning: both options -nq and -random-sample "
                                "found. Limiting the number of generated primes "
                                "to {}\n", nq_max);
         }
     } else {
-        param_list_parse(pl, "nq", nq_max);
+        pl.parse("nq", nq_max);
     }
 
     sqside = cpoly.nsides() == 1 ? 0 : 1;
-    if (!param_list_parse_int(pl, "sqside", &sqside) && cpoly.nsides() > 1) {
+    if (!pl.parse("sqside", sqside) && cpoly.nsides() > 1) {
         verbose_fmt_print(0, 1, "# Warning: sqside not given, "
                 "assuming side 1 for backward compatibility.\n");
     }
@@ -80,11 +82,10 @@ todo_list_base::todo_list_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     /* Init and parse info regarding work to be done by the siever */
     /* Actual parsing of the command-line fragments is done within
      * las_todo_feed, but this is an admittedly contrived way to work */
-    const char * filename = param_list_lookup_string(pl, "todo");
-    if (filename) {
-        todo_list_fd = std::make_unique<std::ifstream>(filename);
+    if (auto const * filename = pl.has("todo"); filename != nullptr) {
+        todo_list_fd = std::make_unique<std::ifstream>(*filename);
         if (todo_list_fd->fail()) {
-            fprintf(stderr, "%s: %s\n", filename, strerror(errno));
+            fmt::print(stderr, "{}: {}\n", *filename, strerror(errno));
             /* There's no point in proceeding, since it would really change
              * the behaviour of the program to do so */
             exit(EXIT_FAILURE);
@@ -92,13 +93,13 @@ todo_list_base::todo_list_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     }
 
     /* composite special-q ? */
-    if ((allow_composite_q = param_list_parse_switch(pl, "-allow-compsq"))) {
+    if (pl.parse("-allow-compsq", allow_composite_q)) {
         /* defaults are set in the class description */
-        param_list_parse_uint64(pl, "qfac-min", &qfac_min);
-        param_list_parse_uint64(pl, "qfac-max", &qfac_max);
+        pl.parse("qfac-min", qfac_min);
+        pl.parse("qfac-max", qfac_max);
     }
 
-    print_todo_list_flag = param_list_parse_switch(pl, "-print-todo-list");
+    pl.parse("-print-todo-list", print_todo_list_flag);
 }
 
 
@@ -240,9 +241,9 @@ void todo_list_base::print_todo_list(cxx_param_list const & pl, int nthreads) co
 
 void las_todo_list::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "q0",   "left bound of special-q range");
-    param_list_decl_usage(pl, "q1",   "right bound of special-q range");
-    param_list_decl_usage(pl, "rho",  "sieve only root r mod q0");
+    pl.declare_usage("q0",   "left bound of special-q range");
+    pl.declare_usage("q1",   "right bound of special-q range");
+    pl.declare_usage("rho",  "sieve only root r mod q0");
     todo_list_base::declare_usage(pl);
 }
 
@@ -256,18 +257,18 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     }
 
     if (nq_max != SIZE_MAX) {
-        if (param_list_lookup_string(pl, "rho")) {
+        if (pl.has("rho")) {
             fprintf(stderr, "Error: argument -nq is incompatible with -rho\n");
             exit(EXIT_FAILURE);
         }
-        if (param_list_lookup_string(pl, "q1"))
+        if (pl.has("q1"))
             verbose_fmt_print(0, 1, "# Warning: arguments nq and q1 will both "
                                     "limit the q range\n");
     }
 
     /* It's not forbidden to miss -q0 */
-    param_list_parse_mpz(pl, "q0", q0);
-    param_list_parse_mpz(pl, "q1", q1);
+    pl.parse("q0", q0);
+    pl.parse("q1", q1);
 
     if (mpz_cmp_ui(q0, 0) == 0) {
         if (!todo_list_fd) {
@@ -285,7 +286,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         /* We don't have -q1. If we have -rho, we sieve only <q0,
          * rho>. */
         cxx_mpz rho;
-        if (param_list_parse(pl, "rho", rho)) {
+        if (pl.parse("rho", rho)) {
             cxx_mpz q0_cmdline = q0;
             auto fac_q = next_legitimate_specialq(q0, q0, 0);
             if (mpz_cmp(q0, q0_cmdline) != 0) {
@@ -495,25 +496,18 @@ std::unique_ptr<todo_list_base> las_todo_list::create_sub_todo_list(
 {
     cxx_param_list pl2 = pl;
     cxx_mpz tmp;
-    mpz_sub(tmp, q1, q0);
-    mpz_mul_ui(tmp, tmp, i);
-    mpz_fdiv_q_ui(tmp, tmp, nthreads);
-    mpz_add(tmp, q0, tmp);
-    {
-        std::ostringstream os;
-        os << tmp;
-        param_list_add_key(pl2, "q0", os.str().c_str(), PARAMETER_FROM_CMDLINE);
-    }
 
-    mpz_sub(tmp, q1, q0);
-    mpz_mul_ui(tmp, tmp, i + 1);
-    mpz_fdiv_q_ui(tmp, tmp, nthreads);
-    mpz_add(tmp, q0, tmp);
-    {
-        std::ostringstream os;
-        os << tmp;
-        param_list_add_key(pl2, "q1", os.str().c_str(), PARAMETER_FROM_CMDLINE);
-    }
+    tmp = q1 - q0;
+    tmp *= i;
+    tmp /= nthreads;
+    tmp += q0;
+    pl2.add_key("q0", fmt::format("{}", tmp), cado::params::origin::FROM_CMDLINE);
+
+    tmp = q1 - q0;
+    tmp *= i + 1;
+    tmp /= nthreads;
+    tmp += q0;
+    pl2.add_key("q1", fmt::format("{}", tmp), cado::params::origin::FROM_CMDLINE);
 
     return todo_list_base::create<las_todo_list>(cpoly, pl2);
 }
@@ -528,9 +522,9 @@ std::string las_todo_list::string_repr() const
 /******************************************************************************/
 void siqs_todo_list::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "qidx0",   "left bound of special-q range");
-    param_list_decl_usage(pl, "qidx1",   "right bound of special-q range");
-    param_list_decl_usage(pl, "qfac-nfac", "number of factors of q");
+    pl.declare_usage("qidx0",   "left bound of special-q range");
+    pl.declare_usage("qidx1",   "right bound of special-q range");
+    pl.declare_usage("qfac-nfac", "number of factors of q");
     todo_list_base::declare_usage(pl);
 }
 
@@ -543,22 +537,22 @@ siqs_todo_list::siqs_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     }
 
     /* Needed here, because was not parsed if allow_composite_q was false. */
-    param_list_parse_uint64(pl, "qfac-min", &qfac_min);
-    param_list_parse_uint64(pl, "qfac-max", &qfac_max);
+    pl.parse("qfac-min", qfac_min);
+    pl.parse("qfac-max", qfac_max);
 
     if (qfac_min <= 2) {
         fmt::print(stderr, "# Error, -qfac-min must be > 2\n");
         exit(EXIT_FAILURE);
     }
 
-    if (!param_list_parse_uint64(pl, "qfac-nfac", &qfac_nfac)) {
+    if (!pl.parse("qfac-nfac", qfac_nfac)) {
         fmt::print(stderr, "# Error, -qfac-nfac is mandatory\n");
         exit(EXIT_FAILURE);
     }
 
     /* It's not forbidden to miss -q0 */
-    param_list_parse_mpz(pl, "qidx0", qidx0);
-    param_list_parse_mpz(pl, "qidx1", qidx1);
+    pl.parse("qidx0", qidx0);
+    pl.parse("qidx1", qidx1);
 
     if (mpz_cmp_si(qidx0, -1) == 0) {
         if (!todo_list_fd) {
@@ -568,8 +562,7 @@ siqs_todo_list::siqs_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         return;
     }
 
-    if (param_list_lookup_string(pl, "qidx1") != nullptr
-            && param_list_lookup_string(pl, "nq") != nullptr) {
+    if (pl.has("qidx1") && pl.has("nq")) {
         /* if both nq and qidx1 were given, we should have qidx1=qidx0+nq */
         cxx_mpz tmp;
         mpz_add_ui(tmp, qidx0, nq_max);
@@ -720,7 +713,7 @@ std::unique_ptr<todo_list_base> siqs_todo_list::create_sub_todo_list(
     {
         std::ostringstream os;
         os << tmp;
-        param_list_add_key(pl2, "qidx0", os.str().c_str(), PARAMETER_FROM_CMDLINE);
+        pl2.add_key("qidx0", os.str(), cado::params::origin::FROM_CMDLINE);
     }
 
     mpz_sub(tmp, qidx1, qidx0);
@@ -730,9 +723,9 @@ std::unique_ptr<todo_list_base> siqs_todo_list::create_sub_todo_list(
     {
         std::ostringstream os;
         os << tmp;
-        param_list_add_key(pl2, "qidx1", os.str().c_str(), PARAMETER_FROM_CMDLINE);
+        pl2.add_key("qidx1", os.str(), cado::params::origin::FROM_CMDLINE);
     }
-    param_list_remove_key(pl2, "nq");
+    pl2.remove_key("nq");
 
     return todo_list_base::create<siqs_todo_list>(cpoly, pl2);
 }

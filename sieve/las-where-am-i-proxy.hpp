@@ -1,9 +1,6 @@
 #ifndef CADO_LAS_WHERE_AM_I_PROXY_HPP
 #define CADO_LAS_WHERE_AM_I_PROXY_HPP
 
-#include <memory>
-#include <cstdlib>
-
 #include "sieve-methods.hpp"
 
 namespace cado::params {
@@ -30,6 +27,8 @@ struct where_am_I {
     where_am_I();
     where_am_I(where_am_I const &);
     where_am_I & operator=(where_am_I const &);
+    where_am_I(where_am_I &&);
+    where_am_I & operator=(where_am_I &&) noexcept;
     ~where_am_I();
     static void decl_usage(cxx_param_list &);
     static void interpret_parameters(cxx_param_list &);

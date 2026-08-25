@@ -9,8 +9,6 @@
 #include "verbose.hpp"
 #include "utils_cxx.hpp"
 
-int las_production_mode = 0;
-
 int LOG_BUCKET_REGION = 16;
 int LOG_BUCKET_REGION_step = 8;
 

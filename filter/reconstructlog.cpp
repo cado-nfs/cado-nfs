@@ -1482,11 +1482,11 @@ int main(int argc, char const * argv[])
     reconstructlog_process::configure(pl);
     cado::filter_io_details::configure(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     verbose_interpret_parameters(pl);
     cado::filter_io_details::interpret_parameters(pl);
-    param_list_print_command_line(stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
     reconstructlog_process R(pl);

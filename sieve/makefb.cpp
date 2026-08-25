@@ -459,14 +459,14 @@ void makefb_with_powers(FILE* outfile, mpz_poly_srcptr F, unsigned long lim,
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "poly", "polynomial file");
-    param_list_decl_usage(pl, "lim", "factor base bound");
-    param_list_decl_usage(pl, "maxbits", "(optional) maximal number of "
+    pl.declare_usage("poly", "polynomial file");
+    pl.declare_usage("lim", "factor base bound");
+    pl.declare_usage("maxbits", "(optional) maximal number of "
             "bits of powers");
-    param_list_decl_usage(pl, "out", "(optional) name of the output file");
-    param_list_decl_usage(pl, "side", "(optional) create factor base for given side. "
+    pl.declare_usage("out", "(optional) name of the output file");
+    pl.declare_usage("side", "(optional) create factor base for given side. "
                         "By default, use the unique algebraic side.");
-    param_list_decl_usage(pl, "t", "number of threads");
+    pl.declare_usage("t", "number of threads");
     verbose_decl_usage(pl);
 }
 
@@ -480,30 +480,23 @@ main (int argc, char const *argv[])
   int maxbits = 1;  // disable powers by default
   int side = -1;
   unsigned long lim = ULONG_MAX;
-  char const *argv0 = argv[0];
   unsigned long nb_threads = 1;
 
   declare_usage(pl);
 
-  param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
+  pl.process_command_line_and_extra_parameter_files(argc, argv);
 
   verbose_interpret_parameters(pl);
-  param_list_print_command_line(stdout, pl);
+  pl.print_command_line(stdout);
 
-  const char * filename;
-  if ((filename = param_list_lookup_string(pl, "poly")) == NULL)
-      pl.fail("Error: parameter -poly is mandatory\n");
-
-  param_list_parse_ulong(pl, "t"   , &nb_threads);
+  pl.parse("t", nb_threads);
   ASSERT_ALWAYS(1 <= nb_threads);
 
-  param_list_parse_ulong(pl, "lim", &lim);
-  if (lim == ULONG_MAX)
-      pl.fail("Error: parameter -lim is mandatory\n");
+  pl.parse_mandatory("lim", lim);
 
-  param_list_parse_int(pl, "maxbits", &maxbits);
+  pl.parse("maxbits", maxbits);
 
-  outfilename = param_list_lookup_string(pl, "out");
+  outfilename = pl.lookup_old("out");
   if (outfilename != NULL) {
     outputfile = fopen_maybe_compressed(outfilename, "w");
     if (!outputfile) {
@@ -519,16 +512,14 @@ main (int argc, char const *argv[])
   }
 
 
-  if (!cpoly.read(filename))
-    {
-      fprintf (stderr, "Error reading polynomial file %s\n", filename);
-      exit (EXIT_FAILURE);
-    }
+  if (auto f = pl.parse_mandatory<std::string>("poly"); !cpoly.read(f)) {
+      pl.fail("Error reading polynomial file {}\n", f);
+  }
 
-  param_list_parse_int(pl, "side", &side);
+  pl.parse("side", side);
   if (side >= (int)cpoly.nsides()){
       fprintf(stderr, "Error: side must be in [0..%d[\n", cpoly.nsides());
-      param_list_print_usage(pl, argv0, stderr);
+      pl.print_usage(stderr);
       exit(EXIT_FAILURE);
   }
 
@@ -541,7 +532,7 @@ main (int argc, char const *argv[])
               } else {
                   fprintf(stderr, "Error: there are more than one algebraic side;"
                           " parameter -side is therefore mandatory\n");
-                  param_list_print_usage(pl, argv0, stderr);
+                  pl.print_usage(stderr);
                   exit(EXIT_FAILURE);
               }
           }
@@ -549,12 +540,12 @@ main (int argc, char const *argv[])
       if (side == -1) {
           fprintf(stderr, "Error: there are no algebraic side;"
                   " parameter -side is therefore mandatory\n");
-          param_list_print_usage(pl, argv0, stderr);
+          pl.print_usage(stderr);
           exit(EXIT_FAILURE);
       }
   }
 
-  param_list_warn_unused(pl);
+  pl.warn_unused();
 
   makefb_with_powers (outputfile, cpoly[side], lim, maxbits, nb_threads);
 

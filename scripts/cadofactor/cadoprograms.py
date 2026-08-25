@@ -1542,6 +1542,7 @@ class CadoNFSClient(Program):
                  wu_filename: Parameter(prefix='--') = None,    # noqa: F722
                  arch: DashParameter() = None,
                  certsha1: DashParameter() = None,
+                 wustatuscheck_interval: Parameter(prefix='--') = None,  # noqa
                  **kwargs):
         if os.name == "nt":
             kwargs.setdefault("runprefix", "python3.exe")

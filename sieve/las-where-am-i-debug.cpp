@@ -61,19 +61,28 @@ int extern_trace_on_spot_ab(int64_t a, uint64_t b) {
 #ifdef TRACK_CODE_PATH
 where_am_I::where_am_I() : pimpl{ new impl{} } { }
 where_am_I::~where_am_I() { delete pimpl; }
-where_am_I::where_am_I(where_am_I const & x) : pimpl(new impl(*x.pimpl)) {
-}
+where_am_I::where_am_I(where_am_I const & x) : pimpl(new impl(*x.pimpl)) { }
 where_am_I & where_am_I::operator=(where_am_I const & x) {
-    *pimpl = *x.pimpl;
+    if (this != &x)
+        *pimpl = *x.pimpl;
+    return *this;
+}
+where_am_I::where_am_I(where_am_I && x)
+    : pimpl(new impl{})
+{
+    std::swap(pimpl, x.pimpl);
+}
+where_am_I & where_am_I::operator=(where_am_I && x) noexcept {
+    std::swap(pimpl, x.pimpl);
     return *this;
 }
 #endif
 
 void where_am_I::decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "traceab", "Relation to trace, in a,b format");
-    param_list_decl_usage(pl, "traceij", "Relation to trace, in i,j format");
-    param_list_decl_usage(pl, "traceNx", "Relation to trace, in N,x format");
+    pl.declare_usage("traceab", "Relation to trace, in a,b format");
+    pl.declare_usage("traceij", "Relation to trace, in i,j format");
+    pl.declare_usage("traceNx", "Relation to trace, in N,x format");
 }
 
 /* The trivial calls for when TRACE_K is *not* defined are inlines in
@@ -104,13 +113,13 @@ void where_am_I::interpret_parameters(cxx_param_list & pl)
 
 #ifdef SUPPORT_LARGE_Q
     std::pair<cxx_mpz, cxx_mpz> r;
-    have_trace_ab = param_list_parse(pl, "traceab", r);
+    have_trace_ab = pl.parse("traceab", r);
     if (have_trace_ab) {
         ab.a = r.first;
         ab.b = r.second;
     }
 #else
-    const char *abstr = param_list_lookup_string(pl, "traceab");
+    const char *abstr = pl.lookup_old("traceab");
     if (abstr != NULL) {
         if (sscanf(abstr, "%" SCNd64",%" SCNu64, &ab.a, &ab.b) == 2)
             have_trace_ab = 1;
@@ -122,7 +131,7 @@ void where_am_I::interpret_parameters(cxx_param_list & pl)
     }
 #endif
 
-    const char *ijstr = param_list_lookup_string(pl, "traceij");
+    const char *ijstr = pl.lookup_old("traceij");
     if (ijstr != NULL) {
         if (sscanf(ijstr, "%d,%u", &ij.i, &ij.j) == 2) {
             have_trace_ij = 1;
@@ -133,7 +142,7 @@ void where_am_I::interpret_parameters(cxx_param_list & pl)
         }
     }
 
-    const char *Nxstr = param_list_lookup_string(pl, "traceNx");
+    const char *Nxstr = pl.lookup_old("traceNx");
     if (Nxstr != NULL) {
         if (sscanf(Nxstr, "%u,%u", &Nx.N, &Nx.x) == 2)
             have_trace_Nx = 1;

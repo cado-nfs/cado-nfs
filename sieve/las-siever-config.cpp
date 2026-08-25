@@ -33,28 +33,28 @@ template<sieve_method Algo>
 void siever_config::declare_usage(cxx_param_list & pl)
 {
     if constexpr (std::is_same_v<Algo, NFS>) {
-        param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J, with J <= 2^(I-1) ; -I x is equivalent to -A (2*x-1)");
-        param_list_decl_usage(pl, "A",    "set sieving region to (at most) 2^A");
+        pl.declare_usage("I",    "set sieving region to 2^I times J, with J <= 2^(I-1) ; -I x is equivalent to -A (2*x-1)");
+        pl.declare_usage("A",    "set sieving region to (at most) 2^A");
     } else {
-        param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J;");
+        pl.declare_usage("I",    "set sieving region to 2^I times J;");
     }
 
     siever_side_config::declare_usage(pl);
 
-    param_list_decl_usage(pl, "tdthresh", "trial-divide primes p/r <= ththresh (r=number of roots)");
-    param_list_decl_usage(pl, "skipped", "primes below this bound are not sieved at all");
-    param_list_decl_usage(pl, "bkthresh", "bucket-sieve primes p >= bkthresh (default 2^I)");
+    pl.declare_usage("tdthresh", "trial-divide primes p/r <= ththresh (r=number of roots)");
+    pl.declare_usage("skipped", "primes below this bound are not sieved at all");
+    pl.declare_usage("bkthresh", "bucket-sieve primes p >= bkthresh (default 2^I)");
 #if MAX_TOPLEVEL >= 2
-    param_list_decl_usage(pl, "bkthresh1", "2-level bucket-sieve primes in [bkthresh1,lim] (default=lim, meaning inactive)");
+    pl.declare_usage("bkthresh1", "2-level bucket-sieve primes in [bkthresh1,lim] (default=lim, meaning inactive)");
 #endif
 #if MAX_TOPLEVEL >= 3
-    param_list_decl_usage(pl, "bkthresh2", "3-level bucket-sieve primes in [bkthresh2,lim] (default=lim, meaning inactive)");
+    pl.declare_usage("bkthresh2", "3-level bucket-sieve primes in [bkthresh2,lim] (default=lim, meaning inactive)");
 #endif
     static_assert(MAX_TOPLEVEL == 3);
-    param_list_decl_usage(pl, "bkmult", "multiplier to use for taking margin in the bucket allocation\n");
-    param_list_decl_usage(pl, "unsievethresh", "Unsieve all p > unsievethresh where p|gcd(a,b)");
+    pl.declare_usage("bkmult", "multiplier to use for taking margin in the bucket allocation\n");
+    pl.declare_usage("unsievethresh", "Unsieve all p > unsievethresh where p|gcd(a,b)");
     if constexpr (std::is_same_v<Algo, NFS>) {
-        param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
+        pl.declare_usage("adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
     }
 }
 
@@ -92,15 +92,15 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
      * rubbish now...
      */
     if constexpr (std::is_same_v<Algo, NFS>) {
-        if (param_list_lookup_string(pl, "A")) {
-            complete &= param_list_parse_int  (pl, "A",    &(sc.logA));
-            if (param_list_lookup_string(pl, "I")) {
+        if (pl.has("A")) {
+            complete &= pl.parse("A", sc.logA);
+            if (pl.has("I")) {
                 fprintf(stderr, "# -A and -I are incompatible\n");
                 exit(EXIT_FAILURE);
             }
-        } else if (param_list_lookup_string(pl, "I")) {
+        } else if (pl.has("I")) {
             int I;
-            complete &= param_list_parse_int  (pl, "I", &I);
+            complete &= pl.parse("I", I);
             sc.logA = 2 * I - 1;
             verbose_fmt_print(0, 1, "# Interpreting -I {} as meaning -A {}\n",
                     I, sc.logA);
@@ -109,10 +109,10 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
         }
     } else {
         int I, qfac_nfac;
-        complete &= param_list_parse_int(pl, "I", &I);
-        param_list_parse_int(pl, "qfac-nfac", &qfac_nfac);
-        const char *gal = param_list_lookup_string(pl, "galois");
-        ASSERT_ALWAYS(gal && strcmp(gal, "_y") == 0);
+        complete &= pl.parse("I", I);
+        pl.parse("qfac-nfac", qfac_nfac);
+        auto gal = pl.lookup("galois");
+        ASSERT_ALWAYS(gal == "_y");
         sc.logA = I + (qfac_nfac-1);
         verbose_fmt_print(0, 1, "# A={} (computed from -I {}, -qfac-nfac {} and"
                                 " -galois {})\n", sc.logA, I, qfac_nfac, gal);
@@ -136,13 +136,13 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
 
     // Sublattices?
     sc.sublat_bound = 0; // no sublattices by default.
-    param_list_parse_uint(pl, "sublat", &sc.sublat_bound);
+    pl.parse("sublat", sc.sublat_bound);
 
     /* Parse optional siever configuration parameters */
-    param_list_parse_uint(pl, "tdthresh", &(sc.td_thresh));
-    param_list_parse_uint(pl, "skipped", &(sc.skipped));
+    pl.parse("tdthresh", (sc.td_thresh));
+    pl.parse("skipped", (sc.skipped));
 
-    if (param_list_parse_uint(pl, "unsievethresh", &(sc.unsieve_thresh))) {
+    if (pl.parse("unsievethresh", (sc.unsieve_thresh))) {
         verbose_fmt_print(0, 1, "# Un-sieving primes > {}\n",
                 sc.unsieve_thresh);
     }
@@ -158,12 +158,12 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
     // namely when we are about to create a new slicing for the factor
     // base.
     /* overrides default only if parameter is given */
-    param_list_parse_ulong(pl, "bkthresh", &(sc.bucket_thresh));
+    pl.parse("bkthresh", (sc.bucket_thresh));
 #if MAX_TOPLEVEL >= 2
-    param_list_parse_ulong(pl, "bkthresh1", &(sc.bucket_thresh1));
+    pl.parse("bkthresh1", (sc.bucket_thresh1));
 #endif
 #if MAX_TOPLEVEL >= 3
-    param_list_parse_ulong(pl, "bkthresh2", &(sc.bucket_thresh2));
+    pl.parse("bkthresh2", (sc.bucket_thresh2));
 #endif
     static_assert(MAX_TOPLEVEL == 3);
 
@@ -183,7 +183,7 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
         }
     }
     if constexpr (std::is_same_v<Algo, NFS>) {
-        param_list_parse_int(pl, "adjust-strategy", &sc.adjust_strategy);
+        pl.parse("adjust-strategy", sc.adjust_strategy);
     }
 
     return complete;
@@ -316,12 +316,12 @@ siever_config siever_config_pool::get_config_for_q(special_q_task const & doing)
 void 
 siever_config_pool::declare_usage(cxx_param_list & pl)/*{{{*/
 {
-    param_list_decl_usage(pl, "hint-table", "filename with per-special q sieving data");
+    pl.declare_usage("hint-table", "filename with per-special q sieving data");
     if (dlp_descent)
-        param_list_decl_usage(pl, "descent-hint-table", "Alias to hint-table");
-    param_list_decl_usage(pl, "fuzzy-descent", "Allow descent steps to start over with fuzzier and fuzzier parameters, with no limit");
-    param_list_decl_usage(pl, "descent-max-increase-A", "When retrying steps in the descent, limit the increase of A to this value"); //  (default %d)", max_increase_logA_default);
-    param_list_decl_usage(pl, "descent-max-increase-lpb", "When retrying steps in the descent, limit the increase of lpb to this value"); //  (default %d)", max_increase_lpb_default);
+        pl.declare_usage("descent-hint-table", "Alias to hint-table");
+    pl.declare_usage("fuzzy-descent", "Allow descent steps to start over with fuzzier and fuzzier parameters, with no limit");
+    pl.declare_usage("descent-max-increase-A", "When retrying steps in the descent, limit the increase of A to this value"); //  (default %d)", max_increase_logA_default);
+    pl.declare_usage("descent-max-increase-lpb", "When retrying steps in the descent, limit the increase of lpb to this value"); //  (default %d)", max_increase_lpb_default);
 }
 /*}}}*/
 
@@ -450,11 +450,21 @@ siever_config_pool::siever_config_pool(
     if (siever_config::parse_default<Algo>(base, pl, nb_polys))
         default_config_ptr = &base;
 
+
+    pl.parse("descent-max-increase-A", max_increase_logA);
+    pl.parse("descent-max-increase-lpb", max_increase_lpb);
+
+    if (pl.has("fuzzy-descent")) {
+        /* well, we do set limits, still */
+        max_increase_logA = 16;
+        max_increase_lpb = 64;
+    }
+
     /* support both, since we've got to realize it's not that much
      * attached to sieving. */
-    const char * filename = param_list_lookup_string(pl, "hint-table");
+    const char * filename = pl.lookup_old("hint-table");
     if (dlp_descent) {
-        const char * filename2 = param_list_lookup_string(pl, "descent-hint-table");
+        const char * filename2 = pl.lookup_old("descent-hint-table");
         if (!filename) {
             filename = filename2;
         }
@@ -467,16 +477,6 @@ siever_config_pool::siever_config_pool(
             return;
         }
     }
-    param_list_parse(pl, "descent-max-increase-A", max_increase_logA);
-    param_list_parse(pl, "descent-max-increase-lpb", max_increase_lpb);
-
-    if (param_list_lookup_string(pl, "fuzzy-descent")) {
-        /* well, we do set limits, still */
-        max_increase_logA = 16;
-        max_increase_lpb = 64;
-    }
-
-
     parse_hints_file(filename);
 
     /* Do checks for #30092 */

@@ -23,6 +23,7 @@ set(F9_baseargs
 
 set(c90_21505_poly ${CMAKE_CURRENT_SOURCE_DIR}/c90_21505.poly)
 set(c90_21505_roots ${CMAKE_CURRENT_BINARY_DIR}/c90_21505.roots.gz)
+set(c90_21505_chrono ${CMAKE_CURRENT_BINARY_DIR}/c90_21505.chrono.json.gz)
 
 cado_define_test(c90_21505_makefb
         PROGRAM
@@ -31,6 +32,23 @@ cado_define_test(c90_21505_makefb
             -out ${c90_21505_roots}
         TARGET_DEPENDENCIES makefb
         FIXTURES_SETUP c90_21505.fb
+        )
+
+# it's meant to be posted to the chronogram viewer page (source in
+# scripts/chronograms)
+cado_define_test(c90_21505_chronogram
+        PROGRAM
+            $<TARGET_FILE:las>
+            -poly ${c90_21505_poly}
+            -fb1 ${c90_21505_roots}
+            -q0 310000 -I 13 -q1 320000 -lim0 404327 -lim1 811066 -lpb0
+            23 -lpb1 23 -mfb0 46 -mfb1 46 -ncurves0 9 -ncurves1 10 -t
+            machine,2,2 -sqside 1 -adjust-strategy 0  -random-sample 4
+            --chronogram ${c90_21505_chrono}
+        TARGET_DEPENDENCIES las
+        FIXTURES_REQUIRED c90_21505.fb
+        FIXTURES_SETUP c90_21505.chrono
+        TIMEOUT 160
         )
 
 cado_define_test(c90_21505_sieve

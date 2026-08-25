@@ -800,12 +800,12 @@ int main(int argc, char const * argv[])
 
     dup2_process::configure_switches(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, true);
+    pl.process_command_line(argc, argv, true);
 
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
     cado::filter_io_details::interpret_parameters(pl);
-    param_list_print_command_line(stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
     const filelist input(pl, argc, argv);
@@ -813,7 +813,7 @@ int main(int argc, char const * argv[])
     dup2_process D(pl);
 
     /* we're done looking up parameters */
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Error, unused parameters are given\n");
 
     D.read();

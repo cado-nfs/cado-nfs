@@ -429,6 +429,7 @@ recent than 3.1.3) fixes this.
         self.route("/file/<path:path>")(self.api_download_file)
         self.route("/files")(self.api_list_all_files)
         self.route("/upload", methods=["POST"])(self.api_upload_file)
+        self.route("/WUstatus/<wuid>")(self.api_wu_status)
 
     def api_errorhandler(self, e):
         """
@@ -640,3 +641,11 @@ recent than 3.1.3) fixes this.
         resp = {'message': 'upload completed'}
 
         return flask.json.jsonify(resp), 200
+
+    def api_wu_status(self, wuid):
+        res = self.get_wuaccess().query(limit=1, eq={"wuid": wuid})
+
+        if not res:
+            flask.abort(404, "wuid does not exist")
+        else:
+            return flask.json.jsonify({"status": res[0]["status"]}), 200

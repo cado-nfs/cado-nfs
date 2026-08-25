@@ -19,8 +19,6 @@
 #include <utility>
 #include <vector>
 
-#include <pthread.h>
-
 #include <gmp.h>
 #include "fmt/base.h"
 
@@ -477,240 +475,217 @@ static void worker(int tnum, int nt,
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "poly", "polynomial file");
-    param_list_decl_usage(pl, "lpb0", "factor base bound on side 0");
-    param_list_decl_usage(pl, "lpb1", "factor base bound on side 1");
-    param_list_decl_usage(pl, "q0", "lower bound of the qrange");
-    param_list_decl_usage(pl, "q1", "upper bound of the qrange");
-    param_list_decl_usage(pl, "sqside", "side of the special-q");
-    param_list_decl_usage(pl, "sample", "file where to find a sample of relations");
-    param_list_decl_usage(pl, "renumber", "renumber table");
-    param_list_decl_usage(pl, "shrink-factor", "simulate with a matrix that number (integer >= 1) times smaller");
-    param_list_decl_usage(pl, "dl", "dl mode");
-    param_list_decl_usage(pl, "allow-compsq", "(switch) allows composite sq");
-    param_list_decl_usage(pl, "qfac-min", "factors of q must be at least that");
-    param_list_decl_usage(pl, "qfac-max", "factors of q must be at most that");
-    param_list_decl_usage(pl, "seed", "random seed");
-    param_list_decl_usage(pl, "t", "number of threads to use");
-    param_list_decl_usage(pl, "v", "verbose mode");
+    pl.declare_usage("poly", "polynomial file");
+    pl.declare_usage("lpb0", "factor base bound on side 0");
+    pl.declare_usage("lpb1", "factor base bound on side 1");
+    pl.declare_usage("q0", "lower bound of the qrange");
+    pl.declare_usage("q1", "upper bound of the qrange");
+    pl.declare_usage("sqside", "side of the special-q");
+    pl.declare_usage("sample", "file where to find a sample of relations");
+    pl.declare_usage("renumber", "renumber table");
+    pl.declare_usage("shrink-factor", "simulate with a matrix that number (integer >= 1) times smaller");
+    pl.declare_usage("dl", "dl mode");
+    pl.declare_usage("allow-compsq", "(switch) allows composite sq");
+    pl.declare_usage("qfac-min", "factors of q must be at least that");
+    pl.declare_usage("qfac-max", "factors of q must be at most that");
+    pl.declare_usage("seed", "random seed");
+    pl.declare_usage("t", "number of threads to use");
+    pl.declare_usage("v", "verbose mode");
     verbose_decl_usage(pl);
 }
 
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-  cxx_param_list pl;
-  cxx_cado_poly cpoly;
-  int sqside = -1;
-  const char *argv0 = argv[0];
-  int lpb[2] = {0, 0};
-  uint64_t q0 = 0;
-  uint64_t q1 = 0;
-  int dl = 0;
-  int mt = 1;
-  int compsq = 0;
-  uint64_t qfac_min = 1024;
-  uint64_t qfac_max = UINT64_MAX;
-  double shrink_factor = 1; // by default, no shrink
+    cxx_param_list pl;
+    cxx_cado_poly cpoly;
+    int sqside = -1;
+    int lpb[2] = {0, 0};
+    uint64_t q0 = 0;
+    uint64_t q1 = 0;
+    int dl = 0;
+    int mt = 1;
+    int compsq = 0;
+    uint64_t qfac_min = 1024;
+    uint64_t qfac_max = UINT64_MAX;
+    double shrink_factor = 1; // by default, no shrink
 
-  declare_usage(pl);
-  param_list_configure_switch (pl, "-v", &verbose);
-  param_list_configure_switch(pl, "-dl", &dl);
-  param_list_configure_switch(pl, "-allow-compsq", &compsq);
+    declare_usage(pl);
+    pl.configure_switch_old("-v", &verbose);
+    pl.configure_switch_old("-dl", &dl);
+    pl.configure_switch_old("-allow-compsq", &compsq);
 
-  argv++, argc--;
-  for( ; argc ; ) {
-      if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
+    argv++, argc--;
+    for( ; argc ; ) {
+        if (pl.update_cmdline(argc, argv)) { continue; }
 
-      /* Could also be a file */
-      FILE *f;
-      if ((f = fopen(argv[0], "r")) != nullptr) {
-          param_list_read_stream(pl, f, 0);
-          fclose(f);
-          argv++,argc--;
-          continue;
-      }
+        /* Could also be a file */
+        FILE *f;
+        if ((f = fopen(argv[0], "r")) != nullptr) {
+            pl.read(f, false);
+            fclose(f);
+            argv++,argc--;
+            continue;
+        }
 
-      fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-      param_list_print_usage(pl, argv0, stderr);
-      exit (EXIT_FAILURE);
-  }
-  verbose_interpret_parameters(pl);
-  param_list_print_command_line(stdout, pl);
+        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
+        pl.print_usage(stderr);
+        exit (EXIT_FAILURE);
+    }
+    verbose_interpret_parameters(pl);
+    pl.print_command_line(stdout);
 
-  const char * filename;
-  if ((filename = param_list_lookup_string(pl, "poly")) == nullptr) {
-      fmt::print(stderr, "Error: parameter -poly is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-
-  param_list_parse_int(pl, "lpb0", &lpb[0]);
-  if (lpb[0] == 0) {
-      fmt::print(stderr, "Error: parameter -lpb0 is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-  param_list_parse_int(pl, "lpb1", &lpb[1]);
-  if (lpb[1] == 0) {
-      fmt::print(stderr, "Error: parameter -lpb1 is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-
-  param_list_parse_uint64(pl, "q0", &q0);
-  if (q0 == 0) {
-      fmt::print(stderr, "Error: parameter -q0 is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-
-  param_list_parse_uint64(pl, "q1", &q1);
-  if (q1 == 0) {
-      fmt::print(stderr, "Error: parameter -q1 is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-  
-  param_list_parse_double(pl, "shrink-factor", &shrink_factor);
-  if (shrink_factor < 1) {
-      fmt::print(stderr, "Error: shrink factor must be an integer >= 1\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-
-  param_list_parse_int(pl, "t", &mt);
-  param_list_parse_uint64(pl, "qfac-min", &qfac_min);
-  param_list_parse_uint64(pl, "qfac-max", &qfac_max);
-
-  unsigned long seed = 171717;
-  param_list_parse_ulong(pl, "seed", &seed);
-
-  if (!cpoly.read(filename))
-    {
-      fmt::print (stderr, "Error reading polynomial file {}\n", filename);
-      exit (EXIT_FAILURE);
+    const char * filename = pl.lookup_old("poly");
+    if (!filename) {
+        fmt::print(stderr, "Error: parameter -poly is mandatory\n");
+        pl.print_usage(stderr);
+        exit(EXIT_FAILURE);
     }
 
-  param_list_parse_int(pl, "sqside", &sqside);
-  if (sqside == -1 || sqside > 2) {
-      fmt::print(stderr, "Error: sqside must be 0 or 1\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
+    pl.parse_mandatory("lpb0", lpb[0]);
+    pl.parse_mandatory("lpb1", lpb[1]);
+    pl.parse_mandatory("q0", q0);
+    pl.parse_mandatory("q1", q1);
 
-  const char * renumberfile;
-  if ((renumberfile = param_list_lookup_string(pl, "renumber")) == nullptr) {
-      fmt::print(stderr, "Error: parameter -renumber is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-  fmt::print ("# Start reading renumber table\n");
-  fflush (stdout);
-  renumber_t ren_table(cpoly);
-  ren_table.read_from_file(renumberfile, dl);
-  fmt::print ("# Done reading renumber table\n");
-  fflush (stdout);
+    pl.parse("shrink-factor", shrink_factor);
+    if (shrink_factor < 1) {
+        fmt::print(stderr, "Error: shrink factor must be an integer >= 1\n");
+        pl.print_usage(stderr);
+        exit(EXIT_FAILURE);
+    }
 
-  for (int side = 0; side < ren_table.get_nb_polys(); ++side) {
-      if (ren_table.get_lpb(side) != (unsigned long)lpb[side]) {
-          fmt::print(stderr, "Error: on side {}, lpb on the command-line is different from the one in the renumber file\n", side);
-          exit(EXIT_FAILURE);
-      }
-  }
+    pl.parse("t", mt);
+    pl.parse("qfac-min", qfac_min);
+    pl.parse("qfac-max", qfac_max);
 
-  // read sample file
-  const char * samplefile;
-  if ((samplefile = param_list_lookup_string(pl, "sample")) == nullptr) {
-      fmt::print(stderr, "Error: parameter -sample is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
+    unsigned long seed = 171717;
+    pl.parse("seed", seed);
 
-  fmt::print ("# Start reading sample file\n");
-  fflush (stdout);
+    if (!cpoly.read(filename))
+    {
+        fmt::print (stderr, "Error reading polynomial file {}\n", filename);
+        exit (EXIT_FAILURE);
+    }
 
-  std::pair<std::vector<size_t>, std::vector<model_relation>> const sample = read_sample_file(sqside, samplefile, ren_table);
+    pl.parse("sqside", sqside);
+    if (sqside == -1 || sqside > 2) {
+        fmt::print(stderr, "Error: sqside must be 0 or 1\n");
+        pl.print_usage(stderr);
+        exit(EXIT_FAILURE);
+    }
 
-  /*
-  std::vector<std::pair<special_q, std::vector<model_relation>>>
-      sample;
-  for(auto& x : read_sample_file(sqside, samplefile, ren_table))
-      sample.emplace_back(std::move(x));
-  if (verbose) {
-      for(auto const & x : sample) {
-          std::cout << "# " << x.first << ": " << x.second.size() << " relations\n";
-      }
-  }
-  */
+    const char * renumberfile = pl.lookup_old("renumber");
+    if (!renumberfile) {
+        fmt::print(stderr, "Error: parameter -renumber is mandatory\n");
+        pl.print_usage(stderr);
+        exit(EXIT_FAILURE);
+    }
+    fmt::print ("# Start reading renumber table\n");
+    fflush (stdout);
+    renumber_t ren_table(cpoly);
+    ren_table.read_from_file(renumberfile, dl);
+    fmt::print ("# Done reading renumber table\n");
+    fflush (stdout);
 
-  fmt::print ("# Done reading sample file\n");
-  fflush (stdout);
+    for (int side = 0; side < ren_table.get_nb_polys(); ++side) {
+        if (ren_table.get_lpb(side) != (unsigned long)lpb[side]) {
+            fmt::print(stderr, "Error: on side {}, lpb on the command-line is different from the one in the renumber file\n", side);
+            exit(EXIT_FAILURE);
+        }
+    }
 
-  param_list_warn_unused(pl);
+    // read sample file
+    const char * samplefile = pl.lookup_old("sample");
+    if (!samplefile) {
+        fmt::print(stderr, "Error: parameter -sample is mandatory\n");
+        pl.print_usage(stderr);
+        exit(EXIT_FAILURE);
+    }
 
-  // Two index ranges, one for each side
-  fmt::print ("# Start preparing index ranges\n");
-  fflush (stdout);
-  std::vector<indexrange> Ind = prepare_indexrange(ren_table, sqside, compsq);
-  fmt::print ("# Done preparing index ranges\n");
-  fflush (stdout);
+    fmt::print ("# Start reading sample file\n");
+    fflush (stdout);
 
-  std::vector<std::vector<index_t>> qs;
+    std::pair<std::vector<size_t>, std::vector<model_relation>> const sample = read_sample_file(sqside, samplefile, ren_table);
 
-  /* the indexranges contain the prime-to-index conversion functionality
-   * only if compsq holds. In the non-composite case, we fill qs[1]
-   * differently, because we don't want to 
-   */
-  if (!compsq) {
-      qs.emplace_back(); /* 0 -- placeholder */
-      qs.emplace_back(); /* 1 */
-
-      /* jump-start in the renumber table, and enumerate the large primes
-       * from there.
+    /*
+       std::vector<std::pair<special_q, std::vector<model_relation>>>
+       sample;
+       for(auto& x : read_sample_file(sqside, samplefile, ren_table))
+       sample.emplace_back(std::move(x));
+       if (verbose) {
+       for(auto const & x : sample) {
+       std::cout << "# " << x.first << ": " << x.second.size() << " relations\n";
+       }
+       }
        */
-      index_t i = ren_table.index_from_p(q0, sqside);
-      renumber_t::const_iterator it(ren_table, i);
-      for( ; it != ren_table.end() && (*it).p < q1 ; ++it, ++i) {
-          if ((*it).side == sqside)
-              qs[1].push_back(i);
-      }
-  } else {
-      /* In theory, this is overkill. We don't _really_ need the prime[]
-       * cache in the indexrange type. Except that the renumber
-       * "traditional" format has expensive *_from_index lookups, and
-       * that would get in the way if we want to do away with
-       * indexrange::prime[]. Also, we don't have bidirectional iterators
-       * on the renumber table, so it's not really practical to use only
-       * the renumber table.
-       */
-      qs = Ind[sqside].all_composites(q0, q1, qfac_min, qfac_max);
-  }
+
+    fmt::print ("# Done reading sample file\n");
+    fflush (stdout);
+
+    pl.warn_unused();
+
+    // Two index ranges, one for each side
+    fmt::print ("# Start preparing index ranges\n");
+    fflush (stdout);
+    std::vector<indexrange> Ind = prepare_indexrange(ren_table, sqside, compsq);
+    fmt::print ("# Done preparing index ranges\n");
+    fflush (stdout);
+
+    std::vector<std::vector<index_t>> qs;
+
+    /* the indexranges contain the prime-to-index conversion functionality
+     * only if compsq holds. In the non-composite case, we fill qs[1]
+     * differently, because we don't want to 
+     */
+    if (!compsq) {
+        qs.emplace_back(); /* 0 -- placeholder */
+        qs.emplace_back(); /* 1 */
+
+        /* jump-start in the renumber table, and enumerate the large primes
+         * from there.
+         */
+        index_t i = ren_table.index_from_p(q0, sqside);
+        renumber_t::const_iterator it(ren_table, i);
+        for( ; it != ren_table.end() && (*it).p < q1 ; ++it, ++i) {
+            if ((*it).side == sqside)
+                qs[1].push_back(i);
+        }
+    } else {
+        /* In theory, this is overkill. We don't _really_ need the prime[]
+         * cache in the indexrange type. Except that the renumber
+         * "traditional" format has expensive *_from_index lookups, and
+         * that would get in the way if we want to do away with
+         * indexrange::prime[]. Also, we don't have bidirectional iterators
+         * on the renumber table, so it's not really practical to use only
+         * the renumber table.
+         */
+        qs = Ind[sqside].all_composites(q0, q1, qfac_min, qfac_max);
+    }
 
 
-  std::vector<std::thread> threads;
+    std::vector<std::thread> threads;
 
-  double t0 = seconds ();
-  double wct_t0 = wct_seconds ();
+    double t0 = seconds ();
+    double wct_t0 = wct_seconds ();
 
-  threads.reserve(mt);
-  for(int i = 0 ; i < mt ; i++)
-      threads.emplace_back(worker, i, mt, 
-              Ind, sample, qs,
-              shrink_factor, dl, seed);
-  for(auto & t : threads)
-      t.join();
+    threads.reserve(mt);
+    for(int i = 0 ; i < mt ; i++)
+        threads.emplace_back(worker, i, mt, 
+                Ind, sample, qs,
+                shrink_factor, dl, seed);
+    for(auto & t : threads)
+        t.join();
 
 
-  t0 = seconds () - t0;
-  wct_t0 = wct_seconds () - wct_t0;
+    t0 = seconds () - t0;
+    wct_t0 = wct_seconds () - wct_t0;
 
-  /* print statistics */
+    /* print statistics */
 
-  fmt::print ("# Output {} relations in {:.2f}s cpu ({:.0f} rels/s)\n",
-	  rels_printed, t0, double_ratio(rels_printed, t0));
-  fmt::print ("# Output {} relations in {:.2f}s wct ({:.0f} rels/s)\n",
-	  rels_printed, wct_t0, double_ratio(rels_printed, wct_t0));
+    fmt::print ("# Output {} relations in {:.2f}s cpu ({:.0f} rels/s)\n",
+            rels_printed, t0, double_ratio(rels_printed, t0));
+    fmt::print ("# Output {} relations in {:.2f}s wct ({:.0f} rels/s)\n",
+            rels_printed, wct_t0, double_ratio(rels_printed, wct_t0));
 
-  return 0;
+    return 0;
 }

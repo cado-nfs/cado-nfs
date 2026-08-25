@@ -4,6 +4,7 @@
 #include <cstddef>
 
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include <memory>
 #include <tuple>
@@ -98,10 +99,8 @@ struct lingen_substep_characteristics {
         for(unsigned int round = 0 ; round < shrink0 * shrink2 ; round++) {
             const unsigned round0 = round % shrink0;
             const unsigned round2 = round / shrink0;
-            unsigned int i0, i1;
-            unsigned int j0, j1;
-            std::tie(i0, i1) = shrink_split0.nth_block(round0);
-            std::tie(j0, j1) = shrink_split2.nth_block(round2);
+            auto [ i0, i1 ] = shrink_split0.nth_block(round0);
+            auto [ j0, j1 ] = shrink_split2.nth_block(round2);
             ASSERT_ALWAYS((i1 - i0) <= nrs0);
             ASSERT_ALWAYS((j1 - j0) <= nrs2);
             const auto loop0 = subdivision<unsigned int>::by_block_size(i1 - i0, b0);

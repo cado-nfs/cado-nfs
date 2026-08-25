@@ -250,6 +250,41 @@ double bucket_array_t<LEVEL, HINT>::average_full() const
 }
 
 template <int LEVEL, typename HINT>
+void
+bucket_array_t<LEVEL, HINT>::slice_statistics(int side, int idx, fb_factorbase::slicing const & fbs) const {
+    size_t a = 0;
+    for (unsigned int i = 0; i < n_bucket; ++i)
+        a += nb_of_updates (i);
+    verbose_fmt_print (0, 0, "# side-{} array #{} processed {} slices, total {} updates\n",
+            side, idx, get_nr_slices(), a);
+    ASSERT_ALWAYS(side >= 0);
+    std::vector<size_t> nupdates_per_slice(get_nr_slices(), 0);
+
+    update_t const * const * fence = bucket_write.get();
+    for(size_t i = get_nr_slices() ; i-- ; ) {
+        update_t const * const * previous = get_slice_pointers(i);
+        for(unsigned int j = 0 ; j < n_bucket ; j++) {
+            nupdates_per_slice[i] += fence[j] - previous[j];
+        }
+        fence = previous;
+    }
+
+    for(size_t i = 0 ; i < get_nr_slices() ; i++) {
+        double w =
+            slice_index[i] < get_nr_slices() ? fbs[slice_index[i]].get_weight() : -1;
+
+        size_t hits = nupdates_per_slice[i];
+
+        verbose_fmt_print(0, 0,
+                "#  {}{} side {} B {} slice {}"
+                " ecost {} hits {} hratio {:.3f}\n",
+                LEVEL, HINT::rtti[0], side, idx, slice_index[i], w, hits,
+                double_ratio(hits, w));
+    }
+}
+
+
+template <int LEVEL, typename HINT>
 void bucket_array_t<LEVEL, HINT>::log_this_update(update_t const update
                                                   MAYBE_UNUSED,
                                                   uint64_t const bucket_number

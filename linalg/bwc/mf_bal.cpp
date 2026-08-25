@@ -7,7 +7,6 @@
 #include <ctime>
 #include <cerrno>
 #include <cmath>
-#include <climits>
 
 #include <memory>
 #include <algorithm>
@@ -236,24 +235,24 @@ static void read_mfile_header(balancing & bal, std::string const & mfile, int wi
 
 void mf_bal_decl_usage(cxx_param_list & pl)
 {
-   param_list_decl_usage(pl, "mfile", "matrix file (can also be given freeform)");
-   param_list_decl_usage(pl, "rwfile", "row weight file (defaults to <mfile>.rw)");
-   param_list_decl_usage(pl, "cwfile", "col weight file (defaults to <mfile>.cw)");
-   param_list_decl_usage(pl, "out", "output file name (defaults to stdout)");
-   param_list_decl_usage(pl, "quiet", "be quiet");
-   param_list_decl_usage(pl, "rectangular", "accept rectangular matrices (for block Lanczos)");
-   param_list_decl_usage(pl, "withcoeffs", "expect a matrix with explicit coefficients (not just 1s)");
-   param_list_decl_usage(pl, "rowperm", "permute rows in priority (defaults to auto)");
-   param_list_decl_usage(pl, "colperm", "permute columns in priority (defaults to auto)");
-   param_list_decl_usage(pl, "skip_decorrelating_permutation", "solve for the matrix M instead of the matrix P*M with P a fixed stirring matrix");
+   pl.declare_usage("mfile", "matrix file (can also be given freeform)");
+   pl.declare_usage("rwfile", "row weight file (defaults to <mfile>.rw)");
+   pl.declare_usage("cwfile", "col weight file (defaults to <mfile>.cw)");
+   pl.declare_usage("out", "output file name (defaults to stdout)");
+   pl.declare_usage("quiet", "be quiet");
+   pl.declare_usage("rectangular", "accept rectangular matrices (for block Lanczos)");
+   pl.declare_usage("withcoeffs", "expect a matrix with explicit coefficients (not just 1s)");
+   pl.declare_usage("rowperm", "permute rows in priority (defaults to auto)");
+   pl.declare_usage("colperm", "permute columns in priority (defaults to auto)");
+   pl.declare_usage("skip_decorrelating_permutation", "solve for the matrix M instead of the matrix P*M with P a fixed stirring matrix");
 }
 
-void mf_bal_configure_switches(cxx_param_list & pl, struct mf_bal_args * mba)
+void mf_bal_configure_switches(cxx_param_list & pl)
 {
-    param_list_configure_switch(pl, "--quiet", &mba->quiet);
-    // param_list_configure_switch(pl, "--display-correlation", &display_correlation);
-    param_list_configure_switch(pl, "--rectangular", &mba->rectangular);
-    param_list_configure_switch(pl, "--withcoeffs", &mba->withcoeffs);
+    pl.configure_switch("--quiet");
+    // pl.configure_switch("--display-correlation");
+    pl.configure_switch("--rectangular");
+    pl.configure_switch("--withcoeffs");
 }
 
 
@@ -263,7 +262,7 @@ void mf_bal_parse_cmdline(struct mf_bal_args * mba, cxx_param_list & pl, int * p
     (*p_argv)++,(*p_argc)--;
     for(;(*p_argc);) {
         const char * q;
-        if (param_list_update_cmdline(pl, p_argc, p_argv)) continue;
+        if (pl.update_cmdline(*p_argc, *p_argv)) continue;
 
         if ((*p_argv)[0][0] != '-' && wild == 0 && (q = strchr((*p_argv)[0],'x')) != NULL) {
             mba->nh = atoi((*p_argv)[0]);
@@ -290,12 +289,17 @@ void mf_bal_interpret_parameters(struct mf_bal_args * mba, cxx_param_list & pl)
 {
     const char * tmp;
 
+    pl.parse("--quiet", mba->quiet);
+    // pl.parse("--display-correlation", display_correlation);
+    pl.parse("--rectangular", mba->rectangular);
+    pl.parse("--withcoeffs", mba->withcoeffs);
+
     if (!mba->nh || !mba->nv) {
-        param_list_print_usage(pl, NULL, stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 
-    if ((tmp = param_list_lookup_string(pl, "reorder")) != NULL) {
+    if ((tmp = pl.lookup_old("reorder")) != nullptr) {
         if (strcmp(tmp, "auto") == 0) {
             mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_AUTO;
             mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_AUTO;
@@ -330,11 +334,11 @@ void mf_bal_interpret_parameters(struct mf_bal_args * mba, cxx_param_list & pl)
         }
     }
 
-    param_list_parse(pl, "mfile", mba->mfile);
-    param_list_parse(pl, "rwfile", mba->rwfile);
-    param_list_parse(pl, "cwfile", mba->cwfile);
-    param_list_parse(pl, "out", mba->bfile);
-    param_list_parse_int(pl, "skip_decorrelating_permutation", &mba->skip_decorrelating_permutation);
+    pl.parse("mfile", mba->mfile);
+    pl.parse("rwfile", mba->rwfile);
+    pl.parse("cwfile", mba->cwfile);
+    pl.parse("out", mba->bfile);
+    pl.parse("skip_decorrelating_permutation", mba->skip_decorrelating_permutation);
 }
 
 void mf_bal_adjust_from_option_string(struct mf_bal_args * mba, const char * opts)
@@ -360,7 +364,7 @@ void mf_bal_adjust_from_option_string(struct mf_bal_args * mba, const char * opt
     cxx_param_list pl2;
 
     mf_bal_decl_usage(pl2);
-    mf_bal_configure_switches(pl2, mba);
+    mf_bal_configure_switches(pl2);
     mf_bal_parse_cmdline(mba, pl2, &n_argc, &n_argv);
     mf_bal_interpret_parameters(mba, pl2);
 }

@@ -11,15 +11,15 @@
 
 std::vector<uint32_t> setup_x_random(unsigned int m, unsigned int nx,
                                            unsigned int nr,
-                                           parallelizing_info_ptr pi,
+                                           parallelizing_info & pi,
                                            cxx_gmp_randstate & rstate,
                                            std::vector<unsigned int> const & forced = {});
 void save_x(std::vector<uint32_t> const & xs, unsigned int m, unsigned int nx,
-            parallelizing_info_ptr pi);
+            parallelizing_info & pi);
 
 std::vector<uint32_t> load_x(unsigned int m, unsigned int & nx,
-                                   parallelizing_info_ptr pi);
+                                   parallelizing_info & pi);
 std::vector<uint32_t> set_x_fake(unsigned int m, unsigned int & nx,
-                                       parallelizing_info_ptr pi);
+                                       parallelizing_info & pi);
 
 #endif /* XVECTORS_HPP_ */

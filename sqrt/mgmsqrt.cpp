@@ -57,26 +57,26 @@ struct mgmsqrt {
     std::vector<std::pair<relation_ab, int>> abs;
 
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage(pl, "prec", "initial precision");
-        param_list_decl_usage(pl, "ideals", "ideal indices (and valuations)");
-        param_list_decl_usage(pl, "renumber", "renumber table");
-        param_list_decl_usage(pl, "ab", "(a,b) pairs (and exponents)");
-        param_list_decl_usage(pl, "e", "root order");
-        param_list_decl_usage(pl, "side", "side");
+        pl.declare_usage("prec", "initial precision");
+        pl.declare_usage("ideals", "ideal indices (and valuations)");
+        pl.declare_usage("renumber", "renumber table");
+        pl.declare_usage("ab", "(a,b) pairs (and exponents)");
+        pl.declare_usage("e", "root order");
+        pl.declare_usage("side", "side");
     }
 
     explicit mgmsqrt(cxx_param_list & pl)
         : cpoly(pl)
-        , R(cpoly, param_list_parse_mandatory<std::string>(pl, "renumber"), true)
-        , e(param_list_parse_mandatory<int>(pl, "e"))
-        , side(param_list_parse_mandatory<int>(pl, "side"))
+        , R(cpoly, pl.parse_mandatory<std::string>("renumber"), true)
+        , e(pl.parse_mandatory<int>("e"))
+        , side(pl.parse_mandatory<int>("side"))
         , K(cpoly[side])
         , OK(K.maximal_order())
     {
         K.bless("alpha");
         {
             fmt::print("# Reading (a,b) pairs and exponents\n");
-            std::ifstream ab(param_list_parse_mandatory<std::string>(pl, "ab"));
+            std::ifstream ab(pl.parse_mandatory<std::string>("ab"));
             for(std::string s; std::getline(ab, s); ) {
                 strip(s);
                 if (s.empty() || s[0] == '#')
@@ -89,7 +89,7 @@ struct mgmsqrt {
         }
         {
             fmt::print("# Reading ideal indices and exponents\n");
-            std::ifstream Iv(param_list_parse_mandatory<std::string>(pl, "ideals"));
+            std::ifstream Iv(pl.parse_mandatory<std::string>("ideals"));
             for(std::string s; std::getline(Iv, s); ) {
                 strip(s);
                 if (s.empty() || s[0] == '#')
@@ -117,9 +117,9 @@ int main(int argc, char const * argv[])
     configure_aliases(pl);
     */
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
-    param_list_print_command_line(stdout, pl);
+    pl.print_command_line(stdout);
 
     mgmsqrt MTY(pl);
 

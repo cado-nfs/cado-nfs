@@ -171,24 +171,27 @@ class nfs_work {
         {
         }
 
-        template <int LEVEL, typename HINT> void reset_all_pointers();
-
+        template <int LEVEL, typename HINT> void reset_all_pointers()
+        {
+            group.get<LEVEL, HINT>().reset_all_pointers();
+        }
         template <int LEVEL, typename HINT>
+            requires (!HINT::is_long_v)
+            auto
+            reserve_BA() {
+                return group.get<LEVEL, HINT>().reserve();
+            }
+        template <int LEVEL, typename HINT>
+            requires HINT::is_long_v
             bucket_array_t<LEVEL, HINT> &
-            reserve_BA(int wish) {
-                return group.get<LEVEL, HINT>().reserve(wish);
+            acquire_BA(size_t rank) {
+                return group.get<LEVEL, HINT>().acquire(rank);
             }
 
         template <int LEVEL, typename HINT>
-            int rank_BA(bucket_array_t<LEVEL, HINT> const & BA) {
+            size_t rank_BA(bucket_array_t<LEVEL, HINT> const & BA) {
                 return group.get<LEVEL, HINT>().rank(BA);
             }
-
-        template <int LEVEL, typename HINT>
-            void
-            release_BA(bucket_array_t<LEVEL, HINT> &BA) {
-                return group.get<LEVEL, HINT>().release(BA);
-        }
 
         /*
          * not even needed. Better to expose only reserve() and release()
@@ -204,9 +207,25 @@ class nfs_work {
             }
 
         dumpfile_t dumpfile;
+
+        /* the side index gets passed only for pretty printing. We could
+         * conceivably do away with it. At this point, for an
+         * nfs_work::side_data object, there's obviously only one side to
+         * speak of (and the object could possibly keep track of its
+         * "name", perhaps).
+         */
+        void slice_statistics(int side, int level) const {
+            group.slice_statistics(side, level, *fbs);
+        }
     };
 
     std::array<side_data, 2> sides; /* FIXME HARDCODED 2 */
+
+    void slice_statistics(int level) const {
+        for(int side = 0 ; side < (int) sides.size() ; side++) {
+            sides[side].slice_statistics(side, level);
+        }
+    }
 
     /* All of this exists _for each thread_ */
     struct thread_data {
@@ -219,6 +238,7 @@ class nfs_work {
 
         nfs_work &ws;  /* a pointer to the parent structure, really */
         std::vector<side_data> sides;
+        int nsides() const { return static_cast<int>(sides.size()); }
         /* SS is used only in process_bucket region */
         unsigned char *SS = nullptr;
 

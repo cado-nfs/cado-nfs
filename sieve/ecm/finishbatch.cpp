@@ -28,14 +28,14 @@
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "in", "input file");
-    param_list_decl_usage(pl, "poly", "poly file");
-    param_list_decl_usage(pl, "t", "number of threads");
+    pl.declare_usage("in", "input file");
+    pl.declare_usage("poly", "poly file");
+    pl.declare_usage("t", "number of threads");
     siever_side_config::declare_usage(pl);
     batch_side_config::declare_usage(pl);
-    param_list_decl_usage(pl, "doecm", "finish with ECM [default = no]");
-    param_list_decl_usage(pl, "dont_recomp_norm", "given integers are the norms themselves (w/ sq) [default = no]");
-    param_list_decl_usage(pl, "ncurves", "number of curves to be used in ECM [default = 50]");
+    pl.declare_usage("doecm", "finish with ECM [default = no]");
+    pl.declare_usage("dont_recomp_norm", "given integers are the norms themselves (w/ sq) [default = no]");
+    pl.declare_usage("ncurves", "number of curves to be used in ECM [default = 50]");
 
     verbose_decl_usage(pl);
 }
@@ -53,24 +53,24 @@ main (int argc, char const *argv[])
 
   declare_usage(pl);
 
-  param_list_configure_switch(pl, "-doecm", &doecm);
-  param_list_configure_switch(pl, "-dont_recomp_norm", &no_recomp_norm);
+  pl.configure_switch_old("-doecm", &doecm);
+  pl.configure_switch_old("-dont_recomp_norm", &no_recomp_norm);
 
-  param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
+  pl.process_command_line_and_extra_parameter_files(argc, argv);
 
   verbose_interpret_parameters(pl);
-  param_list_print_command_line(stdout, pl);
+  pl.print_command_line(stdout);
 
   const char * filename;
-  if ((filename = param_list_lookup_string(pl, "poly")) == NULL)
+  if ((filename = pl.lookup_old("poly")) == NULL)
       pl.fail("Error: parameter -poly is mandatory\n");
   if (!cpoly.read(filename))
       pl.fail("Error reading polynomial file %s\n", filename);
 
   const char * infilename;
-  if ((infilename = param_list_lookup_string(pl, "in")) == NULL)
+  if ((infilename = pl.lookup_old("in")) == NULL)
       pl.fail("Error: parameter -in is mandatory\n");
-  param_list_parse_ulong(pl, "t"   , &nb_threads);
+  pl.parse("t", nb_threads);
   
   int const nsides = cpoly.nsides();
 

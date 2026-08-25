@@ -425,7 +425,7 @@ struct command_line
 
     void configure_switches(cxx_param_list & pl)
     {
-        param_list_configure_switch(pl, "-v", &verbosity_level);
+        pl.configure_switch_old("-v", &verbosity_level);
     }
 
     void lookup_parameters(cxx_param_list & pl)
@@ -437,7 +437,7 @@ struct command_line
         pl.parse("pp1-B1", PP1_B1);
         pl.parse("effort", effort);
         pl.parse("hints", hints);
-        if (!param_list_parse(pl, "seed", seed)) {
+        if (!pl.parse("seed", seed)) {
             seed = time(nullptr);
         }
     }
@@ -467,14 +467,14 @@ int main(int argc, char const * argv[])
     command_line::declare_usage(pl);
     cmdline.configure_switches(pl);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     verbose_interpret_parameters(pl);
-    param_list_print_command_line (stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
     cmdline.lookup_parameters(pl);
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         pl.fail("Unused parameters are given");
     cmdline.check_inconsistencies(pl);
 

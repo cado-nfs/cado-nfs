@@ -1,15 +1,15 @@
 #ifndef CADO_LAS_PARALLEL_HPP
 #define CADO_LAS_PARALLEL_HPP
-// IWYU pragma: no_include <bits/exception.h>
-#include "cado_config.h"     // for HAVE_HWLOC
-#include <exception> // IWYU pragma: keep  // for exception
-#include <memory>            // for shared_ptr
-#include <string>            // for string
-#include <sstream>           // IWYU pragma: keep
-#include "macros.h"          // for GNUC_VERSION_ATMOST, MAYBE_UNUSED
-#include "params.hpp"           // for param_list_decl_usage, cxx_param_list
+
+#include "cado_config.h"
+#include <exception>
+#include <memory>
+#include <string>
+#include <sstream>
+#include "macros.h"
+#include "params.hpp"
 #ifdef HAVE_HWLOC
-#include "hwloc-aux.hpp"  // cxx_hwloc_nodeset
+#include "hwloc-aux.hpp"
 #endif
 
 class las_parallel_desc {
@@ -67,12 +67,12 @@ public:
         return number_of_subjobs_total() * nthreads_per_subjob;
     }
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage(pl, "t", "Number of threads and subjobs. Use -t help for extended documentation");
+        pl.declare_usage("t", "Number of threads and subjobs. Use -t help for extended documentation");
 #ifdef HAVE_HWLOC
-        param_list_decl_usage(pl, "job-memory", "Estimated memory per subjobs, used for job placement (see -t help) (in gigabytes, floating point values allowed)");
-        param_list_decl_usage(pl, "memory-margin", "Keep this amount of RAM free for the rest of the world (see -t help) (in gigabytes, floating point values allowed)");
+        pl.declare_usage("job-memory", "Estimated memory per subjobs, used for job placement (see -t help) (in gigabytes, floating point values allowed)");
+        pl.declare_usage("memory-margin", "Keep this amount of RAM free for the rest of the world (see -t help) (in gigabytes, floating point values allowed)");
 #else
-        param_list_decl_usage(pl, "job-memory", "(unused, needs hwloc)\n");
+        pl.declare_usage("job-memory", "(unused, needs hwloc)\n");
 #endif
     }
     las_parallel_desc();

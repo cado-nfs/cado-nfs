@@ -5,6 +5,7 @@
 #include <climits>
 
 #include <algorithm>
+#include <array>
 #include <fstream>
 #include <istream>
 #include <ostream>
@@ -99,50 +100,52 @@ int matrix_file::lookup()/*{{{*/
     return 1;
 }/*}}}*/
 
-/* {{{ helpers around pi_bcast and friends.
+/* {{{ helpers around pi_comm::bcast and friends.
  * Have I coded this somewhere else already ? */
 template<typename T> struct bwc_pi_type
-{ static const pi_datatype_ptr value; };
-template<> const pi_datatype_ptr bwc_pi_type<int>::value = BWC_PI_INT;
-template<> const pi_datatype_ptr bwc_pi_type<unsigned int>::value = BWC_PI_UNSIGNED;
-template<> const pi_datatype_ptr bwc_pi_type<unsigned long>::value = BWC_PI_UNSIGNED_LONG;
-template<> const pi_datatype_ptr bwc_pi_type<unsigned long long>::value = BWC_PI_UNSIGNED_LONG_LONG;
+{ static pi_datatype * value; };
 
-template<typename T> static void bcast(parallelizing_info_ptr pi, T & s, unsigned int jrank, unsigned int trank)
+/* frankly, it's ugly. */
+template<> pi_datatype * bwc_pi_type<int>::value = BWC_PI_INT;
+template<> pi_datatype * bwc_pi_type<unsigned int>::value = BWC_PI_UNSIGNED;
+template<> pi_datatype * bwc_pi_type<unsigned long>::value = BWC_PI_UNSIGNED_LONG;
+template<> pi_datatype * bwc_pi_type<unsigned long long>::value = BWC_PI_UNSIGNED_LONG_LONG;
+
+template<typename T> static void bcast(parallelizing_info & pi, T & s, unsigned int jrank, unsigned int trank)
 {
-    pi_bcast(&s, 1, bwc_pi_type<T>::value, jrank, trank, pi->m);
+    pi.m.bcast(&s, 1, bwc_pi_type<T>::value, jrank, trank);
 }
 /* this is a full specialization */
-template<> void bcast<bool>(parallelizing_info_ptr pi, bool & s, unsigned int jrank, unsigned int trank)
+template<> void bcast<bool>(parallelizing_info & pi, bool & s, unsigned int jrank, unsigned int trank)
 {
     int c = s;
-    pi_bcast(&c, 1, BWC_PI_INT, jrank, trank, pi->m);
+    pi.m.bcast(&c, 1, BWC_PI_INT, jrank, trank);
     s = c;
 }
 /* below are two overloads */
 template<typename T, size_t N> 
 static void
-bcast(parallelizing_info_ptr pi, std::array<T, N> & s, unsigned int jrank, unsigned int trank)
+bcast(parallelizing_info & pi, std::array<T, N> & s, unsigned int jrank, unsigned int trank)
 {
-    pi_bcast(s.data(), N, bwc_pi_type<T>::value, jrank, trank, pi->m);
+    pi.m.bcast(s.data(), N, bwc_pi_type<T>::value, jrank, trank);
 }
-static void bcast(parallelizing_info_ptr pi, std::string & s, unsigned int jrank, unsigned int trank)
+static void bcast(parallelizing_info & pi, std::string & s, unsigned int jrank, unsigned int trank)
 {
     size_t sz = s.size();
-    pi_bcast(&sz, 1, BWC_PI_SIZE_T, jrank, trank, pi->m);
+    pi.m.bcast(&sz, 1, BWC_PI_SIZE_T, jrank, trank);
     std::vector<char> foo(sz, ' ');
-    if (pi->m->jrank == jrank && pi->m->trank == trank)
+    if (pi.m.jrank == jrank && pi.m.trank == trank)
         std::ranges::copy(s, foo.begin());
-    pi_bcast(foo.data(), sz, BWC_PI_BYTE, jrank, trank, pi->m);
+    pi.m.bcast(foo.data(), sz, BWC_PI_BYTE, jrank, trank);
     s = std::string(foo.begin(), foo.end());
 }
-template<typename T> static void allreduce(parallelizing_info_ptr pi, T & s, pi_op_ptr op)
+template<typename T> static void allreduce(parallelizing_info & pi, T & s, pi_op const * op)
 {
-    pi_allreduce(nullptr, &s, 1, bwc_pi_type<T>::value, op, pi->m);
+    pi.m.allreduce(nullptr, &s, 1, bwc_pi_type<T>::value, op);
 }
 /* }}} */
 
-int matrix_file::lookup(parallelizing_info_ptr pi)/*{{{*/
+int matrix_file::lookup(parallelizing_info & pi)/*{{{*/
 {
     /* A priori, each thread / node has the same filename in memory. We
      * rely on that.
@@ -154,10 +157,10 @@ int matrix_file::lookup(parallelizing_info_ptr pi)/*{{{*/
     
     /* begin with local lookups */
     int c = 0;
-    if (pi->m->trank == 0)
+    if (pi.m.trank == 0)
         c = lookup();
 
-    unsigned int j = pi->m->jrank;
+    unsigned int j = pi.m.jrank;
     if (!c) j = UINT_MAX;
     allreduce(pi, j, BWC_PI_MIN);
     allreduce(pi, c, BWC_PI_MAX);

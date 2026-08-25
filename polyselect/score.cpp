@@ -105,19 +105,19 @@ int main(int argc, char const * argv[])
 {
     cxx_param_list pl;
 
-    const char * progname = argv[0];
+    MAYBE_UNUSED const char * progname = argv[0];
     const char *input_file = NULL;
     const char *output_file = NULL;
 
-    param_list_decl_usage(pl, "Bf", "smoothness bound on f side");
-    param_list_decl_usage(pl, "Bg", "smoothness bound on g side");
-    param_list_decl_usage(pl, "area", "estimate of sieve are");
-    param_list_decl_usage(pl, "full", "give full score");
-    param_list_configure_switch(pl, "--full", &fullscore);
+    pl.declare_usage("Bf", "smoothness bound on f side");
+    pl.declare_usage("Bg", "smoothness bound on g side");
+    pl.declare_usage("area", "estimate of sieve are");
+    pl.declare_usage("full", "give full score");
+    pl.configure_switch_old("--full", &fullscore);
     argv++,argc--;
 
     for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) continue;
+        if (pl.update_cmdline(argc, argv)) continue;
         if (!input_file) {
             input_file = argv[0];
             argv++, argc--;
@@ -129,16 +129,16 @@ int main(int argc, char const * argv[])
             continue;
         }
         fprintf(stderr, "Unknown option: %s\n", argv[0]);
-        param_list_print_usage(pl, progname, stderr);
+        pl.print_usage(stderr);
         return EXIT_FAILURE;
     }
 
-    param_list_parse_double(pl, "Bf", &bound_f);
-    param_list_parse_double(pl, "Bg", &bound_g);
-    param_list_parse_double(pl, "area", &area);
+    pl.parse("Bf", bound_f);
+    pl.parse("Bg", bound_g);
+    pl.parse("area", area);
 
-    if (param_list_warn_unused(pl) || !input_file) {
-        param_list_print_usage(pl, progname, stderr);
+    if (pl.warn_unused() || !input_file) {
+        pl.print_usage(stderr);
         return EXIT_FAILURE;
      }
 

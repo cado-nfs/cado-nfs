@@ -366,6 +366,10 @@ for i in `seq 0 $((nsides-1))`; do
 done
 
 for i in `seq 0 $((nsides-1))`; do
+    side=${sqside[$i]}
+    qmax=${qmax[$i]}
+    qmin=${qmin[$i]}
+    qrange=$(((qmax-qmin)/NCHUNKS))
     echo "****************************************************"
     echo "Dealing with side $side (creating fake relations)..."
     for i in `seq 1 $NCHUNKS`; do

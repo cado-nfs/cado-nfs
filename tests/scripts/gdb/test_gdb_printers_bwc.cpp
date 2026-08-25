@@ -25,10 +25,10 @@ int main(int argc, char const * argv[])
 
     bw_common_init(bw, &argc, &argv);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     if constexpr (!is_binary) {
-        if (!param_list_parse(pl, "prime", p))
+        if (!pl.parse("prime", p))
             pl.fail("--prime is mandatory\n");
     } else {
         p = 2;
@@ -36,9 +36,9 @@ int main(int argc, char const * argv[])
     unsigned int m = is_binary ? 64 : 3;
     unsigned int n = is_binary ? 128 : 5;
 
-    param_list_parse(pl, "m", m);
-    param_list_parse(pl, "n", n);
-    if (param_list_warn_unused(pl))
+    pl.parse("m", m);
+    pl.parse("n", n);
+    if (pl.warn_unused())
         exit(EXIT_FAILURE);
 
     matpoly<is_binary>::arith_hard K(p, 1U);

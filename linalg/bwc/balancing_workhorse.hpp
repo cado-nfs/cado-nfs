@@ -9,7 +9,7 @@ void balancing_decl_usage(cxx_param_list & pl);
 void balancing_lookup_parameters(cxx_param_list & pl);
 
 matrix_u32 balancing_get_matrix_u32(
-        parallelizing_info_ptr pi,
+        parallelizing_info & pi,
         cxx_param_list & pl,
         std::string const & mfile,
         std::string const & bfile,

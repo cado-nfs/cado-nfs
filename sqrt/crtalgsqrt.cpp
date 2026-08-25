@@ -101,7 +101,7 @@
 #include "gmp-hacks.h"
 #include "gmp_aux.h"
 #include "knapsack.h"
-#include "abfiles.hpp"
+#include "ab_source.hpp"
 #include "macros.h"
 #include "misc.h"
 #include "arith/mod_ul.h"
@@ -536,7 +536,7 @@ polynomial<long double> lagrange_polynomial_abs(polynomial<cxx_mpz> const & f, s
 }
 // }}}
 
-void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
+void estimate_nbits_sqrt(size_t * sbits, ab_source & ab) // , int guess)
 {
     size_t abits[1];
     /*
@@ -623,8 +623,8 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     uint64_t b;
     double w1,wt;
     w1 = WCT;
-    ab_source_rewind(ab);
-    for( ; ab_source_next(ab, &a, &b) ; ) {
+    ab.rewind();
+    for( ; ab.next(a, b) ; ) {
         for(auto & [ x, logfx ] : evals) {
             std::complex<long double> y = a * mpz_get_d(mpz_poly_coeff_const(glob.cpoly[1], n));
             std::complex<long double> w = x * b;
@@ -632,19 +632,19 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
             logfx += cado_math_aux::log(cado_math_aux::abs(y));
         }
         wt = WCT;
-        if (wt > w1 + print_delay || !(ab->nab % 10000000)) {
+        if (wt > w1 + print_delay || !(ab.nab % 10000000)) {
             w1 = wt;
             printf("# [%2.2lf] floating point evaluation: %zu (%.1f%%)\n",
-                    WCT, ab->nab, 100.0*(double)ab->nab/ab->nab_estim);
+                    WCT, ab.nab, 100.0*(double)ab.nab/ab.nab_estim);
         }
     }
     // }}}
     // note that now that we've read everything, we know the precise
     // number of (a,b)'s. Thus we can replace the estimation.
-    ab->nab_estim = ab->nab;
+    ab.nab_estim = ab.nab;
     // {{{ post-process evaluation: f'(alpha), and even nab. print.
 
-    if (ab->nab & 1) {
+    if (ab.nab & 1) {
         printf("# [%2.2lf] odd number of pairs !\n", WCT);
         for(auto & [ x, logfx] : evals)
             logfx += log(fabs(mpz_get_d(mpz_poly_coeff_const(glob.cpoly[1], n))));
@@ -1409,7 +1409,7 @@ static void get_parameters(int * pr, int * ps, int * pt, int asked_r)
     ASSERT_ALWAYS(B*n <= R);
 
     printf("# [%2.2lf] number of pairs is %zu\n", WCT,
-            glob.ab->nab);
+            glob.ab.nab);
     *pr = r;
     *ps = s;
     *pt = t;
@@ -1480,18 +1480,18 @@ static int sqrt_caches_ok(std::vector<prime_data> const & primes, int i0, int i1
 // the accumulation is done for all data between:
 // the first data line starting at offset >= off0 (inclusive)
 // the first data line starting at offset >= off1 (exclusive)
-size_t accumulate_ab_poly(mpz_poly_ptr P, ab_source_ptr ab, size_t off0, size_t off1, cxx_mpz_poly & tmp)
+size_t accumulate_ab_poly(mpz_poly_ptr P, ab_source & ab, size_t off0, size_t off1, cxx_mpz_poly & tmp)
 {
     size_t res = 0;
     mpz_poly_set_ui(P, 1);
     if (off1 - off0 < ABPOLY_OFFSET_THRESHOLD) {
-        ab_source_move_afterpos(ab, off0);
+        ab.move_afterpos(off0);
         logprint("<4> (a,b) rewind to %s, pos %zu\n",
-                ab->nfiles ? ab->sname : ab->fname0, ab->cpos);
-        for( ; ab->tpos < off1 ; res++) {
+                ab.nfiles ? ab.sname.c_str() : ab.fname0.c_str(), ab.cpos);
+        for( ; ab.tpos < off1 ; res++) {
             int64_t a;
             uint64_t b;
-            int r = ab_source_next(ab, &a, &b);
+            int r = ab.next(a, b);
             FATAL_ERROR_CHECK(!r, "dep file ended prematurely\n");
             mpz_poly_from_ab_monic(tmp, a, b);
             mpz_poly_mul_mod_f(P, P, tmp, glob.f_hat);
@@ -1527,11 +1527,9 @@ static void a_poly_read_share_child(cxx_mpz_poly & P, std::atomic<size_t>& nab_l
         return;
     }
 
-    ab_source ab;
-    ab_source_init_set(ab, glob.ab);
+    ab_source ab = glob.ab;
     cxx_mpz_poly tmp;
     nab_loc += accumulate_ab_poly(P, ab, off0, off1, tmp);
-    ab_source_clear(ab);
 
     if (wcache && cachefile_open_w(c)) {
         logprint("writing cache %s\n", c->basename);
@@ -2466,30 +2464,30 @@ int main(int argc, char const ** argv)
 
     cxx_param_list pl;
     int cache=0;
-    // param_list_configure_switch(pl, "-v", &verbose);
-    param_list_configure_switch(pl, "--cache", &cache);
-    param_list_configure_switch(pl, "--rcache", &rcache);
-    param_list_configure_switch(pl, "--wcache", &wcache);
-    // param_list_configure_switch(pl, "--size-guess", &size_guess);
+    // pl.configure_switch("-v");
+    pl.configure_switch_old("--cache", &cache);
+    pl.configure_switch_old("--rcache", &rcache);
+    pl.configure_switch_old("--wcache", &wcache);
+    // pl.configure_switch("--size-guess");
     
-    param_list_process_command_line(pl, &argc, &argv, true);
+    pl.process_command_line(argc, argv, true);
     int wild = 0;
     for (; argc;) {
         if (argv[0][0] != '-' && wild == 0) {
-            param_list_add_key(pl, "depfile", argv[0], PARAMETER_FROM_CMDLINE);
+            pl.add_key("depfile", argv[0], cado::params::origin::FROM_CMDLINE);
             wild++;
             argv++, argc--;
             continue;
         }
         if (argv[0][0] != '-' && wild == 1) {
-            param_list_add_key(pl, "ratdepfile", argv[0], PARAMETER_FROM_CMDLINE);
+            pl.add_key("ratdepfile", argv[0], cado::params::origin::FROM_CMDLINE);
             wild++;
             argv++, argc--;
             continue;
         }
         if (argv[0][0] != '-' && wild == 2) {
-            param_list_add_key(pl, "polyfile", argv[0],
-                    PARAMETER_FROM_CMDLINE);
+            pl.add_key("polyfile", argv[0],
+                    cado::params::origin::FROM_CMDLINE);
             wild++;
             argv++, argc--;
             continue;
@@ -2499,24 +2497,24 @@ int main(int argc, char const ** argv)
 
     if (cache)  rcache = wcache = 1;
 
-    param_list_parse_double(pl, "print_delay", &print_delay);
-    param_list_parse_double(pl, "ram", &ram_gb);
+    pl.parse("print_delay", print_delay);
+    pl.parse("ram", ram_gb);
 
-    param_list_parse_int(pl, "verbose", &verbose);
-    param_list_configure_switch(pl, "--cache", &cache);
-    param_list_parse_int(pl, "ncores", &glob.ncores);
-    param_list_parse_int(pl, "r", &asked_r);
-    param_list_parse_int(pl, "lll_maxdim", &glob.lll_maxdim);
+    pl.parse("verbose", verbose);
+    pl.configure_switch_old("--cache", &cache);
+    pl.parse("ncores", glob.ncores);
+    pl.parse("r", asked_r);
+    pl.parse("lll_maxdim", glob.lll_maxdim);
 
-    if (param_list_lookup_string(pl, "depfile") == NULL)
+    if (!pl.has("depfile"))
         pl.fail("missing argument -depfile");
-    if (param_list_lookup_string(pl, "ratdepfile") == NULL)
+    if (!pl.has("ratdepfile"))
         pl.fail("missing argument -ratdepfile");
-    if (param_list_lookup_string(pl, "polyfile") == NULL)
+    if (!pl.has("polyfile"))
         pl.fail("missing argument -polyfile");
     /* }}} */
 
-    ret = glob.cpoly.read(param_list_lookup_string(pl, "polyfile"));
+    ret = glob.cpoly.read(pl.lookup("polyfile"));
     /* This assumes that we have a rational side 0 and an algebraic side 1*/
     ASSERT_ALWAYS(glob.cpoly.get_ratside() == 0);
     glob.n = glob.cpoly[1]->deg;
@@ -2536,13 +2534,13 @@ int main(int argc, char const ** argv)
 
     // printf("# [%2.2lf] A is f_d^%zu*f_hat'(alpha_hat)*prod(f_d a - b alpha_hat)\n", WCT, nab + (nab &1));
 
-    ab_source_init(glob.ab, param_list_lookup_string(pl, "depfile"),
+    glob.ab.init(pl.has("depfile")->c_str(),
             glob.rank, 0, MPI_COMM_WORLD);
 
     // note that for rsa768, this estimation takes only 10 minutes, so
     // it's not a big trouble.
     unsigned long toto;
-    if (!param_list_parse_ulong(pl, "sqrt_coeffs_bits", &toto)) {
+    if (!pl.parse("sqrt_coeffs_bits", toto)) {
         if (glob.rank == 0) {
             estimate_nbits_sqrt(&glob.nbits_sqrt, glob.ab); //, size_guess);
         }
@@ -2552,7 +2550,7 @@ int main(int argc, char const ** argv)
     }
     // MPI_Bcast(&glob.nbits_a, 1, CADO_MPI_SIZE_T, 0, MPI_COMM_WORLD);
     // we no longer need to know nab, so let's drop it as a proof !
-    glob.ab->nab = 0;
+    glob.ab.nab = 0;
 
     glob.r=0;
     glob.s=0;
@@ -2611,8 +2609,8 @@ int main(int argc, char const ** argv)
     int i0 = pgnum*r;
     int i1 = i0 + r;
 
-    size_t off0 = apnum * glob.ab->totalsize / s;
-    size_t off1 = (apnum+1) * glob.ab->totalsize / s;
+    size_t off0 = apnum * glob.ab.totalsize / s;
+    size_t off1 = (apnum+1) * glob.ab.totalsize / s;
 
     for(int i = i0 ; i < i1 ; i++)
         for(int j = 0 ; j < glob.n ; j++)
@@ -2748,8 +2746,6 @@ int main(int argc, char const ** argv)
     }
 
     /****************************************************************/
-
-    ab_source_clear(glob.ab);
 
     MPI_Finalize();
 

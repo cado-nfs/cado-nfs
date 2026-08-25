@@ -142,7 +142,7 @@ int cxx_param_list::read(std::istream & is, bool stop_on_empty_line)
         // pl dictionary. That looks like a pretty obscure hack, in fact.
         // Do we ever use it ?
         if (!isalpha((int)(unsigned char)line[0]) && line[0] != '_' && line[0] != '-') {
-            param_list_add_key(pl, nullptr, line.c_str(), PARAMETER_FROM_FILE);
+            pl.add_key(pl, "", line.c_str(), cado::params::origin::FROM_FILE);
             continue;
         }
 #endif
@@ -325,7 +325,7 @@ int cxx_param_list::update_cmdline(
             *it->second = v;
         /* END LEGACY BLOCK */
         /* add it to the dictionary, so that
-         * param_list_parse_switch can find it later on.
+         * cxx_param_list::parse can find it later on.
          */
 
         argv += 1;
@@ -513,11 +513,6 @@ void cxx_param_list::print_command_line(FILE * stream) const
     }
 }
 
-
-
-
-
-
 size_t cxx_param_list::get_list_count(std::string const & key, std::string const & sep)
 {
     if (auto const * t = has(drop_one_or_two_leading_dashes(key)))
@@ -529,14 +524,6 @@ size_t cxx_param_list::get_list_count(std::string const & key, std::string const
 /***********************************************************************/
 /* compatibility calls */
 
-int param_list_parse_mpz(cxx_param_list & pl, const char * key, mpz_ptr x)
-{
-    cxx_mpz u;
-    int const r = pl.parse(key, u);
-    if (r)
-        mpz_set(x, u);
-    return r;
-}
 int cxx_param_list::read(FILE *f, bool stop_on_empty_line)
 {
     int all_ok=1;
@@ -576,9 +563,11 @@ int cxx_param_list::read(FILE *f, bool stop_on_empty_line)
         // A DIGIT* as something that goes with the "NULL" token in the
         // pl dictionary. That looks like a pretty obscure hack, in fact.
         // Do we ever use it ?
+        //
+        // We can at least trigger its use with an ad hoc polynomial...
         l = 0;
         if (!isalpha((int)(unsigned char)p[l]) && p[l] != '_' && p[l] != '-') {
-            ASSERT_ALWAYS(0);
+            // ASSERT_ALWAYS(0);
             add_key("", line, origin::FROM_FILE);
             continue;
         }

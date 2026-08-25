@@ -931,17 +931,17 @@ static void store_primes(std::vector<ssp_simple_t>& allprimes, int bmin, int bma
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "q",  "quiet mode (for tests, mostly)");
-    param_list_decl_usage(pl, "C",  "run tests, not timings");
-    param_list_decl_usage(pl, "F",  "abort on test failure");
-    param_list_decl_usage(pl, "I",  "set logI (default = 16)");
-    param_list_decl_usage(pl, "A",  "set logA (default = 2*logI-1)");
+    pl.declare_usage("q",  "quiet mode (for tests, mostly)");
+    pl.declare_usage("C",  "run tests, not timings");
+    pl.declare_usage("F",  "abort on test failure");
+    pl.declare_usage("I",  "set logI (default = 16)");
+    pl.declare_usage("A",  "set logA (default = 2*logI-1)");
 #ifndef LOG_BUCKET_REGION_IS_A_CONSTANT
-    param_list_decl_usage(pl, "B",  "set LOG_BUCKET_REGION (default = 16)");
+    pl.declare_usage("B",  "set LOG_BUCKET_REGION (default = 16)");
 #endif
-    param_list_decl_usage(pl, "bmin",  "restrict test or timings to primes >= 2^bmin (i.e. (bmin+1)-bit primes)");
-    param_list_decl_usage(pl, "bmax",  "restrict test or timings to primes < 2^bmax (i.e. up to bmax-bit primes)");
-    param_list_decl_usage(pl, "only-complete-functions",  "restrict to testing the complete small sieve functions");
+    pl.declare_usage("bmin",  "restrict test or timings to primes >= 2^bmin (i.e. (bmin+1)-bit primes)");
+    pl.declare_usage("bmax",  "restrict test or timings to primes < 2^bmax (i.e. up to bmax-bit primes)");
+    pl.declare_usage("only-complete-functions",  "restrict to testing the complete small sieve functions");
 }
 
 int main(int argc, char const * argv[])
@@ -953,20 +953,24 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
 
     declare_usage(pl);
-    param_list_configure_switch(pl, "-q", &quiet);
-    param_list_configure_switch(pl, "-C", &consistency_check_mode);
-    param_list_configure_switch(pl, "-F", &abort_on_fail);
-    param_list_configure_switch(pl, "--only-complete-functions", &only_complete_functions);
+    pl.configure_switch("-q");
+    pl.configure_switch("-C");
+    pl.configure_switch("-F");
+    pl.configure_switch("--only-complete-functions");
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
-    param_list_parse_int(pl, "I", &logI);
-    param_list_parse_int(pl, "A", &logA);
+    pl.parse("-q", quiet);
+    pl.parse("-C", consistency_check_mode);
+    pl.parse("-F", abort_on_fail);
+    pl.parse("--only-complete-functions", only_complete_functions);
+    pl.parse("I", logI);
+    pl.parse("A", logA);
 #ifndef LOG_BUCKET_REGION_IS_A_CONSTANT
-    param_list_parse_int(pl, "B", &LOG_BUCKET_REGION);
+    pl.parse("B", LOG_BUCKET_REGION);
 #endif
-    param_list_parse_int(pl, "bmin", &bmin);
-    param_list_parse_int(pl, "bmax", &bmax);
+    pl.parse("bmin", bmin);
+    pl.parse("bmax", bmax);
 
     if (!bmax) bmax = logI;
     if (!logA) logA = 2*logI-1;

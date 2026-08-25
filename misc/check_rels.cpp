@@ -351,28 +351,28 @@ static void thread_callback(relation_type & rel, std::ostream * outfile)
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "filelist",
+    pl.declare_usage("filelist",
                           "file containing a list of input files");
-    param_list_decl_usage(pl, "basepath",
+    pl.declare_usage("basepath",
                           "path added to all files in filelist");
-    param_list_decl_usage(pl, "poly", "polynomials file (mandatory)");
-    param_list_decl_usage(pl, "abhexa",
+    pl.declare_usage("poly", "polynomials file (mandatory)");
+    pl.declare_usage("abhexa",
                           "read and write a and b as hexa "
                           "(instead of decimal)");
-    param_list_decl_usage(pl, "fixit", "Try to fix wrong relations");
-    param_list_decl_usage(pl, "check_primality",
+    pl.declare_usage("fixit", "Try to fix wrong relations");
+    pl.declare_usage("check_primality",
                           "check primality of "
                           "primes (default, no checking)");
-    param_list_decl_usage(pl, "out",
+    pl.declare_usage("out",
                           "optional output file for correct or fixed "
                           "relations");
-    param_list_decl_usage(pl, "lpb0", "large prime bound on side 0");
-    param_list_decl_usage(pl, "lpb1", "large prime bound on side 1");
-    param_list_decl_usage(pl, "lpbs",
+    pl.declare_usage("lpb0", "large prime bound on side 0");
+    pl.declare_usage("lpb1", "large prime bound on side 1");
+    pl.declare_usage("lpbs",
                           "large primes bounds (comma-separated list) "
                           "(for MNFS)");
-    param_list_decl_usage(pl, "v", "more verbose output");
-    param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
+    pl.declare_usage("v", "more verbose output");
+    pl.declare_usage("path_antebuffer", "path to antebuffer program");
 }
 
 template <typename relation_type>
@@ -406,10 +406,10 @@ int main(int argc, char const * argv[])
     declare_usage(pl);
     filelist::configure(pl);
 
-    param_list_configure_switch(pl, "abhexa", &abhexa);
-    param_list_configure_switch(pl, "fixit", &fix_it);
-    param_list_configure_switch(pl, "v", &verbose);
-    param_list_configure_switch(pl, "check_primality", &check_primality);
+    pl.configure_switch_old("abhexa", &abhexa);
+    pl.configure_switch_old("fixit", &fix_it);
+    pl.configure_switch_old("v", &verbose);
+    pl.configure_switch_old("check_primality", &check_primality);
     cado::filter_io_details::configure(pl);
 
     pl.process_command_line(argc, argv, true);
@@ -422,11 +422,11 @@ int main(int argc, char const * argv[])
 
     filelist const input(pl, argc, argv);
 
-    char const * polyfilename = param_list_lookup_string(pl, "poly");
-    char const * outfilename = param_list_lookup_string(pl, "out");
-    param_list_lookup_string(pl, "lpb0");
-    param_list_lookup_string(pl, "lpb1");
-    param_list_lookup_string(pl, "lpbs");
+    char const * polyfilename = pl.lookup_old("poly");
+    char const * outfilename = pl.lookup_old("out");
+    pl.lookup("lpb0");
+    pl.lookup("lpb1");
+    pl.lookup("lpbs");
 
     if (pl.warn_unused())
         pl.fail("Unused parameters are given");

@@ -66,18 +66,16 @@ config file hosting a (possibly large) number of options.
 
 
 
-To use params.[ch], your main() function must follow the following
+To use params.[ch]pp, your main() function must follow the following
 pattern.
 
-    param_list pl;
-
-    param_list_init(pl);
+    cxx_param_list pl;
 
     /* documentation, if any. See below */
     /* switches, if any. See below */
     /* aliases, if any. See below */
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
     /* If you want to do some other things with the arguments that haven't
      * been eaten at all, pass "true" as the last parameter above, then
      * act on the remaining argc and argv.
@@ -86,11 +84,13 @@ pattern.
      * meaning somewhere */
     const char * tmp;
 
-    /* param_list_lookup_string gives a const char * pointer which will
+    /* p.lookup_old() gives a const char * pointer which will
      * live only for as long as the param_list structure isn't freed. The
-     * return value is NULL if no such key exists */
+     * return value is NULL if no such key exists. pl_has() works
+     * similarly and returns an std::string const *. pl.lookup() returns
+     * a fresh std::string. */
 
-    if ((tmp = param_list_lookup_string(pl, "subdir")) != NULL) {
+    if ((tmp = pl.lookup_old("subdir")) != NULL) {
         fprintf(stderr, "--subdir is no longer supported."
                 " prepend --out with a path instead.\n");
         exit(1);
@@ -99,7 +99,7 @@ pattern.
     /* ... */
 
     /* It is possible to strdup() it of course */
-    working_filename = strdup(param_list_lookup_string(pl, "out"));
+    working_filename = strdup(pl.lookup_old("out"));
     if (working_filename == NULL) {
         fprintf(stderr, "Required argument --out is missing\n");
         exit(1);
@@ -110,40 +110,41 @@ pattern.
     /* all parsing functions return 1 when the key was found, 0 if not.
      * If no key was found, no assignment is performed and the default
      * value set beforehand remains */
-    param_list_parse_int(pl, "hslices", &split[0]);
-    param_list_parse_int(pl, "vslices", &split[1]);
+    pl.parse("hslices", split[0]);
+    pl.parse("vslices", split[1]);
 
     int split[2] = {1,1};
-    param_list_parse_intxint(pl, "nbuckets", split);
+    pl.parse("nbuckets", split);
 
     /* Good practice mandates that unused parameters trigger a warning,
      * if not an error. Only unused parameters from command line are
      * considered for issuance of a warning. Unused parameters found in
      * config files are considered normal and trigger nothing.
      */
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         usage();
     }
-    param_list_clear(pl);
 
 
 It is also possible to configure switches. Configure switches goes toghether
 with specifying a pointer to the switch value, which must have type int.
 
-    param_list_configure_switch(pl, "--legacy", NULL);
-    param_list_configure_switch(pl, "--remove-input", NULL);
-    param_list_configure_switch(pl, "--pad", NULL);
+    pl.configure_switch("--legacy");
+    pl.configure_switch("--remove-input");
+    pl.configure_switch("--pad);
 
-    legacy = param_list_parse_switch(pl, "--legacy");
-    remove_input = param_list_parse_switch(pl, "--remove-input");
-    pad = param_list_parse_switch(pl, "--pad");
+    /* process argc and argv */
+
+    pl.parse("--legacy", legacy);
+    pl.parse("--remove-input", remove_input);
+    pl.parse("--pad", pad);
 
 
 Aliases:
-    param_list_configure_alias(pl, "--pad", "--square");
+    pl.configure_alias("--pad", "--square");
     // --> means that the switch --pad may be aliased as --square
 
-    param_list_configure_alias(pl, "out", "output-name");
+    pl.configure_alias("out", "output-name");
     // means that --out, -out, out=, and so on, may be aliased as
     // --output-name, etc.
 
@@ -170,9 +171,7 @@ Parameter handling encompasses several distinct things.
  6. perhaps do some consistency checking.
 
 Example code that goes through these steps can be written as in [this
-example](../tests/utils/test_params.cpp). Note that several calls such as
-`param_list_decl_usage` are replaced by member functions of the
-`cxx_param_list` type for brevity.
+example](../tests/utils/test_params.cpp).
 
 
 
@@ -211,8 +210,7 @@ Roadmap for use:
 
 start with:
 
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
 
     argv++, argc--;
     for( ; argc ; ) {
@@ -237,109 +235,82 @@ won't get the benefit of allowing information to come from config files:
 
     if (strcmp(argv[0], "-v") == 0) { verbose++; argv++,argc--; continue; }
 
-You may call the param_list routines to recognize certain specific
+You may call the param_list member functions to recognize 
 arguments on the command line, like:
 
-    if (param_list_update_cmdline(pl, "degree", &argc, &argv)) { continue; }
+    if (pl.update_cmdline(argc, argv)) { continue; }
 
-This will recognize --degree 42, as well as degree=42, on the command
-line. Upon success, 1 is returnes, and argv, argc advance by the right
-number of positions.
-
-Or you could accept just everything that ``resembles'' a parameter.
-Formally, a parameter matches
+This will accept just everything that ``resembles'' a parameter.
+Formally, a parameter matches:
     (-<key> <value> | --<key> <value> | <key>=<value>)
     where <key>=<alphabetic>[<alphanumeric>_]*
-To match in such a wildcard way (which is the easy way to go, really):
+Upon success, 1 is returned, and argv, argc advance by the right
+number of positions.
 
-    if (param_list_update_cmdline(pl, NULL, &argc, &argv)) { continue; }
-
-That's mostly it.  If we haven't hit a 'continue' statement within the
-loop already, then we might have some unparsed garbage on the command
-line (1). Or just something special (2). Or we might be very polite and
-allow the user to specify the name of an input parameter file, freeform,
-to be parsed right now (3). Or we've got some very peculiar way of
-receiving config arguments, so we'll catch them now (4).
+If we haven't hit a 'continue' statement within the loop already, then we
+might have some unparsed garbage on the command line (1). Or just
+something special (2). Or we might be very polite and allow the user to
+specify the name of an input parameter file, freeform, to be parsed right
+now (3). Or we've got some very peculiar way of receiving config
+arguments, so we'll catch them now (4).
 
 To illustrate these cases, here are some snippets. For case (2):
 
       if (strspn(argv[0], "0123456789") == strlen(argv[0])) {
-          param_list_add_key(pl, "n", argv[0], PARAMETER_FROM_CMDLINE);
+          pl.add_key("n", argv[0], cado::params::origin::FROM_CMDLINE);
           argv++,argc--;
           continue;
       }
 
-The call to param_list_add_key above is almost an innard, and having it
-in the API is just an ugly convenience measure. In particular, notice
-that it's your job at this point to position argv,argc correctly for the
-next round.
+The call to add_key above is almost an innard, and having it in the API
+is just an ugly convenience measure. In particular, notice that it's your
+job at this point to position argv,argc correctly for the next round.
 
 After such a test, case (3) can be handled so:
 
       if ((f = fopen(argv[0], "r")) != NULL) {
-          param_list_read_stream(pl, f, 0);
+          pl.read(f, false);
           fclose(f);
           argv++,argc--;
           continue;
       }
 
-[begin digression: another way of accepting input files can be when parsing
-arguments (before calling param_list_update_cmdline):
-
-      if (argc >= 2 && strcmp (argv[0], "-poly") == 0) {
-          param_list_read_file(pl, argv[1]);
-          argv++,argc--;
-          argv++,argc--;
-          continue;
-      }
-
-Notice that param_list_read_file fails when the file does not exist,
-while the former option above allows for the file not to exist.
-end digression]
-
 End of story, case (1) would go as such:
 
-      fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-      usage();
+    pl.fail("Unhandled parameter {}\n", argv[0]);
 
 The ``peculiar cases'' (case (4)) are to be handled in a way which
-depends exactly on how parameters are expected. Look into handling of
-amin amax bmin bmax within sieve/sieve.c for an example.
+depends exactly on how parameters are expected.
 
-Extra: parameters may have aliases. See param_list_configure_alias
+Extra: parameters may have aliases. See cxx_param_list::configure_alias
 
 ** PARSING VALUES **
 
-All the param_list_parse_* routines do parsing, and set variables. They
+All the cxx_param_list::parse_* routines do parsing, and set variables. They
 return 1 on success, 0 on failure.
 
 It is possible to update the dictionary again depending on the result of
 a parsing operation. For example, polyselect reads stdin only if it needs
 it for knowing n:
 
-  int have_n = param_list_parse_mpz(pl, "n", poly->n);
+  int have_n = pl.parse("n", poly->n);
 
   if (!have_n) {
       if (verbose) {
           fprintf(stderr, "Reading n from stdin\n");
       }
-      param_list_read_stream(pl, stdin, 0);
-      have_n = param_list_parse_mpz(pl, "n", poly->n);
+      pl.read(stdin, false);
+      have_n = pl.parse("n", poly->n);
   }
 
-The param_list_parse_* functions should be easily understood.
+The cxx_param_list::parse functions should be easily understood.
 
 Eventually, it is possible to make sure that all command-line parameters
 were used, and warn otherwise:
 
-  if (param_list_warn_unused(pl)) {
-      usage();
+  if (pl.warn_unused()) {
+      pl.fail("Not all arguments were parsed\n");
   }
-
-And clearing the parameter list can be done as soon as it's no longer
-needed:
-
-  param_list_clear(pl);
 
 ###################################################################
 

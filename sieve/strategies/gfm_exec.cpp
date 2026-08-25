@@ -61,22 +61,18 @@ int main(int argc, char const * argv[])
 
     declare_usage(pl);
 
-    /* 
-     * Passing nullptr is allowed here (and actually recommended). Find
-     * value with param_list_parse_switch later on 
-     */
-    param_list_configure_switch(pl, "ch", nullptr);
-    param_list_configure_switch(pl, "fch", nullptr);
+    pl.configure_switch("ch");
+    pl.configure_switch("fch");
 
-    param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
+    pl.process_command_line_and_extra_parameter_files(argc, argv);
 
-    int const opt_fch = param_list_parse_switch(pl, "-fch");
+    int const opt_fch = pl.parse<int>("-fch");
     if (opt_fch) {
 	const char *pathname_fch_in;
 	const char *pathname_fch_out;
-	if ((pathname_fch_in = param_list_lookup_string(pl, "fch_in")) == nullptr
+	if ((pathname_fch_in = pl.lookup_old("fch_in")) == nullptr
 	    || (pathname_fch_out =
-		param_list_lookup_string(pl, "fch_out")) == nullptr) {
+		pl.lookup_old("fch_out")) == nullptr) {
 	    fputs("Parse error: Please re-run with the options "
 		  "-in and -out with each one a valid file name.\n", stderr);
 	    exit(EXIT_FAILURE);
@@ -100,7 +96,7 @@ int main(int argc, char const * argv[])
 	// {b1min, b1max, b1step, cmin, cmax, cstep}
         std::vector<int> param(6, 0);
 
-	int const opt_ch = param_list_parse_switch(pl, "-ch");
+	int const opt_ch = pl.parse<int>("-ch");
 	pl.parse("ub", ub);
 	pl.parse("lb", lb);
 	pl.parse("n", len_n);
@@ -125,7 +121,7 @@ int main(int argc, char const * argv[])
 	    len_n = 60 + ub;
 
 	/* Extract the method and the curve\n" */
-	const char *name_fm = param_list_lookup_string(pl, "m");
+	const char *name_fm = pl.lookup_old("m");
 
         facul_method_code method = NO_METHOD;
 
@@ -188,7 +184,7 @@ int main(int argc, char const * argv[])
 
 	//print the result in file!
 	//to do: change the file output!
-	const char *name_file_out = param_list_lookup_string(pl, "out");
+	const char *name_file_out = pl.lookup_old("out");
 
 
         /* if -out is not given, print to stdout */

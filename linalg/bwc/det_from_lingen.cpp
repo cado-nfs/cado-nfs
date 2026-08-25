@@ -273,8 +273,8 @@ int main(int argc, char const * argv[])
 
     bw_common_decl_usage(pl);
     /* {{{ declare local parameters and switches */
-    param_list_decl_usage(pl, "ffile", "generator file");
-    param_list_decl_usage(pl, "charpoly-degree", "degree of the characteristic "
+    pl.declare_usage("ffile", "generator file");
+    pl.declare_usage("charpoly-degree", "degree of the characteristic "
                                                  "polynomial");
     /* }}} */
 
@@ -284,18 +284,18 @@ int main(int argc, char const * argv[])
 
     /* {{{ interpret our parameters */
     std::string ffile;
-    param_list_parse(pl, "ffile", ffile);
+    pl.parse("ffile", ffile);
     if (ffile.empty()) {
         fmt::print(stderr, "Error, -ffile must be a nonempty string\n");
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 
     unsigned int charpoly_deg = UINT_MAX;
-    param_list_parse(pl, "charpoly-degree", charpoly_deg);
+    pl.parse("charpoly-degree", charpoly_deg);
     if (charpoly_deg == UINT_MAX) {
         fmt::print(stderr, "Error, -charpoly-degree must be specified\n");
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
     /* }}} */
@@ -305,8 +305,8 @@ int main(int argc, char const * argv[])
         exit(EXIT_FAILURE);
     }
 
-    if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
+    if (pl.warn_unused()) {
+        pl.print_usage(stderr);
         exit(EXIT_FAILURE);
     }
 

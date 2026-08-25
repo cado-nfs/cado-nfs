@@ -1,9 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstddef>
-#include <climits>
 
 #include <array>
+#include <functional>
 
 #include "bucket.hpp"
 #include "las-auxiliary-data.hpp"
@@ -11,114 +11,80 @@
 #include "las-config.hpp"
 #include "las-report-stats.hpp"
 #include "las-threads.hpp"
-#include "macros.h"
 #include "tdict.hpp"
 #include "threadpool.hpp"
 #include "verbose.hpp"
+#include "chronograms.hpp"
 
 class las_memory_accessor; // IWYU pragma: keep
 
+/* This thin wrapper is only here to start the timer */
+template <bucket_array_type T>
+static void run_allocate_buckets(worker_thread * worker, las_memory_accessor & memory, int n_bucket, double ratio, int logI, nfs_aux & aux, T & B)
+{
+    timetree_t & timer(aux.th[worker->rank()].timer);
+    ENTER_THREAD_TIMER(timer);
+#ifndef DISABLE_TIMINGS
+    const timetree_t::accounting_sibling dummy(timer, tdict_slot_for_alloc_buckets);
+#endif
+    TIMER_CATEGORY(timer, bookkeeping());
+    auto tt = worker->trace(chronograms::ALLOC());
 
-template <typename T>
+    B.allocate_memory(memory, n_bucket, ratio, logI);
+}
+
+template <bucket_array_type T>
 void
-reservation_array<T>::allocate_buckets(las_memory_accessor & memory, int n_bucket, double fill_ratio, int logI, nfs_aux & aux, thread_pool & pool)
+reservation_array_base<T>::allocate_buckets(las_memory_accessor & memory, int n_bucket, double ratio, int logI, nfs_aux & aux, thread_pool & pool)
 {
     if (n_bucket <= 0) return;
 
-  /* We estimate that the updates will be evenly distributed among the n
-     different bucket arrays, so each gets fill_ratio / n.
-     However, for a large number of threads, we need a bit of margin.
-     In principle, one should check that the number of threads asked by the user
-     is not too large compared to the number of slices (i.e. the size of the
-     factor bases).
-     */
-  const double ratio = fill_ratio;
-
-  const size_t n = BAs.size();
-  for (size_t i = 0; i < n; i++) {
-      auto & B(BAs[i]);
-      /* Arrange so that the largest allocations are done first ! */
-      const auto cost = (double) (ratio/n * BUCKET_REGIONS[T::level] * n_bucket * sizeof(typename T::update_t));
-      pool.add_task_lambda([=,&B,&aux,&memory](worker_thread * worker,int){
-            timetree_t & timer(aux.th[worker->rank()].timer);
-            ENTER_THREAD_TIMER(timer);
-#ifndef DISABLE_TIMINGS
-            const timetree_t::accounting_sibling dummy(timer, tdict_slot_for_alloc_buckets);
-#endif
-            TIMER_CATEGORY(timer, bookkeeping());
-            B.allocate_memory(memory, n_bucket, ratio / n, logI);
-              }, i, 2, cost);
-      /* queue 2. Joined in nfs_work::allocate_buckets */
-  }
+    /* We estimate that the updates will be evenly distributed among the n
+       different bucket arrays, so each gets fill_ratio / n.
+       However, for a large number of threads, we need a bit of margin.
+       In principle, one should check that the number of threads asked by the user
+       is not too large compared to the number of slices (i.e. the size of the
+       factor bases).
+       */
+    const size_t n = BAs.size();
+    for (size_t i = 0; i < n; i++) {
+        /* Arrange so that the largest allocations are done first ! */
+        const auto cost = (double) (ratio/n * BUCKET_REGIONS[T::level] * n_bucket * sizeof(typename T::update_t));
+        pool.add_task(
+                thread_pool::QUEUE_MISC, cost,
+                run_allocate_buckets<T>,
+                std::ref(memory), n_bucket, ratio / n, logI, std::ref(aux), std::ref(BAs[i]));
+        /* queue 2. Joined in nfs_work::allocate_buckets */
+    }
 }
 
-template <typename T>
-T &reservation_array<T>::reserve(int wish)
+template <bucket_array_type T>
+T & reservation_array<T, false>::inner_reserve()
 {
-  my_unique_lock u(*this);
-  const bool verbose = false;
-  const bool choose_least_full = true;
-  size_t i;
+    auto lock = super::get_lock();
 
-  const size_t n = BAs.size();
+    while (available_buckets.empty())
+        cv.wait(lock);
 
-  if (wish >= 0)
-      return use_(wish);
+    auto [ ratio, i ] = available_buckets.top();
+    available_buckets.pop();
 
-  while ((i = find_free()) == n)
-      wait(cv, u);
+    verbose_fmt_print(0, 3, "# Bucket {} is {:.0f}% full\n",
+            i, ratio * 100.);
 
-  if (choose_least_full) {
-    /* Find the least-full bucket array. A bucket array that has one, or
-     * maybe several full buckets, but isn't full on average may still be
-     * used. We'll prefer the least full bucket arrays anyway.
+    /* We used to have a mechanism that detected the situation where no
+     * bucket array was claiming any room available. This turned out to
+     * be a no-op since average_full() alwayrs returns something anyway.
      */
-    if (verbose)
-      verbose_fmt_print(0, 3, "# Looking for least full bucket array\n");
-    double least_full = 1000; /* any large value */
-    size_t least_full_index = SIZE_MAX;
-    for (i = 0; i < n; i++) {
-      if (in_use[i])
-        continue;
-      const double full = BAs[i].average_full();
-      if (full < least_full) {
-          least_full = full;
-          least_full_index = i;
-      }
-    }
-    if (least_full_index != SIZE_MAX) {
-        if (verbose)
-            verbose_fmt_print(0, 3, "# Bucket {} is {:.0f}% full\n",
-                    least_full_index, least_full * 100.);
-        i = least_full_index;
-        return use_(i);
-    }
-    /*
-     * Now all bucket arrays are full on average. We're going to scream
-     * and throw an exception. Now where we ought to go from here is not
-     * really decided upon based on our analysis, but rather on the check
-     * that is done in check_buckets_max_full. Here we'll just throw a
-     * mostly phony exception that will maybe be caught and acted upon,
-     * or maybe not.
-     */
-
-    auto k = bkmult_specifier::getkey<typename T::update_t>();
-    verbose_fmt_print(0, 1, "# Error: {} buckets are full (least avg {}), throwing exception\n",
-            bkmult_specifier::printkey(k),
-            least_full);
-    throw buckets_are_full(k, -1, least_full * 1e6, 1 * 1e6); 
-  }
-  return use_(i);
+    return super::BAs[i];
 }
 
-template <typename T>
-void reservation_array<T>::release(T &BA) {
-    const my_unique_lock u(*this);
-    ASSERT_ALWAYS(&BA >= BAs.data());
-    ASSERT_ALWAYS(&BA < BAs.data() + BAs.size());
-    const size_t i = &BA - BAs.data();
-    in_use[i] = false;
-    signal(cv);
+template <bucket_array_type T>
+void reservation_array<T, false>::release(T &BA) {
+    auto lock = super::get_lock();
+    const double ratio = BA.average_full();
+    available_buckets.emplace(ratio, super::rank(BA));
+    cv.notify_one();
 }
 
 /* Reserve the required number of bucket arrays. For shorthint BAs, we

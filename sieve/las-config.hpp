@@ -32,8 +32,6 @@ extern size_t BUCKET_REGIONS[FB_MAX_PARTS];
 
 extern int NB_DEVIATIONS_BUCKET_REGIONS;
 
-extern int las_production_mode;
-
 #define DESCENT_DEFAULT_GRACE_TIME_RATIO 0.2 /* default value */
 
 /* (Re-)define this to support larger q. This is almost mandatory for the

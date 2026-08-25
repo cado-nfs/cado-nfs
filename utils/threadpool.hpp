@@ -1,280 +1,384 @@
 #ifndef CADO_THREADPOOL_HPP
 #define CADO_THREADPOOL_HPP
 
-#include <cerrno>        // for EBUSY
-#include <cstddef>       // for size_t, NULL
+#include <cstddef>
 
-#include <memory>         // for shared_ptr, make_shared
-#include <mutex>          // for mutex
-#include <type_traits>    // for is_base_of
-#include <vector>         // for vector
+#include <atomic>
 #include <condition_variable>
+#include <deque>
+#include <exception>
+#include <functional>
+#include <future>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <queue>
+#include <thread>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-#include <pthread.h>      // for pthread_cond_broadcast, pthread_cond_destroy
+#include "chronograms.hpp"
+#include "utils_cxx.hpp"
 
-#include "macros.h"       // for ASSERT_ALWAYS
-#include "utils_cxx.hpp"  // for call_dtor, NonCopyable
+class worker_thread;
+class thread_pool;
+class task_group;
 
-struct clonable_exception;
+class thread_task
+{
+  public:
+    std::function<void(worker_thread*)> func;
+    int id = 0;
+    double cost = 0.0; // costly tasks are scheduled first.
+    task_group * group = nullptr;
 
-/* C++11 already has classes for mutex and condition_variable */
-/* All the synchronization stuff could be moved to the implementation if
-   thread_pool used monitor as a dynamically allocated object. Tempting. */
+    bool is_terminal() const { return !func; }
 
-class monitor {
-protected:
-  std::mutex m;
-public:
-  struct my_unique_lock : public std::unique_lock<std::mutex> {
-      explicit my_unique_lock(monitor & m) : std::unique_lock<std::mutex>(m.m) {}
-  };
-  // void enter() {m.lock();}
-  // void leave() {m.unlock();}
-  static void signal(std::condition_variable &cond) {cond.notify_one();}
-  static void broadcast(std::condition_variable &cond){cond.notify_all();}
-  static void wait(std::condition_variable &cond, my_unique_lock & u) {cond.wait(u);}
-};
-
-class monitor_or_synchronous : public monitor {
-    bool sync = false;
-    public:
-    struct my_unique_lock : public std::unique_lock<std::mutex> {
-        explicit my_unique_lock(monitor_or_synchronous & m)
-            : std::unique_lock<std::mutex>(m.m, std::defer_lock_t())
-        {
-            if (!m.sync) lock();
-        }
-    };
-    explicit monitor_or_synchronous(bool sync = false)
-        : sync(sync)
+    thread_task() = default;
+    thread_task(std::function<void(worker_thread*)> f, int id, double cost, task_group * tg = nullptr)
+        : func(std::move(f))
+        , id(id)
+        , cost(cost)
+        , group(tg)
     {}
-    ATTRIBUTE_NODISCARD bool is_synchronous() const { return sync; }
-    // void enter() { if (!sync) monitor::enter();}
-    // void leave() { if (!sync) monitor::leave();}
-    void signal(std::condition_variable &cond) const { if (!sync) monitor::signal(cond); }
-    void broadcast(std::condition_variable &cond) const { if (!sync) monitor::broadcast(cond);}
-    void wait(std::condition_variable &cond, my_unique_lock & u) const {
-        if (sync)
-            ASSERT_ALWAYS(0);
-        else
-            cond.wait(u);
+    explicit thread_task(bool) {}
+
+    void operator()(worker_thread* w) const {
+        if (func) func(w);
+    }
+
+    bool operator<(thread_task const & y) const
+    {
+        return std::tie(cost, id) < std::tie(y.cost, y.id);
     }
 };
 
-/* Base for classes that hold parameters for worker functions */
-class task_parameters {
-  public:
-  virtual ~task_parameters() = default;
+class task_group : private NonCopyable {
+    friend class thread_pool;
+    mutable std::mutex mx;
+    std::condition_variable cv;
+
+    alignas(64) std::atomic<size_t> created_count{0};
+    alignas(64) std::atomic<size_t> finished_count{0};
+    alignas(64) std::atomic<size_t> joined_count{0};
+
+    std::function<void()> completion_cb;
+
+    void notify_joined() {
+        // 1. Mark task as finished
+        size_t const f = finished_count.fetch_add(1, std::memory_order_acq_rel) + 1;
+        size_t const c = created_count.load(std::memory_order_acquire);
+
+        // 2. If this is the last task, extract the callback
+        std::function<void()> cb;
+        if (f >= c) {
+            const std::scoped_lock lock(mx);
+            // Re-verify under lock in case new tasks were added
+            if (finished_count.load(std::memory_order_relaxed) >=
+                created_count.load(std::memory_order_relaxed))
+            {
+                cb = std::move(completion_cb);
+                completion_cb = nullptr;
+            }
+        }
+
+        // 3. Execute the callback completely lock-free
+        if (cb) {
+            cb();
+        }
+
+        // 4. Mark task as joined (and callback as completed)
+        size_t const j = joined_count.fetch_add(1, std::memory_order_release) + 1;
+        if (j >= created_count.load(std::memory_order_acquire)) {
+            // Wake up wait(). The lock ensures we don't miss a wakeup if wait()
+            // is just about to sleep.
+            const std::scoped_lock lock(mx);
+            cv.notify_all();
+        }
+    }
+
+public:
+    task_group() = default;
+
+    void wait() {
+        // std::condition_variable fundamentally requires a lock to wait safely.
+        // This is only held while blocking, never during task execution.
+        std::unique_lock lock(mx);
+        cv.wait(lock, [this]() {
+            return joined_count.load(std::memory_order_acquire) >=
+                   created_count.load(std::memory_order_acquire);
+        });
+    }
+
+    void on_complete(std::function<void()> cb) {
+        {
+            const std::scoped_lock lock(mx);
+            if (finished_count.load(std::memory_order_relaxed) >=
+                created_count.load(std::memory_order_relaxed))
+            {
+                // Group is already done. Fake a task to prevent wait()
+                // from returning, so that we can run the callback
+                // lock-free.
+                created_count.fetch_add(1, std::memory_order_relaxed);
+            } else {
+                completion_cb = std::move(cb);
+                return;
+            }
+        }
+
+        // Execute late callback exactly as if it were a worker task
+        cb();
+        finished_count.fetch_add(1, std::memory_order_acq_rel);
+        size_t const j = joined_count.fetch_add(1, std::memory_order_release) + 1;
+        if (j >= created_count.load(std::memory_order_acquire)) {
+            const std::scoped_lock lock(mx);
+            cv.notify_all();
+        }
+    }
+
+    size_t created() const {
+        return created_count.load(std::memory_order_relaxed);
+    }
+
+    size_t joined() const {
+        return joined_count.load(std::memory_order_relaxed);
+    }
 };
 
-/* Base for classes that hold results produced by worker functions */
-class task_result {
-  public:
-  virtual ~task_result() = default;
+class tasks_queue : private NonCopyable {
+public:
+    std::mutex mx;
+    std::condition_variable task_done;
+    tasks_queue() = default;
 };
 
-class thread_task;
-class tasks_queue;
-class results_queue;
-class exceptions_queue;
-class thread_pool;
-
+// Per-worker, per-queue local task container
+struct worker_queue {
+    alignas(64) std::mutex mx;
+    std::deque<thread_task> tasks;
+    std::atomic<size_t> count;  /* use this to provide lock-free info about emptiness */
+};
 
 class worker_thread {
-  friend class thread_pool;
-  thread_pool &pool;
-  pthread_t thread;
-  const size_t preferred_queue;
-public:
-  worker_thread(worker_thread const &) = delete;
-  worker_thread& operator=(worker_thread const &) = delete;
+    friend class thread_pool;
+    thread_pool &pool;
+    std::jthread thread;
+    const size_t preferred_queue;
+    std::vector<chronograms::bubble> chronogram;
 
-  // move is ok
-  worker_thread(worker_thread&&) = default;
-  // worker_thread& operator=(worker_thread&&) = default;
-  size_t rank() const;
-  size_t nthreads() const;
-  /* It doesn't seem that unholy to me to have a thread access the pool
-   * it originates from. It's possibly a good way to do continuations,
-   * for example.
-   */
-  thread_pool & get_pool() { return pool; }
-  worker_thread(thread_pool &, size_t, bool = true);
-  ~worker_thread();
-  bool is_synchronous() const;
+public:
+    auto trace(chronograms::bubble_info b) {
+        return chronograms::bubble_guard(chronogram, b);
+    }
+    static auto trace(worker_thread * wrk, chronograms::bubble_info b)
+    {
+        return wrk ? wrk->trace(b) : chronograms::bubble_guard::dummy();
+    }
+    int rank() const;
+    int nthreads() const;
+    thread_pool & get_pool() { return pool; }
+    worker_thread(thread_pool &, size_t, bool = true);
+    bool is_synchronous() const;
 };
 
-typedef task_result *(*task_function_t)(worker_thread * worker, task_parameters *, int id);
+template <typename F, typename... Args>
+concept is_task_callable = std::is_invocable_v<F, worker_thread*, Args...> || std::is_invocable_v<F, Args...>;
 
-class thread_pool : private monitor_or_synchronous, private NonCopyable {
-  friend class worker_thread;
-
-  std::vector<worker_thread> threads;
-  std::vector<tasks_queue> tasks;
-  std::vector<results_queue> results;
-  std::vector<exceptions_queue> exceptions;
-  std::vector<size_t> created;
-  std::vector<size_t> joined;
-
-  bool kill_threads; /* If true, hands out kill tasks once work queues are empty */
-  double & store_wait_time;
-
-  static void * thread_work_on_tasks_static(void *worker);
-  void thread_work_on_tasks(worker_thread &);
-  thread_task get_task(size_t& queue);
-  void add_result(size_t queue, task_result *result);
-  void add_exception(size_t queue, clonable_exception * e);
-  bool all_task_queues_empty() const;
+class thread_pool : private NonCopyable {
 public:
-  // bool is_synchronous() const { return monitor_or_synchronous::is_synchronous(); }
-  double cumulated_wait_time = 0;
-  std::mutex mm_cumulated_wait_time;
-
-  thread_pool(size_t _nr_threads, double & store_wait_time,
-          size_t nr_queues = 1, bool sync_thread_pool = false);
-  ~thread_pool();
-  task_result *get_result(size_t queue = 0, bool blocking = true);
-  void drain_queue(const size_t queue, void (*f)(task_result*) = NULL);
-  void drain_all_queues();
-  clonable_exception * get_exception(const size_t queue = 0);
-  template<typename T>
-      T * get_exception(const size_t queue = 0) {
-          return dynamic_cast<T*>(get_exception(queue));
-      }
-  template<typename T>
-      std::vector<T> get_exceptions(const size_t queue = 0) {
-          std::vector<T> res;
-          for(T * e ; (e = get_exception<T>(queue)) != NULL; ) {
-              res.push_back(*e);
-              delete e;
-          }
-          return res;
-      }
-
-  /* {{{ add_task is the simplest interface. It does not even specify who has
-   * ownership of the params object. Two common cases can be envisioned.
-   *  - either the caller retains ownership, in which case it obviously
-   *    has to join all threads before deletion.
-   *  - or ownership is transferred to the callee, in which case it is
-   *    obviously not shared: we have one params object per task spawned
-   *    (possibly at some cost), even if all params objects are distinct.
-   * 
-   * In the latter case, the id field is only of limited use.
-   */
-  void add_task(task_function_t func, task_parameters * params, const int id, const size_t queue = 0, double cost = 0.0);
-  /* }}} */
-
-  /* {{{ add_task_lambda.
-   *
-   * This adds a task to process exactly one lambda function. The lambda
-   * function is expected to take the worker thread as only argument.
-   * The lambda
-   * object is copied. As usual, any references held by the lambda at the
-   * time of capture must still be alive at the time of execution, or
-   * chaos ensues. This must be guaranteed by the caller.
-   *
-   * E.g. this is not safe:
-   *    {
-   *            int foo;
-   *            pool.add_task_lambda([&foo](worker_thread*) { frob(foo); });
-   *    }
-   */
-private:
-  template<typename T>
-      struct task_parameters_lambda : public task_parameters {
-          T f;
-          task_parameters_lambda(T const& f) : f(f) {}
-      };
-  template<typename T>
-      static
-      task_result * do_task_parameters_lambda(worker_thread * worker, task_parameters * _param, int id) {
-          auto clean_param = call_dtor([_param]() { delete _param; });
-          static_cast<task_parameters_lambda<T>*>(_param)->f(worker, id);
-          return new task_result;
-      }
-public:
-  template<typename T>
-      void add_task_lambda(T f, const int id, const size_t queue = 0, double cost = 0.0)
-      {
-          add_task(thread_pool::do_task_parameters_lambda<T>, new task_parameters_lambda<T>(f), id, queue, cost);
-      }
-  /* }}} */
-
-  /* {{{ add task_class.
-   *
-   * This creates a copy ff of the class object f of type T, and eventually
-   * calls ff(worker, id), deleting ff afterwards. As f itself is copied,
-   * only the caller has to care about its deletion.
-   *
-   * This interface is somewhat less useful than the next one, because
-   * there is only limited potential for using the id argument.
-   * Furthermore, it happily duplicates the argument descriptors.
-   */
-private:
-  template<typename T>
-      static task_result * call_class_operator(worker_thread * worker, task_parameters * _param, int id) {
-          auto clean_param = call_dtor([_param]() { delete _param; });
-          (*static_cast<T*>(_param))(worker, id);
-          return new task_result;
-      }
-public:
-  template<typename T>
-      void add_task_class(T const & f, const int id, const size_t queue = 0, double cost = 0.0)
-      {
-          static_assert(std::is_base_of_v<task_parameters, T>, "type must inherit from task_parameters");
-          add_task(thread_pool::call_class_operator<T>, new T(f), id, queue, cost);
-      }
-  /* }}} */
-
-#if 1
-  /* {{{ add_shared_task -- NOT SATISFACTORY. Do not use.
-   *
-   * This last interface is an attempt at being more useful. We would
-   * like to solve the ownership conflict that lurks in the design of
-   * add_task. Here we explicitly say that ownership of the T object is
-   * shared between the caller which creates it, and the (one or several)
-   * task(s) that are to use it. The caller does not have to join all
-   * threads before the object of type shared_ptr<T> goes out of scope,
-   * since the pool queue will still have enough referenced items to
-   * guarantee that the object stays alive.
-   *
-   * Here, proper use of the id field can lead to efficient data sharing,
-   * albeit at the expense of the shared_ptr management.
-   *
-   * Alas, since the thread_task objects only have raw pointers to the
-   * parameter object, there's not much we can do but create an extra
-   * level of indirection, which kinds of defeats the purpose...
-   *
-   * The next step toward making it more useful would be to convert
-   * thread_task to also embed shared_ptr's.
-   */
-
-  template<typename T>
-      struct shared_task : public std::shared_ptr<T>, public task_parameters {
-          using super = std::shared_ptr<T>;
-          shared_task(super c) : super(c) {}
-          T& operator*() { return *(super&)(*this); }
-          T const & operator*() const { return *(super const&)(*this); }
-      };
-  template<typename T, typename... Args>
-  static shared_task<T> make_shared_task(Args&&... args) { return shared_task<T>(std::make_shared<T>(args...)); }
+    static constexpr int QUEUE_GENERIC = 0;
+    static constexpr int QUEUE_ECM = 1;
+    static constexpr int QUEUE_MISC = 2;
+    static constexpr int NQUEUES = 3;
 
 private:
-  template<typename T>
-      static task_result * call_shared_task(worker_thread * worker, task_parameters * _param, int id) {
-          auto clean_param = call_dtor([_param]() { delete _param; });
-          auto * param = static_cast<thread_pool::shared_task<T>*>(_param);
-          (**param)(worker, id);
-          return new task_result;
-      }
+    friend class worker_thread;
+
+    bool sync_mode = false;
+    mutable std::mutex pool_mutex;
+
+    std::vector<worker_thread> threads;
+    std::vector<tasks_queue> tasks;
+
+    // Distributed per-worker, per-queue work-stealing deques
+    // worker_queues[worker_id][queue_id]
+    std::vector<std::vector<worker_queue>> worker_queues;
+
+    /* must be distinct from worker 0's chronogram list! */
+    std::vector<chronograms::bubble> leader_chronogram;
+    
+    std::vector<std::mutex> exceptions_mutex;
+    std::vector<std::queue<std::exception_ptr>> exceptions;
+
+    // Lock-free atomic counters aligned to 64 bytes
+    // Cacheline-aligned atomic counter to eliminate false sharing across CPU sockets
+    // note that in c++20, std::atomic<> is value-initialized.
+    struct alignas(64) padded_atomic : std::atomic<size_t> { };
+
+    std::vector<padded_atomic> created;
+    std::vector<padded_atomic> joined;
+
+    std::condition_variable work_cv;
+    std::atomic<size_t> nr_threads_waiting{0};
+    std::atomic<size_t> round_robin_counter{0};
+
+    bool kill_threads{false};
+    double & store_wait_time;
+
+    void thread_work_on_tasks(worker_thread &);
+    bool pop_local_or_steal(size_t worker_id, size_t preferred_queue, thread_task & task);
+    bool all_task_queues_empty() const;
+
+    void enqueue_task(std::function<void(worker_thread*)> task_fn, size_t queue, double cost, task_group * tg = nullptr);
+
 public:
-  template<typename T>
-      void add_shared_task(shared_task<T> const & f, const int id, const size_t queue = 0, double cost = 0.0)
-      {
-          add_task(thread_pool::call_shared_task<T>, new shared_task<T>(f), id, queue, cost);
-      }
-  /* }}} */
-#endif
+    auto trace_on_leader(chronograms::bubble_info b)
+    {
+        return chronograms::bubble_guard(leader_chronogram, b);
+    }
+    /* use this when you want to record on a _pointer_, without knowing
+     * if the pointer can be dereferenced.
+     */
+    static auto trace_on_leader(thread_pool * pool, chronograms::bubble_info b)
+    {
+        return pool ? pool->trace_on_leader(b) : chronograms::bubble_guard::dummy();
+    }
+    void collect_traces(std::map<size_t, std::vector<chronograms::bubble>> & destination, size_t thread_index_offset);
+
+    bool is_synchronous() const { return sync_mode; }
+    double cumulated_wait_time = 0;
+    std::mutex mm_cumulated_wait_time;
+
+    size_t size() const { return threads.size(); }
+
+    thread_pool(size_t _nr_threads, double & store_wait_time,
+                size_t nr_queues = 1, bool sync_thread_pool = false);
+    ~thread_pool();
+
+    void drain_queue(size_t queue, bool blocking = true);
+    void drain_all_queues();
+
+    template<typename T>
+    std::vector<T> get_exceptions(size_t const queue = 0) {
+        const std::scoped_lock lock(exceptions_mutex[queue]);
+        std::vector<T> res;
+        std::queue<std::exception_ptr> remaining;
+
+        while (!exceptions[queue].empty()) {
+            auto ex_ptr = std::move(exceptions[queue].front());
+            exceptions[queue].pop();
+
+            try {
+                if (ex_ptr)
+                    std::rethrow_exception(ex_ptr);
+            } catch (const T& e) {
+                res.push_back(e);
+            } catch (...) {
+                remaining.push(std::move(ex_ptr));
+            }
+        }
+
+        exceptions[queue] = std::move(remaining);
+        return res;
+    }
+
+    /* {{{ Variadic add_task overloads */
+    template <typename F, typename... Args>
+    requires is_task_callable<F, Args...>
+    void add_task(task_group & tg, size_t queue, double cost, F&& f, Args&&... args)
+    {
+        auto task_fn = [f = std::forward<F>(f), ...args = std::forward<Args>(args)](worker_thread* w) mutable {
+            if constexpr (std::is_invocable_v<F, worker_thread*, Args...>) {
+                std::invoke(f, w, std::forward<Args>(args)...);
+            } else {
+                std::invoke(f, std::forward<Args>(args)...);
+            }
+        };
+
+        enqueue_task(std::move(task_fn), queue, cost, &tg);
+    }
+
+    template <typename F, typename... Args>
+    requires is_task_callable<F, Args...>
+    void add_task(task_group & tg, size_t queue, F&& f, Args&&... args)
+    {
+        add_task(tg, queue, 0.0, std::forward<F>(f), std::forward<Args>(args)...);
+    }
+
+    template <typename F, typename... Args>
+    requires is_task_callable<F, Args...>
+    void add_task(task_group & tg, F&& f, Args&&... args)
+    {
+        add_task(tg, QUEUE_GENERIC, 0.0, std::forward<F>(f), std::forward<Args>(args)...);
+    }
+
+    template <typename F, typename... Args>
+    requires is_task_callable<F, Args...>
+    void add_task(size_t queue, double cost, F&& f, Args&&... args)
+    {
+        auto task_fn = [f = std::forward<F>(f), ...args = std::forward<Args>(args)](worker_thread* w) mutable {
+            if constexpr (std::is_invocable_v<F, worker_thread*, Args...>) {
+                std::invoke(f, w, std::forward<Args>(args)...);
+            } else {
+                std::invoke(f, std::forward<Args>(args)...);
+            }
+        };
+
+        enqueue_task(std::move(task_fn), queue, cost, nullptr);
+    }
+
+    template <typename F, typename... Args>
+    requires is_task_callable<F, Args...>
+    void add_task(size_t queue, F&& f, Args&&... args)
+    {
+        add_task(queue, 0.0, std::forward<F>(f), std::forward<Args>(args)...);
+    }
+
+    template <typename F, typename... Args>
+    requires is_task_callable<F, Args...>
+    void add_task(F&& f, Args&&... args)
+    {
+        add_task(QUEUE_GENERIC, 0.0, std::forward<F>(f), std::forward<Args>(args)...);
+    }
+    /* }}} */
+
+    /* {{{ add_future_task for value-returning producer tasks */
+    template <typename F, typename... Args>
+    requires is_task_callable<F, Args...>
+    auto add_future_task(size_t queue, double cost, F&& f, Args&&... args)
+    {
+        if constexpr (std::is_invocable_v<F, worker_thread*, Args...>) {
+            using R = std::invoke_result_t<F, worker_thread*, Args...>;
+            auto pkg = std::make_shared<std::packaged_task<R(worker_thread*, Args...)>>(
+                std::forward<F>(f)
+            );
+            std::future<R> fut = pkg->get_future();
+            add_task(queue, cost, [pkg](worker_thread* w, auto&&... a) {
+                (*pkg)(w, std::forward<decltype(a)>(a)...);
+            }, std::forward<Args>(args)...);
+            return fut;
+        } else {
+            using R = std::invoke_result_t<F, Args...>;
+            auto pkg = std::make_shared<std::packaged_task<R(Args...)>>(
+                std::forward<F>(f)
+            );
+            std::future<R> fut = pkg->get_future();
+            add_task(queue, cost, [pkg](auto&&... a) {
+                (*pkg)(std::forward<decltype(a)>(a)...);
+            }, std::forward<Args>(args)...);
+            return fut;
+        }
+    }
+
+    template <typename F, typename... Args>
+    requires is_task_callable<F, Args...>
+    auto add_future_task(F&& f, Args&&... args)
+    {
+        return add_future_task(QUEUE_GENERIC, 0.0, std::forward<F>(f), std::forward<Args>(args)...);
+    }
+    /* }}} */
 };
 
 #endif  /* CADO_THREADPOOL_HPP */

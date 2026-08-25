@@ -47,14 +47,14 @@ using namespace std;
 
 void lingen_tune_cutoffs_decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "B",        "minimum end of bench span window");
-    param_list_decl_usage(pl, "catchsig", "enable intercepting ^C");
+    pl.declare_usage("B",        "minimum end of bench span window");
+    pl.declare_usage("catchsig", "enable intercepting ^C");
 }
 
 void lingen_tune_cutoffs_lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "B");
-    param_list_lookup_string(pl, "catchsig");
+    pl.lookup("B");
+    pl.lookup("catchsig");
 }
 
 /* interface to C programs for list of cutoffs we compute *//*{{{*/
@@ -1268,8 +1268,8 @@ void lingen_tune_cutoffs(bw_dimensions<is_binary> & d, MPI_Comm comm MAYBE_UNUSE
     setvbuf(stdout, nullptr, _IONBF, 0);
     setvbuf(stderr, nullptr, _IONBF, 0);
 
-    param_list_parse(pl, "B", bench_atleast_uptothis);
-    param_list_parse(pl, "catchsig", catchsig);
+    pl.parse("B", bench_atleast_uptothis);
+    pl.parse("catchsig", catchsig);
 
     typename matpoly<is_binary>::arith_hard * ab = & d.ab;
     unsigned int const m = d.m;

@@ -27,7 +27,11 @@ int main(int argc, char const * argv[])
 
     for( ; argc ; ) {
         if (argc >= 2 && strcmp(argv[0], "-o") == 0) {
+#if HWLOC_API_VERSION >= 0x020000
             hwloc_topology_export_xml(top, argv[1], 0);
+#else
+            hwloc_topology_export_xml(top, argv[1]);
+#endif
             argv++, argc--;
             argv++, argc--;
         } else if (argc >= 1 && strcmp(argv[0], "--ncores") == 0) {

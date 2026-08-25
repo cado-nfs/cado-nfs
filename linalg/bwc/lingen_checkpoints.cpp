@@ -50,28 +50,28 @@ int lingen_checkpoint<is_binary>::save_gathered = 0;
 template<bool is_binary>
 void lingen_checkpoint<is_binary>::decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "checkpoint-directory",
+    pl.declare_usage("checkpoint-directory",
             "where to save checkpoints");
-    param_list_decl_usage(pl, "checkpoint-threshold",
+    pl.declare_usage("checkpoint-threshold",
             "threshold for saving checkpoints");
-    param_list_decl_usage(pl, "lingen_checkpoint_save_gathered",
+    pl.declare_usage("lingen_checkpoint_save_gathered",
             "save global checkpoints files, instead of per-job files");
 }
 
 template<bool is_binary>
 void lingen_checkpoint<is_binary>::lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "checkpoint-directory");
-    param_list_lookup_string(pl, "checkpoint-threshold");
-    param_list_lookup_string(pl, "lingen_checkpoint_save_gathered");
+    pl.lookup("checkpoint-directory");
+    pl.lookup("checkpoint-threshold");
+    pl.lookup("lingen_checkpoint_save_gathered");
 }
 
 template<bool is_binary>
 void lingen_checkpoint<is_binary>::interpret_parameters(cxx_param_list & pl)
 {
-    param_list_parse(pl, "checkpoint-directory", default_directory);
-    param_list_parse(pl, "checkpoint-threshold", threshold);
-    param_list_parse(pl, "lingen_checkpoint_save_gathered", save_gathered);
+    pl.parse("checkpoint-directory", default_directory);
+    pl.parse("checkpoint-threshold", threshold);
+    pl.parse("lingen_checkpoint_save_gathered", save_gathered);
 
 
     int rank;

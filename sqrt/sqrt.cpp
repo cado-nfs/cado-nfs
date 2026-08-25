@@ -1995,9 +1995,9 @@ int main(int argc, char const *argv[])
     sqrt_modes::configure_switches(pl);
     task_prepare_dependencies::configure_switches(pl);
 
-    param_list_configure_switch(pl, "-v", &verbose);
+    pl.configure_switch_old("-v", &verbose);
 
-    param_list_process_command_line(pl, &argc, &argv, false);
+    pl.process_command_line(argc, argv, false);
 
     cado::filter_io_details::interpret_parameters(pl);
     task_generic_context T(pl);
@@ -2005,7 +2005,7 @@ int main(int argc, char const *argv[])
     if (T.mode.opt_ab)
         task_prepare_dependencies::lookup_parameters(pl);
 
-    if (param_list_warn_unused(pl))
+    if (pl.warn_unused())
         return EXIT_FAILURE;
 
     const double cpu0 = seconds ();

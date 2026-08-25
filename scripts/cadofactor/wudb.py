@@ -29,7 +29,7 @@ import abc
 from datetime import datetime
 import time
 
-from cadofactor.workunit import Workunit
+from cadofactor.workunit import Workunit, WuStatus
 
 # we need the cadologger import because it adds the TRANSACTION log
 # level. It's ugly
@@ -47,26 +47,6 @@ from cadofactor.database.base import logger
 
 DEBUG = 0
 PRINTED_CANCELLED_WARNING = False
-
-
-# Dummy class for defining "constants" with reverse lookup
-STATUS_NAMES = ["AVAILABLE", "ASSIGNED", "NEED_RESUBMIT", "RECEIVED_OK",
-                "RECEIVED_ERROR", "VERIFIED_OK",
-                "VERIFIED_ERROR", "CANCELLED"]
-STATUS_VALUES = range(len(STATUS_NAMES))
-WuStatusBase = collections.namedtuple("WuStatusBase", STATUS_NAMES)
-
-
-class WuStatusClass(WuStatusBase):
-    def check(self, status):
-        assert status in self
-
-    def get_name(self, status):
-        self.check(status)
-        return STATUS_NAMES[status]
-
-
-WuStatus = WuStatusClass(*STATUS_VALUES)
 
 
 def check_tablename(name):

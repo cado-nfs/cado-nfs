@@ -37,20 +37,20 @@ unsigned int lingen_io_matpoly<is_binary>::block_size = 1 << 20;
 template<bool is_binary>
 void lingen_io_matpoly<is_binary>::decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "io-block-size",
+    pl.declare_usage("io-block-size",
             "chunk size for reading the input or writing the output");
 }
 
 template<bool is_binary>
 void lingen_io_matpoly<is_binary>::lookup_parameters(cxx_param_list & pl)
 {
-    param_list_lookup_string(pl, "io-block-size");
+    pl.lookup("io-block-size");
 }
 
 template<bool is_binary>
 void lingen_io_matpoly<is_binary>::interpret_parameters(cxx_param_list & pl)
 {
-    param_list_parse_uint(pl, "io-block-size", &block_size);
+    pl.parse("io-block-size", block_size);
 }
 
 /* {{{ matpoly_write

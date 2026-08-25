@@ -22,7 +22,7 @@ struct mf_bal_args {
 void mf_bal(struct mf_bal_args * mba);
 void mf_bal_adjust_from_option_string(struct mf_bal_args * mba, const char * opts);
 void mf_bal_decl_usage(cxx_param_list& pl);
-void mf_bal_configure_switches(cxx_param_list & pl, struct mf_bal_args * mba);
+void mf_bal_configure_switches(cxx_param_list & pl);
 void mf_bal_parse_cmdline(struct mf_bal_args * mba, cxx_param_list & pl, int * p_argc, char const *** p_argv);
 void mf_bal_interpret_parameters(struct mf_bal_args * mba, cxx_param_list & pl);
 

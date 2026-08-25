@@ -34,11 +34,11 @@ using namespace fmt::literals;
 
 struct check_data {
     matmul_top_data & mmt;
-    parallelizing_info_ptr pi;
+    parallelizing_info & pi;
     int nchecks;
     arith_generic * A;
     std::unique_ptr<arith_generic> Ac;
-    pi_datatype_ptr Ac_pi;
+    pi_datatype * Ac_pi;
     std::unique_ptr<arith_cross_generic> AxAc;
     mmt_vec check_vector;
     arith_generic::elt * Tdata = nullptr;
@@ -47,7 +47,7 @@ struct check_data {
     int tcan_print = 0;
 
     bool leader() const {
-        return pi->m->trank == 0 && pi->m->jrank == 0;
+        return pi.m.trank == 0 && pi.m.jrank == 0;
     }
 
     check_data(matmul_top_data & mmt, arith_generic * A)
@@ -56,11 +56,11 @@ struct check_data {
         , nchecks(mpz_cmp_ui(bw->p, 2) > 0 ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2)
         , A(A)
         , Ac(arith_generic::instance(bw->p, nchecks))
-        , Ac_pi(pi_alloc_arith_datatype(pi, Ac.get()))
+        , Ac_pi(pi.alloc_arith_datatype(Ac.get()))
         , AxAc(arith_cross_generic::instance(A, Ac.get()))
         , check_vector(mmt, Ac.get(), Ac_pi,
                   bw->dir, THREAD_SHARED_VECTOR, mmt.n[bw->dir])
-        , tcan_print(bw->can_print && pi->m->trank == 0)
+        , tcan_print(bw->can_print && pi.m.trank == 0)
       {
       }
 
@@ -74,24 +74,24 @@ struct check_data {
         if (!ok) {
             if (tcan_print)
                 fmt::print(stderr, "check file {} not found", Cv_filename_pattern);
-            pi_abort(EXIT_FAILURE, pi->m);
+            pi.m.abort(EXIT_FAILURE);
         }
         std::string const Ct_filename = fmt::format("Ct0-{}.0-{}", nchecks, bw->m);
         Tdata = Ac->alloc(bw->m, ALIGNMENT_ON_ALL_BWC_VECTORS);
-        if (pi->m->trank == 0 && pi->m->jrank == 0) {
+        if (pi.m.trank == 0 && pi.m.jrank == 0) {
             auto Tfile = fopen_helper(Ct_filename, "rb");
             size_t const rc = fread(Tdata, Ac->vec_elt_stride(bw->m), 1, Tfile.get());
             ASSERT_ALWAYS(rc == 1);
         }
         if (tcan_print) fmt::print("loaded {}\n", Ct_filename);
-        pi_bcast(Tdata, bw->m, Ac_pi, 0, 0, pi->m);
+        pi.m.bcast(Tdata, bw->m, Ac_pi, 0, 0);
 
         ahead = A->alloc(nchecks, ALIGNMENT_ON_ALL_BWC_VECTORS);
     }
     ~check_data() {
         A->free(ahead);
         Ac->free(Tdata);
-        pi_free_arith_datatype(pi, Ac_pi);
+        pi.free_arith_datatype(Ac_pi);
     }
 
     void plan_ahead(mmt_vec const & y) {
@@ -140,23 +140,22 @@ struct check_data {
             }
             A->free(tmp1);
 
-        pi_allreduce(nullptr, ahead, nchecks, mmt.pitype, BWC_PI_SUM, pi->m);
+        pi.m.allreduce(nullptr, ahead, nchecks, mmt.pitype, BWC_PI_SUM);
         return A->vec_is_zero(ahead, nchecks);
     }
 };
 
-static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * krylov_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
-    int fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
-    fake = fake || param_list_lookup_string(pl, "static_random_matrix") != nullptr;
+    int const fake = pl.has("random_matrix") || pl.has("static_random_matrix");
     if (fake) bw->skip_online_checks = 1;
-    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi.m.trank == 0;
     struct timing_data timing[1];
 
     int ys[2] = { bw->ys[0], bw->ys[1], };
-    if (pi->interleaved) {
+    if (pi.interleaved) {
         ASSERT_ALWAYS((bw->ys[1]-bw->ys[0]) % 2 == 0);
-        ys[0] = bw->ys[0] + pi->interleaved->idx * (bw->ys[1]-bw->ys[0])/2;
+        ys[0] = bw->ys[0] + pi.interleaved->idx * (bw->ys[1]-bw->ys[0])/2;
         ys[1] = ys[0] + (bw->ys[1]-bw->ys[0])/2;
     }
 
@@ -171,7 +170,7 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
 
     unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
     
     std::vector<uint32_t> gxvecs;
     unsigned int nx = 0;
@@ -184,18 +183,18 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
 
     /* let's be generous with interleaving protection. I don't want to be
      * bothered, really */
-    pi_interleaving_flip(pi);
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
+    pi.interleaving_flip();
     matmul_top_comm_bench(mmt, bw->dir);
-    pi_interleaving_flip(pi);
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
+    pi.interleaving_flip();
 
     /* I have absolutely no idea why, but the two --apparently useless--
      * serializing calls around the next block seem to have a beneficial
      * impact on the SEGv's we see every now and then with --mca
      * mpi_leave_pinned 1
      */
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
     if (!fake) {
         int const ok = mmt_vec_load(ymy[0], bwc_V_file::pattern(bw->start), unpadded, ys[0]);
         ASSERT_ALWAYS(ok);
@@ -211,11 +210,11 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
          * identical matrices ! Hence, we'd rather not bother with
          * generating something consistent.
          */
-        if (pi->m->trank == 0 && !bw->seed) {
+        if (pi.m->trank == 0 && !bw->seed) {
             bw->seed = time(nullptr);
-            MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m->pals);
+            MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi.m->pals);
         }
-        serialize_threads(pi->m);
+        pi.m.serialize_threads(__FILE__, __LINE__);
         gmp_randseed_ui(rstate, bw->seed);
         if (tcan_print) {
             printf("// Random generator seeded with %d\n", bw->seed);
@@ -224,20 +223,20 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
         mmt_vec_set_random_through_file(mmt, nullptr, v_name, bw->dir, bw->start, unpadded, rstate);
         if (tcan_print) { printf("done\n"); }
 #else
-        unsigned long const g = pi->m->jrank * pi->m->ncores + pi->m->trank;
+        unsigned long const g = pi.m.jrank * pi.m.ncores + pi.m.trank;
         gmp_randseed_ui(rstate, bw->seed + g);
         mmt_vec_set_random_inconsistent(ymy[0], rstate);
         mmt_vec_truncate(mmt, ymy[0]);
 #endif
     }
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
 
-    serialize_threads(pi->m);
-    if (pi->m->trank == 0) {
+    pi.m.serialize_threads(__FILE__, __LINE__);
+    if (pi.m.trank == 0) {
         /* the bw object is global ! */
         bw_set_length_and_interval_krylov(bw, mmt.n0);
     }
-    serialize_threads(pi->m);
+    pi.m.serialize_threads(__FILE__, __LINE__);
     if (tcan_print) {
         fmt::print("Target iteration is {}\n", bw->end);
     }
@@ -259,9 +258,9 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
    
 #if 0
     /* FIXME -- that's temporary ! only for debugging */
-    pi_log_init(pi->m);
-    pi_log_init(pi->wr[0]);
-    pi_log_init(pi->wr[1]);
+    pi.m.log_init();
+    pi.wr[0].log_init();
+    pi.wr[1].log_init();
 #endif
 
     timing_init(timing, 4 * mmt.matrices.size(), bw->start, bw->end);
@@ -275,8 +274,8 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
         timing_set_timer_name(timing, 4*i+3, "comm-wait%zu", i);
     }
 
-    pi_interleaving_flip(pi);
-    pi_interleaving_flip(pi);
+    pi.interleaving_flip();
+    pi.interleaving_flip();
 
     for(int s = bw->start ; s < bw->end ; s += bw->interval ) {
 
@@ -287,13 +286,13 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
          * MPI calls (well, it's *not* free of MPI calls, to start
          * with...).
          */
-        pi_interleaving_flip(pi);
-        pi_interleaving_flip(pi);
+        pi.interleaving_flip();
+        pi.interleaving_flip();
         mmt_vec_twist(mmt, ymy[0]);
 
         A->vec_set_zero(xymats, bw->m*bw->interval);
-        serialize(pi->m);
-        pi_interleaving_flip(pi);
+        pi.m.serialize(__FILE__, __LINE__);
+        pi.interleaving_flip();
         for(int i = 0 ; i < bw->interval ; i++) {
             /* Compute the product by x */
             x_dotprod(A->vec_subvec(xymats, i * bw->m),
@@ -303,11 +302,11 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
 
             timing_check(pi, timing, s+i+1, tcan_print);
         }
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
 
         /* See remark above. */
-        pi_interleaving_flip(pi);
-        pi_interleaving_flip(pi);
+        pi.interleaving_flip();
+        pi.interleaving_flip();
 
         if (C && !C->verify(ymy[0], gxvecs, nx)) {
             fmt::print("Failed check at iteration {}\n",
@@ -319,11 +318,11 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
         mmt_vec_untwist(mmt, ymy[0]);
 
         /* Now (and only now) collect the xy matrices */
-        pi_allreduce(nullptr, xymats,
+        pi.m.allreduce(nullptr, xymats,
                 bw->m * bw->interval,
-                mmt.pitype, BWC_PI_SUM, pi->m);
+                mmt.pitype, BWC_PI_SUM);
 
-        if (pi->m->trank == 0 && pi->m->jrank == 0 && !fake) {
+        if (pi.m.trank == 0 && pi.m.jrank == 0 && !fake) {
             std::string const tmp = fmt::format("A{}-{}.{}-{}", ys[0], ys[1], s, s+bw->interval);
             std::string const tmptmp = tmp + ".tmp";
             FILE * f = fopen(tmptmp.c_str(), "wb");
@@ -347,11 +346,11 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
             mmt_vec_save(ymy[0], bwc_V_file::pattern(s + bw->interval), unpadded, ys[0]);
         }
 
-        if (pi->m->trank == 0 && pi->m->jrank == 0) {
+        if (pi.m.trank == 0 && pi.m.jrank == 0) {
             keep_rolling_checkpoints(fmt::format("V{}-{}", ys[0], ys[1]), s + bw->interval);
         }
 
-        serialize(pi->m);
+        pi.m.serialize(__FILE__, __LINE__);
 
         // reached s + bw->interval. Count our time on cpu, and compute the sum.
         timing_disp_collective_oneline(pi, timing, s + bw->interval, tcan_print, "krylov");
@@ -360,19 +359,19 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
     timing_final_tally(pi, timing, tcan_print, "krylov");
 
 #if 0
-    pi_log_clear(pi->m);
-    pi_log_clear(pi->wr[0]);
-    pi_log_clear(pi->wr[1]);
+    pi.m.log_clear();
+    pi.wr[0].log_clear();
+    pi.wr[1].log_clear();
 #endif
 
     if (tcan_print)
         fmt::print("Done krylov.\n");
-    serialize(pi->m);
+    pi.m.serialize(__FILE__, __LINE__);
 
     A->free(xymats);
 
     int want_full_report = 0;
-    param_list_parse_int(pl, "full_report", &want_full_report);
+    pl.parse("full_report", want_full_report);
     matmul_top_report(mmt, 1.0, want_full_report);
 
     return nullptr;
@@ -385,34 +384,34 @@ int main(int argc, char const * argv[])
 
     bw_common_init(bw, &argc, &argv);
 
-    parallelizing_info_init();
+    parallelizing_info::init_attribute_things();
 
     bw_common_decl_usage(pl);
-    parallelizing_info_decl_usage(pl);
+    parallelizing_info::declare_usage(pl);
     matmul_top_decl_usage(pl);
     /* declare local parameters and switches: none here (so far). */
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
 
     bw_common_interpret_parameters(bw, pl);
-    parallelizing_info_lookup_parameters(pl);
+    parallelizing_info::lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters */
     if (bw->ys[0] < 0) { fmt::print(stderr, "no ys value set\n"); exit(1); }
 
-    ASSERT_ALWAYS(param_list_lookup_string(pl, "ys"));
-    ASSERT_ALWAYS(!param_list_lookup_string(pl, "solutions"));
+    ASSERT_ALWAYS(pl.has("ys"));
+    ASSERT_ALWAYS(!pl.has("solutions"));
 
-    if (param_list_warn_unused(pl)) {
+    if (pl.warn_unused()) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
+        if (!rank) pl.print_usage(stderr);
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     pi_go(krylov_prog, pl, 0);
 
-    parallelizing_info_finish();
+    parallelizing_info::clear_attribute_things();
 
     bw_common_clear(bw);
 
