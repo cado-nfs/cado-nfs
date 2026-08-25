@@ -117,26 +117,15 @@ $build_tree/misc/explain_indexed_relation -renumber $wdir/$name.renumber-dl.gz -
 
 ### redo the `purge` / `merge-dl` / `replay-dl` steps
 
-There's a stupid catch, which is that we must tell the purge program
-ahead of time what is the size of the renumber table. This limitation
-shouldn't exist, really, but for the time being we have to work around
-it. Any program that reads the renumber table (purge itself doesn't!) can
-get this information easily.
-
 Note that for `merge-dl` and `replay-dl`, the dl version is necessary
 because it's the one that keeps correct track of the exponents.
 
 ```
-nideals=$($build_tree/misc/explain_indexed_relation -renumber $wdir/$name.renumber-dl.gz -poly $wdir/$name.poly -dl < /dev/null | perl -ne '/INFO.*size = (\d+)/ && print "$1\n";')
-
 nrels_nodup=$(zcat $wdir/$name.dup1/0/$name.dup1.0000.gz | wc -l)
 nfreerels=$(zcat $wdir/$name.freerel-dl.gz | wc -l)
 nrels_input=$((nrels_nodup+nfreerels))
 
-min_index=$((nideals/40))
-if [ $min_index -lt 500 ] ; then min_index=500; fi
-
-$build_tree/filter/purge -out $wdir/$name.purged.gz -nrels $nrels_input -keep 160 -col-min-index $min_index -col-max-index $nideals -t 8 -required_excess 0.0 $wdir/$name.dup1/0/$name.dup1.0000.gz $wdir/$name.freerel-dl.gz
+$build_tree/filter/purge -out $wdir/$name.purged.gz -nrels $nrels_input -keep 160 -t 8 -required_excess 0.0 $wdir/$name.dup1/0/$name.dup1.0000.gz $wdir/$name.freerel-dl.gz
 
 $build_tree/filter/merge-dl -mat $wdir/$name.purged.gz -out $wdir/$name.history.gz -target_density 170.0 -t 8
 

@@ -36,8 +36,9 @@
  *   a column of the matrix.
  *
  * This program works in two passes over the relation files:
- * - the first pass loads in memory only indices of columns >= col_min_index
- *   and keeps a count of the weight of each column in column_weights.
+ * - the first pass loads in memory only indices of columns whose weight is less
+ *   than purge_matrix::OVERWEIGHT and keeps a count of the weight of each
+ *   column in column_weights.
  *   Then, a first step of singleton removal is performed followed by 'nsteps'
  *   steps of singleton removal and clique removal, in order to obtained the
  *   final excess 'keep'.
@@ -47,8 +48,9 @@
  * This program uses the purge_matrix structure, where most of the stuff
  * happens.
  *
- * M.rows[i] is the list of indices of columns (above col_min_index) of
- * row i, terminated by a -1 sentinel.
+ * M.rows[i] is the list of indices of columns (with weight less than
+ * purge_matrix::OVERWEIGHT) of row i, terminated by a sentinel
+ * purge_matrix::END_OF_ROW.
  *
  * M.column_weights[h] is the weight of the column h in current rows
  * (saturates at the max value of weight_t)
@@ -112,14 +114,6 @@ struct purge_output_specification { /* {{{ */
 /* }}} */
 struct purge_process : purge_output_specification {
         /* {{{ */
-    parameter_with_default<
-        size_t, "col-min-index",
-        "only take into account columns with indices >= col-min-index", "0">
-        col_min_index;
-    parameter_with_default<
-        size_t, "col-max-index",
-        "only take into account columns with indices < col-max-index", "0">
-        col_max_index;
     parameter_with_default<int64_t, "keep", "wanted excess at the end of purge",
                            CADO_STRINGIZE(DEFAULT_FILTER_EXCESS)>
         keep;
@@ -145,8 +139,6 @@ struct purge_process : purge_output_specification {
     static void configure(cxx_param_list & pl) /* {{{ */
     {
         purge_output_specification::configure(pl);
-        decltype(col_min_index)::configure(pl);
-        decltype(col_max_index)::configure(pl);
         decltype(keep)::configure(pl);
         decltype(nsteps)::configure(pl);
         decltype(required_excess)::configure(pl);
@@ -156,24 +148,14 @@ struct purge_process : purge_output_specification {
     /* }}} */
     explicit purge_process(cxx_param_list & pl) /* {{{ */
         : purge_output_specification(pl)
-        , col_min_index(pl)
-        , col_max_index(pl)
         , keep(pl)
         , nsteps(pl)
         , required_excess(pl)
         , nthreads(pl)
         , verbose(pl)
     {
-        if (col_max_index == 0)
-            col_max_index() = std::numeric_limits<index_t>::max();
         if (nthreads == 0)
             pl.fail("cannot have nthreads == 0");
-        if (col_min_index >= col_max_index)
-            pl.fail("cannot have col-min-index >= col-max-index\n");
-        /* If col_max_index > 2^32, then we need index_t to be 64-bit */
-        if (col_max_index > std::numeric_limits<index_t>::max())
-            pl.fail("Error, -col-max-index is too large for a 32-bit "
-                    "program\nSee #define SIZEOF_INDEX in typedefs.h\n");
 
         print_information();
     }
@@ -185,8 +167,6 @@ struct purge_process : purge_output_specification {
         purge_matrix::print_clique_removal_weight_function();
 
         fmt::print("# INFO: number of rows: automatic\n");
-        fmt::print("# INFO: maximum possible index of a column: {}\n",
-                   col_max_index());
         fmt::print("# INFO: number of threads: {}\n", nthreads());
         fmt::print("# INFO: number of clique removal steps: ");
         if (nsteps < 0)
@@ -210,8 +190,8 @@ struct purge_process : purge_output_specification {
     void pass1(filelist const & input) /* {{{ */
     {
         fmt::print("\n"
-                   "Pass 1, reading and storing columns with index h >= {}\n",
-                   col_min_index());
+                   "Pass 1, reading and storing columns with weight < {}\n",
+                   purge_matrix::OVERWEIGHT);
 
         using relation_type = cado::relation_building_blocks::primes_block<
             prime_type_for_indexed_relations,
@@ -219,14 +199,19 @@ struct purge_process : purge_output_specification {
 
         filter_rels<relation_type>(input.create_file_list(), nullptr, nullptr,
                 [&](relation_type & rel) {
-                    M.new_row(rel.num, col_min_index, col_max_index, rel.primes);
+                    M.new_row(rel.num, rel.primes);
         });
+
+        M.remove_overweight_columns_from_rows();
 
 #ifdef TRACE_J
         printf("TRACE: weight of ideal 0x%x is %u\n", TRACE_J,
                M.column_weights[TRACE_J]);
 #endif
 
+        fmt::print("# {} columns were ignored because they have weight >= {}\n",
+                std::ranges::count(M.column_weights, purge_matrix::OVERWEIGHT),
+                purge_matrix::OVERWEIGHT);
         fmt::print("# MEMORY: Allocated matrix: {}\n",
                    size_disp(M.get_allocated_bytes()));
 

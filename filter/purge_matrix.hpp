@@ -52,41 +52,52 @@ struct purge_matrix : simple_minded_chunk_allocator<index_t> {
      * remaining_rows increases by one
      * remaining_columns increases if needed.
      *
-     * the matrix is reallocated if needed, with lock protection.
+     * This method is **not** thread-safe.
      */
     template <container_with_h C>
-    void new_row(size_t i, size_t col0, size_t col1, C const & primes)
+    void new_row(size_t i, C const & primes)
     {
+        size_t newcols = 0;
         size_t active_weight = 0;
-        for (auto & c: primes)
-            active_weight += (c.h >= col0 && c.h < col1);
+        for (auto & c: primes) {
+            auto h = c.h;
+            if (h >= column_weights.size()) {
+                column_weights.resize(h+1, 0);
+            }
+            auto & w = column_weights[h];
+            newcols += (w == 0);
+            w += (w < OVERWEIGHT);
+            active_weight += (w < OVERWEIGHT);
+        }
 
         auto * p = alloc(active_weight + 1);
         p[active_weight] = END_OF_ROW;
         auto * q = p;
-        size_t newcols = 0;
         for (auto & c: primes) {
-            auto h = c.h;
-            if (h >= column_weights.size()) {
-                std::scoped_lock const dummy(m);
-                const size_t z = column_weights.size();
-                if (h >= z)
-                    column_weights.insert(column_weights.end(), h + 1 - z, 0);
-            }
-            auto & w = column_weights[h];
-            if (w == 0)
-                newcols++;
-            if (w < OVERWEIGHT)
-                w++;
-            if (h >= col0 && h < col1)
-                *q++ = h;
+            if (column_weights[c.h] < OVERWEIGHT)
+                *q++ = c.h;
         }
-        std::scoped_lock const dummy(m);
         remaining_rows++;
         remaining_columns += newcols;
         if (i >= rows.size())
-            rows.insert(rows.end(), i + 1 - rows.size(), nullptr);
+            rows.resize(i+1, nullptr);
         rows[i] = p;
+    }
+
+    /* Remove OVERWEIGHT columns from rows where they could have been written
+     * before being marked as OVERWEIGHT. It does not reduce memory usage
+     * (no memory is freed), but it is needed to be coherent (no overweight
+     * columns should appear in a row).
+     */
+    void remove_overweight_columns_from_rows()
+    {
+      for (auto & row: rows) {
+          auto * q = row;
+          for (index_t *p = row; *p != END_OF_ROW; ++p)
+              if (column_weights[*p] < OVERWEIGHT)
+                  *q++ = *p;
+          *q = END_OF_ROW;
+      }
     }
 
     /* for the purposes of clique removal, this computes the addition

@@ -8,9 +8,6 @@
 
 // scan-headers: stop here
 
-#define TRACE_COL -1 // 253224 // 231 // put to -1 if not...!
-#define TRACE_ROW -1 // 59496 // put to -1 if not...!
-
 #ifndef FOR_DL
 typedef index_t typerow_t;
 #else
@@ -55,9 +52,6 @@ typedef struct {
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define compute_WN(mat) ((double) (mat)->rem_nrows * (double) (mat)->weight)
-#define compute_WoverN(mat) (((double)(mat)->weight)/((double)(mat)->rem_nrows))
 
 void initMat(filter_matrix_t *, uint32_t);
 void clearMat (filter_matrix_t *mat);

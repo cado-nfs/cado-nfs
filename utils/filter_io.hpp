@@ -60,6 +60,16 @@ using cxx_param_list = cado::params::cxx_param_list;
 /* Size of relation buffer between parsing & processing.  */
 #define SIZE_BUF_REL (1U << 15U)
 
+namespace cado::filter_io {
+    struct out_of_range : public std::out_of_range {
+        using std::out_of_range::out_of_range;
+    };
+
+    struct parse_error : public std::runtime_error {
+        using std::runtime_error::runtime_error;
+    };
+} /* namespace cado::filter_io */
+
 namespace cado::relation_building_blocks {
     /* {{{ hard-coded lookup table for hex and decimal input */
     static constexpr unsigned char Z = 255;
@@ -85,6 +95,84 @@ namespace cado::relation_building_blocks {
         Z, Z, Z, Z, Z, Z, Z, Z, Z, Z, Z, Z, Z, Z, Z, Z,
     };
     /* }}} */
+
+    template<std::unsigned_integral T, unsigned int base, typename iterator>
+    inline T parse_one_integer(iterator & it, int & c)
+    {
+        using limT = std::numeric_limits<T>;
+        constexpr unsigned int nb = cado_math_aux::log2_ct(base);
+        constexpr T will_overflow_mask = limT::max() << (limT::digits-nb);
+        constexpr T will_overflow_bound = limT::max() / base;
+
+        unsigned long v;
+        T w;
+        for (w = 0 ; (v = ugly[c]) < base; w += v, c = *it++) {
+            if constexpr(std::has_single_bit(base)) {
+                if (w & will_overflow_mask)
+                    throw filter_io::out_of_range(
+                        fmt::format("too large: 0x{:x}{:x}", w, v));
+                w <<= cado_math_aux::log2_ct(base);
+            } else {
+                if (w > will_overflow_bound)
+                    throw filter_io::out_of_range(
+                        fmt::format("too large: {}{}", w, v));
+                w *= base;
+            }
+        }
+        return w;
+    }
+
+    template<std::signed_integral T, unsigned int base, typename iterator>
+    inline T parse_one_integer(iterator & it, int & c)
+    {
+        using U = cado::make_unsigned_t<T>;
+        U w = parse_one_integer<U, base>(it, c);
+        return runtime_numeric_cast<T>(w);
+    }
+
+    template<std::same_as<cxx_mpz> T, unsigned int base, typename iterator>
+    inline T parse_one_integer(iterator & it, int & c)
+    {
+        unsigned long v;
+        T w;
+        for (w = 0 ; (v = ugly[c]) < base; w += v, c = *it++) {
+            if constexpr(std::has_single_bit(base)) {
+                w <<= cado_math_aux::log2_ct(base);
+            } else {
+                w *= base;
+            }
+        }
+        return w;
+    }
+
+    template<typename T, unsigned int base, typename iterator>
+        requires std::signed_integral<T> || std::same_as<cxx_mpz, T>
+    inline T parse_one_signed_integer(iterator & it, int & c)
+    {
+        using U = cado::make_unsigned_t<T>;
+        bool negative = false;
+        if (c == '-') {
+            negative = true;
+            c = *it++;
+        }
+        U w = parse_one_integer<U, base>(it, c);
+        if (negative) {
+            if (w == (U) std::numeric_limits<T>::min())
+                return std::numeric_limits<U>::min();
+            else
+                return -runtime_numeric_cast<T>(w);
+        } else {
+            return runtime_numeric_cast<T>(w);
+        }
+    }
+
+    template<char expected>
+    inline void assert_next_char(int got)
+    {
+        if (expected != got)
+            throw filter_io::parse_error(
+                    fmt::format("Expected 0x{:x}, got 0x{:x}", expected, got));
+    }
 
     /* The generic relation type below supersedes the old
      * earlyparsed_relation and friends
@@ -165,54 +253,19 @@ namespace cado::relation_building_blocks {
                 using cado_math_aux::log2_ct;
                 static_assert(1U <= base && base <= 16U, "base should be in [1, 16]");
 
-                unsigned long v;
                 iterator it = it0;
-
                 int c = *it++;
-                bool negative = false;
-                if (c == '-') {
-                    negative = true;
-                    c = *it++;
-                }
-
-                cado::make_unsigned_t<ab_type> w;
-
-                for (w = 0 ; (v = ugly[c]) < base; w += v, c = *it++) {
-                    if constexpr ((base & (base - 1)) == 0) {
-                        w <<= log2_ct(base);
-                    } else {
-                        w *= base;
-                    }
-                }
-
-                if (negative)
-                    a = -runtime_numeric_cast<a_type>(w);
-                else
-                    a = runtime_numeric_cast<a_type>(w);
-
-                ASSERT_ALWAYS(c == ',');
+                a = parse_one_signed_integer<a_type, base>(it, c);
+                assert_next_char<','>(c);
                 c = *it++;
-
-                for (w = 0 ; (v = ugly[c]) < base; w += v, c = *it++) {
-                    if constexpr ((base & (base - 1)) == 0) {
-                        w <<= log2_ct(base);
-                    } else {
-                        w *= base;
-                    }
-                }
-                b = runtime_numeric_cast<b_type>(w);
+                b = parse_one_integer<b_type, base>(it, c);
 
                 if (c == '@') {
-                    int v, w = 0;
                     c = *it++;
-                    for (w = 0 ; (v = ugly[c]) < 10; w += v, c = *it++)
-                        w *= 10;
-                    active_sides[0] = w;
-                    ASSERT_ALWAYS(c == ',');
+                    active_sides[0] = parse_one_signed_integer<int, 10>(it, c);
+                    assert_next_char<','>(c);
                     c = *it++;
-                    for (w = 0 ; (v = ugly[c]) < 10; w += v, c = *it++)
-                        w *= 10;
-                    active_sides[1] = w;
+                    active_sides[1] = parse_one_signed_integer<int, 10>(it, c);
                     if (active_sides != std::array<int, 2>({0,1})) {
                         fmt::print(stderr, "# warning, relation with non-standard sides\n");
                     }
@@ -268,7 +321,7 @@ namespace cado::relation_building_blocks {
 
                 for ( ; ugly[c] < base; c = *it++) ;
 
-                ASSERT_ALWAYS(c == ',');
+                assert_next_char<','>(c);
                 c = *it++;
 
                 for ( ; ugly[c] < base; c = *it++) ;
@@ -276,7 +329,7 @@ namespace cado::relation_building_blocks {
                 if (c == '@') {
                     c = *it++;
                     for ( ; ugly[c] < 10; c = *it++) ;
-                    ASSERT_ALWAYS(c == ',');
+                    assert_next_char<','>(c);
                     c = *it++;
                     for (; ugly[c] < 10; c = *it++) ;
                 }
@@ -346,6 +399,7 @@ namespace cado::relation_building_blocks {
     template<typename prime_t, typename parent>
         requires
             requires { typename prime_t::p_or_h_type; }
+         && requires { std::unsigned_integral<typename prime_t::p_or_h_type>; }
          && requires { typename prime_t::e_type; }
     struct primes_block
         : public import_p_or_h_type<prime_t>
@@ -379,19 +433,14 @@ namespace cado::relation_building_blocks {
                 e = 1;
                 if (c == '/') {
                     c = *it++;
-                    bool negative = false;
-                    if (c == '-') {
-                        negative = true;
-                        c = *it++;
-                    }
-                    int v, w;
-
-                    e = typename prime_type::e_type(0);
+                    using E = typename prime_type::e_type;
                     /* a leading 0 is always a bug */
-                    ASSERT_ALWAYS(ugly[c]);
-                    for (w = 0 ; (v = ugly[c]) < 10 ; w += v, c = *it++) w *= 10;
-                    if (w == 0) w = 1; /* / means 1, and /- means -1.  */
-                    e = negative ? -w : w;
+                    if (!ugly[c])
+                        throw filter_io::parse_error("leading 0 in exponent");
+                    bool neg = (c == '-');
+                    e = parse_one_signed_integer<E, 10u>(it, c);
+                    if (e == 0)
+                        e = neg ? -1 : 1; /* / means 1, and /- means -1.  */
                 }
                 return c;
             } /* }}} */
@@ -453,9 +502,6 @@ namespace cado::relation_building_blocks {
              * it in that case.
              */
             int side = -1;
-            bool sorted = true;
-
-            typename prime_type::p_or_h_type last_prime = 0;
 
             /* the very first delimiter is _before_ primes, so it's always a
              * colon. So we must make sure that we accept the column on the
@@ -466,10 +512,7 @@ namespace cado::relation_building_blocks {
              * newline-terminated lines. But we use it for testing.
              */
             for(bool first = true ; first || (c && c != delim_after_primes && c != '\n') ; first = false) {
-                typename prime_type::p_or_h_type pr;
                 if (c == ':') {
-                    sorted = false;
-                    last_prime = 0;
                     /* Empty sides are allowed. So we must check for
                      * separators another time (another colon, or a \n)
                      * otherwise we would push the prime 0 to the list...
@@ -481,7 +524,7 @@ namespace cado::relation_building_blocks {
                     if (c == delim_after_primes || c == '\n')
                         break;
                 } else {
-                    ASSERT_ALWAYS(c == ',');
+                    assert_next_char<','>(c);
                     c = *it++;
                 }
                 /* XXX deprecated_optional_minus
@@ -494,9 +537,8 @@ namespace cado::relation_building_blocks {
                 }
                 /* XXX end deprecated block */
 
-                unsigned long v, w;
-                for (w = 0 ; (v = ugly[c]) < 16 ; w += v, c = *it++) w <<= 4;
-                pr = w;
+                p_or_h_type pr = parse_one_integer<p_or_h_type, 16u>(it, c);
+
                 typename prime_type::e_type e;
                 c = parse_exponent(c, it, e);
 
@@ -505,12 +547,9 @@ namespace cado::relation_building_blocks {
                     e = -e;
                 /* XXX end deprecated block */
 
-                sorted = sorted && pr >= last_prime;
-
                 append_or_collate(pr, e, side);
             }
-            if (!sorted)
-                sort_and_compress();
+            sort_and_compress();
             it0 = it;
             nsides = side + 1;
             return c;
@@ -619,7 +658,7 @@ namespace cado::relation_building_blocks {
                     if (c == delim_after_primes)
                         break;
                 } else {
-                    ASSERT_ALWAYS(c == ',');
+                    assert_next_char<','>(c);
                     c = *it++;
                 }
                 /* XXX deprecated_optional_minus */
@@ -673,7 +712,7 @@ namespace cado::relation_building_blocks {
         explicit exponent_vector(int c) : std::array<int, n> { c, } {}
         exponent_vector() : std::array<int, n> { 0, } {}
         std::array<int, n> const & super() const { return *this; }
-        auto operator==(exponent_vector const & o) const {
+        bool operator==(exponent_vector const & o) const {
             return std::equal(
                     super().begin(), super().end(), o.begin(), o.end());
         }
@@ -681,7 +720,7 @@ namespace cado::relation_building_blocks {
             return std::lexicographical_compare_three_way(
                     super().begin(), super().end(), o.begin(), o.end());
         }
-        auto operator==(int c) const { return operator==(exponent_vector<n>(c)); }
+        bool operator==(int c) const { return operator==(exponent_vector<n>(c)); }
         auto operator<=>(int c) const { return operator<=>(exponent_vector<n>(c)); }
         exponent_vector& operator+=(exponent_vector const & f)
         {
@@ -798,12 +837,12 @@ namespace cado::relation_building_blocks {
             iterator it = it0;
 
             for(bool first = true ; c != '\n' ; first = false) {
-                ASSERT_ALWAYS(c == (first ? ':' : ','));
+                if (first)
+                    assert_next_char<':'>(c);
+                else
+                    assert_next_char<','>(c);
                 c = *it++;
-                unsigned long v;
-                cxx_mpz w;
-                for (w = 0 ; (v = ugly[c]) < 16 ; w += v, c = *it++) w <<= 4;
-                sm.push_back(w);
+                sm.push_back(parse_one_integer<cxx_mpz, 16u>(it, c));
             }
             it0 = it;
             return c;

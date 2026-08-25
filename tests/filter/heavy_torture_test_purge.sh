@@ -31,7 +31,7 @@ if [ "$VALGRIND" ] ; then
 fi
 for i in `seq 1 $ntests` ; do
     fshuf < $wdir/relations_base > $wdir/relations.$i
-    if ! "$bindir/purge" -keep 0 -col-min-index 192 $wdir/relations.$i > $wdir/out-err.$i 2>&1 ; then
+    if ! "$bindir/purge" -keep 0 $wdir/relations.$i > $wdir/out-err.$i 2>&1 ; then
         cat $wdir/out-err.$i
         echo "randomization #$i failed" >&2
         exit 1

@@ -78,7 +78,7 @@ cado_define_test(test_sm_with_small_ell
 
 cado_define_test(test_purge_torture
     PROGRAM
-    $<TARGET_FILE:purge> -keep 0 -col-min-index 8
+    $<TARGET_FILE:purge> -keep 0
     -required_excess 0.0 ${CMAKE_CURRENT_SOURCE_DIR}/purge_torturetest1.rels
     TARGET_DEPENDENCIES purge
 )
