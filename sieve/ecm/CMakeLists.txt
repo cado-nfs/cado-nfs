@@ -74,22 +74,15 @@ add_executable(testbench testbench.cpp)
 target_link_libraries(testbench PRIVATE facul utils)
 
 
-add_executable(finishbatch finishbatch.cpp
-    $<TARGET_OBJECTS:las_core_0>
-    $<TARGET_OBJECTS:las_core_a>
-    )
-    target_link_libraries(finishbatch PRIVATE facul utils)
+add_executable(finishbatch finishbatch.cpp)
+target_link_libraries(finishbatch PRIVATE las_core_0 las_core_a facul utils)
 mark_targets_as_openmp(finishbatch)
 
 add_executable(finishecm finishecm.cpp)
 target_link_libraries(finishecm PRIVATE facul utils)
 
-add_executable(precompbatch precompbatch.cpp
-    $<TARGET_OBJECTS:las_core_0>
-    )
-    target_link_libraries(precompbatch PRIVATE facul utils)
+add_executable(precompbatch precompbatch.cpp)
+target_link_libraries(precompbatch PRIVATE las_core_0 facul utils)
 mark_targets_as_openmp(precompbatch)
-
-
 
 include(CMakeLists-nodist.txt OPTIONAL)

@@ -37,14 +37,14 @@ add_library(polyselect_middle
     polyselect_shash.cpp
     polyselect_stats.c
 )
+target_link_libraries(polyselect_middle PUBLIC polyselect_common ${pthread_libs})
 mark_targets_as_openmp(polyselect_middle)
 cado_apply_pch(polyselect_middle)
 
 add_executable (polyselect
     polyselect.cpp
-    $<TARGET_OBJECTS:polyselect_middle>
     )
-target_link_libraries (polyselect PRIVATE polyselect_common ${pthread_libs})
+target_link_libraries (polyselect PRIVATE polyselect_middle)
 mark_targets_as_openmp(polyselect)
 cado_apply_pch(polyselect)
 
@@ -73,12 +73,12 @@ cado_apply_pch(polyselect_ropt)
 
 add_executable (polyselect_gfpn polyselect_gfpn.cpp gfpkdlpolyselect.cpp)
 cado_apply_pch(polyselect_gfpn)
-target_link_libraries (polyselect_gfpn PRIVATE  polyselect_common utils)
+target_link_libraries (polyselect_gfpn PRIVATE  polyselect_common)
 
 add_executable (polyselect3 polyselect3.cpp)
 mark_targets_as_openmp(polyselect3)
 cado_apply_pch(polyselect3)
-target_link_libraries (polyselect3 PRIVATE polyselect_common utils)
+target_link_libraries (polyselect3 PRIVATE polyselect_common)
 
 if(ENABLE_SHARED)
     install(TARGETS polyselect_common DESTINATION ${LIBSUFFIX}/polyselect)
@@ -91,7 +91,7 @@ install(TARGETS polyselect3 RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 add_executable (dlpolyselect dlpolyselect.cpp)
 mark_targets_as_openmp(dlpolyselect)
 cado_apply_pch(dlpolyselect)
-target_link_libraries (dlpolyselect PRIVATE polyselect_common utils)
+target_link_libraries (dlpolyselect PRIVATE polyselect_common)
 install(TARGETS dlpolyselect RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 
 
@@ -100,17 +100,17 @@ include(CMakeLists-nodist.txt OPTIONAL)
 # skewness
 add_executable (skewness skewness.cpp)
 cado_apply_pch(skewness)
-target_link_libraries (skewness PRIVATE polyselect_common utils)
+target_link_libraries (skewness PRIVATE polyselect_common)
 install(TARGETS skewness RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 
 # score
 add_executable (score score.cpp)
 cado_apply_pch(score)
-target_link_libraries (score PRIVATE polyselect_common utils)
+target_link_libraries (score PRIVATE polyselect_common)
 install(TARGETS score RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 
 # alpha
 add_executable (alpha alpha.cpp)
 cado_apply_pch(alpha)
-target_link_libraries (alpha PRIVATE polyselect_common utils)
+target_link_libraries (alpha PRIVATE polyselect_common)
 install(TARGETS alpha RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)

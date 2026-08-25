@@ -541,8 +541,7 @@ cado_define_test(c60_fakereltest
 # Try with default TRIALDIV_MAXLEN, whatever it may be
 # tests in debug mode tend to take very long when used with GLIBCXX_DEBUG
 cado_define_test(test_trialdiv.cpp
-    $<TARGET_OBJECTS:trialdiv>
-    LIBRARIES utils tests
+    LIBRARIES trialdiv utils tests
     TIMEOUT 30
 )
 
@@ -738,8 +737,7 @@ set_property(TARGET torture-redc+asm_cmov
                       LAS_ARITH_REDC_USE_ASM=1)
 
 cado_define_test(test_fb_root.cpp
-    $<TARGET_OBJECTS:las_core_a>
-    LIBRARIES utils tests)
+    LIBRARIES las_core_a utils tests)
 
 cado_define_test(test_batchinv.cpp LIBRARIES utils tests)
 
