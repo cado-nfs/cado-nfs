@@ -1,29 +1,35 @@
 # Some compilation defaults specific to this directory
 
 # The following is needed for some SSE stuff
-# set (CMAKE_C_FLAGS   "-flax-vector-conversions ${CMAKE_C_FLAGS}")
+# set(CMAKE_C_FLAGS   "-flax-vector-conversions ${CMAKE_C_FLAGS}")
 
-include_directories (.)
-#include_directories (${CMAKE_CURRENT_BINARY_DIR})
-link_directories (${CMAKE_CURRENT_BINARY_DIR}/ecm)
+include_directories(.)
+#include_directories(${CMAKE_CURRENT_BINARY_DIR})
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/ecm)
 
 # ugly (copied from linalg/bwc/CMakeLists.txt...)
-add_executable (makefb makefb.cpp)
-target_link_libraries (makefb utils)
+add_executable(makefb makefb.cpp)
+cado_apply_pch(makefb)
+target_link_libraries(makefb PRIVATE utils)
 
-add_library (trialdiv OBJECT trialdiv.cpp)
+add_library(trialdiv OBJECT trialdiv.cpp)
+cado_apply_pch(trialdiv)
 
-add_library(las_core_0 OBJECT
-        las-side-config.cpp)
+add_library(las_core_0 OBJECT las-side-config.cpp)
+target_link_libraries(las_core_0 PUBLIC utils)
+cado_apply_pch(las_core_0)
 
-add_executable(freerel freerel.cpp $<TARGET_OBJECTS:las_core_0>)
-target_link_libraries(freerel utils)
+add_executable(freerel freerel.cpp)
+target_link_libraries(freerel PRIVATE las_core_0)
+mark_targets_as_openmp(freerel)
+cado_apply_pch(freerel)
+
 
 # las_core_a has just very very basic types and code that can be used
 # (and are actually used) by some unit tests.
-add_library(las_core_a OBJECT
-        las-qlattice.cpp
-        )
+add_library(las_core_a OBJECT las-qlattice.cpp)
+target_link_libraries(las_core_a PUBLIC utils)
+cado_apply_pch(las_core_a)
 
 # las_core_b consists of all the object files that are necessary to build
 # a las_info object. It is probably more than what would be strictly
@@ -38,7 +44,10 @@ add_library(las_core_b0 OBJECT
         las-coordinates.cpp
         relation_cache.cpp
 )
+cado_apply_pch(las_core_b0)
 
+
+# note that las_code_b does not always pull las_core_b0.
 add_library(las_core_b OBJECT
         las-info.cpp
         las-special-q-task-collection.cpp
@@ -63,10 +72,11 @@ add_library(las_core_b OBJECT
         las-divide-primes.cpp
         las-sieve2357.cpp
 )
+cado_apply_pch(las_core_b)
 
-add_library(las_core_c OBJECT
-        las-arith.cpp
-)
+add_library(las_core_c OBJECT las-arith.cpp)
+target_link_libraries(las_core_c PUBLIC las_core_b)
+cado_apply_pch(las_core_c)
 
 set(las_multi_a_sources
         fb.cpp
@@ -89,101 +99,68 @@ if(HAVE_AVX2)
     list(APPEND las_multi_a_sources las-unsieve-avx2.cpp)
 endif()
 add_library(las_multi_a_prod OBJECT ${las_multi_a_sources})
+cado_apply_pch(las_multi_a_prod)
 add_library(las_multi_a_debug OBJECT ${las_multi_a_sources})
+cado_apply_pch(las_multi_a_debug)
 set_property(TARGET las_multi_a_debug PROPERTY COMPILE_DEFINITIONS TRACE_K=1)
 add_library(las_multi_a_descent OBJECT ${las_multi_a_sources})
+cado_apply_pch(las_multi_a_descent)
 set_property(TARGET las_multi_a_descent PROPERTY COMPILE_DEFINITIONS DLP_DESCENT SUPPORT_LARGE_Q)
 
 add_library(siqs_multi_a_prod OBJECT ${las_multi_a_sources})
+cado_apply_pch(siqs_multi_a_prod)
 set_property(TARGET siqs_multi_a_prod PROPERTY COMPILE_DEFINITIONS SUPPORT_LARGE_Q=1 SIQS_SIEVE=1)
 add_library(siqs_multi_a_debug OBJECT ${las_multi_a_sources})
+cado_apply_pch(siqs_multi_a_debug)
 set_property(TARGET siqs_multi_a_debug PROPERTY COMPILE_DEFINITIONS SUPPORT_LARGE_Q=1 SIQS_SIEVE=1 TRACE_K=1)
 
 add_executable(las
     las-where-am-i-prod.cpp
     las.cpp
-    $<TARGET_OBJECTS:las_multi_a_prod>
-    $<TARGET_OBJECTS:las_core_c>
-    $<TARGET_OBJECTS:las_core_b>
-    $<TARGET_OBJECTS:las_core_b0>
-    $<TARGET_OBJECTS:las_core_a>
-    $<TARGET_OBJECTS:las_core_0>
-    $<TARGET_OBJECTS:trialdiv>
     )
-target_link_libraries (las facul utils)
+target_link_libraries(las PRIVATE
+    las_multi_a_prod las_core_c las_core_b las_core_b0 las_core_a las_core_0 trialdiv facul utils)
+cado_apply_pch(las)
 
 add_executable(las_tracek
     las-where-am-i-debug.cpp
     las.cpp
-    $<TARGET_OBJECTS:las_multi_a_debug>
-    $<TARGET_OBJECTS:las_core_c>
-    $<TARGET_OBJECTS:las_core_b>
-    $<TARGET_OBJECTS:las_core_b0>
-    $<TARGET_OBJECTS:las_core_a>
-    $<TARGET_OBJECTS:las_core_0>
-    $<TARGET_OBJECTS:trialdiv>
     )
-target_link_libraries (las_tracek facul utils)
+target_link_libraries(las_tracek PRIVATE
+    las_multi_a_debug las_core_c las_core_b las_core_b0 las_core_a las_core_0 trialdiv facul utils)
+cado_apply_pch(las_tracek)
 set_property(TARGET las_tracek PROPERTY COMPILE_DEFINITIONS TRACE_K=1)
 
-add_executable(siqs
-    las-where-am-i-prod.cpp
-    las.cpp
-    $<TARGET_OBJECTS:siqs_multi_a_prod>
-    $<TARGET_OBJECTS:las_core_c>
-    $<TARGET_OBJECTS:las_core_b>
-    $<TARGET_OBJECTS:las_core_b0>
-    $<TARGET_OBJECTS:las_core_a>
-    $<TARGET_OBJECTS:las_core_0>
-    $<TARGET_OBJECTS:trialdiv>
-    )
-target_link_libraries (siqs facul utils)
+add_executable(siqs las-where-am-i-prod.cpp las.cpp)
+target_link_libraries(siqs PRIVATE
+    siqs_multi_a_prod las_core_c las_core_b las_core_b0 las_core_a las_core_0 trialdiv facul utils)
+cado_apply_pch(siqs)
 set_property(TARGET siqs PROPERTY COMPILE_DEFINITIONS SUPPORT_LARGE_Q=1 SIQS_SIEVE=1)
 
-add_executable(siqs_tracek
-    las-where-am-i-debug.cpp
-    las.cpp
-    $<TARGET_OBJECTS:siqs_multi_a_debug>
-    $<TARGET_OBJECTS:las_core_c>
-    $<TARGET_OBJECTS:las_core_b>
-    $<TARGET_OBJECTS:las_core_b0>
-    $<TARGET_OBJECTS:las_core_a>
-    $<TARGET_OBJECTS:las_core_0>
-    $<TARGET_OBJECTS:trialdiv>
-    )
-target_link_libraries (siqs_tracek facul utils)
+add_executable(siqs_tracek las-where-am-i-debug.cpp las.cpp)
+target_link_libraries(siqs_tracek PRIVATE
+    siqs_multi_a_debug las_core_c las_core_b las_core_b0 las_core_a las_core_0 trialdiv facul utils)
+cado_apply_pch(siqs_tracek)
 set_property(TARGET siqs_tracek PROPERTY COMPILE_DEFINITIONS SUPPORT_LARGE_Q=1 SIQS_SIEVE=1 TRACE_K=1)
 
-add_executable(las_descent
-    las-where-am-i-prod.cpp
-    las.cpp
-    $<TARGET_OBJECTS:las_multi_a_descent>
-    $<TARGET_OBJECTS:las_core_c>
-    $<TARGET_OBJECTS:las_core_b>
-    $<TARGET_OBJECTS:las_core_b0>
-    $<TARGET_OBJECTS:las_core_a>
-    $<TARGET_OBJECTS:las_core_0>
-    $<TARGET_OBJECTS:trialdiv>
-    )
-target_link_libraries (las_descent facul utils)
+add_executable(las_descent las-where-am-i-prod.cpp las.cpp)
+target_link_libraries(las_descent PRIVATE
+    las_multi_a_descent las_core_c las_core_b las_core_b0 las_core_a las_core_0 trialdiv facul utils)
+cado_apply_pch(las_descent)
 set_property(TARGET las_descent PROPERTY COMPILE_DEFINITIONS DLP_DESCENT SUPPORT_LARGE_Q)
 
 add_subdirectory(ecm)
 add_subdirectory(strategies)
 
-add_executable(dupsup dupsup.cpp
-    las-where-am-i-prod.cpp
-    $<TARGET_OBJECTS:las_multi_a_descent>
-    $<TARGET_OBJECTS:las_core_b>        # overkill
-    $<TARGET_OBJECTS:las_core_b0>
-    $<TARGET_OBJECTS:las_core_a>
-    $<TARGET_OBJECTS:las_core_0>
-    $<TARGET_OBJECTS:trialdiv>
-    )
-target_link_libraries(dupsup facul utils)
+# pulling las_core_b is overkill, here
+add_executable(dupsup dupsup.cpp las-where-am-i-prod.cpp)
+cado_apply_pch(dupsup)
+target_link_libraries(dupsup PRIVATE
+    las_multi_a_descent las_core_b las_core_b0 las_core_a las_core_0 trialdiv facul utils)
 
 add_executable(fake_rels EXCLUDE_FROM_ALL fake_rels.cpp)
-target_link_libraries(fake_rels utils_with_io)
+cado_apply_pch(fake_rels)
+target_link_libraries(fake_rels PRIVATE utils_with_io)
 
 install(TARGETS makefb las las_descent freerel RUNTIME DESTINATION ${LIBSUFFIX}/sieve) 
 

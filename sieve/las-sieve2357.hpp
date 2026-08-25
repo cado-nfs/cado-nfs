@@ -1,7 +1,7 @@
 #ifndef CADO_LAS_SIEVE2357_HPP
 #define CADO_LAS_SIEVE2357_HPP
 
-#include "cado_config.h" // for HAVE_AVX2, HAVE_SSSE3
+#include "cado_config.h" // for HAVE_AVX2, HAVE_SSSE3 // IWYU pragma: keep
 
 #include <cstddef>
 #include <cstdint>
@@ -26,16 +26,16 @@ class sieve2357base
 {
   public:
 #if defined(HAVE_AVX2)
-    typedef __m256i preferred_simd_type;
+    using preferred_simd_type = __m256i;
 #elif defined(HAVE_SSSE3)
-    typedef __m128i preferred_simd_type;
+    using preferred_simd_type = __m128i;
 #elif defined(HAVE_ARM_NEON)
-    typedef uint8x16_t preferred_simd_type;
+    using preferred_simd_type = uint8x16_t;
 #elif ULONG_BITS == 64 /* FIXME: this is false on, e.g., MinGW. What's a       \
                           better condition here? */
-    typedef uint64_t preferred_simd_type;
+    using preferred_simd_type = uint64_t;
 #else
-    typedef uint32_t preferred_simd_type;
+    using preferred_simd_type = uint32_t;
 #endif
 
     /* Define ordering on q which sieve2357 expect: first q=1, then powers of 2,
@@ -73,27 +73,27 @@ template <typename SIMDTYPE, typename ELEMTYPE>
 class sieve2357 : public sieve2357base
 {
   private:
-    static inline void sieve_odd_prime(SIMDTYPE * const result,
-                                       const ELEMTYPE logp,
-                                       fbprime_t const stride,
-                                       fbprime_t const idx,
-                                       const SIMDTYPE even_mask);
+    static inline void sieve_odd_prime(SIMDTYPE * result,
+                                       ELEMTYPE logp,
+                                       fbprime_t stride,
+                                       fbprime_t idx,
+                                       SIMDTYPE even_mask);
     static void big_loop_set(SIMDTYPE * __restrict__ sievearray,
-                             const SIMDTYPE * __restrict__ const pattern235,
-                             const SIMDTYPE * __restrict__ const pattern7,
+                             const SIMDTYPE * __restrict__ pattern235,
+                             const SIMDTYPE * __restrict__ pattern7,
                              size_t l7);
     static void big_loop_add(SIMDTYPE * __restrict__ sievearray,
-                             const SIMDTYPE * __restrict__ const pattern235,
-                             const SIMDTYPE * __restrict__ const pattern7,
+                             const SIMDTYPE * __restrict__ pattern235,
+                             const SIMDTYPE * __restrict__ pattern7,
                              size_t l7);
-    static SIMDTYPE sieve2(fbprime_t const q, fbprime_t const idx,
-                           uint8_t const logp);
-    static SIMDTYPE get_even_mask(int const skip_mod_2);
+    static SIMDTYPE sieve2(fbprime_t q, fbprime_t idx,
+                           uint8_t logp);
+    static SIMDTYPE get_even_mask(int skip_mod_2);
 
   public:
     /* A predicate that tells whether a prime power q = p^k can be sieved by
        sieve2357 with a given SIMD and element data type */
-    static inline bool can_sieve(fbprime_t const q)
+    static bool can_sieve(fbprime_t const q)
     {
         size_t const N = sizeof(SIMDTYPE) / sizeof(ELEMTYPE);
         return q == 1 || (q % 2 == 0 && N % q == 0) || q == 3 || q == 5 ||

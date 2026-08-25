@@ -49,10 +49,10 @@ int64_t i64_random(gmp_randstate_t buf);
 /* uintmax_t is guaranteed to be larger or equal to uint64_t */
 #define strtouint64(nptr,endptr,base) (uint64_t) strtoumax(nptr,endptr,base)
 
-static inline void* pointer_arith(void * a, ptrdiff_t q) {
+CADO_INLINE void* pointer_arith(void * a, ptrdiff_t q) {
     return (void*)(((char*)a)+q);
 }
-static inline const void* pointer_arith_const(const void * a, ptrdiff_t q) {
+CADO_INLINE const void* pointer_arith_const(const void * a, ptrdiff_t q) {
     return (const void*)(((const char*)a)+q);
 }
 
@@ -76,18 +76,18 @@ extern void bit_reverse(unsigned long *, const unsigned long *, size_t);
 /* k must be a power of 2. Returns the smallest multiple of k greater
  * than or equal to n
  */
-static inline unsigned long
+CADO_INLINE unsigned long
 next_multiple_of_powerof2(unsigned long n, unsigned long k)
 {
     ASSERT((k & (k-1)) == 0);
     return ((n-1)|(k-1)) + 1;
 }
-static inline unsigned long
+CADO_INLINE unsigned long
 next_multiple_of(unsigned long n, unsigned long k)
 {
     return iceildiv(n, k) * k;
 }
-static inline unsigned long integer_sqrt(unsigned long a)
+CADO_INLINE unsigned long integer_sqrt(unsigned long a)
 {
     /* returns 2 for a==3, otherwise returns floor(sqrt(a)) */
     for(unsigned long x = a, y = 1, z; ; x = y, y = z) {
@@ -98,7 +98,7 @@ static inline unsigned long integer_sqrt(unsigned long a)
 
 #ifndef __cplusplus
 /* we have a template variant of this for C++ code */
-static inline unsigned long next_power_of_2(unsigned long x)
+CADO_INLINE unsigned long next_power_of_2(unsigned long x)
 {
     /* round x to the next power of two */
     for( ; x & (x - 1) ; ) {
@@ -111,7 +111,7 @@ static inline unsigned long next_power_of_2(unsigned long x)
 
 /* Best X86 medium memcpy with pointers & size length already cache
    lines aligned on modern X86, so dst/src/lg & 0x3F = 0 */
-static inline void aligned_medium_memcpy(void *dst, void *src, size_t lg) {
+CADO_INLINE void aligned_medium_memcpy(void *dst, void *src, size_t lg) {
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
   size_t lg_8bytes = lg >> 3U;
   __asm__ __volatile__ ("cld\nrep movsq\n":"+D"(dst),"+S"(src),"+c"(lg_8bytes));
@@ -127,7 +127,7 @@ static inline void aligned_medium_memcpy(void *dst, void *src, size_t lg) {
 #define cado_clz(x)          __builtin_clz(x)
 #else
 /* provide slow fallbacks */
-static inline unsigned int cado_clzll(unsigned long long x)
+CADO_INLINE unsigned int cado_clzll(unsigned long long x)
 {
 #if ULONGLONG_BITS == 64
         static const int t[4] = { 2, 1, 0, 0 };
@@ -145,7 +145,7 @@ static inline unsigned int cado_clzll(unsigned long long x)
 #endif
 }
 
-static inline unsigned int cado_clzl(unsigned long x)
+CADO_INLINE unsigned int cado_clzl(unsigned long x)
 {
         static const int t[4] = { 2, 1, 0, 0 };
         int a = 0;
@@ -161,7 +161,7 @@ static inline unsigned int cado_clzl(unsigned long x)
         return res;
 }
 
-static inline int cado_clz(unsigned int x)
+CADO_INLINE int cado_clz(unsigned int x)
 {
         static const unsigned int t[4] = { 2, 1, 0, 0 };
         int a = 0;
@@ -184,15 +184,15 @@ static inline int cado_clz(unsigned int x)
 /* the following code is correct because if x = 0...0abc10...0, then
    -x = ~x + 1, where ~x = 1...1(1-a)(1-b)(1-c)01...1, thus
    -x = 1...1(1-a)(1-b)(1-c)10...0, and x & (-x) = 0...000010...0 */
-static inline unsigned int cado_ctzll(unsigned long long x)
+CADO_INLINE unsigned int cado_ctzll(unsigned long long x)
 {
   return (ULONGLONG_BITS - 1) - cado_clzll(x & - x);
 }
-static inline unsigned int cado_ctzl(unsigned long x)
+CADO_INLINE unsigned int cado_ctzl(unsigned long x)
 {
   return (ULONG_BITS - 1) - cado_clzl(x & - x);
 }
-static inline unsigned int cado_ctz(unsigned int x)
+CADO_INLINE unsigned int cado_ctz(unsigned int x)
 {
   return (ULONG_BITS - 1) - cado_clzl(x & - x);
 }
@@ -205,7 +205,7 @@ static inline unsigned int cado_ctz(unsigned int x)
 #define cado_parity(x)          __builtin_parity(x)
 #else
 /* slow equivalent */
-static inline int cado_parityll(unsigned long long x)
+CADO_INLINE int cado_parityll(unsigned long long x)
 {
 #if ULONGLONG_BITS == 64
     x ^= x >> 32U;
@@ -221,9 +221,9 @@ static inline int cado_parityll(unsigned long long x)
 #endif
 
 #if ULONGLONG_BITS == 64
-static inline unsigned int cado_ctz64(uint64_t x) { return cado_ctzll(x); }
-static inline unsigned int cado_clz64(uint64_t x) { return cado_clzll(x); }
-static inline unsigned int cado_parity64(uint64_t x) { return cado_parityll(x); }
+CADO_INLINE unsigned int cado_ctz64(uint64_t x) { return cado_ctzll(x); }
+CADO_INLINE unsigned int cado_clz64(uint64_t x) { return cado_clzll(x); }
+CADO_INLINE unsigned int cado_parity64(uint64_t x) { return cado_parityll(x); }
 #else
 #error "need proper equivalents for cado_ctz64 & friends"
 #endif
@@ -234,22 +234,22 @@ static inline unsigned int cado_parity64(uint64_t x) { return cado_parityll(x); 
    Casting to an unsigned type and taking the minus then is valid as unary
    minus of an unsigned type returns an unsigned type and arithmetic on
    unsigned types is defined as working modulo [TYPE]_MAX+1 by C99 6.2.5c9 */
-static inline unsigned long long
+CADO_INLINE unsigned long long
 safe_llabs(const long long n) {
     return (n < 0) ? -(unsigned long long)n : (unsigned long long)n;
 }
 
-static inline unsigned long
+CADO_INLINE unsigned long
 safe_labs(const long n) {
     return (n < 0) ? -(unsigned long)n : (unsigned long)n;
 }
 
-static inline unsigned int
+CADO_INLINE unsigned int
 safe_abs(const int n) {
     return (n < 0) ? -(unsigned int)n : (unsigned int)n;
 }
 
-static inline uint64_t
+CADO_INLINE uint64_t
 safe_abs64(const int64_t n) {
     return (n < 0) ? -(uint64_t)n : (uint64_t)n;
 }
@@ -269,29 +269,29 @@ extern void subdivide_primes_interval_proxy(unsigned long * r, unsigned long p0,
 }
 #endif
 
-static inline const char * ok_NOK(int t)
+CADO_INLINE const char * ok_NOK(int t)
 {
     return t ? "ok" : "NOK";
 }
 
-static inline const char * ok_NOKNOK(int t)
+CADO_INLINE const char * ok_NOKNOK(int t)
 {
     return t ? "ok" : "NOK NOK NOK NOK";
 }
 
 #ifdef __cplusplus
-static inline std::string size_disp(size_t s) {
+CADO_INLINE std::string size_disp(size_t s) {
     char buf[16];
     size_disp(s, buf);
     return { buf };
 }
-static inline std::string size_disp_fine(size_t s, double cutoff) {
+CADO_INLINE std::string size_disp_fine(size_t s, double cutoff) {
     char buf[16];
     size_disp_fine(s, buf, cutoff);
     return { buf };
 }
 
-static inline bool ends_with(std::string const & name, std::string const & suffix)
+CADO_INLINE bool ends_with(std::string const & name, std::string const & suffix)
 {
     // c++20: return name.ends_with(suffix)
     if (name.size() < suffix.size())
@@ -302,7 +302,7 @@ static inline bool ends_with(std::string const & name, std::string const & suffi
 
 #ifdef __cplusplus
 template<typename T>
-static inline T next_power_of_2(T x)
+CADO_INLINE T next_power_of_2(T x)
 {
     /* it's a bit crazy. why not just do:
      *
@@ -326,7 +326,7 @@ static inline T next_power_of_2(T x)
 }
 
 template<typename T>
-static inline T log2_of_next_power_of_2(T x)
+CADO_INLINE T log2_of_next_power_of_2(T x)
 {
     static_assert(
             std::is_same_v<T, unsigned long> ||

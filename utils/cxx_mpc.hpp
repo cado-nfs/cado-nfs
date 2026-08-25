@@ -264,7 +264,7 @@ namespace fmt
  * NOTE: It's important that operator<=> be defined _before_ the 
  * overloads that use it!
  */
-static inline std::partial_ordering operator<=>(cxx_mpc const & a, mpc_srcptr b)
+inline std::partial_ordering operator<=>(cxx_mpc const & a, mpc_srcptr b)
 {
     if (mpfr_nan_p(mpc_realref(a)) || mpfr_nan_p(mpc_imagref(a)))
         return std::partial_ordering::unordered;
@@ -273,22 +273,22 @@ static inline std::partial_ordering operator<=>(cxx_mpc const & a, mpc_srcptr b)
     int const c = mpc_auxx::cado_mpc_cmp(a, b);
     return ((MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c)) <=> 0;
 }
-static inline std::partial_ordering operator<=>(cxx_mpc const & a, cxx_mpc const & b)
+inline std::partial_ordering operator<=>(cxx_mpc const & a, cxx_mpc const & b)
 {
     return a <=> static_cast<mpc_srcptr>(b);
 }
-static inline bool operator==(cxx_mpc const & a, cxx_mpc const & b)
+inline bool operator==(cxx_mpc const & a, cxx_mpc const & b)
 {
     return (a <=> b) == 0;
 }
 #ifdef HAVE_LIBSTDCXX_BUG_114153
-static inline bool operator<(cxx_mpc const & a, cxx_mpc const & b)
+inline bool operator<(cxx_mpc const & a, cxx_mpc const & b)
 {
     return (a <=> b) < 0;
 }
 #endif
 template <typename T>
-static inline std::partial_ordering operator<=>(cxx_mpc const & a, const T b)
+inline std::partial_ordering operator<=>(cxx_mpc const & a, const T b)
     requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
 {
     if (mpfr_nan_p(mpc_realref(a)) || mpfr_nan_p(mpc_imagref(a)))
@@ -296,7 +296,7 @@ static inline std::partial_ordering operator<=>(cxx_mpc const & a, const T b)
     int const c = mpc_auxx::cado_mpc_cmp(a, b);
     return ((MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c)) <=> 0;
 }
-static inline std::partial_ordering operator<=>(cxx_mpc const & a, cxx_mpfr const & b)
+inline std::partial_ordering operator<=>(cxx_mpc const & a, cxx_mpfr const & b)
 {
     if (mpfr_nan_p(mpc_realref(a)) || mpfr_nan_p(mpc_imagref(a)))
         return std::partial_ordering::unordered;
@@ -305,17 +305,17 @@ static inline std::partial_ordering operator<=>(cxx_mpc const & a, cxx_mpfr cons
     int const c = mpc_auxx::cado_mpc_cmp(a, b);
     return ((MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c)) <=> 0;
 }
-static inline bool operator==(cxx_mpc const & a, mpc_srcptr b)
+inline bool operator==(cxx_mpc const & a, mpc_srcptr b)
 {
     return (a <=> b) == 0;
 }
 template <typename T>
-static inline bool operator==(cxx_mpc const & a, const T b)
+inline bool operator==(cxx_mpc const & a, const T b)
     requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
 {
     return (a <=> b) == 0;
 }
-static inline bool operator==(cxx_mpc const & a, cxx_mpfr const & b)
+inline bool operator==(cxx_mpc const & a, cxx_mpfr const & b)
 {
     return (a <=> b) == 0;
 }

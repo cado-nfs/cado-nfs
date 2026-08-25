@@ -11,7 +11,8 @@ add_library(polyselect_common
     polyselect_alpha.cpp
     polyselect_norms.cpp
     )
-target_link_libraries (polyselect_common utils)
+target_link_libraries (polyselect_common PUBLIC utils)
+cado_apply_pch(polyselect_common)
 
 # It _seems_ that several polyselect-like libraries share the same
 # general working principle, and that these objects can be treated as a
@@ -36,14 +37,16 @@ add_library(polyselect_middle
     polyselect_shash.cpp
     polyselect_stats.c
 )
+target_link_libraries(polyselect_middle PUBLIC polyselect_common ${pthread_libs})
 mark_targets_as_openmp(polyselect_middle)
+cado_apply_pch(polyselect_middle)
 
 add_executable (polyselect
     polyselect.cpp
-    $<TARGET_OBJECTS:polyselect_middle>
     )
-target_link_libraries (polyselect polyselect_common ${pthread_libs})
+target_link_libraries (polyselect PRIVATE polyselect_middle)
 mark_targets_as_openmp(polyselect)
+cado_apply_pch(polyselect)
 
 add_executable (polyselect_ropt
     ropt_main.cpp
@@ -63,16 +66,19 @@ add_executable (polyselect_ropt
     ropt_tree.c
     ropt_sublattice_priority_queue.cpp
 )
-target_link_libraries (polyselect_ropt polyselect_common ${pthread_libs})
+target_link_libraries (polyselect_ropt PRIVATE polyselect_common ${pthread_libs})
 mark_targets_as_openmp(polyselect_ropt)
+cado_apply_pch(polyselect_ropt)
 
 
 add_executable (polyselect_gfpn polyselect_gfpn.cpp gfpkdlpolyselect.cpp)
-target_link_libraries (polyselect_gfpn  polyselect_common utils)
+cado_apply_pch(polyselect_gfpn)
+target_link_libraries (polyselect_gfpn PRIVATE  polyselect_common)
 
 add_executable (polyselect3 polyselect3.cpp)
 mark_targets_as_openmp(polyselect3)
-target_link_libraries (polyselect3 polyselect_common utils)
+cado_apply_pch(polyselect3)
+target_link_libraries (polyselect3 PRIVATE polyselect_common)
 
 if(ENABLE_SHARED)
     install(TARGETS polyselect_common DESTINATION ${LIBSUFFIX}/polyselect)
@@ -84,7 +90,8 @@ install(TARGETS polyselect3 RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 # dlpolyselect
 add_executable (dlpolyselect dlpolyselect.cpp)
 mark_targets_as_openmp(dlpolyselect)
-target_link_libraries (dlpolyselect polyselect_common utils)
+cado_apply_pch(dlpolyselect)
+target_link_libraries (dlpolyselect PRIVATE polyselect_common)
 install(TARGETS dlpolyselect RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 
 
@@ -92,15 +99,18 @@ include(CMakeLists-nodist.txt OPTIONAL)
 
 # skewness
 add_executable (skewness skewness.cpp)
-target_link_libraries (skewness polyselect_common utils)
+cado_apply_pch(skewness)
+target_link_libraries (skewness PRIVATE polyselect_common)
 install(TARGETS skewness RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 
 # score
 add_executable (score score.cpp)
-target_link_libraries (score polyselect_common utils)
+cado_apply_pch(score)
+target_link_libraries (score PRIVATE polyselect_common)
 install(TARGETS score RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 
 # alpha
 add_executable (alpha alpha.cpp)
-target_link_libraries (alpha polyselect_common utils)
+cado_apply_pch(alpha)
+target_link_libraries (alpha PRIVATE polyselect_common)
 install(TARGETS alpha RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)

@@ -27,9 +27,9 @@ extern "C" {
  * Let a = a1 + 2^64 * a2, b = b1 + 2^64 * b2. Return 1 if a > b,
  * and 0 otherwise. 
  */
-static inline int
+CADO_INLINE int
 u64arith_gt_2_2(uint64_t a1, uint64_t a2, uint64_t b1, uint64_t b2) ATTRIBUTE((const));
-static inline int
+CADO_INLINE int
 u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,
                 const uint64_t b1, const uint64_t b2)
 {
@@ -46,9 +46,9 @@ u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,
  * Let a = a1 + 2^64 * a2, b = b1 + 2^64 * b2. Return 1 if a >= b,
  * and 0 otherwise. 
  */
-static inline int
+CADO_INLINE int
 u64arith_ge_2_2(uint64_t a1, uint64_t a2, uint64_t b1, uint64_t b2) ATTRIBUTE((const));
-static inline int
+CADO_INLINE int
 u64arith_ge_2_2(const uint64_t a1, const uint64_t a2,
                 const uint64_t b1, const uint64_t b2)
 {
@@ -66,9 +66,9 @@ u64arith_ge_2_2(const uint64_t a1, const uint64_t a2,
  * Let a = a1 + 2^64 * a2, b = b1 + 2^64 * b2. Return 1 if a < b,
  * and 0 otherwise. 
  */
-static inline int
+CADO_INLINE int
 u64arith_lt_2_2(uint64_t a1, uint64_t a2, uint64_t b1, uint64_t b2) ATTRIBUTE((const));
-static inline int
+CADO_INLINE int
 u64arith_lt_2_2(const uint64_t a1, const uint64_t a2,
                 const uint64_t b1, const uint64_t b2)
 {
@@ -86,9 +86,9 @@ u64arith_lt_2_2(const uint64_t a1, const uint64_t a2,
  * Let a = a1 + 2^64 * a2, b = b1 + 2^64 * b2. Return 1 if a <= b,
  * and 0 otherwise. 
  */
-static inline int
+CADO_INLINE int
 u64arith_le_2_2(uint64_t a1, uint64_t a2, uint64_t b1, uint64_t b2) ATTRIBUTE((const));
-static inline int
+CADO_INLINE int
 u64arith_le_2_2(const uint64_t a1, const uint64_t a2,
                 const uint64_t b1, const uint64_t b2)
 {
@@ -105,7 +105,7 @@ u64arith_le_2_2(const uint64_t a1, const uint64_t a2,
  * 
  * Let r = r1 + 2^64 * r2, a = a1 + 2^64 * a2. Set r1:r2 := (r+a) mod 2^128.
  */
-static inline void
+CADO_INLINE void
 u64arith_add_2_2 (uint64_t *r1, uint64_t *r2, 
 		  const uint64_t a1, const uint64_t a2)
 {
@@ -133,7 +133,7 @@ u64arith_add_2_2 (uint64_t *r1, uint64_t *r2,
  * 
  * Let r = r1 + 2^64 * r2. Set r1:r2 := (r+a) mod 2^128.
  */
-static inline void
+CADO_INLINE void
 u64arith_add_1_2 (uint64_t *r1, uint64_t *r2, const uint64_t a)
 {
   /* We have assembly only for x86_64 and on that architecture, this function
@@ -147,7 +147,7 @@ u64arith_add_1_2 (uint64_t *r1, uint64_t *r2, const uint64_t a)
    from low word (r1) to high word (r2). Returns 1 if there was a carry out 
    from high word, otherwise returns 0. */
 
-static inline char
+CADO_INLINE char
 u64arith_add_2_2_cy (uint64_t *r1, uint64_t *r2, 
 		     const uint64_t a1, const uint64_t a2)
 {
@@ -180,7 +180,7 @@ u64arith_add_2_2_cy (uint64_t *r1, uint64_t *r2,
  * 
  * Requires a < m and b <= m, then r == a+b (mod m) and r < m.
  */
-static inline void
+CADO_INLINE void
 u64arith_addmod_1_1 (uint64_t *r, const uint64_t a,
                      const uint64_t b, const uint64_t m)
 {
@@ -212,7 +212,7 @@ u64arith_addmod_1_1 (uint64_t *r, const uint64_t a,
  * 
  * Let r = r1 + 2^64 * r2, a = a1 + 2^64 * a2. Set r1:r2 := (r-a) mod 2^128.
  */
-static inline void
+CADO_INLINE void
 u64arith_sub_2_2 (uint64_t *r1, uint64_t *r2, 
 		  const uint64_t a1, const uint64_t a2)
 {
@@ -239,7 +239,7 @@ u64arith_sub_2_2 (uint64_t *r1, uint64_t *r2,
  * 
  * Let r = r1 + 2^64 * r2. Set r1:r2 := (r-a) mod 2^128.
  */
-static inline void
+CADO_INLINE void
 u64arith_sub_1_2 (uint64_t *r1, uint64_t *r2, 
                   const uint64_t a)
 {
@@ -251,7 +251,7 @@ u64arith_sub_1_2 (uint64_t *r1, uint64_t *r2,
    from low word (r1) to high word (r2). Returns 1 if there was a borrow out 
    from high word, otherwise returns 0. */
 
-static inline char
+CADO_INLINE char
 u64arith_sub_2_2_cy (uint64_t *r1, uint64_t *r2, 
                      const uint64_t a1, const uint64_t a2)
 {
@@ -281,7 +281,7 @@ u64arith_sub_2_2_cy (uint64_t *r1, uint64_t *r2,
 
 
 /* Subtract only if result is non-negative */
-static inline void
+CADO_INLINE void
 u64arith_sub_1_1_ge (uint64_t *r, const uint64_t a)
 {
   uint64_t t = *r;
@@ -304,7 +304,7 @@ u64arith_sub_1_1_ge (uint64_t *r, const uint64_t a)
 }
 
 /* Subtract only if result is non-negative */
-static inline void
+CADO_INLINE void
 u64arith_sub_2_2_ge (uint64_t *r1, uint64_t *r2, 
                      const uint64_t a1, const uint64_t a2)
 {
@@ -336,7 +336,7 @@ u64arith_sub_2_2_ge (uint64_t *r1, uint64_t *r2,
  * 
  * Requires a < m and b < m, then r == a+b (mod m) and r < m.
  */
-static inline void
+CADO_INLINE void
 u64arith_submod_1_1 (uint64_t *r, const uint64_t a,
                      const uint64_t b, const uint64_t m)
 {
@@ -370,7 +370,7 @@ u64arith_submod_1_1 (uint64_t *r, const uint64_t a,
 /* Multiply two uint64_t "a" and "b" and put the result as 
    r2:r1 (r2 being the high word) */
 
-static inline void
+CADO_INLINE void
 u64arith_mul_1_1_2 (uint64_t *r1, uint64_t *r2, 
 		    const uint64_t a, const uint64_t b)
 {
@@ -410,7 +410,7 @@ u64arith_mul_1_1_2 (uint64_t *r1, uint64_t *r2,
 }
 
 
-static inline void
+CADO_INLINE void
 u64arith_sqr_1_2 (uint64_t *r1, uint64_t *r2, 
 		  const uint64_t a)
 {
@@ -449,7 +449,7 @@ u64arith_sqr_1_2 (uint64_t *r1, uint64_t *r2,
 
 /* Set *r to lo shifted right by i bits, filling in the low bits from hi into the high
    bits of *r. I.e., *r = (hi * 2^64 + lo) / 2^i. Assumes 0 <= i < 64. */
-static inline void
+CADO_INLINE void
 u64arith_shrd (uint64_t *r, const uint64_t hi, const uint64_t lo,
               const unsigned char i)
 {
@@ -491,7 +491,7 @@ u64arith_shrd (uint64_t *r, const uint64_t hi, const uint64_t lo,
 
 /* Shift the 128-bit integer in lo:hi right by i bits, 0 <= i < 64 */
 
-static inline void
+CADO_INLINE void
 u64arith_shr_2 (uint64_t *lo, uint64_t *hi, const unsigned char i)
 {
   ASSERT_EXPENSIVE (i < 64);
@@ -501,7 +501,7 @@ u64arith_shr_2 (uint64_t *lo, uint64_t *hi, const unsigned char i)
 
 /* Set *r to hi shifted left by i bits, filling in the high bits from lo into the low
    bits of *r. I.e., *r = (hi + lo*2^-64) * 2^i. Assumes 0 <= i < 64. */
-static inline void
+CADO_INLINE void
 u64arith_shld (uint64_t *r, const uint64_t lo, const uint64_t hi,
               const unsigned char i)
 {
@@ -537,7 +537,7 @@ u64arith_shld (uint64_t *r, const uint64_t lo, const uint64_t hi,
 
 /* Shift the 128-bit integer in lo:hi left by i bitss, 0 <= i < 64 */
 
-static inline void
+CADO_INLINE void
 u64arith_shl_2 (uint64_t *lo, uint64_t *hi, const unsigned char i)
 {
   ASSERT_EXPENSIVE (i < 64);
@@ -546,7 +546,7 @@ u64arith_shl_2 (uint64_t *lo, uint64_t *hi, const unsigned char i)
 }
 
 /* Returns number of trailing zeros in a. a must not be zero */
-static inline constexpr int
+CADO_INLINE constexpr int
 u64arith_ctz (const uint64_t a)
 {
 #if !defined (U64ARITH_NO_ASM) && GNUC_VERSION_ATLEAST(3, 4, 0)
@@ -575,7 +575,7 @@ u64arith_ctz (const uint64_t a)
 }
 
 /* Returns number of leading zeros in a. a must not be zero */
-static inline constexpr int
+CADO_INLINE constexpr int
 u64arith_clz (const uint64_t a)
 {
 #if !defined (U64ARITH_NO_ASM) && GNUC_VERSION_ATLEAST(3, 4, 0)
@@ -600,7 +600,7 @@ u64arith_clz (const uint64_t a)
    a2 < b. Slow, simple binary grammar-school division. Used as reference
    for testing faster code on machines without hardware division. */
 
-static inline void
+CADO_INLINE void
 u64arith_divqr_2_1_1_slow (uint64_t *q, uint64_t *r,
 		      const uint64_t a1, const uint64_t a2,
 		      const uint64_t b)
@@ -633,7 +633,7 @@ u64arith_divqr_2_1_1_slow (uint64_t *q, uint64_t *r,
 
 /* Computes (2^128-1) / d - 1 for 2^63 <= d < 2^64. */
 
-static inline uint64_t
+CADO_INLINE uint64_t
 u64arith_reciprocal_for_div(const uint64_t d)
 {
   /* Assumes 2^63 <= d <= 2^64-1 */
@@ -689,7 +689,7 @@ u64arith_reciprocal_for_div(const uint64_t d)
  * 2^shift * D in [2^127, 2^128) and 
  * v + 2^64 = (2^192-1) / (2^shift*D)
  */
-static inline uint64_t
+CADO_INLINE uint64_t
 u64arith_reciprocal_for_div_3by2(const uint64_t d0, const uint64_t d1)
 {
     uint64_t v = u64arith_reciprocal_for_div(d1);
@@ -715,7 +715,7 @@ u64arith_reciprocal_for_div_3by2(const uint64_t d0, const uint64_t d1)
 }
 
 
-static inline void
+CADO_INLINE void
 u64arith_divqr_2_1_1_recip_precomp (uint64_t *q, uint64_t *r,
 		      const uint64_t a1, const uint64_t a2,
 		      const uint64_t d, const uint64_t v,
@@ -752,7 +752,7 @@ u64arith_divqr_2_1_1_recip_precomp (uint64_t *q, uint64_t *r,
    Integers, IEEE Transactions on Computers (Volume: 60, Issue: 2,
    Feb. 2011) */
 
-static inline void
+CADO_INLINE void
 u64arith_divqr_2_1_1_recip (uint64_t *q, uint64_t *r,
 		      const uint64_t a1, const uint64_t a2,
 		      const uint64_t b)
@@ -782,7 +782,7 @@ u64arith_divqr_2_1_1_recip (uint64_t *q, uint64_t *r,
 /* Integer division of two uint64_t values a2:a1 by a uint64_t divisor b.
    Returns quotient and remainder. */
 
-static inline void
+CADO_INLINE void
 u64arith_divqr_2_1_1 (uint64_t *q, uint64_t *r,
 		      const uint64_t a1, const uint64_t a2,
 		      const uint64_t b)
@@ -807,7 +807,7 @@ u64arith_divqr_2_1_1 (uint64_t *q, uint64_t *r,
 /* Integer division of two uint64_t values by a uint64_t divisor. Returns
    only remainder. */
 
-static inline void
+CADO_INLINE void
 u64arith_divr_2_1_1 (uint64_t *r, uint64_t a1, const uint64_t a2,
                      const uint64_t b)
 {
@@ -834,7 +834,7 @@ u64arith_divr_2_1_1 (uint64_t *r, uint64_t a1, const uint64_t a2,
  * Helper information is (v, shift) as computed by
  * u64arith_reciprocal_for_div_3by2
  */
-static inline void
+CADO_INLINE void
 u64arith_divqr_3_2_1_recip_precomp (
     uint64_t *q, uint64_t *R0, uint64_t *R1,
     uint64_t u0, uint64_t u1, uint64_t u2,
@@ -873,7 +873,7 @@ u64arith_divqr_3_2_1_recip_precomp (
     *q = q1;
 }
 
-static inline void
+CADO_INLINE void
 u64arith_divqr_3_2_1 (uint64_t *q, uint64_t *R0, uint64_t *R1,
     uint64_t u0, uint64_t u1, uint64_t u2,
     uint64_t d0, uint64_t d1)
@@ -887,7 +887,7 @@ u64arith_divqr_3_2_1 (uint64_t *q, uint64_t *R0, uint64_t *R1,
 }
 
 /* Compute 1/n (mod 2^wordsize) */
-static inline uint64_t
+CADO_INLINE uint64_t
 u64arith_invmod (const uint64_t n)
 {
   uint64_t r;
@@ -924,7 +924,7 @@ u64arith_invmod (const uint64_t n)
 }
 
 /* Compute n/2 (mod m), where m must be odd. */
-static inline uint64_t
+CADO_INLINE uint64_t
 u64arith_div2mod (const uint64_t n, const uint64_t m)
 {
 #if !defined (U64ARITH_NO_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
@@ -949,7 +949,7 @@ u64arith_div2mod (const uint64_t n, const uint64_t m)
 
 
 /* Integer (truncated) square root of n */
-static inline uint64_t
+CADO_INLINE uint64_t
 u64arith_sqrt (const uint64_t n)
 {
     /* TODO: use Hensel lifting instead */
@@ -1005,7 +1005,7 @@ u64arith_sqrt (const uint64_t n)
 
    Finally we compute (t + ratio)/2^k mod p = num/(den*2^k) mod p.  */
 
-static inline uint64_t
+CADO_INLINE uint64_t
 u64arith_post_process_inverse(const uint64_t r, const uint64_t p,
   const uint64_t rem, const uint64_t den_inv,
   const uint64_t ratio, const int k)
@@ -1029,7 +1029,7 @@ u64arith_post_process_inverse(const uint64_t r, const uint64_t p,
 /* Computes r = ((phigh * 2^64 + plow) / 2^64) % m
    Requires phigh < m and invm = -1/m (mod 2^64). */
 
-static inline void
+CADO_INLINE void
 u64arith_redc(uint64_t *r, const uint64_t plow,
              const uint64_t phigh, const uint64_t m,
              const uint64_t invm)

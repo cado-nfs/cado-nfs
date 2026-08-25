@@ -242,7 +242,7 @@ template <int LEVEL, typename HINT> struct bucket_update_t; // IWYU pragma: keep
         typedef bare_bucket_update_t<LEVEL> bare_t;                            \
         using hint_t = HINT;                                                   \
         static constexpr int level = LEVEL;                                    \
-        /* static inline int level() { return LEVEL; } */                      \
+        /* inline int level() { return LEVEL; } */                      \
         bucket_update_t() = default;                                           \
         bucket_update_t(const uint64_t x, HINT const & h)                      \
             : HINT(h)                                                          \
@@ -264,7 +264,7 @@ struct bucket_update_t<LEVEL, void> :
 public bare_bucket_update_t<LEVEL>
 {
     using bare_t = bare_bucket_update_t<LEVEL>;
-    static inline int level() { return LEVEL; }
+    inline int level() { return LEVEL; }
     bucket_update_t(){};
     bucket_update_t(const uint64_t x,
             const fbprime_t, const slice_offset_t, const slice_index_t)

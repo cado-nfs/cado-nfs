@@ -1,5 +1,6 @@
 #ifndef CADO_BYTECODE_H
 #define CADO_BYTECODE_H
+#include "macros.h"
 
 #include <stdint.h>
 #include <gmp.h>
@@ -13,19 +14,19 @@ extern "C" {
 #endif
 
 /* No-op (because bytecode_elt is an uint8_t for now). */
-static inline uint8_t
+CADO_INLINE uint8_t
 bytecode_elt_to_uint8 (bytecode_elt b)
 {
   return b;
 }
 
-static inline bytecode_elt
+CADO_INLINE bytecode_elt
 bytecode_elt_build_4_4 (uint8_t b1, uint8_t b0)
 {
   return (b1 << 4) | (b0 & 0x0f);
 }
 
-static inline void
+CADO_INLINE void
 bytecode_elt_split_4_4 (uint8_t *b1, uint8_t *b0, bytecode_elt b)
 {
   if (b0)
@@ -34,7 +35,7 @@ bytecode_elt_split_4_4 (uint8_t *b1, uint8_t *b0, bytecode_elt b)
     *b1 = b >> 4;
 }
 
-static inline void
+CADO_INLINE void
 bytecode_elt_split_2_1_1_4 (uint8_t *b3, uint8_t *b2, uint8_t *b1, uint8_t *b0,
                             bytecode_elt b)
 {

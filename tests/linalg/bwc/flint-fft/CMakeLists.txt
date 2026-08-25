@@ -26,7 +26,7 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
 
     if(DEFINED ENV{CHECKS_EXPENSIVE} AND MAGMA)
         add_executable(test-flint-debug EXCLUDE_FROM_ALL test-flint.c)
-        target_link_libraries(test-flint-debug flint-fft-debug utils ${gmp_libname})
+        target_link_libraries(test-flint-debug PRIVATE flint-fft-debug utils ${gmp_libname})
         mark_targets_as_mpi(test-flint-debug)
         mark_targets_as_openmp(test-flint-debug)
         set_property(TARGET test-flint-debug

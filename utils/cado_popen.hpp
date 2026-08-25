@@ -17,7 +17,7 @@ int cado_fd_pclose2(int fd, struct rusage * r);
 int cado_pclose2(FILE * stream, void * r);
 int cado_fd_pclose2(int fd, void * r);
 #endif
-static inline int cado_pclose(FILE * stream) { return cado_pclose2(stream, NULL); }
-static inline int cado_fd_pclose(int fd) { return cado_fd_pclose2(fd, NULL); }
+inline int cado_pclose(FILE * stream) { return cado_pclose2(stream, NULL); }
+inline int cado_fd_pclose(int fd) { return cado_fd_pclose2(fd, NULL); }
 
 #endif	/* CADO_POPEN_HPP */

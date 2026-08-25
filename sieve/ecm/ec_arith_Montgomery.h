@@ -38,7 +38,7 @@ extern "C" {
 
 /* Compute A = 4*b-2. A and b can be the same variable. */
 #define montgomery_A_from_b MOD_APPEND_TYPE(montgomery_A_from_b)
-static inline void
+CADO_INLINE void
 montgomery_A_from_b (residue_t A, const residue_t b, const modulus_t m)
 {
   mod_add (A, b, b, m);    /* A <- b+b = 2b */
@@ -47,7 +47,7 @@ montgomery_A_from_b (residue_t A, const residue_t b, const modulus_t m)
 }
 
 #define montgomery_curve_fprintf MOD_APPEND_TYPE(montgomery_curve_fprintf)
-static inline void
+CADO_INLINE void
 montgomery_curve_fprintf (FILE *out, const char *prefix, residue_t A,
                           ec_point_t P, const modulus_t m)
 {
@@ -71,7 +71,7 @@ montgomery_curve_fprintf (FILE *out, const char *prefix, residue_t A,
 }
 
 /* Set P to zero (the neutral point): (0::0) */
-static inline void
+CADO_INLINE void
 montgomery_point_set_zero (ec_point_t P, const modulus_t m)
 {
   mod_set0 (P->x, m);
@@ -84,7 +84,7 @@ montgomery_point_set_zero (ec_point_t P, const modulus_t m)
  * P and Q can be the same variables
  */
 #define montgomery_point_to_affine MOD_APPEND_TYPE(montgomery_point_to_affine)
-static inline int
+CADO_INLINE int
 montgomery_point_to_affine (ec_point_t Q, ec_point_t P, const modulus_t m)
 {
   residue_t t;
@@ -103,7 +103,7 @@ montgomery_point_to_affine (ec_point_t Q, ec_point_t P, const modulus_t m)
 
 /* Convert the point P in affine before printing it (mostly used for debug) */
 #define montgomery_point_fprintf_affine MOD_APPEND_TYPE(montgomery_point_fprintf_affine)
-static inline void
+CADO_INLINE void
 montgomery_point_fprintf_affine (FILE *out, ec_point_t P, const modulus_t m)
 {
   ec_point_t Paff;
@@ -117,7 +117,7 @@ montgomery_point_fprintf_affine (FILE *out, ec_point_t P, const modulus_t m)
 }
 
 #define montgomery_point_from_edwards_point MOD_APPEND_TYPE(montgomery_point_from_edwards_point)
-static inline void
+CADO_INLINE void
 montgomery_point_from_edwards_point (ec_point_t PM, ec_point_t PE, int out_aff,
                                      const modulus_t m)
 {
@@ -134,7 +134,7 @@ montgomery_point_from_edwards_point (ec_point_t PM, ec_point_t PE, int out_aff,
  *    3M + 2S + 4add/sub
  */
 #define montgomery_dbl MOD_APPEND_TYPE(montgomery_dbl)
-static inline void
+CADO_INLINE void
 montgomery_dbl (ec_point_t Q, const ec_point_t P, const modulus_t m,
              const residue_t b)
 {
@@ -186,7 +186,7 @@ montgomery_dbl (ec_point_t Q, const ec_point_t P, const modulus_t m,
  *    4M + 2S + 6add/sub
  */
 #define montgomery_dadd MOD_APPEND_TYPE(montgomery_dadd)
-static inline void
+CADO_INLINE void
 montgomery_dadd (ec_point_t R, const ec_point_t P, const ec_point_t Q,
           const ec_point_t D, MAYBE_UNUSED const residue_t b,
           const modulus_t m)
@@ -270,7 +270,7 @@ montgomery_dadd (ec_point_t R, const ec_point_t P, const ec_point_t Q,
  *    If the second most significant bit of k is 0, we save 1 DBL
  */
 #define montgomery_smul_ul MOD_APPEND_TYPE(montgomery_smul_ul)
-static inline void
+CADO_INLINE void
 montgomery_smul_ul (ec_point_t R, ec_point_t Rp1, const ec_point_t P,
                     const unsigned long k, const modulus_t m, const residue_t b)
 {
@@ -373,7 +373,7 @@ montgomery_smul_ul (ec_point_t R, ec_point_t Rp1, const ec_point_t P,
  */
 #if defined(MOD_SIZE) && MOD_SIZE == 1
 #define montgomery_curve_order MOD_APPEND_TYPE(montgomery_curve_order)
-static inline unsigned long
+CADO_INLINE unsigned long
 montgomery_curve_order (residue_t A, ec_point_t P, const modulus_t m)
 {
   residue_t x, t, one;

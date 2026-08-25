@@ -438,14 +438,14 @@ struct bwc_F_file : public bwc_file_base {// {{{
 };
 
 /* this proxy is handy */
-static inline std::unique_ptr<FILE, delete_FILE> fopen_helper(bwc_file_base const & filename, const char * mode, bool accept_failure = false)
+inline std::unique_ptr<FILE, delete_FILE> fopen_helper(bwc_file_base const & filename, const char * mode, bool accept_failure = false)
 {
     return fopen_helper(std::string(filename), mode, accept_failure);
 }
 
 // }}}
 
-static inline std::ostream& operator<<(std::ostream& os, bwc_file_base const & x) {
+inline std::ostream& operator<<(std::ostream& os, bwc_file_base const & x) {
     return os << std::string(x);
 }
 namespace fmt {

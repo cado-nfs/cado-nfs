@@ -24,7 +24,7 @@ extern "C" {
 /* {{{ mpc_set_{int64,uin64} */
 #if ULONG_BITS < 64
 /* Set z to q. On 32-bit machines, we can't use mpc_set_ui! */
-static inline int mpc_set_uint64(mpc_ptr z, uint64_t q, mpc_rnd_t rnd)
+CADO_INLINE int mpc_set_uint64(mpc_ptr z, uint64_t q, mpc_rnd_t rnd)
 {
     if (q <= ULONG_MAX)
         return mpc_set_ui(z, (unsigned long)q, rnd);
@@ -37,7 +37,7 @@ static inline int mpc_set_uint64(mpc_ptr z, uint64_t q, mpc_rnd_t rnd)
     }
 }
 
-static inline void mpc_set_int64(mpc_ptr z, int64_t q, mpc_rnd_t rnd)
+CADO_INLINE void mpc_set_int64(mpc_ptr z, int64_t q, mpc_rnd_t rnd)
 {
     if (LONG_MIN <= q && q <= LONG_MAX)
         return mpc_set_si(z, (long)q, rnd);
@@ -50,11 +50,11 @@ static inline void mpc_set_int64(mpc_ptr z, int64_t q, mpc_rnd_t rnd)
     }
 }
 #else
-static inline int mpc_set_uint64(mpc_ptr a, uint64_t const b, mpc_rnd_t rnd)
+CADO_INLINE int mpc_set_uint64(mpc_ptr a, uint64_t const b, mpc_rnd_t rnd)
 {
     return mpc_set_ui(a, b, rnd);
 }
-static inline int mpc_set_int64(mpc_ptr a, int64_t const b, mpc_rnd_t rnd)
+CADO_INLINE int mpc_set_int64(mpc_ptr a, int64_t const b, mpc_rnd_t rnd)
 {
     return mpc_set_si(a, b, rnd);
 }
@@ -64,20 +64,20 @@ static inline int mpc_set_int64(mpc_ptr a, int64_t const b, mpc_rnd_t rnd)
 /* Some of these functions are useful additions to the mpc types, in the
  * context of interaction with other types
  */
-static inline void mpc_init_set_si(mpc_ptr z, long x, mpc_rnd_t rnd)
+CADO_INLINE void mpc_init_set_si(mpc_ptr z, long x, mpc_rnd_t rnd)
 {
     mpc_init2(z, mpfr_get_default_prec());
     mpc_set_si(z, x, rnd);
 }
 
-static inline void mpc_init_set_ui(mpc_ptr z, unsigned long x, mpc_rnd_t rnd)
+CADO_INLINE void mpc_init_set_ui(mpc_ptr z, unsigned long x, mpc_rnd_t rnd)
 {
     mpc_init2(z, mpfr_get_default_prec());
     mpc_set_ui(z, x, rnd);
 }
 
 /* comparison functions must follow the same convention as mpc_cmp ! */
-static inline int mpc_cmp_ui(mpc_srcptr a, unsigned long c)
+CADO_INLINE int mpc_cmp_ui(mpc_srcptr a, unsigned long c)
 {
     if (c <= LONG_MAX) {
         return mpc_cmp_si_si(a, long(c), 0);
@@ -87,44 +87,44 @@ static inline int mpc_cmp_ui(mpc_srcptr a, unsigned long c)
         return MPC_INEX(rr, ri);
     }
 }
-static inline int mpc_cmp_d(mpc_srcptr a, double c)
+CADO_INLINE int mpc_cmp_d(mpc_srcptr a, double c)
 {
     int const rr = mpfr_cmp_d(mpc_realref(a), c);
     int const ri = mpfr_cmp_ui(mpc_imagref(a), 0);
     return MPC_INEX(rr, ri);
 }
-static inline int mpc_cmp_ld(mpc_srcptr a, long double c)
+CADO_INLINE int mpc_cmp_ld(mpc_srcptr a, long double c)
 {
     int const rr = mpfr_cmp_ld(mpc_realref(a), c);
     int const ri = mpfr_cmp_ui(mpc_imagref(a), 0);
     return MPC_INEX(rr, ri);
 }
-static inline int mpc_cmp_fr(mpc_srcptr a, mpfr_srcptr c)
+CADO_INLINE int mpc_cmp_fr(mpc_srcptr a, mpfr_srcptr c)
 {
     int const rr = mpfr_cmp(mpc_realref(a), c);
     int const ri = mpfr_cmp_ui(mpc_imagref(a), 0);
     return MPC_INEX(rr, ri);
 }
-static inline int mpc_cmp_d_d(mpc_srcptr a, double cr, double ci)
+CADO_INLINE int mpc_cmp_d_d(mpc_srcptr a, double cr, double ci)
 {
     int const rr = mpfr_cmp_d(mpc_realref(a), cr);
     int const ri = mpfr_cmp_d(mpc_imagref(a), ci);
     return MPC_INEX(rr, ri);
 }
-static inline int mpc_cmp_ld_ld(mpc_srcptr a, long double cr, long double ci)
+CADO_INLINE int mpc_cmp_ld_ld(mpc_srcptr a, long double cr, long double ci)
 {
     int const rr = mpfr_cmp_ld(mpc_realref(a), cr);
     int const ri = mpfr_cmp_ld(mpc_imagref(a), ci);
     return MPC_INEX(rr, ri);
 }
 
-static inline int mpc_sub_si(mpc_ptr a, mpc_srcptr b, long c, mpc_rnd_t rnd)
+CADO_INLINE int mpc_sub_si(mpc_ptr a, mpc_srcptr b, long c, mpc_rnd_t rnd)
 {
     int const rr = mpfr_set(mpc_imagref(a), mpc_imagref(b), MPC_RND_RE(rnd));
     int const ri = mpfr_sub_si(mpc_realref(a), mpc_realref(b), c, MPC_RND_IM(rnd));
     return MPC_INEX(rr, ri);
 }
-static inline int mpc_div_si(mpc_ptr a, mpc_srcptr b, long c, mpc_rnd_t rnd)
+CADO_INLINE int mpc_div_si(mpc_ptr a, mpc_srcptr b, long c, mpc_rnd_t rnd)
 {
     int const rr = mpfr_div_si(mpc_imagref(a), mpc_imagref(b), c, MPC_RND_RE(rnd));
     int const ri = mpfr_div_si(mpc_realref(a), mpc_realref(b), c, MPC_RND_IM(rnd));
@@ -137,25 +137,25 @@ static inline int mpc_div_si(mpc_ptr a, mpc_srcptr b, long c, mpc_rnd_t rnd)
  * mpc_t is initalized with mpfr_get_default_prec()
  */
 #if ULONG_BITS < 64
-static inline void mpc_init_set_uint64(mpc_ptr z, uint64_t x, mpc_rnd_t rnd)
+CADO_INLINE void mpc_init_set_uint64(mpc_ptr z, uint64_t x, mpc_rnd_t rnd)
 {
     mpc_init2(z, mpfr_get_default_prec());
     mpc_set_uint64(z, x, rnd);
 }
 
-static inline void mpc_init_set_int64(mpc_ptr z, int64_t x, mpc_rnd_t rnd)
+CADO_INLINE void mpc_init_set_int64(mpc_ptr z, int64_t x, mpc_rnd_t rnd)
 {
     mpc_init2(z, mpfr_get_default_prec());
     mpc_set_int64(z, x, rnd);
 }
 
 #else
-static inline void mpc_init_set_uint64(mpc_ptr a, const uint64_t b,
+CADO_INLINE void mpc_init_set_uint64(mpc_ptr a, const uint64_t b,
                                        mpc_rnd_t rnd)
 {
     mpc_init_set_ui(a, b, rnd);
 }
-static inline void mpc_init_set_int64(mpc_ptr a, int64_t const b, mpc_rnd_t rnd)
+CADO_INLINE void mpc_init_set_int64(mpc_ptr a, int64_t const b, mpc_rnd_t rnd)
 {
     mpc_init_set_si(a, b, rnd);
 }
@@ -163,25 +163,25 @@ static inline void mpc_init_set_int64(mpc_ptr a, int64_t const b, mpc_rnd_t rnd)
 // }}}
 
 // {{{ mpc_init_set_{d,ld,d_d,ld_ld}
-static inline void mpc_init_set_d(mpc_ptr z, double x, mpc_rnd_t rnd)
+CADO_INLINE void mpc_init_set_d(mpc_ptr z, double x, mpc_rnd_t rnd)
 {
     mpc_init2(z, mpfr_get_default_prec());
     mpc_set_d(z, x, rnd);
 }
 
-static inline void mpc_init_set_ld(mpc_ptr z, long double x, mpc_rnd_t rnd)
+CADO_INLINE void mpc_init_set_ld(mpc_ptr z, long double x, mpc_rnd_t rnd)
 {
     mpc_init2(z, mpfr_get_default_prec());
     mpc_set_ld(z, x, rnd);
 }
 
-static inline void mpc_init_set_d_d(mpc_ptr z, double x, double y, mpc_rnd_t rnd)
+CADO_INLINE void mpc_init_set_d_d(mpc_ptr z, double x, double y, mpc_rnd_t rnd)
 {
     mpc_init2(z, mpfr_get_default_prec());
     mpc_set_d_d(z, x, y, rnd);
 }
 
-static inline void mpc_init_set_ld_ld(mpc_ptr z, long double x, long double y, mpc_rnd_t rnd)
+CADO_INLINE void mpc_init_set_ld_ld(mpc_ptr z, long double x, long double y, mpc_rnd_t rnd)
 {
     mpc_init2(z, mpfr_get_default_prec());
     mpc_set_ld_ld(z, x, y, rnd);
@@ -191,7 +191,7 @@ static inline void mpc_init_set_ld_ld(mpc_ptr z, long double x, long double y, m
 
 #if ULONG_BITS < 64
 #define MPC_AUX_DEFINE_COMPARISON(OP)                                          \
-    static inline int mpc_##OP##_uint64(mpc_srcptr a, uint64_t c)              \
+    CADO_INLINE int mpc_##OP##_uint64(mpc_srcptr a, uint64_t c)              \
     {                                                                          \
         if (c <= ULONG_MAX)                                                    \
             return mpc_##OP##_ui(a, (unsigned long)c);                         \
@@ -202,7 +202,7 @@ static inline void mpc_init_set_ld_ld(mpc_ptr z, long double x, long double y, m
         mpc_clear(cc);                                                         \
         return r;                                                              \
     }                                                                          \
-    static inline int mpc_##OP##_int64(mpc_srcptr a, int64_t c)                \
+    CADO_INLINE int mpc_##OP##_int64(mpc_srcptr a, int64_t c)                \
     {                                                                          \
         if (LONG_MIN <= c && c <= LONG_MAX)                                    \
             return mpc_##OP##_ui(a, (long)c);                                  \
@@ -214,7 +214,7 @@ static inline void mpc_init_set_ld_ld(mpc_ptr z, long double x, long double y, m
         return r;                                                              \
     }
 #define MPC_AUX_DEFINE_FUNC3(OP)                                               \
-    static inline int mpc_##OP##_uint64(mpc_ptr a, mpc_srcptr b, uint64_t c,   \
+    CADO_INLINE int mpc_##OP##_uint64(mpc_ptr a, mpc_srcptr b, uint64_t c,   \
                                         mpc_rnd_t rnd)                         \
     {                                                                          \
         if (c <= ULONG_MAX)                                                    \
@@ -226,7 +226,7 @@ static inline void mpc_init_set_ld_ld(mpc_ptr z, long double x, long double y, m
         mpc_clear(cc);                                                         \
         return r;                                                              \
     }                                                                          \
-    static inline int mpc_##OP##_int64(mpc_ptr a, mpc_srcptr b, int64_t c,     \
+    CADO_INLINE int mpc_##OP##_int64(mpc_ptr a, mpc_srcptr b, int64_t c,     \
                                        mpc_rnd_t rnd)                          \
     {                                                                          \
         if (LONG_MIN <= c && c <= LONG_MAX)                                    \
@@ -240,21 +240,21 @@ static inline void mpc_init_set_ld_ld(mpc_ptr z, long double x, long double y, m
     }
 #else
 #define MPC_AUX_DEFINE_COMPARISON(OP)                                          \
-    static inline int mpc_##OP##_uint64(mpc_srcptr a, uint64_t c)              \
+    CADO_INLINE int mpc_##OP##_uint64(mpc_srcptr a, uint64_t c)              \
     {                                                                          \
         return mpc_##OP##_ui(a, c);                                            \
     }                                                                          \
-    static inline int mpc_##OP##_int64(mpc_srcptr a, int64_t c)                \
+    CADO_INLINE int mpc_##OP##_int64(mpc_srcptr a, int64_t c)                \
     {                                                                          \
         return mpc_##OP##_si(a, c);                                            \
     }
 #define MPC_AUX_DEFINE_FUNC3(OP)                                               \
-    static inline int mpc_##OP##_uint64(mpc_ptr a, mpc_srcptr b, uint64_t c,   \
+    CADO_INLINE int mpc_##OP##_uint64(mpc_ptr a, mpc_srcptr b, uint64_t c,   \
                                         mpc_rnd_t rnd)                         \
     {                                                                          \
         return mpc_##OP##_ui(a, b, c, rnd);                                    \
     }                                                                          \
-    static inline int mpc_##OP##_int64(mpc_ptr a, mpc_srcptr b, int64_t c,     \
+    CADO_INLINE int mpc_##OP##_int64(mpc_ptr a, mpc_srcptr b, int64_t c,     \
                                        mpc_rnd_t rnd)                          \
     {                                                                          \
         return mpc_##OP##_si(a, b, c, rnd);                                    \
@@ -266,13 +266,13 @@ static inline void mpc_init_set_ld_ld(mpc_ptr z, long double x, long double y, m
 
 /* mpc doesn't have any addmul functions, but it does have FMA's */
 
-static inline int mpc_addmul(mpc_ptr a, mpc_srcptr b, mpc_srcptr c,
+CADO_INLINE int mpc_addmul(mpc_ptr a, mpc_srcptr b, mpc_srcptr c,
                              mpc_rnd_t rnd)
 {
     return mpc_fma(a, b, c, a, rnd);
 }
 
-static inline int mpc_fms(mpc_ptr res, mpc_srcptr x, mpc_srcptr y, mpc_srcptr z,
+CADO_INLINE int mpc_fms(mpc_ptr res, mpc_srcptr x, mpc_srcptr y, mpc_srcptr z,
                              mpc_rnd_t rnd)
 {
     mpc_t mz;
@@ -285,7 +285,7 @@ static inline int mpc_fms(mpc_ptr res, mpc_srcptr x, mpc_srcptr y, mpc_srcptr z,
     return r;
 }
 
-static inline int mpc_submul(mpc_ptr a, mpc_srcptr b, mpc_srcptr c,
+CADO_INLINE int mpc_submul(mpc_ptr a, mpc_srcptr b, mpc_srcptr c,
                              mpc_rnd_t rnd)
 {
     /* This one isn't copied from mpfr_aux.h, since mpc does not have an
@@ -296,7 +296,7 @@ static inline int mpc_submul(mpc_ptr a, mpc_srcptr b, mpc_srcptr c,
     return -r;
 }
 
-static inline int mpc_addmul_ui(mpc_ptr a, mpc_srcptr b, unsigned long const c,
+CADO_INLINE int mpc_addmul_ui(mpc_ptr a, mpc_srcptr b, unsigned long const c,
                                 mpc_rnd_t rnd)
 {
     mpc_t cc;
@@ -307,7 +307,7 @@ static inline int mpc_addmul_ui(mpc_ptr a, mpc_srcptr b, unsigned long const c,
     return r;
 }
 
-static inline int mpc_submul_ui(mpc_ptr a, mpc_srcptr b, unsigned long const c,
+CADO_INLINE int mpc_submul_ui(mpc_ptr a, mpc_srcptr b, unsigned long const c,
                                 mpc_rnd_t rnd)
 {
     mpc_t cc;
@@ -318,7 +318,7 @@ static inline int mpc_submul_ui(mpc_ptr a, mpc_srcptr b, unsigned long const c,
     return r;
 }
 
-static inline int mpc_addmul_si(mpc_ptr a, mpc_srcptr b, long const c,
+CADO_INLINE int mpc_addmul_si(mpc_ptr a, mpc_srcptr b, long const c,
                                 mpc_rnd_t rnd)
 {
     mpc_t cc;
@@ -329,7 +329,7 @@ static inline int mpc_addmul_si(mpc_ptr a, mpc_srcptr b, long const c,
     return r;
 }
 
-static inline int mpc_submul_si(mpc_ptr a, mpc_srcptr b, long const c,
+CADO_INLINE int mpc_submul_si(mpc_ptr a, mpc_srcptr b, long const c,
                                 mpc_rnd_t rnd)
 {
     mpc_t cc;
@@ -344,7 +344,7 @@ static inline int mpc_submul_si(mpc_ptr a, mpc_srcptr b, long const c,
 
 /* {{{ mpc_{div,remainder}_{ui,si} */
 
-static inline int mpc_remainder(mpc_ptr a, mpc_srcptr b, mpc_srcptr c,
+CADO_INLINE int mpc_remainder(mpc_ptr a, mpc_srcptr b, mpc_srcptr c,
                                 mpc_rnd_t rnd)
 {
     mpfr_prec_t pr, pi;
@@ -361,7 +361,7 @@ static inline int mpc_remainder(mpc_ptr a, mpc_srcptr b, mpc_srcptr c,
     return r;
 }
 
-static inline int mpc_remainder_ui(mpc_ptr a, mpc_srcptr b,
+CADO_INLINE int mpc_remainder_ui(mpc_ptr a, mpc_srcptr b,
                                    unsigned long const c, mpc_rnd_t rnd)
 {
     mpc_t cc;
@@ -372,7 +372,7 @@ static inline int mpc_remainder_ui(mpc_ptr a, mpc_srcptr b,
     return r;
 }
 
-static inline int mpc_remainder_si(mpc_ptr a, mpc_srcptr b, long const c,
+CADO_INLINE int mpc_remainder_si(mpc_ptr a, mpc_srcptr b, long const c,
                                    mpc_rnd_t rnd)
 {
     mpc_t cc;
@@ -395,7 +395,7 @@ MPC_AUX_DEFINE_FUNC3(div)
 MPC_AUX_DEFINE_FUNC3(remainder)
 
 #define MPC_AUX_FP_OP1(OP, TYP, SUF)                                         \
-    static inline int mpc_##OP##SUF(mpc_ptr z, mpc_srcptr x,                 \
+    CADO_INLINE int mpc_##OP##SUF(mpc_ptr z, mpc_srcptr x,                 \
                                    TYP a, mpc_rnd_t rnd)                     \
     {                                                                        \
         int const rr = mpfr_##OP##SUF(mpc_realref(z), mpc_realref(x),        \
@@ -404,7 +404,7 @@ MPC_AUX_DEFINE_FUNC3(remainder)
                                 MPC_RND_IM(rnd));                            \
         return MPC_INEX(rr, ri);                                             \
     }                                                                        \
-    static inline int mpc_##OP##SUF##SUF(mpc_ptr z, mpc_srcptr x,            \
+    CADO_INLINE int mpc_##OP##SUF##SUF(mpc_ptr z, mpc_srcptr x,            \
                                    TYP ar, TYP ai, mpc_rnd_t rnd)            \
     {                                                                        \
         int const rr = mpfr_##OP##SUF(mpc_realref(z), mpc_realref(x),        \
@@ -415,7 +415,7 @@ MPC_AUX_DEFINE_FUNC3(remainder)
     }
 
 #define MPC_AUX_MUL_OP1(OP, TYP, SUF1, SUF2)                                 \
-    static inline int mpc_##OP##SUF1(mpc_ptr z, mpc_srcptr x,                \
+    CADO_INLINE int mpc_##OP##SUF1(mpc_ptr z, mpc_srcptr x,                \
                                    TYP a, mpc_rnd_t rnd)                     \
     {                                                                        \
         int const rr = mpfr_##OP##SUF2(mpc_realref(z), mpc_realref(x),       \
@@ -426,7 +426,7 @@ MPC_AUX_DEFINE_FUNC3(remainder)
     }
 
 #define MPC_AUX_MUL_OP2(OP, TYP, SUF, combiner)                              \
-    static inline int mpc_##OP##SUF##SUF(mpc_ptr z, mpc_srcptr x,            \
+    CADO_INLINE int mpc_##OP##SUF##SUF(mpc_ptr z, mpc_srcptr x,            \
                                    TYP ar, TYP ai, mpc_rnd_t rnd)            \
     {                                                                        \
         /* zr = xr*ar - xi*ai                                                \
@@ -453,7 +453,7 @@ MPC_AUX_DEFINE_FUNC3(remainder)
         MPC_AUX_MUL_OP2(sub##OP, TYP, SUF, mpc_sub(z, z, t, rnd))
 
 #define MPC_AUX_DIV_OP(OP, TYP, SUF)                                         \
-    static inline int mpc_##OP##SUF##SUF(mpc_ptr z, mpc_srcptr x,            \
+    CADO_INLINE int mpc_##OP##SUF##SUF(mpc_ptr z, mpc_srcptr x,            \
                                         TYP ar, TYP ai, mpc_rnd_t rnd)       \
     {                                                                        \
         /* zr = xr*ar - xi*ai                                                \

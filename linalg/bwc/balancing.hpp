@@ -111,7 +111,7 @@ extern void balancing_clear(balancing & bal);
 extern void balancing_init(balancing & bal);
 
 /* helper for the functions below */
-static inline unsigned long balancing_index_shuffle_common_(unsigned long r, unsigned long n, const uint32_t * shuf)
+inline unsigned long balancing_index_shuffle_common_(unsigned long r, unsigned long n, const uint32_t * shuf)
 {
     modulusul_t M;
     modul_initmod_ul(M, n);
@@ -134,13 +134,13 @@ static inline unsigned long balancing_index_shuffle_common_(unsigned long r, uns
 
 /* These two relate to the global permutation represented by the rshuf /
  * rshuf_inv arrays */
-static inline unsigned long balancing_pre_shuffle(balancing const & bal, unsigned long r)
+inline unsigned long balancing_pre_shuffle(balancing const & bal, unsigned long r)
 {
     unsigned int K = MIN(bal.ncols, bal.nrows);
     if (r >= K) return r;
     return balancing_index_shuffle_common_(r, K, bal.pshuf);
 }
-static inline unsigned long balancing_pre_unshuffle(balancing const & bal, unsigned long r)
+inline unsigned long balancing_pre_unshuffle(balancing const & bal, unsigned long r)
 {
     unsigned int K = MIN(bal.ncols, bal.nrows);
     if (r >= K) return r;

@@ -84,105 +84,105 @@ typedef int MPI_Request;
 extern "C" {
 #endif
 
-static inline int MPI_Get_count(MPI_Status * status, MPI_Datatype datatype, int * c)
+CADO_INLINE int MPI_Get_count(MPI_Status * status, MPI_Datatype datatype, int * c)
 {
     *c = status->c / fakempi_sizeof_type(datatype);
     return 0;
 }
-static inline int MPI_Probe(int source MAYBE_UNUSED, int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED) { memset(status, 0, sizeof(MPI_Status)); return 0; }
-static inline int MPI_Iprobe(int source MAYBE_UNUSED, int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, int * flag, MPI_Status *status MAYBE_UNUSED) { memset(status, 0, sizeof(MPI_Status)); *flag = 0; return 0; }
-static inline int MPI_Wait(MPI_Request *request MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED) { return 0; }
-static inline int MPI_Waitall(int count MAYBE_UNUSED, MPI_Request *request MAYBE_UNUSED, MPI_Status *statuses MAYBE_UNUSED) { return 0; }
-static inline int MPI_Testall(int count MAYBE_UNUSED, MPI_Request *request MAYBE_UNUSED, int * flag, MPI_Status *statuses MAYBE_UNUSED) { *flag = 1; return 0; }
-static inline int MPI_Testsome(int n_in, MPI_Request *request MAYBE_UNUSED, int * n_out, int * indices, MPI_Status *statuses MAYBE_UNUSED) { 
+CADO_INLINE int MPI_Probe(int source MAYBE_UNUSED, int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED) { memset(status, 0, sizeof(MPI_Status)); return 0; }
+CADO_INLINE int MPI_Iprobe(int source MAYBE_UNUSED, int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, int * flag, MPI_Status *status MAYBE_UNUSED) { memset(status, 0, sizeof(MPI_Status)); *flag = 0; return 0; }
+CADO_INLINE int MPI_Wait(MPI_Request *request MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED) { return 0; }
+CADO_INLINE int MPI_Waitall(int count MAYBE_UNUSED, MPI_Request *request MAYBE_UNUSED, MPI_Status *statuses MAYBE_UNUSED) { return 0; }
+CADO_INLINE int MPI_Testall(int count MAYBE_UNUSED, MPI_Request *request MAYBE_UNUSED, int * flag, MPI_Status *statuses MAYBE_UNUSED) { *flag = 1; return 0; }
+CADO_INLINE int MPI_Testsome(int n_in, MPI_Request *request MAYBE_UNUSED, int * n_out, int * indices, MPI_Status *statuses MAYBE_UNUSED) { 
     *n_out = n_in;
     for(int i = 0; i < n_in; i++) { indices[i] = i; }
     return 0;
 }
-static inline int MPI_Abort(MPI_Comm comm MAYBE_UNUSED, int s) { exit(s); }
-static inline int MPI_Comm_rank(int s MAYBE_UNUSED, int  * p) { *p=0; return 0;}
-static inline int MPI_Comm_size(int s MAYBE_UNUSED, int  * p) { *p=1; return 0;}
-static inline int MPI_Initialized(int  * p) { *p=1; return 0; }
-static inline int MPI_Init(int * argc MAYBE_UNUSED, char *** argv MAYBE_UNUSED) { return 0; }
-static inline int MPI_Init_thread(int * argc MAYBE_UNUSED, char *** argv MAYBE_UNUSED, int req, int * prov) { if (prov) *prov=req; return 0; }
-static inline int MPI_Query_thread(int * prov) { *prov=MPI_THREAD_MULTIPLE; return 0; }
-static inline int MPI_Finalize() {return 0;}
-static inline int MPI_Op_create( MPI_User_function *function MAYBE_UNUSED, int commute MAYBE_UNUSED, MPI_Op *op MAYBE_UNUSED ){return 0;}
-static inline int MPI_Op_free(MPI_Op *op MAYBE_UNUSED ){return 0;}
-static inline int MPI_Send(const void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int dest MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED){return 0;}
-static inline int MPI_Sendrecv( void *sbuf MAYBE_UNUSED, int scount MAYBE_UNUSED, MPI_Datatype sdatatype MAYBE_UNUSED, int sdest MAYBE_UNUSED,int stag MAYBE_UNUSED,  void *rbuf MAYBE_UNUSED, int rcount MAYBE_UNUSED, MPI_Datatype rdatatype MAYBE_UNUSED, int rdest MAYBE_UNUSED,int rtag MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED){return 0;}
-static inline int MPI_Isend(const void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int dest MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED, MPI_Request * zz){*zz=0; return 0;}
-static inline int MPI_Recv( void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int source MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED ){ abort(); return 0;}
-static inline int MPI_Irecv( void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int source MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, MPI_Request * zz){ abort(); *zz=0; return 0;}
-static inline int MPI_Bcast( void *buffer MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int root MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED){return 0;}
-static inline int MPI_Reduce (const void *sendbuf, void *recvbuf, int count,MPI_Datatype datatype, MPI_Op op MAYBE_UNUSED, int root MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED)
+CADO_INLINE int MPI_Abort(MPI_Comm comm MAYBE_UNUSED, int s) { exit(s); }
+CADO_INLINE int MPI_Comm_rank(int s MAYBE_UNUSED, int  * p) { *p=0; return 0;}
+CADO_INLINE int MPI_Comm_size(int s MAYBE_UNUSED, int  * p) { *p=1; return 0;}
+CADO_INLINE int MPI_Initialized(int  * p) { *p=1; return 0; }
+CADO_INLINE int MPI_Init(int * argc MAYBE_UNUSED, char *** argv MAYBE_UNUSED) { return 0; }
+CADO_INLINE int MPI_Init_thread(int * argc MAYBE_UNUSED, char *** argv MAYBE_UNUSED, int req, int * prov) { if (prov) *prov=req; return 0; }
+CADO_INLINE int MPI_Query_thread(int * prov) { *prov=MPI_THREAD_MULTIPLE; return 0; }
+CADO_INLINE int MPI_Finalize() {return 0;}
+CADO_INLINE int MPI_Op_create( MPI_User_function *function MAYBE_UNUSED, int commute MAYBE_UNUSED, MPI_Op *op MAYBE_UNUSED ){return 0;}
+CADO_INLINE int MPI_Op_free(MPI_Op *op MAYBE_UNUSED ){return 0;}
+CADO_INLINE int MPI_Send(const void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int dest MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED){return 0;}
+CADO_INLINE int MPI_Sendrecv( void *sbuf MAYBE_UNUSED, int scount MAYBE_UNUSED, MPI_Datatype sdatatype MAYBE_UNUSED, int sdest MAYBE_UNUSED,int stag MAYBE_UNUSED,  void *rbuf MAYBE_UNUSED, int rcount MAYBE_UNUSED, MPI_Datatype rdatatype MAYBE_UNUSED, int rdest MAYBE_UNUSED,int rtag MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED){return 0;}
+CADO_INLINE int MPI_Isend(const void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int dest MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED, MPI_Request * zz){*zz=0; return 0;}
+CADO_INLINE int MPI_Recv( void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int source MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED ){ abort(); return 0;}
+CADO_INLINE int MPI_Irecv( void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int source MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, MPI_Request * zz){ abort(); *zz=0; return 0;}
+CADO_INLINE int MPI_Bcast( void *buffer MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int root MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED){return 0;}
+CADO_INLINE int MPI_Reduce (const void *sendbuf, void *recvbuf, int count,MPI_Datatype datatype, MPI_Op op MAYBE_UNUSED, int root MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED)
 {
     if (sendbuf) memcpy(recvbuf, sendbuf, count * fakempi_sizeof_type(datatype));
     return 0;
 }
 
-static inline int MPI_Reduce_scatter(const void *sendbuf, void *recvbuf, int *recvcounts,
+CADO_INLINE int MPI_Reduce_scatter(const void *sendbuf, void *recvbuf, int *recvcounts,
                     MPI_Datatype datatype, MPI_Op op MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED)
 {
     if (sendbuf) memcpy(recvbuf, sendbuf, recvcounts[0] * fakempi_sizeof_type(datatype));
     return 0;
 }
-static inline int MPI_Allreduce (const void *sendbuf, void *recvbuf, int count,MPI_Datatype datatype, MPI_Op op MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED)
+CADO_INLINE int MPI_Allreduce (const void *sendbuf, void *recvbuf, int count,MPI_Datatype datatype, MPI_Op op MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED)
 {
     if (sendbuf) memcpy(recvbuf, sendbuf, count * fakempi_sizeof_type(datatype));
     return 0;
 }
-static inline int MPI_Comm_split (MPI_Comm x MAYBE_UNUSED, int color MAYBE_UNUSED, int key MAYBE_UNUSED, MPI_Comm * y)
+CADO_INLINE int MPI_Comm_split (MPI_Comm x MAYBE_UNUSED, int color MAYBE_UNUSED, int key MAYBE_UNUSED, MPI_Comm * y)
 {
     *y=0;
     return 0;
 }
-static inline int MPI_Comm_set_errhandler (MPI_Comm x MAYBE_UNUSED, MPI_Errhandler e MAYBE_UNUSED)
+CADO_INLINE int MPI_Comm_set_errhandler (MPI_Comm x MAYBE_UNUSED, MPI_Errhandler e MAYBE_UNUSED)
 {
     return 0;
 }
-static inline int MPI_Comm_free (MPI_Comm * x MAYBE_UNUSED) { return 0; }
-static inline int MPI_Comm_dup (MPI_Comm y, MPI_Comm * x) { *x = y; return 0; }
-static inline int MPI_Comm_set_name(MPI_Comm comm MAYBE_UNUSED, const char *comm_name MAYBE_UNUSED) { return 0;}
-static inline int MPI_Comm_get_name(MPI_Comm comm MAYBE_UNUSED, char *comm_name MAYBE_UNUSED, int * rlen) { *comm_name='\0'; *rlen=0; return 0;}
-static inline int MPI_Scatterv(const void * sendbuf, int * sendcounts, int * displs,  MPI_Datatype st, void * recvbuf, int recvcount, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
+CADO_INLINE int MPI_Comm_free (MPI_Comm * x MAYBE_UNUSED) { return 0; }
+CADO_INLINE int MPI_Comm_dup (MPI_Comm y, MPI_Comm * x) { *x = y; return 0; }
+CADO_INLINE int MPI_Comm_set_name(MPI_Comm comm MAYBE_UNUSED, const char *comm_name MAYBE_UNUSED) { return 0;}
+CADO_INLINE int MPI_Comm_get_name(MPI_Comm comm MAYBE_UNUSED, char *comm_name MAYBE_UNUSED, int * rlen) { *comm_name='\0'; *rlen=0; return 0;}
+CADO_INLINE int MPI_Scatterv(const void * sendbuf, int * sendcounts, int * displs,  MPI_Datatype st, void * recvbuf, int recvcount, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
     ASSERT_ALWAYS(sendcounts[0] * fakempi_sizeof_type(st) == recvcount * fakempi_sizeof_type(rt));
     memcpy(recvbuf, ((const char *)sendbuf) + displs[0] * fakempi_sizeof_type(st), recvcount * fakempi_sizeof_type(rt));
     return 0;
 }
 
-static inline int MPI_Scatter(const void * sendbuf, int sendcount, MPI_Datatype st, void * recvbuf, int recvcount, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
+CADO_INLINE int MPI_Scatter(const void * sendbuf, int sendcount, MPI_Datatype st, void * recvbuf, int recvcount, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
     ASSERT_ALWAYS(sendcount * fakempi_sizeof_type(st) == recvcount * fakempi_sizeof_type(rt));
     if (recvbuf && sendbuf)
         memcpy(recvbuf, sendbuf, recvcount * fakempi_sizeof_type(rt));
     return 0;
 }
 
-static inline int MPI_Barrier (MPI_Comm x MAYBE_UNUSED) { return 0; }
+CADO_INLINE int MPI_Barrier (MPI_Comm x MAYBE_UNUSED) { return 0; }
 
-static inline int MPI_Gather(const void * sendbuf, int sendcount,  MPI_Datatype st, void * recvbuf, int recvcount MAYBE_UNUSED, MPI_Datatype rt MAYBE_UNUSED, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
+CADO_INLINE int MPI_Gather(const void * sendbuf, int sendcount,  MPI_Datatype st, void * recvbuf, int recvcount MAYBE_UNUSED, MPI_Datatype rt MAYBE_UNUSED, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
     if (sendbuf == MPI_IN_PLACE) return 0;
     memcpy(((char *)recvbuf), (const char*) sendbuf, sendcount * fakempi_sizeof_type(st));
     return 0;
 }
-static inline int MPI_Gatherv(const void * sendbuf, int sendcount,  MPI_Datatype st, void * recvbuf, int * recvcounts, int * displs, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
+CADO_INLINE int MPI_Gatherv(const void * sendbuf, int sendcount,  MPI_Datatype st, void * recvbuf, int * recvcounts, int * displs, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
     ASSERT_ALWAYS(sendcount * fakempi_sizeof_type(st) == recvcounts[0] * fakempi_sizeof_type(rt));
     memcpy(((char *)recvbuf) + displs[0] * fakempi_sizeof_type(rt), sendbuf, sendcount * fakempi_sizeof_type(st));
     return 0;
 }
-static inline int MPI_Allgather(const void * sendbuf MAYBE_UNUSED, int sendcount MAYBE_UNUSED,  MPI_Datatype st MAYBE_UNUSED, void * recvbuf MAYBE_UNUSED, int recvcount MAYBE_UNUSED, MPI_Datatype rt MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
+CADO_INLINE int MPI_Allgather(const void * sendbuf MAYBE_UNUSED, int sendcount MAYBE_UNUSED,  MPI_Datatype st MAYBE_UNUSED, void * recvbuf MAYBE_UNUSED, int recvcount MAYBE_UNUSED, MPI_Datatype rt MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
     ASSERT_ALWAYS(sendbuf == MPI_IN_PLACE || sendcount * fakempi_sizeof_type(st) == recvcount * fakempi_sizeof_type(rt));
     if (sendbuf) memcpy(recvbuf, sendbuf, sendcount * fakempi_sizeof_type(st));
     return 0;
 }
 
-static inline int MPI_Iallgather(const void *sendbuf, int  sendcount, MPI_Datatype st, void *recvbuf, int recvcount, MPI_Datatype rt, MPI_Comm comm, MPI_Request *request)
+CADO_INLINE int MPI_Iallgather(const void *sendbuf, int  sendcount, MPI_Datatype st, void *recvbuf, int recvcount, MPI_Datatype rt, MPI_Comm comm, MPI_Request *request)
 {
     *request=0;
     return MPI_Allgather(sendbuf, sendcount, st, recvbuf, recvcount, rt, comm);
 }
 
-static inline int MPI_Allgatherv(const void *sendbuf, int sendcount MAYBE_UNUSED,
+CADO_INLINE int MPI_Allgatherv(const void *sendbuf, int sendcount MAYBE_UNUSED,
             MPI_Datatype sendtype MAYBE_UNUSED, void *recvbuf MAYBE_UNUSED, int *recvcount MAYBE_UNUSED,
             int *displs MAYBE_UNUSED, MPI_Datatype recvtype MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED)
 {
@@ -190,14 +190,14 @@ static inline int MPI_Allgatherv(const void *sendbuf, int sendcount MAYBE_UNUSED
     return 0;
 }
 
-static inline int MPI_Type_contiguous(int count, MPI_Datatype oldtype, MPI_Datatype * newtype)
+CADO_INLINE int MPI_Type_contiguous(int count, MPI_Datatype oldtype, MPI_Datatype * newtype)
 {
     *newtype = count * oldtype;
     return 0;
 }
-static inline int MPI_Type_commit(MPI_Datatype * t MAYBE_UNUSED) { return 0; }
-static inline int MPI_Type_free(MPI_Datatype * t MAYBE_UNUSED) { return 0; }
-static inline int MPI_Type_set_attr(MPI_Datatype type MAYBE_UNUSED, int key MAYBE_UNUSED, void *value MAYBE_UNUSED)
+CADO_INLINE int MPI_Type_commit(MPI_Datatype * t MAYBE_UNUSED) { return 0; }
+CADO_INLINE int MPI_Type_free(MPI_Datatype * t MAYBE_UNUSED) { return 0; }
+CADO_INLINE int MPI_Type_set_attr(MPI_Datatype type MAYBE_UNUSED, int key MAYBE_UNUSED, void *value MAYBE_UNUSED)
 {
     /* XXX We are *NOT* storing the type attribute here. This is because
      * we expect that the user function that we use, and which exploits
@@ -207,7 +207,7 @@ static inline int MPI_Type_set_attr(MPI_Datatype type MAYBE_UNUSED, int key MAYB
      */
     return 0;
 }
-static inline int MPI_Type_get_attr(MPI_Datatype type MAYBE_UNUSED, int key MAYBE_UNUSED, void *value MAYBE_UNUSED, int * flag MAYBE_UNUSED)
+CADO_INLINE int MPI_Type_get_attr(MPI_Datatype type MAYBE_UNUSED, int key MAYBE_UNUSED, void *value MAYBE_UNUSED, int * flag MAYBE_UNUSED)
 {
     /* Same as above. Yes, it's a bit counter-intuitive, but any path
      * that calls a fake MPI_Type_get_attr is surely bogus. */
@@ -217,7 +217,7 @@ static inline int MPI_Type_get_attr(MPI_Datatype type MAYBE_UNUSED, int key MAYB
     // *flag=1;
     return 0;
 }
-static inline int MPI_Type_delete_attr(MPI_Datatype type MAYBE_UNUSED, int key MAYBE_UNUSED) { return 0; }
+CADO_INLINE int MPI_Type_delete_attr(MPI_Datatype type MAYBE_UNUSED, int key MAYBE_UNUSED) { return 0; }
 
 typedef int MPI_Type_copy_attr_function(MPI_Datatype oldtype,
            int type_keyval, void *extra_state, void *attribute_val_in,
@@ -226,7 +226,7 @@ typedef int MPI_Type_delete_attr_function(MPI_Datatype type, int type_keyval,
             void *attribute_val, void *extra_state);
 #define MPI_TYPE_DUP_FN NULL
 #define MPI_TYPE_NULL_DELETE_FN NULL
-static inline int MPI_Type_create_keyval(
+CADO_INLINE int MPI_Type_create_keyval(
         MPI_Type_copy_attr_function *type_copy_attr_fn MAYBE_UNUSED,
         MPI_Type_delete_attr_function *type_delete_attr_fn MAYBE_UNUSED,
         int *type_keyval,
@@ -239,13 +239,13 @@ static inline int MPI_Type_create_keyval(
     *type_keyval = 0;
     return 0;
 }
-static inline int MPI_Type_free_keyval(int * x MAYBE_UNUSED)
+CADO_INLINE int MPI_Type_free_keyval(int * x MAYBE_UNUSED)
 {
     return 0;
 }
 
 #define MPI_MAX_ERROR_STRING    64
-static inline int MPI_Error_string(int err, char * msg, int * len)
+CADO_INLINE int MPI_Error_string(int err, char * msg, int * len)
 {
     *len = snprintf(msg, MPI_MAX_ERROR_STRING, "%s", strerror(err));
     return *len >= 0 ? 0 : ENOMEM;
@@ -262,7 +262,7 @@ static inline int MPI_Error_string(int err, char * msg, int * len)
 #if 0
 /* This function is 3.0 only. For the above reason, we don't expose it */
 #define MPI_MAX_LIBRARY_VERSION_STRING  32
-static inline int MPI_Get_library_version(char * ptr, int * len)
+CADO_INLINE int MPI_Get_library_version(char * ptr, int * len)
 {
     size_t res = strlcpy(ptr, "fake mpi 0.0", MPI_MAX_LIBRARY_VERSION_STRING);
     ASSERT_ALWAYS(res < MPI_MAX_LIBRARY_VERSION_STRING);
@@ -271,7 +271,7 @@ static inline int MPI_Get_library_version(char * ptr, int * len)
 }
 #endif
 
-static inline int MPI_Get_version(int * ver, int * subver)
+CADO_INLINE int MPI_Get_version(int * ver, int * subver)
 {
     *ver = MPI_VERSION;
     *subver = MPI_SUBVERSION;

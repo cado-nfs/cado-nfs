@@ -108,7 +108,7 @@ void mpz_poly_realloc (mpz_poly_ptr f, unsigned int nc);
 void mpz_poly_set(mpz_poly_ptr g, mpz_poly_srcptr f);
 void mpz_poly_swap (mpz_poly_ptr f, mpz_poly_ptr g);
 void mpz_poly_clear(mpz_poly_ptr f);
-static inline int mpz_poly_degree(mpz_poly_srcptr f) { return f->deg; }
+CADO_INLINE int mpz_poly_degree(mpz_poly_srcptr f) { return f->deg; }
 int mpz_poly_valuation(mpz_poly_srcptr f);
 
 void mpz_poly_cleandeg(mpz_poly_ptr f, int deg);
@@ -179,12 +179,12 @@ unsigned long mpz_poly_getcounter(mpz_poly_ptr f, unsigned int bound);
 unsigned long mpz_poly_cardinality(int deg, unsigned int bound);
 
 /* return the leading coefficient of f */
-static inline mpz_srcptr mpz_poly_lc (mpz_poly_srcptr f) {
+CADO_INLINE mpz_srcptr mpz_poly_lc (mpz_poly_srcptr f) {
     ASSERT(f->deg >= 0);
     return mpz_poly_coeff_const(f, f->deg);
 }
 
-static inline mpz_ptr mpz_poly_lc_w (mpz_poly_ptr f) {
+CADO_INLINE mpz_ptr mpz_poly_lc_w (mpz_poly_ptr f) {
     ASSERT(f->deg >= 0);
     return mpz_poly_coeff(f, f->deg);
 }
@@ -214,7 +214,7 @@ int mpz_poly_cmp_mpz(mpz_poly_srcptr, mpz_srcptr);
 
 #ifdef __cplusplus
 template<typename T>
-static inline int mpz_poly_cmp(mpz_poly_srcptr a, T const & b)
+CADO_INLINE int mpz_poly_cmp(mpz_poly_srcptr a, T const & b)
     requires std::is_integral_v<T>
 {
     for (int i = a->deg ; i >= 1; i--) {

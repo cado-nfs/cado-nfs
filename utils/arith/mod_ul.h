@@ -36,21 +36,21 @@ typedef unsigned long modulusul_t[MODUL_SIZE];
 
 /* Some functions for integers of the same width as the modulus */
 
-MAYBE_UNUSED static inline void modul_intinit(modintul_t r)
+MAYBE_UNUSED CADO_INLINE void modul_intinit(modintul_t r)
 {
     r[0] = 0;
 }
 
-MAYBE_UNUSED static inline void modul_intclear(modintul_t r MAYBE_UNUSED)
+MAYBE_UNUSED CADO_INLINE void modul_intclear(modintul_t r MAYBE_UNUSED)
 {
 }
 
-MAYBE_UNUSED static inline void modul_intset(modintul_t r, modintul_t const s)
+MAYBE_UNUSED CADO_INLINE void modul_intset(modintul_t r, modintul_t const s)
 {
     r[0] = s[0];
 }
 
-MAYBE_UNUSED static inline void modul_intset_ul(modintul_t r,
+MAYBE_UNUSED CADO_INLINE void modul_intset_ul(modintul_t r,
                                                 unsigned long const s)
 {
     r[0] = s;
@@ -62,7 +62,7 @@ MAYBE_UNUSED static inline void modul_intset_ul(modintul_t r,
    determined via mod_intbits(); if the modint_t is zero, mod_intget_uls()
    writes 0 to the first output unsigned long. It returns the number of
    unsigned longs written. */
-MAYBE_UNUSED static inline void
+MAYBE_UNUSED CADO_INLINE void
 modul_intset_uls(modintul_t r, unsigned long const * s, size_t const n)
 {
     ASSERT_ALWAYS(n <= MODUL_SIZE);
@@ -72,43 +72,43 @@ modul_intset_uls(modintul_t r, unsigned long const * s, size_t const n)
         r[0] = s[0];
 }
 
-MAYBE_UNUSED static inline unsigned long modul_intget_ul(modintul_t const s)
+MAYBE_UNUSED CADO_INLINE unsigned long modul_intget_ul(modintul_t const s)
 {
     return s[0];
 }
 
-MAYBE_UNUSED static inline size_t modul_intget_uls(unsigned long * r,
+MAYBE_UNUSED CADO_INLINE size_t modul_intget_uls(unsigned long * r,
                                                    modintul_t const s)
 {
     r[0] = s[0];
     return 1;
 }
 
-MAYBE_UNUSED static inline int modul_intequal(modintul_t const a,
+MAYBE_UNUSED CADO_INLINE int modul_intequal(modintul_t const a,
                                               modintul_t const b)
 {
     return (a[0] == b[0]);
 }
 
-MAYBE_UNUSED static inline int modul_intequal_ul(modintul_t const a,
+MAYBE_UNUSED CADO_INLINE int modul_intequal_ul(modintul_t const a,
                                                  unsigned long const b)
 {
     return (a[0] == b);
 }
 
-MAYBE_UNUSED static inline int modul_intcmp(modintul_t const a,
+MAYBE_UNUSED CADO_INLINE int modul_intcmp(modintul_t const a,
                                             modintul_t const b)
 {
     return (a[0] < b[0]) ? -1 : (a[0] == b[0]) ? 0 : 1;
 }
 
-MAYBE_UNUSED static inline int modul_intcmp_ul(modintul_t const a,
+MAYBE_UNUSED CADO_INLINE int modul_intcmp_ul(modintul_t const a,
                                                unsigned long const b)
 {
     return (a[0] < b) ? -1 : (a[0] == b) ? 0 : 1;
 }
 
-MAYBE_UNUSED static inline int modul_intcmp_uint64(modintul_t const a,
+MAYBE_UNUSED CADO_INLINE int modul_intcmp_uint64(modintul_t const a,
                                                    uint64_t const b)
 {
     if (b > ULONG_MAX)
@@ -116,30 +116,30 @@ MAYBE_UNUSED static inline int modul_intcmp_uint64(modintul_t const a,
     return (a[0] < b) ? -1 : (a[0] == b) ? 0 : 1;
 }
 
-MAYBE_UNUSED static inline int modul_intfits_ul(modintul_t const a MAYBE_UNUSED)
+MAYBE_UNUSED CADO_INLINE int modul_intfits_ul(modintul_t const a MAYBE_UNUSED)
 {
     return 1;
 }
 
-MAYBE_UNUSED static inline void modul_intadd(modintul_t r, modintul_t const a,
+MAYBE_UNUSED CADO_INLINE void modul_intadd(modintul_t r, modintul_t const a,
                                              modintul_t const b)
 {
     r[0] = a[0] + b[0];
 }
 
-MAYBE_UNUSED static inline void modul_intsub(modintul_t r, modintul_t const a,
+MAYBE_UNUSED CADO_INLINE void modul_intsub(modintul_t r, modintul_t const a,
                                              modintul_t const b)
 {
     r[0] = a[0] - b[0];
 }
 
-MAYBE_UNUSED static inline void modul_intshr(modintul_t r, modintul_t const s,
+MAYBE_UNUSED CADO_INLINE void modul_intshr(modintul_t r, modintul_t const s,
                                              int const i)
 {
     r[0] = s[0] >> i;
 }
 
-MAYBE_UNUSED static inline void modul_intshl(modintul_t r, modintul_t const s,
+MAYBE_UNUSED CADO_INLINE void modul_intshl(modintul_t r, modintul_t const s,
                                              int const i)
 {
     r[0] = s[0] << i;
@@ -147,7 +147,7 @@ MAYBE_UNUSED static inline void modul_intshl(modintul_t r, modintul_t const s,
 
 /* Returns the number of bits in a, that is, floor(log_2(n))+1.
    For n==0 returns 0. */
-MAYBE_UNUSED static inline size_t modul_intbits(modintul_t const a)
+MAYBE_UNUSED CADO_INLINE size_t modul_intbits(modintul_t const a)
 {
     if (a[0] == 0)
         return 0;
@@ -155,14 +155,14 @@ MAYBE_UNUSED static inline size_t modul_intbits(modintul_t const a)
 }
 
 /* r = n/d. We require d|n */
-MAYBE_UNUSED static inline void
+MAYBE_UNUSED CADO_INLINE void
 modul_intdivexact(modintul_t r, modintul_t const n, modintul_t const d)
 {
     r[0] = n[0] / d[0];
 }
 
 /* r = n%d */
-MAYBE_UNUSED static inline void modul_intmod(modintul_t r, modintul_t const n,
+MAYBE_UNUSED CADO_INLINE void modul_intmod(modintul_t r, modintul_t const n,
                                              modintul_t const d)
 {
     r[0] = n[0] % d[0];
@@ -170,38 +170,38 @@ MAYBE_UNUSED static inline void modul_intmod(modintul_t r, modintul_t const n,
 
 /* Functions for the modulus */
 
-MAYBE_UNUSED static inline void modul_initmod_ul(modulusul_t m,
+MAYBE_UNUSED CADO_INLINE void modul_initmod_ul(modulusul_t m,
                                                  unsigned long const s)
 {
     m[0] = s;
 }
 
-MAYBE_UNUSED static inline void modul_initmod_int(modulusul_t m,
+MAYBE_UNUSED CADO_INLINE void modul_initmod_int(modulusul_t m,
                                                   modintul_t const s)
 {
     m[0] = s[0];
 }
 
-MAYBE_UNUSED static inline unsigned long modul_getmod_ul(modulusul_t const m)
+MAYBE_UNUSED CADO_INLINE unsigned long modul_getmod_ul(modulusul_t const m)
 {
     return m[0];
 }
 
-MAYBE_UNUSED static inline void modul_getmod_int(modintul_t r,
+MAYBE_UNUSED CADO_INLINE void modul_getmod_int(modintul_t r,
                                                  modulusul_t const m)
 {
     r[0] = m[0];
 }
 
-MAYBE_UNUSED static inline void modul_clearmod(modulusul_t m MAYBE_UNUSED)
+MAYBE_UNUSED CADO_INLINE void modul_clearmod(modulusul_t m MAYBE_UNUSED)
 {
 }
 
 /* Functions for residues */
-static inline void modul_neg(residueul_t, residueul_t const, modulusul_t const);
+CADO_INLINE void modul_neg(residueul_t, residueul_t const, modulusul_t const);
 
 /* Initialises a residue_t type and sets it to zero */
-MAYBE_UNUSED static inline void modul_init(residueul_t r,
+MAYBE_UNUSED CADO_INLINE void modul_init(residueul_t r,
                                            modulusul_t const m MAYBE_UNUSED)
 {
     r[0] = 0UL;
@@ -209,24 +209,24 @@ MAYBE_UNUSED static inline void modul_init(residueul_t r,
 
 /* Initialises a residue_t type, but does not set it to zero. For fixed length
    residue_t types, that leaves nothing to do at all. */
-MAYBE_UNUSED static inline void
+MAYBE_UNUSED CADO_INLINE void
 modul_init_noset0(residueul_t r MAYBE_UNUSED, modulusul_t const m MAYBE_UNUSED)
 {
 }
 
-MAYBE_UNUSED static inline void modul_clear(residueul_t r MAYBE_UNUSED,
+MAYBE_UNUSED CADO_INLINE void modul_clear(residueul_t r MAYBE_UNUSED,
                                             modulusul_t const m MAYBE_UNUSED)
 {
 }
 
-MAYBE_UNUSED static inline void modul_set(residueul_t r, residueul_t const s,
+MAYBE_UNUSED CADO_INLINE void modul_set(residueul_t r, residueul_t const s,
                                           modulusul_t const m MAYBE_UNUSED)
 {
     ASSERT_EXPENSIVE(s[0] < m[0]);
     r[0] = s[0];
 }
 
-MAYBE_UNUSED static inline void
+MAYBE_UNUSED CADO_INLINE void
 modul_set_ul(residueul_t r, unsigned long const s, modulusul_t const m)
 {
     r[0] = s % m[0];
@@ -235,7 +235,7 @@ modul_set_ul(residueul_t r, unsigned long const s, modulusul_t const m)
 /* Sets the residue_t to the class represented by the integer s. Assumes that
    s is reduced (mod m), i.e. 0 <= s < m */
 
-MAYBE_UNUSED static inline void modul_set_ul_reduced(residueul_t r,
+MAYBE_UNUSED CADO_INLINE void modul_set_ul_reduced(residueul_t r,
                                                      unsigned long const s,
                                                      modulusul_t const m
                                                      MAYBE_UNUSED)
@@ -244,13 +244,13 @@ MAYBE_UNUSED static inline void modul_set_ul_reduced(residueul_t r,
     r[0] = s;
 }
 
-MAYBE_UNUSED static inline void modul_set_int(residueul_t r, modintul_t const s,
+MAYBE_UNUSED CADO_INLINE void modul_set_int(residueul_t r, modintul_t const s,
                                               modulusul_t const m)
 {
     r[0] = s[0] % m[0];
 }
 
-MAYBE_UNUSED static inline void modul_set_int_reduced(residueul_t r,
+MAYBE_UNUSED CADO_INLINE void modul_set_int_reduced(residueul_t r,
                                                       modintul_t const s,
                                                       modulusul_t const m
                                                       MAYBE_UNUSED)
@@ -259,13 +259,13 @@ MAYBE_UNUSED static inline void modul_set_int_reduced(residueul_t r,
     r[0] = s[0];
 }
 
-MAYBE_UNUSED static inline void
+MAYBE_UNUSED CADO_INLINE void
 modul_set_uint64(residueul_t r, uint64_t const s, modulusul_t const m)
 {
     r[0] = s % m[0];
 }
 
-MAYBE_UNUSED static inline void modul_set_int64(residueul_t r, int64_t const s,
+MAYBE_UNUSED CADO_INLINE void modul_set_int64(residueul_t r, int64_t const s,
                                                 modulusul_t const m)
 {
     r[0] = llabs(s) % m[0];
@@ -278,13 +278,13 @@ MAYBE_UNUSED static inline void modul_set_int64(residueul_t r, int64_t const s,
  * not use "1" for 1 (e.g. when using Montgomery's REDC.)
  * For interface homogeneity we make even modul_set0 take the m parameter.
  */
-MAYBE_UNUSED static inline void modul_set0(residueul_t r,
+MAYBE_UNUSED CADO_INLINE void modul_set0(residueul_t r,
                                            modulusul_t const m MAYBE_UNUSED)
 {
     r[0] = 0UL;
 }
 
-MAYBE_UNUSED static inline void modul_set1(residueul_t r,
+MAYBE_UNUSED CADO_INLINE void modul_set1(residueul_t r,
                                            modulusul_t const m MAYBE_UNUSED)
 {
     r[0] = m[0] != 1UL;
@@ -292,7 +292,7 @@ MAYBE_UNUSED static inline void modul_set1(residueul_t r,
 
 /* Exchanges the values of the two arguments */
 
-MAYBE_UNUSED static inline void modul_swap(residueul_t a, residueul_t b,
+MAYBE_UNUSED CADO_INLINE void modul_swap(residueul_t a, residueul_t b,
                                            modulusul_t const m MAYBE_UNUSED)
 {
     unsigned long t;
@@ -302,21 +302,21 @@ MAYBE_UNUSED static inline void modul_swap(residueul_t a, residueul_t b,
     b[0] = t;
 }
 
-MAYBE_UNUSED static inline unsigned long
+MAYBE_UNUSED CADO_INLINE unsigned long
 modul_get_ul(residueul_t const s, modulusul_t const m MAYBE_UNUSED)
 {
     ASSERT_EXPENSIVE(s[0] < m[0]);
     return s[0];
 }
 
-MAYBE_UNUSED static inline void modul_get_int(modintul_t r, residueul_t const s,
+MAYBE_UNUSED CADO_INLINE void modul_get_int(modintul_t r, residueul_t const s,
                                               modulusul_t const m MAYBE_UNUSED)
 {
     ASSERT_EXPENSIVE(s[0] < m[0]);
     r[0] = s[0];
 }
 
-MAYBE_UNUSED static inline int modul_equal(residueul_t const a,
+MAYBE_UNUSED CADO_INLINE int modul_equal(residueul_t const a,
                                            residueul_t const b,
                                            modulusul_t const m MAYBE_UNUSED)
 {
@@ -324,21 +324,21 @@ MAYBE_UNUSED static inline int modul_equal(residueul_t const a,
     return (a[0] == b[0]);
 }
 
-MAYBE_UNUSED static inline int modul_is0(residueul_t const a,
+MAYBE_UNUSED CADO_INLINE int modul_is0(residueul_t const a,
                                          modulusul_t const m MAYBE_UNUSED)
 {
     ASSERT_EXPENSIVE(a[0] < m[0]);
     return (a[0] == 0UL);
 }
 
-MAYBE_UNUSED static inline int modul_is1(residueul_t const a,
+MAYBE_UNUSED CADO_INLINE int modul_is1(residueul_t const a,
                                          modulusul_t const m MAYBE_UNUSED)
 {
     ASSERT_EXPENSIVE(a[0] < m[0]);
     return (a[0] == 1UL);
 }
 
-MAYBE_UNUSED static inline void modul_add(residueul_t r,
+MAYBE_UNUSED CADO_INLINE void modul_add(residueul_t r,
         residueul_t const a,
         residueul_t const b,
         modulusul_t const m)
@@ -354,7 +354,7 @@ MAYBE_UNUSED static inline void modul_add(residueul_t r,
 #endif
 }
 
-MAYBE_UNUSED static inline void modul_add1(residueul_t r, residueul_t const a,
+MAYBE_UNUSED CADO_INLINE void modul_add1(residueul_t r, residueul_t const a,
                                            modulusul_t const m)
 {
     ASSERT_EXPENSIVE(a[0] < m[0]);
@@ -363,14 +363,14 @@ MAYBE_UNUSED static inline void modul_add1(residueul_t r, residueul_t const a,
         r[0] = 0;
 }
 
-MAYBE_UNUSED static inline void modul_add_ul(residueul_t r, residueul_t const a,
+MAYBE_UNUSED CADO_INLINE void modul_add_ul(residueul_t r, residueul_t const a,
                                              unsigned long const b,
                                              modulusul_t const m)
 {
     ularith_addmod_ul_ul(r, a[0], b % m[0], m[0]);
 }
 
-MAYBE_UNUSED static inline void modul_sub(residueul_t r, residueul_t const a,
+MAYBE_UNUSED CADO_INLINE void modul_sub(residueul_t r, residueul_t const a,
                                           residueul_t const b,
                                           modulusul_t const m)
 {
@@ -385,14 +385,14 @@ MAYBE_UNUSED static inline void modul_sub(residueul_t r, residueul_t const a,
 #endif
 }
 
-MAYBE_UNUSED static inline void modul_sub_ul(residueul_t r, residueul_t const a,
+MAYBE_UNUSED CADO_INLINE void modul_sub_ul(residueul_t r, residueul_t const a,
                                              unsigned long const b,
                                              modulusul_t const m)
 {
     ularith_submod_ul_ul(r, a[0], b % m[0], m[0]);
 }
 
-MAYBE_UNUSED static inline void modul_neg(residueul_t r, residueul_t const a,
+MAYBE_UNUSED CADO_INLINE void modul_neg(residueul_t r, residueul_t const a,
                                           modulusul_t const m)
 {
     ASSERT_EXPENSIVE(a[0] < m[0]);
@@ -402,7 +402,7 @@ MAYBE_UNUSED static inline void modul_neg(residueul_t r, residueul_t const a,
         r[0] = m[0] - a[0];
 }
 
-MAYBE_UNUSED static inline void modul_mul(residueul_t r, residueul_t const a,
+MAYBE_UNUSED CADO_INLINE void modul_mul(residueul_t r, residueul_t const a,
                                           residueul_t const b,
                                           modulusul_t const m)
 {
@@ -420,7 +420,7 @@ MAYBE_UNUSED static inline void modul_mul(residueul_t r, residueul_t const a,
 #endif
 }
 
-MAYBE_UNUSED static inline void modul_sqr(residueul_t r, residueul_t const a,
+MAYBE_UNUSED CADO_INLINE void modul_sqr(residueul_t r, residueul_t const a,
                                           modulusul_t const m)
 {
     unsigned long t1, t2;
@@ -431,7 +431,7 @@ MAYBE_UNUSED static inline void modul_sqr(residueul_t r, residueul_t const a,
 }
 
 /* Computes (a * 2^wordsize) % m */
-MAYBE_UNUSED static inline void
+MAYBE_UNUSED CADO_INLINE void
 modul_tomontgomery(residueul_t r, residueul_t const a, modulusul_t const m)
 {
     ASSERT_EXPENSIVE(a[0] < m[0]);
@@ -439,7 +439,7 @@ modul_tomontgomery(residueul_t r, residueul_t const a, modulusul_t const m)
 }
 
 /* Computes (a / 2^wordsize) % m */
-MAYBE_UNUSED static inline void modul_frommontgomery(residueul_t r,
+MAYBE_UNUSED CADO_INLINE void modul_frommontgomery(residueul_t r,
                                                      residueul_t const a,
                                                      unsigned long const invm,
                                                      modulusul_t const m)
@@ -452,7 +452,7 @@ MAYBE_UNUSED static inline void modul_frommontgomery(residueul_t r,
 
 /* Computes (a / 2^wordsize) % m, but result can be r = m.
    Input a must not be equal 0 */
-MAYBE_UNUSED static inline void modul_redcsemi_ul_not0(residueul_t r,
+MAYBE_UNUSED CADO_INLINE void modul_redcsemi_ul_not0(residueul_t r,
                                                        unsigned long const a,
                                                        unsigned long const invm,
                                                        modulusul_t const m)
@@ -472,7 +472,7 @@ MAYBE_UNUSED static inline void modul_redcsemi_ul_not0(residueul_t r,
 }
 
 /* Computes ((a + b) / 2^wordsize) % m. a <= m is permissible */
-MAYBE_UNUSED static inline void
+MAYBE_UNUSED CADO_INLINE void
 modul_addredc_ul(residueul_t r, residueul_t const a, unsigned long const b,
                  unsigned long const invm, modulusul_t const m)
 {
@@ -501,7 +501,7 @@ modul_addredc_ul(residueul_t r, residueul_t const a, unsigned long const b,
 
 /* Computes ((a + b) / 2^wordsize) % m, but result can be == m.
    a <= m is permissible */
-MAYBE_UNUSED static inline void
+MAYBE_UNUSED CADO_INLINE void
 modul_addredcsemi_ul(residueul_t r, residueul_t const a, unsigned long const b,
                      unsigned long const invm, modulusul_t const m)
 {
@@ -551,7 +551,7 @@ modul_addredcsemi_ul(residueul_t r, residueul_t const a, unsigned long const b,
     */
 }
 
-MAYBE_UNUSED static inline void
+MAYBE_UNUSED CADO_INLINE void
 modul_mulredc(residueul_t r, residueul_t const a, residueul_t const b,
               unsigned long const invm, modulusul_t const m)
 {
@@ -588,7 +588,7 @@ modul_mulredc(residueul_t r, residueul_t const a, residueul_t const b,
 }
 
 /* FIXME: check for overflow if b > m */
-MAYBE_UNUSED static inline void
+MAYBE_UNUSED CADO_INLINE void
 modul_mulredc_ul(residueul_t r, residueul_t const a, unsigned long const b,
                  unsigned long const invm, modulusul_t const m)
 {
@@ -614,7 +614,7 @@ modul_mulredc_ul(residueul_t r, residueul_t const a, unsigned long const b,
 /* Computes (a * b + c)/ 2^wordsize % m. Requires that
    a * b + c < 2^wordsize * m */
 
-MAYBE_UNUSED static inline void
+MAYBE_UNUSED CADO_INLINE void
 modul_muladdredc_ul(residueul_t r, residueul_t const a, unsigned long const b,
                     unsigned long const c, unsigned long const invm,
                     modulusul_t const m)
@@ -639,18 +639,18 @@ modul_muladdredc_ul(residueul_t r, residueul_t const a, unsigned long const b,
 #endif
 }
 
-MAYBE_UNUSED static inline void modul_div2(residueul_t r, residueul_t const a,
+MAYBE_UNUSED CADO_INLINE void modul_div2(residueul_t r, residueul_t const a,
                                            modulusul_t const m)
 {
     r[0] = ularith_div2mod(a[0], m[0]);
 }
 
-MAYBE_UNUSED static inline int modul_next(residueul_t r, modulusul_t const m)
+MAYBE_UNUSED CADO_INLINE int modul_next(residueul_t r, modulusul_t const m)
 {
     return (++r[0] == m[0]);
 }
 
-MAYBE_UNUSED static inline int modul_finished(residueul_t const r,
+MAYBE_UNUSED CADO_INLINE int modul_finished(residueul_t const r,
                                               modulusul_t const m)
 {
     return (r[0] == m[0]);

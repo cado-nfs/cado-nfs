@@ -88,7 +88,8 @@ nfs_aux::~nfs_aux()
     auto p = [](auto const & ck) { return ck.get_checksum(); };
     verbose_fmt_print(0, 2,
             "# Checksums over sieve region: after all sieving: {}\n",
-            fmt::join(checksum_post_sieve | std::views::transform(p), " "));
+            // see llvm issue 190333
+            fmt::join(std::ranges::transform_view(checksum_post_sieve, p), " "));
 
     verbose_fmt_print(0, 1, "# {} {}\n",
             rt.rep.reports, las.batch ? "survivor(s) saved" : "relation(s)");

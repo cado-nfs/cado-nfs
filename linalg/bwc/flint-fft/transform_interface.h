@@ -1,5 +1,6 @@
 #ifndef CADO_TRANSFORM_INTERFACE_H
 #define CADO_TRANSFORM_INTERFACE_H
+#include "macros.h"
 
 #include <string.h>
 
@@ -194,13 +195,13 @@ void fft_import(const struct fft_transform_info * fti, void * x);
 /* In the mulmod case, return the integer so that the product is computed
  * mod 2^n-1 (see fft_transform_info_init_mulmod)
  */
-static inline mp_bitcnt_t fft_get_mulmod(const struct fft_transform_info * fti, int * a);
+CADO_INLINE mp_bitcnt_t fft_get_mulmod(const struct fft_transform_info * fti, int * a);
 
 /* In the mulmod case, return the minimum number of limbs that are
  * required to store the computed integer.  (see
  * fft_transform_info_init_mulmod and fft_get_mulmod)
  */
-static inline mp_size_t fft_get_mulmod_output_minlimbs(const struct fft_transform_info * fti);
+CADO_INLINE mp_size_t fft_get_mulmod_output_minlimbs(const struct fft_transform_info * fti);
 
 /* Returns a malloc()ed string (or NULL) providing explanation of what
  * this transform type is doing.
@@ -248,56 +249,56 @@ struct fft_transform_info {
     inline fft_transform_info(mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc) {
         fft_transform_info_init(this, bits1, bits2, nacc);
     }
-    static inline fft_transform_info mul_info(mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc) {
-        return fft_transform_info(bits1, bits2, nacc);
+    static fft_transform_info mul_info(mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc) {
+        return { bits1, bits2, nacc };
     }
-    static inline fft_transform_info mulmod_info(mp_bitcnt_t xbits, mp_bitcnt_t ybits, unsigned int nacc, mp_bitcnt_t minwrap) {
+    static fft_transform_info mulmod_info(mp_bitcnt_t xbits, mp_bitcnt_t ybits, unsigned int nacc, mp_bitcnt_t minwrap) {
         fft_transform_info fti;
         fft_transform_info_init_mulmod(&fti, xbits, ybits, nacc, minwrap);
         return fti;
     }
-    static inline fft_transform_info polynomial_mul_info(mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc)
+    static fft_transform_info polynomial_mul_info(mpz_srcptr p, mp_size_t n1, mp_size_t n2, unsigned int nacc)
     {
         fft_transform_info fti;
         fft_transform_info_init_fppol(&fti, p, n1, n2, nacc);
         return fti;
     }
-    static inline fft_transform_info polynomial_mp_info(mpz_srcptr p, mp_size_t nmin, mp_size_t nmax, unsigned int nacc)
+    static fft_transform_info polynomial_mp_info(mpz_srcptr p, mp_size_t nmin, mp_size_t nmax, unsigned int nacc)
     {
         fft_transform_info fti;
         fft_transform_info_init_fppol_mp(&fti, p, nmin, nmax, nacc);
         return fti;
     }
-    inline void adjust_depth(unsigned int adj) { fft_transform_info_adjust_depth(this, adj); }
-    inline std::array<size_t, 3> get_alloc_sizes() const {
+    void adjust_depth(unsigned int adj) { fft_transform_info_adjust_depth(this, adj); }
+    std::array<size_t, 3> get_alloc_sizes() const {
         std::array<size_t, 3> sizes;
-        fft_transform_info_get_alloc_sizes(this, &sizes[0]);
+        fft_transform_info_get_alloc_sizes(this, sizes.data());
         return sizes;
     }
-    inline size_t size0_bytes() const { return get_alloc_sizes()[0]; }
-    inline size_t size1_bytes() const { return get_alloc_sizes()[1]; }
-    inline size_t size2_bytes() const { return get_alloc_sizes()[2]; }
-    inline void prepare(ptr x) const { fft_prepare(this, x); }
-    inline void dft(ptr y, const mp_limb_t * x, mp_size_t nx, ptr temp) const {
+    size_t size0_bytes() const { return get_alloc_sizes()[0]; }
+    size_t size1_bytes() const { return get_alloc_sizes()[1]; }
+    size_t size2_bytes() const { return get_alloc_sizes()[2]; }
+    void prepare(ptr x) const { fft_prepare(this, x); }
+    void dft(ptr y, const mp_limb_t * x, mp_size_t nx, ptr temp) const {
         fft_dft(this, y, x, nx, temp);
     }
-    inline void ift(mp_limb_t * x, mp_size_t nx, ptr y, ptr temp) const {
+    void ift(mp_limb_t * x, mp_size_t nx, ptr y, ptr temp) const {
         fft_ift(this, x, nx, y, temp);
     }
-    inline void add(ptr z, srcptr y0, srcptr y1) const {
-        return fft_add(this, z, y0, y1);
+    void add(ptr z, srcptr y0, srcptr y1) const {
+        fft_add(this, z, y0, y1);
     }
-    inline void compose(ptr z, srcptr y0, srcptr y1, ptr temp) const {
+    void compose(ptr z, srcptr y0, srcptr y1, ptr temp) const {
         fft_compose(this, z, y0, y1, temp);
     }
-    inline void addcompose(ptr z, srcptr y0, srcptr y1, ptr temp, ptr qtemp) const {
+    void addcompose(ptr z, srcptr y0, srcptr y1, ptr temp, ptr qtemp) const {
         fft_addcompose(this, z, y0, y1, temp, qtemp);
     }
-    inline void zero(ptr x) const { fft_zero(this, x); }
-    inline void fill_random(ptr x, gmp_randstate_t rstate) const { fft_fill_random(this, x, rstate); }
-    inline int check(srcptr x, int c) const { return fft_check(this, x, c); }
-    inline void to_export(ptr x) const { fft_export(this, x); }
-    inline void to_import(ptr x) const { fft_import(this, x); }
+    void zero(ptr x) const { fft_zero(this, x); }
+    void fill_random(ptr x, gmp_randstate_t rstate) const { fft_fill_random(this, x, rstate); }
+    int check(srcptr x, int c) const { return fft_check(this, x, c); }
+    void to_export(ptr x) const { fft_export(this, x); }
+    void to_import(ptr x) const { fft_import(this, x); }
     std::string explain() const { char * x = fft_transform_info_explain(this); std::string s = x; free(x); return s; }
 #endif
 };
@@ -306,13 +307,13 @@ struct fft_transform_info {
 extern "C" {
 #endif
 
-static inline mp_bitcnt_t fft_get_mulmod(const struct fft_transform_info * fti, int * a)
+CADO_INLINE mp_bitcnt_t fft_get_mulmod(const struct fft_transform_info * fti, int * a)
 {
     *a=1;
     return fti->minwrap ? (4<<fti->depth)*fti->bits : 0;
 }
 
-static inline mp_size_t fft_get_mulmod_output_minlimbs(const struct fft_transform_info * fti)
+CADO_INLINE mp_size_t fft_get_mulmod_output_minlimbs(const struct fft_transform_info * fti)
 {
     if (!fti->minwrap) return 0;
     mp_size_t w = fti->w;

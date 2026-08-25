@@ -18,7 +18,7 @@
 #include <compare>
 
 template<typename T>
-static inline std::partial_ordering operator<=>(std::complex<T> const & a, std::complex<T> const & b)
+inline std::partial_ordering operator<=>(std::complex<T> const & a, std::complex<T> const & b)
 {
     std::partial_ordering const c = a.imag() <=> b.imag();
     if (c == std::partial_ordering::unordered) return c;
@@ -27,7 +27,7 @@ static inline std::partial_ordering operator<=>(std::complex<T> const & a, std::
     return r;
 }
 template <typename T, typename U>
-static inline std::partial_ordering operator<=>(std::complex<T> const & a, const U b)
+inline std::partial_ordering operator<=>(std::complex<T> const & a, const U b)
     requires(std::is_integral_v<U> || std::is_floating_point_v<U>)
 {
     std::partial_ordering const c = a.imag() <=> 0;
@@ -37,7 +37,7 @@ static inline std::partial_ordering operator<=>(std::complex<T> const & a, const
     return r;
 }
 template <typename T, typename U>
-static inline bool operator==(std::complex<T> const & a, const U b)
+inline bool operator==(std::complex<T> const & a, const U b)
     requires(std::is_integral_v<U> || std::is_floating_point_v<U>)
 {
     std::partial_ordering const c = a.imag() <=> 0;
@@ -51,7 +51,7 @@ constexpr int ordering_as_int(std::partial_ordering cmp) noexcept {
     return (cmp < 0) ? -1 : ((cmp == 0) ? 0 : 1);
 }
 template <typename T, typename U>
-static inline int operator<=>(const U a, std::complex<T> const & b)
+inline int operator<=>(const U a, std::complex<T> const & b)
     requires(std::is_integral_v<U> || std::is_floating_point_v<U>)
 {
     int const c = -ordering_as_int(b.imag() <=> 0);
@@ -95,7 +95,7 @@ CADO_STD_COMPLEX_DEFINE_CMP(>=)
 
 #define CADO_STD_COMPLEX_MIXED_OPERATOR_OVERLOAD(OP)			\
     template <typename T, typename U>					\
-    static inline std::complex<T> OP(					\
+    inline std::complex<T> OP(					\
             std::complex<T> const & a,					\
             const U b)							\
         requires std::is_integral_v<U>					\
@@ -103,7 +103,7 @@ CADO_STD_COMPLEX_DEFINE_CMP(>=)
         return OP(a, T(b));						\
     }									\
     template <typename T, typename U>					\
-    static inline std::complex<T> OP(				        \
+    inline std::complex<T> OP(				        \
             const U a,							\
             std::complex<T> const & b)					\
         requires std::is_integral_v<U>					\

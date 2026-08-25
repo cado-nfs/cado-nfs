@@ -19,8 +19,16 @@
 # Type "make ?" for more options.
 ########################################################################
 
-: ${MAKE=make}
-export MAKE
+: ${CMAKE_GENERATOR="Unix Makefiles"}
+export CMAKE_GENERATOR
+if [ "$CMAKE_GENERATOR" = "Ninja" ] ; then
+    BUILD_TOOL=ninja
+    unset MAKE
+else
+    : ${MAKE=make}
+    BUILD_TOOL="$MAKE"
+    export MAKE
+fi
 
 if echo "${MAKEFLAGS}" | grep -q "jobserver-fds=0," ; then
     echo "# You are calling the top-level cado makefile with file descriptor 0 closed.">&2
@@ -120,10 +128,10 @@ if ! [ "$cmake_version" ] ; then
     cmake_path=
 # Recall that (some versions of) bash do not want quoting for regex patterns.
 elif [[ "$cmake_version" =~ ^cmake\ version\ [012] ]] ; then
-    echo "CMake found, but not with version 3.5 or newer" >&2
+    echo "CMake found, but not with version 3.18 or newer" >&2
     cmake_path=
-elif [[ "$cmake_version" =~ ^cmake\ version\ 3\.[01234]\. ]] ; then
-    echo "CMake found, but not with version 3.5 or newer" >&2
+elif [[ "$cmake_version" =~ ^cmake\ version\ 3\.([0-9]|1[0-7])\. ]] ; then
+    echo "CMake found, but not with version 3.18 or newer" >&2
     cmake_path=
 fi
 
@@ -197,14 +205,14 @@ fi
 
 ########################################################################
 # handle "make clean"
-if [ "$1" == "clean" ] && [ ! -f "$build_tree/Makefile" ] ; then
-    echo "There is no $build_tree/Makefile. Nothing to clean."
+if [ "$1" == "clean" ] && [ ! -f "$build_tree/Makefile" ] && [ ! -f "$build_tree/build.ninja" ]; then
+    echo "There is no build file in $build_tree. Nothing to clean."
     exit 0
 fi
 
 ########################################################################
 # call cmake (if Makefile does not exist)
-if [ "$1" = "cmake" ] || [ ! -f "$build_tree/Makefile" ] ; then
+if [ "$1" = "cmake" ] || ( [ ! -f "$build_tree/Makefile" ] && [ ! -f "$build_tree/build.ninja" ] ); then
     mkdir -p "$build_tree"
     absolute_path_of_build_tree="`cd "$build_tree" ; $pwdP`"
     cmake_gen=()
@@ -217,8 +225,12 @@ if [ "$1" = "cmake" ] || [ ! -f "$build_tree/Makefile" ] ; then
     if [ "$(bash -c 'echo ${CXX}')" ] ; then
         cmake_overrides+=(-DCMAKE_CXX_COMPILER="$CXX")
     fi
-    if [ "$(bash -c 'echo ${MAKE}')" ] ; then
+    if [ "$CMAKE_GENERATOR" != "Ninja" ] && [ "$(bash -c 'echo ${MAKE}')" ] ; then
         cmake_overrides+=(-DCMAKE_MAKE_PROGRAM="$MAKE")
+    fi
+    if [ "$CMAKE_GENERATOR" = "Ninja" ] ; then
+        unset MAKE
+        unset MAKEFLAGS
     fi
     (cd "$absolute_path_of_build_tree" ; "$cmake_path" "${cmake_gen[@]}" $CMAKE_EXTRA_ARGS "${cmake_overrides[@]}" "$absolute_path_of_source")
 fi
@@ -236,16 +248,39 @@ fi
 unset MAKELEVEL
 absolute_path_of_build_tree="`cd "$build_tree" ; $pwdP`"
 
-callit_args=("$@")
-callit() {
-(cd "$absolute_path_of_build_tree$relative_path_of_cwd" ; ${MAKE} "${callit_args[@]}")
-}
-if [ "$1" = "check" ] && ! [ "$ctest_filter" = "no" ] ; then
-    set -o pipefail
-    # the ctest_filter groks -nc, -q, -v
-    # fd 3 is another stdout that is guaranteed to escape the ctest
-    # filter. We may want to use it.
-    (callit | "$absolute_path_of_source/scripts/filter-ctest.pl" $ctest_filter) 3>&1
+if [ "$1" = "check" ] ; then
+    # make check is special. We call ctest directly.
+    shift
+    ctest_args=()
+    # emulate old behavior with ARGS=
+    eval "u=(${MAKEFLAGS})"
+    for f in "${u[@]}" ; do
+        if [ "$f" = "--" ] ; then
+            :
+        elif [[ "$f" =~ ^ARGS=(.*)$ ]] ; then
+            ctest_args+=(${BASH_REMATCH[1]})
+        else
+            ctest_args+=("$f")
+        fi
+    done
+    callit() {
+        cd "$absolute_path_of_build_tree$relative_path_of_cwd"
+        ctest -V "${ctest_args[@]}"
+    }
+    if ! [ "$ctest_filter" = "no" ] ; then
+        set -o pipefail
+        # the ctest_filter groks -nc, -q, -v
+        # fd 3 is another stdout that is guaranteed to escape the ctest
+        # filter. We may want to use it.
+        (callit | "$absolute_path_of_source/scripts/filter-ctest.pl" $ctest_filter) 3>&1
+    else
+        callit
+    fi
 else
+    # normal case
+    callit_args=("$@")
+    callit() {
+    (cd "$absolute_path_of_build_tree$relative_path_of_cwd" ; "${BUILD_TOOL}" "${callit_args[@]}")
+    }
     callit
 fi

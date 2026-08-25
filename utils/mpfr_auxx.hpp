@@ -22,14 +22,14 @@ namespace mpfr_auxx
 {
 
 #define MPFR_AUXX_DEFINE_FUNC_aXr_INT(OP)                               \
-    static inline void cado_mpfr_##OP(mpfr_ptr a, mpfr_srcptr b,        \
+    inline void cado_mpfr_##OP(mpfr_ptr a, mpfr_srcptr b,        \
                                       mpfr_rnd_t rnd)                   \
     {                                                                   \
         mpfr_##OP(a, b, rnd);                                           \
     }                                                                   \
                                                                         \
     template <typename T>                                               \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpfr_##OP(mpfr_ptr a, T const b, mpfr_rnd_t rnd)               \
     requires cado::converts_via<T, long>                                \
     {                                                                   \
@@ -37,7 +37,7 @@ namespace mpfr_auxx
     }                                                                   \
                                                                         \
     template <typename T>                                               \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpfr_##OP(mpfr_ptr a, T const b, mpfr_rnd_t rnd)               \
     requires cado::converts_via<T, unsigned long>                       \
     {                                                                   \
@@ -45,7 +45,7 @@ namespace mpfr_auxx
     }                                                                   \
                                                                         \
     template <typename T>                                               \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpfr_##OP(mpfr_ptr a, T const b, mpfr_rnd_t rnd)               \
         requires(!cado::converts_via<T, long> &&                        \
                   cado::converts_via<T, int64_t>)                       \
@@ -54,7 +54,7 @@ namespace mpfr_auxx
     }                                                                   \
                                                                         \
     template <typename T>                                               \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpfr_##OP(mpfr_ptr a, T const b, mpfr_rnd_t rnd)               \
         requires(!cado::converts_via<T, unsigned long> &&               \
                   cado::converts_via<T, uint64_t>)                      \
@@ -62,14 +62,14 @@ namespace mpfr_auxx
         mpfr_##OP##_uint64(a, b, rnd);                                  \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpfr_##OP(mpfr_ptr a, mpz_srcptr b, mpfr_rnd_t rnd)            \
     {                                                                   \
         mpfr_##OP##_z(a, b, rnd);                                       \
     }
 
 #define MPFR_AUXX_DEFINE_FUNC_aXr_FP_META(OP, TYP, SUF)                 \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpfr_##OP(mpfr_ptr a, TYP const b, mpfr_rnd_t rnd)             \
     {                                                                   \
         mpfr_##OP##SUF(a, b, rnd);                                      \
@@ -77,7 +77,7 @@ namespace mpfr_auxx
 
     /* same as mpfr, except that we preserve the sign bit of NAN */
 #define MPFR_AUXX_DEFINE_FUNC_aXr_FP_META_KEEP_NAN_SIGN(OP, TYP, SUF)   \
-    static inline void                                                  \
+    inline void                                                  \
     cado_mpfr_##OP(mpfr_ptr a, TYP const b, mpfr_rnd_t rnd)             \
     {                                                                   \
         mpfr_##OP##SUF(a, b, rnd);                                      \
@@ -94,13 +94,13 @@ namespace mpfr_auxx
 MPFR_AUXX_DEFINE_FUNC_aXr(init_set)
 MPFR_AUXX_DEFINE_FUNC_aXr(set)
 
-static inline void cado_mpfr_set_2exp(mpfr_ptr a, mpfr_srcptr b,
+inline void cado_mpfr_set_2exp(mpfr_ptr a, mpfr_srcptr b,
         mpfr_exp_t e, mpfr_rnd_t rnd)
 {
     mpfr_mul_2si(a, b, e, rnd);
 }
 template <typename T>
-static inline void
+inline void
 cado_mpfr_set_2exp(mpfr_ptr a, T const b, mpfr_exp_t e, mpfr_rnd_t rnd)
 requires cado::converts_via<T, long>
 {
@@ -108,7 +108,7 @@ requires cado::converts_via<T, long>
 }
 
 template <typename T>
-static inline void
+inline void
 cado_mpfr_set_2exp(mpfr_ptr a, T const b, mpfr_exp_t e, mpfr_rnd_t rnd)
 requires cado::converts_via<T, unsigned long>
 {
@@ -116,7 +116,7 @@ requires cado::converts_via<T, unsigned long>
 }
 
 template <typename T>
-static inline void
+inline void
 cado_mpfr_set_2exp(mpfr_ptr a, T const b, mpfr_exp_t e, mpfr_rnd_t rnd)
     requires(!cado::converts_via<T, long> &&
               cado::converts_via<T, int64_t>)
@@ -125,7 +125,7 @@ cado_mpfr_set_2exp(mpfr_ptr a, T const b, mpfr_exp_t e, mpfr_rnd_t rnd)
 }
 
 template <typename T>
-static inline void
+inline void
 cado_mpfr_set_2exp(mpfr_ptr a, T const b, mpfr_exp_t e, mpfr_rnd_t rnd)
     requires(!cado::converts_via<T, unsigned long> &&
               cado::converts_via<T, uint64_t>)
@@ -133,7 +133,7 @@ cado_mpfr_set_2exp(mpfr_ptr a, T const b, mpfr_exp_t e, mpfr_rnd_t rnd)
     mpfr_set_uint64_2exp(a, b, e, rnd);
 }
 
-static inline void
+inline void
 cado_mpfr_set_2exp(mpfr_ptr a, mpz_srcptr b, mpfr_exp_t e, mpfr_rnd_t rnd)
 {
     mpfr_set_z_2exp(a, b, e, rnd);
@@ -141,26 +141,26 @@ cado_mpfr_set_2exp(mpfr_ptr a, mpz_srcptr b, mpfr_exp_t e, mpfr_rnd_t rnd)
 
 /*****************************************************************/
 #define MPFR_AUXX_DEFINE_FUNC_tX_INT(OP)				\
-    static inline int cado_mpfr_##OP(mpfr_srcptr a, mpfr_srcptr b)	\
+    inline int cado_mpfr_##OP(mpfr_srcptr a, mpfr_srcptr b)	\
     {									\
         return mpfr_##OP(a, b);						\
     }									\
     template <typename T>						\
-    static inline int							\
+    inline int							\
     cado_mpfr_##OP(mpfr_srcptr a, T const b)				\
         requires cado::converts_via<T, long>				\
     {									\
         return mpfr_##OP##_si(a, b);					\
     }									\
     template <typename T>						\
-    static inline int							\
+    inline int							\
     cado_mpfr_##OP(mpfr_srcptr a, T const b)				\
         requires cado::converts_via<T, unsigned long>			\
     {									\
         return mpfr_##OP##_ui(a, b);					\
     }									\
     template <typename T>						\
-    static inline int							\
+    inline int							\
     cado_mpfr_##OP(mpfr_srcptr a, T const b)				\
         requires(!cado::converts_via<T, long> &&			\
                   cado::converts_via<T, int64_t>)			\
@@ -168,7 +168,7 @@ cado_mpfr_set_2exp(mpfr_ptr a, mpz_srcptr b, mpfr_exp_t e, mpfr_rnd_t rnd)
         return mpfr_##OP##_int64(a, b);					\
     }									\
     template <typename T>						\
-    static inline int							\
+    inline int							\
     cado_mpfr_##OP(mpfr_srcptr a, T const b)				\
         requires(!cado::converts_via<T, unsigned long> &&		\
                   cado::converts_via<T, uint64_t>)			\
@@ -177,7 +177,7 @@ cado_mpfr_set_2exp(mpfr_ptr a, mpz_srcptr b, mpfr_exp_t e, mpfr_rnd_t rnd)
     }
 
 #define MPFR_AUXX_DEFINE_FUNC_tX_FP_META(OP, TYP, SUF)			\
-    static inline int							\
+    inline int							\
     cado_mpfr_##OP(mpfr_srcptr a, TYP b)				\
     {									\
         return mpfr_##OP##SUF(a, b);					\
@@ -191,7 +191,7 @@ cado_mpfr_set_2exp(mpfr_ptr a, mpz_srcptr b, mpfr_exp_t e, mpfr_rnd_t rnd)
 
 MPFR_AUXX_DEFINE_FUNC_tX(cmp)
 
-static inline int
+inline int
 cado_mpfr_cmp(mpfr_srcptr a, mpz_srcptr b)
 {
     return mpfr_cmp_z(a, b);
@@ -200,14 +200,14 @@ cado_mpfr_cmp(mpfr_srcptr a, mpz_srcptr b)
 /*****************************************************************/
 
 #define MPFR_AUXX_DEFINE_FUNC_abXr_INT(OP)                              \
-    static inline int cado_mpfr_##OP(mpfr_ptr a,                        \
+    inline int cado_mpfr_##OP(mpfr_ptr a,                        \
                                      mpfr_srcptr b, mpfr_srcptr c,      \
                                      mpfr_rnd_t rnd)                    \
     {                                                                   \
         return ::mpfr_##OP(a, b, c, rnd);                               \
     }                                                                   \
     template <typename T>                                               \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpfr_##OP(mpfr_ptr a, mpfr_srcptr b, const T c,                \
                    mpfr_rnd_t rnd)                                      \
     requires cado::converts_via<T, unsigned long>                       \
@@ -215,7 +215,7 @@ cado_mpfr_cmp(mpfr_srcptr a, mpz_srcptr b)
         return mpfr_##OP##_ui(a, b, c, rnd);                            \
     }                                                                   \
     template <typename T>                                               \
-    static inline int cado_mpfr_##OP(mpfr_ptr a, mpfr_srcptr b,         \
+    inline int cado_mpfr_##OP(mpfr_ptr a, mpfr_srcptr b,         \
                                      const T c, mpfr_rnd_t rnd)         \
     requires(!cado::converts_via<T, unsigned long> &&                   \
               cado::converts_via<T, uint64_t>)                          \
@@ -223,14 +223,14 @@ cado_mpfr_cmp(mpfr_srcptr a, mpz_srcptr b)
         return mpfr_##OP##_uint64(a, b, c, rnd);                        \
     }                                                                   \
     template <typename T>                                               \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpfr_##OP(mpfr_ptr a, mpfr_srcptr b, const T c, mpfr_rnd_t rnd)\
     requires cado::converts_via<T, long>                             \
     {                                                                   \
         return mpfr_##OP##_si(a, b, c, rnd);                            \
     }                                                                   \
     template <typename T>                                               \
-    static inline int cado_mpfr_##OP(mpfr_ptr a, mpfr_srcptr b,         \
+    inline int cado_mpfr_##OP(mpfr_ptr a, mpfr_srcptr b,         \
                                      const T c, mpfr_rnd_t rnd)         \
     requires(!cado::converts_via<T, long> &&                            \
               cado::converts_via<T, int64_t>)                           \
@@ -238,7 +238,7 @@ cado_mpfr_cmp(mpfr_srcptr a, mpz_srcptr b)
         return mpfr_##OP##_int64(a, b, c, rnd);                         \
     }
 #define MPFR_AUXX_DEFINE_FUNC_abXr_FP_META(OP, TYP, SUF)                \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpfr_##OP(mpfr_ptr a, mpfr_srcptr b, const TYP c,            \
                    mpfr_rnd_t rnd)                                      \
     {                                                                   \
@@ -247,7 +247,7 @@ cado_mpfr_cmp(mpfr_srcptr a, mpz_srcptr b)
 
 #define MPFR_AUXX_DEFINE_FUNC_aXbr_INT(OP, FIXUP)                           \
     template <typename T>                                               \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpfr_##OP(mpfr_ptr a, const T b, mpfr_srcptr c,                \
                    mpfr_rnd_t rnd)                                      \
     requires cado::converts_via<T, unsigned long>                       \
@@ -257,7 +257,7 @@ cado_mpfr_cmp(mpfr_srcptr a, mpz_srcptr b)
         return r;                                                       \
     }                                                                   \
     template <typename T>                                               \
-    static inline int cado_mpfr_##OP(mpfr_ptr a, const T b,             \
+    inline int cado_mpfr_##OP(mpfr_ptr a, const T b,             \
                                      mpfr_srcptr c, mpfr_rnd_t rnd)     \
     requires(!cado::converts_via<T, unsigned long> &&                   \
               cado::converts_via<T, uint64_t>)                          \
@@ -267,7 +267,7 @@ cado_mpfr_cmp(mpfr_srcptr a, mpz_srcptr b)
         return r;                                                       \
     }                                                                   \
     template <typename T>                                               \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpfr_##OP(mpfr_ptr a, const T b, mpfr_srcptr c,                \
                    mpfr_rnd_t rnd)                                      \
     requires cado::integral_fits_v<T, long>                             \
@@ -277,7 +277,7 @@ cado_mpfr_cmp(mpfr_srcptr a, mpz_srcptr b)
         return r;                                                       \
     }                                                                   \
     template <typename T>                                               \
-    static inline int cado_mpfr_##OP(mpfr_ptr a, const T b,             \
+    inline int cado_mpfr_##OP(mpfr_ptr a, const T b,             \
                                      mpfr_srcptr c, mpfr_rnd_t rnd)     \
     requires(!cado::converts_via<T, long> &&                            \
               cado::converts_via<T, int64_t>)                           \
@@ -288,7 +288,7 @@ cado_mpfr_cmp(mpfr_srcptr a, mpz_srcptr b)
     }
 
 #define MPFR_AUXX_DEFINE_FUNC_aXbr_FP_META(OP, FIXUP, TYP, SUF)         \
-    static inline int                                                   \
+    inline int                                                   \
     cado_mpfr_##OP(mpfr_ptr a, const TYP b, mpfr_srcptr c,              \
                    mpfr_rnd_t rnd)                                      \
     {                                                                   \

@@ -15,23 +15,23 @@
    check, and 2 means that the function should choose the value of CARRYCHECK
    depending on the value of p. */
 template <int CARRYCHECK = 2>
-static inline fb_root_p1
+inline fb_root_p1
 fb_root_in_qlattice_31bits (fbprime_t p, fb_root_p1 R,
         redc_invp_t invp, const qlattice_basis &basis);
 template <int CARRYCHECK = 2>
-static inline fb_root_p1
+inline fb_root_p1
 fb_root_in_qlattice_127bits (fbprime_t p, fb_root_p1 R,
         redc_invp_t invp, const qlattice_basis &basis);
 
 /* batch calls expect affine inputs and affine outputs */
 template <int CARRYCHECK = 2>
-static inline bool
+inline bool
 fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, fbprime_t p,
         const fbroot_t *r_ab, redc_invp_t invp,
         const qlattice_basis &basis, size_t n_roots);
 #if 0
 template <int CARRYCHECK = 2>
-static inline bool
+inline bool
 fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, fbprime_t p,
         const fbroot_t *r_ab, redc_invp_t invp,
         const qlattice_basis &basis, size_t n_roots);
@@ -87,7 +87,7 @@ fb_root_in_qlattice_127bits_batch<2> (fbroot_t *r_ij, const fbprime_t p,
 #endif
 
 /* fb_root_in_qlattice returns (R*b1-a1)/(a0-R*b0) mod p */
-static inline fb_root_p1
+inline fb_root_p1
 fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis)
 {
@@ -103,7 +103,7 @@ fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
 }
 
 
-static inline bool
+inline bool
 fb_root_in_qlattice_batch (fbroot_t *r_ij MAYBE_UNUSED,
         const fbprime_t p MAYBE_UNUSED,
         const fbroot_t *r_ab MAYBE_UNUSED,
@@ -127,7 +127,7 @@ fb_root_in_qlattice_batch (fbroot_t *r_ij MAYBE_UNUSED,
 }
 
 /* This helper function is used for powers of 2. See below */
-static inline fb_root_p1
+inline fb_root_p1
 fb_root_in_qlattice_po2 (fbprime_t p, fb_root_p1 R,
         const qlattice_basis &basis);
 
@@ -138,7 +138,7 @@ fb_root_in_qlattice_po2 (fbprime_t p, fb_root_p1 R,
  * If CARRYCHECK is 0, we require that p satisfies redc_no_carry(p).
  */
 template <int CARRYCHECK>
-static inline fb_root_p1
+inline fb_root_p1
 fb_root_in_qlattice_31bits (const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis)
 {
@@ -226,7 +226,7 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fb_root_p1 R,
  */
 
 template <int CARRYCHECK>
-static inline bool
+inline bool
 fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p, 
         const fbroot_t *r_ab, const redc_invp_t invp, const qlattice_basis &basis,
         const size_t n_roots)
@@ -317,7 +317,7 @@ reference_fb_root_in_qlattice (fbprime_t p, fb_root_p1 R, qlattice_basis const &
  * Q-lattice can be as large as 63 bits. We call redc many more times here.
  */
 template <int CARRYCHECK>
-static inline fb_root_p1
+inline fb_root_p1
 fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
         redc_invp_t MAYBE_UNUSED, const qlattice_basis &basis)
 {
@@ -491,7 +491,7 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
  * \return true if all inverses exist, and false otherwise.
  */
 template <int CARRYCHECK>
-static inline bool
+inline bool
 fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, const fbprime_t p,
         const fbroot_t *r_ab, const redc_invp_t invp, const qlattice_basis &basis,
         const size_t n_roots)
@@ -542,7 +542,7 @@ fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, const fbprime_t p,
 }
 #endif
 
-static inline bool
+inline bool
 fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, fbprime_t p,
         const fbroot_t *r_ab, redc_invp_t invp,
         const qlattice_basis &basis, size_t n_roots)
@@ -562,7 +562,7 @@ fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, fbprime_t p,
 
 /* This is just for powers of 2, and is used by both versions above */
 
-static inline fb_root_p1 fb_root_in_qlattice_po2 (const fbprime_t p, const fb_root_p1 R, const qlattice_basis &basis)
+inline fb_root_p1 fb_root_in_qlattice_po2 (const fbprime_t p, const fb_root_p1 R, const qlattice_basis &basis)
 {
     fbprime_t u, v;
     ASSERT(p == (p & -p)); /* Test that p is power of 2 */

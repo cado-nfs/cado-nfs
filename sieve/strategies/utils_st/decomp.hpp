@@ -38,7 +38,7 @@ struct decomp : public std::vector<unsigned int> {
     bool operator!=(decomp const & o) const { return *this < o || o < *this; }
 };
 
-static inline unsigned int
+inline unsigned int
 is_good_decomp(decomp const & D, unsigned int len_p_min, unsigned int len_p_max)
 {
     for (auto x: D)

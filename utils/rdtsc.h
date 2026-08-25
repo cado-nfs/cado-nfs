@@ -67,7 +67,7 @@ static uint64_t start_time, end_time;
 #if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
 
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline void serialize()
+CADO_INLINE void serialize()
 {
     unsigned long id = 0;
     __asm__ volatile("CPUID\n\t"
@@ -79,7 +79,7 @@ static inline void serialize()
 /* Use RDTSC to read CPU core clock cycles except that on contemporary CPUs,
    it actually reads some natural-time counter */
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline void rdtsc(uint32_t *low, uint32_t *high)
+CADO_INLINE void rdtsc(uint32_t *low, uint32_t *high)
 {
     __asm__ volatile("RDTSC\n\t"
 		     : "=d" (*high), "=a" (*low)
@@ -89,7 +89,7 @@ static inline void rdtsc(uint32_t *low, uint32_t *high)
 /* Use RDTSCP to serialize, then read TSC. Instructions following RDTSCP may
    start to execute before RDTSCP finishes. */
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline void rdtscp(uint32_t *low, uint32_t *high)
+CADO_INLINE void rdtscp(uint32_t *low, uint32_t *high)
 {
     __asm__ volatile("RDTSCP\n\t"
 		     : "=d" (*high), "=a" (*low)
@@ -99,7 +99,7 @@ static inline void rdtscp(uint32_t *low, uint32_t *high)
 
 /* Read a performance measurement counter */
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline void
+CADO_INLINE void
 rdpmc(uint32_t *low, uint32_t *high, const unsigned int selector)
 {
     __asm__ volatile("rdpmc" : "=a" (*low), "=d" (*high) : "c" (selector));
@@ -108,25 +108,25 @@ rdpmc(uint32_t *low, uint32_t *high, const unsigned int selector)
 #else /* defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) */
 
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline void serialize() {}
+CADO_INLINE void serialize() {}
 
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline void rdtsc(uint32_t *low, uint32_t *high)
+CADO_INLINE void rdtsc(uint32_t *low, uint32_t *high)
 { *low = *high = 0; }
 
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline void rdtscp(uint32_t *low, uint32_t *high)
+CADO_INLINE void rdtscp(uint32_t *low, uint32_t *high)
 { *low = *high = 0; }
 
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline void
+CADO_INLINE void
 rdpmc(uint32_t *low, uint32_t *high, const unsigned int selector MAYBE_UNUSED)
 { *low = *high = 0; }
 
 #endif
 
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline uint64_t rdtscl()
+CADO_INLINE uint64_t rdtscl()
 {
     uint32_t high, low;
     rdtsc(&low, &high);
@@ -134,7 +134,7 @@ static inline uint64_t rdtscl()
 }
 
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline uint64_t rdtscpl()
+CADO_INLINE uint64_t rdtscpl()
 {
     uint32_t high, low;
     rdtscp(&low, &high);
@@ -142,7 +142,7 @@ static inline uint64_t rdtscpl()
 }
 
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline uint64_t rdpmcl(const unsigned int selector)
+CADO_INLINE uint64_t rdpmcl(const unsigned int selector)
 {
     uint32_t high, low;
     rdpmc(&low, &high, selector);
@@ -187,7 +187,7 @@ static inline uint64_t rdpmcl(const unsigned int selector)
 
 
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline void
+CADO_INLINE void
 rdpmc_cycles(uint32_t *low, uint32_t *high)
 {
     const unsigned c = (1U<<30) + 1; /* Second Fixed-function counter:
@@ -196,14 +196,14 @@ rdpmc_cycles(uint32_t *low, uint32_t *high)
 }
 
 __attribute__((__unused__, __always_inline__)) ATTRIBUTE_ARTIFICIAL
-static inline uint64_t rdpmcl_cycles()
+CADO_INLINE uint64_t rdpmcl_cycles()
 {
     uint32_t low, high;
     rdpmc_cycles(&low, &high);
     return u32_to_64(low, high);
 }
 
-static inline void init_timing()
+CADO_INLINE void init_timing()
 {
 #ifdef USE_INTEL_PCM
     printf("# Using Intel PCM library\n");
@@ -238,7 +238,7 @@ static inline void init_timing()
 #endif
 }
 
-static inline void clear_timing()
+CADO_INLINE void clear_timing()
 {
 #ifdef USE_INTEL_PCM
     m->cleanup();
@@ -252,7 +252,7 @@ static inline void clear_timing()
 #endif
 }
 
-static inline void start_timing()
+CADO_INLINE void start_timing()
 {
 #ifdef USE_INTEL_PCM
     const int cpu = sched_getcpu();
@@ -273,7 +273,7 @@ static inline void start_timing()
 #endif
 }
 
-static inline void end_timing()
+CADO_INLINE void end_timing()
 {
 #ifdef USE_INTEL_PCM
     const int cpu = sched_getcpu();
@@ -294,7 +294,7 @@ static inline void end_timing()
 #endif
 }
 
-static inline uint64_t get_diff_timing()
+CADO_INLINE uint64_t get_diff_timing()
 {
 #ifdef USE_INTEL_PCM
     return getCycles(before_sstate,after_sstate);

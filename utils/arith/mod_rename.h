@@ -148,6 +148,7 @@
 #define mod_fprintf          gmp_fprintf
 #define mod_printf           gmp_printf
 
+#include "macros.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -157,7 +158,7 @@ extern "C" {
 /* A function that is not used anywhere. The purpose is solely generating 
    compilation errors if any of the renamed functions, which constitute  
    kind of a definition of the API, are not implemented. */
-static inline uintptr_t
+CADO_INLINE uintptr_t
 mod_test_if_functions_exist()
 {
   uintptr_t z = 0;

@@ -76,7 +76,7 @@ namespace arith_modp::details {
             }
         };
 
-        static inline void stream_store(elt * dst, elt const& src) {
+        inline void stream_store(elt * dst, elt const& src) {
             /* Do we want to stream that or not ? In fact it's slower
              * when streaming... */
 #if 0
@@ -95,7 +95,7 @@ namespace arith_modp::details {
 #endif
 #endif
         }
-        static inline void add(elt & dst, elt const & src)
+        inline void add(elt & dst, elt const & src)
         {
 #ifdef HAVE_AVX2
             dst.data[0] = _mm256_add_epi64 (dst.data[0], src.data[0]);
@@ -105,7 +105,7 @@ namespace arith_modp::details {
 #endif
         }
 
-        static inline void sub(elt & dst, elt const & src)
+        inline void sub(elt & dst, elt const & src)
         {
 #ifdef HAVE_AVX2
             dst.data[0] = _mm256_sub_epi64 (dst.data[0], src.data[0]);
@@ -115,7 +115,7 @@ namespace arith_modp::details {
 #endif
         }
 
-        static inline void sub_ur(elt_ur_for_add & dst, elt_ur_for_add const & src)
+        inline void sub_ur(elt_ur_for_add & dst, elt_ur_for_add const & src)
         {
 #ifdef HAVE_AVX2
             dst.data[0] = _mm256_sub_epi64 (dst.data[0], src.data[0]);
@@ -498,7 +498,7 @@ namespace arith_modp::details {
          * version below a member function rather than a static function
          * that receives the prime and preinv.
          */
-        static inline void addmul_ui(elt & dst, elt const & src, mp_limb_t x, super::elt const & p, super::preinv const & j)
+        inline void addmul_ui(elt & dst, elt const & src, mp_limb_t x, super::elt const & p, super::preinv const & j)
         {
             ARITH_MODP_TEMPORARY_ALLOC(T, elt, zr);
             ARITH_MODP_TEMPORARY_ALLOC(T, elt_ur_for_add, z);
@@ -507,7 +507,7 @@ namespace arith_modp::details {
             super::reduce(zr, z, p, j);
             dst = zr;
         }
-        static inline void submul_ui(elt_ur_for_add & dst, elt const & src, mp_limb_t x, super::elt const & p, super::preinv const & j)
+        inline void submul_ui(elt_ur_for_add & dst, elt const & src, mp_limb_t x, super::elt const & p, super::preinv const & j)
         {
             ARITH_MODP_TEMPORARY_ALLOC(T, elt, zr);
             ARITH_MODP_TEMPORARY_ALLOC(T, elt_ur_for_add, z);

@@ -325,7 +325,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 # let's make this one an exception. As regards tests, I think it's okay
 # to have it static
 add_library (tests STATIC test_iter.c tests_common.c)
-target_link_libraries (tests ${gmp_libname})
+target_link_libraries (tests PUBLIC ${gmp_libname})
 
 cado_define_test(test_tests_common.c NO_DEFAULT_RUN LIBRARIES tests)
 cado_divert_test(test_tests_common 1)
@@ -338,7 +338,7 @@ set_tests_properties(test_tests_common_2 test_tests_common_4 test_tests_common_5
 cado_divert_test(test_tests_common 6 -iter 10)
 set_tests_properties(test_tests_common_6 PROPERTIES PASS_REGULAR_EXPRESSION "Using 10 iterations")
 
-cado_define_test(test_iceildiv.c)
+cado_define_test(test_iceildiv.c LIBRARIES m)
 
 if (HAVE_OPENMP)
     add_executable(omp_get_max_threads omp_get_max_threads.c)
@@ -352,7 +352,7 @@ endif()
 
 if (HAVE_HWLOC)
     add_executable(hwloc_cado_helper hwloc_cado_helper.c)
-    target_link_libraries(hwloc_cado_helper hwloc)
+    target_link_libraries(hwloc_cado_helper PRIVATE hwloc)
     mark_targets_as_openmp(hwloc_cado_helper)
     # same trick
     add_dependencies(utils hwloc_cado_helper)

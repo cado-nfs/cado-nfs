@@ -2,6 +2,9 @@
 tweak_tree_before_configure() { : ; }
 
 user_variables() {
+    if [ "$ninja_build" ] ; then
+        export CMAKE_GENERATOR=Ninja
+    fi
     if [ "$using_cmake_directly" ] ; then
         # use build_tree in this case, which matches the variable that
         # call_cmake.sh uses, by the way.
@@ -47,8 +50,17 @@ step_configure() {
         export OMPI_ALLOW_RUN_AS_ROOT=1
         export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
     fi
+    if is_ubuntu ; then
+        . /etc/lsb-release
+        # force newer compiler on ubuntu 24
+        # case "$DISTRIB_RELEASE" in
+        #     24*)
+        #         export CC=gcc-14
+        #         export CXX=g++-14
+        # esac
+    fi
     if [ "$using_cmake_directly" ] ; then
-        (cd "$build_tree" ; cmake "$source_tree" $pass_flags_to_cmake)
+        (cd "$build_tree" ; if [ "$ninja_build" ] ; then unset MAKE; fi ; cmake "$source_tree" $pass_flags_to_cmake)
         # Ignore local.sh if we're building directly from cmake
     else
         "${MAKE}" cmake
@@ -66,7 +78,7 @@ step_build1() {
     fi
     if [ "$using_cmake_directly" ] ; then
         SOURCEDIR="$PWD"
-        (cd "$build_tree" ; "${MAKE}" -j$NCPUS $target)
+        (cd "$build_tree" ; B=${MAKE}; if [ "$ninja_build" ] ; then B=ninja; fi; $B -j$NCPUS $target)
     else
         "${MAKE}" -j$NCPUS $target
     fi
@@ -81,7 +93,7 @@ step_build2() {
     fi
     if [ "$using_cmake_directly" ] ; then
         SOURCEDIR="$PWD"
-        (cd "$build_tree" ; "${MAKE}" -j$NCPUS $target)
+        (cd "$build_tree" ; B=${MAKE}; if [ "$ninja_build" ] ; then B=ninja; fi; $B -j$NCPUS $target)
     else
         "${MAKE}" -j$NCPUS $target
     fi

@@ -16,25 +16,25 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-static inline int omp_get_max_threads()
+CADO_INLINE int omp_get_max_threads()
 {
   return 1;
 }
 
-static inline int omp_get_num_threads()
+CADO_INLINE int omp_get_num_threads()
 {
   return 1;
 }
 
-static inline void omp_set_num_threads(int n MAYBE_UNUSED)
+CADO_INLINE void omp_set_num_threads(int n MAYBE_UNUSED)
 {
 }
 
-static inline void omp_set_nested(int n MAYBE_UNUSED)
+CADO_INLINE void omp_set_nested(int n MAYBE_UNUSED)
 {
 }
 
-static inline int omp_get_thread_num()
+CADO_INLINE int omp_get_thread_num()
 {
   return 0;
 }

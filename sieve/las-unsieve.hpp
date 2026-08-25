@@ -68,7 +68,7 @@ struct j_divisibility_helper {
 
 /* Helper function shared by las-unsieve.cpp and las-unsieve-sse2.cpp.
    Polluting global namespace is a little unfortunate here - #ifdef? */
-static inline unsigned int 
+inline unsigned int 
 extract_j_div(unsigned int (*div)[2], const unsigned int j, j_divisibility_helper const & j_div, 
               const unsigned int pmin, const unsigned int pmax)
 {

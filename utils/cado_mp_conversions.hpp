@@ -39,7 +39,7 @@ namespace cado_math_aux {
      */
 
     template<typename T>
-        static inline cxx_mpz mpz_from(T c)
+        inline cxx_mpz mpz_from(T c)
         requires std::is_floating_point_v<T>
         {
             /* This converts to an mpz integer with unit accuracy (of
@@ -120,13 +120,13 @@ namespace cado_math_aux {
         }
 
     template<typename T>
-    static inline cxx_mpz mpz_from(T const & c)
+    inline cxx_mpz mpz_from(T const & c)
     requires std::is_same_v<T, cxx_mpz>
     { return c; }
 
 #ifdef HAVE_MPFR
     template<typename T>
-    static inline cxx_mpz mpz_from(T const & c)
+    inline cxx_mpz mpz_from(T const & c)
     requires std::is_same_v<T, cxx_mpfr>
     {
         cxx_mpz res;
@@ -136,7 +136,7 @@ namespace cado_math_aux {
 #endif
 
     template<typename T>
-    static inline void exact_form(cxx_mpz & m, int & e, T x)
+    inline void exact_form(cxx_mpz & m, int & e, T x)
     requires cado_math_aux::is_real_v<T>
     {
         e = 0;
@@ -149,7 +149,7 @@ namespace cado_math_aux {
     }
 
     template<typename T>
-    static inline void exact_form(cxx_mpz & m, int & e, T const & x)
+    inline void exact_form(cxx_mpz & m, int & e, T const & x)
     requires cado_math_aux::is_integral_v<T>
     {
         m = x;
@@ -280,11 +280,11 @@ namespace cado_math_aux {
 #endif
 
     template<typename T>
-        static inline T mpz_get(mpz_srcptr z) {
+        inline T mpz_get(mpz_srcptr z) {
             return converter_from_mpz<T>()(z);
         }
     template<typename T>
-        static inline T mpz_get(mpz_srcptr z, int e) {
+        inline T mpz_get(mpz_srcptr z, int e) {
             return converter_from_mpz<T>()(z, e);
         }
 

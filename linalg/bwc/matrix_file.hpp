@@ -72,7 +72,7 @@
  * existing matrix file set into another one are not written yet.
  */
 struct matrix_file : public std::vector<uint32_t> {
-    // static inline const char * rowcol(int d) { const char * x[2] = { "row", "col", }; return x[d != 0]; }
+    // inline const char * rowcol(int d) { const char * x[2] = { "row", "col", }; return x[d != 0]; }
     static constexpr const char * rowcol[2] { "row", "col" };
     private:
     static std::string dotrowcols(int d) {

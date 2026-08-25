@@ -1,5 +1,6 @@
 #ifndef CADO_SPARSE_H
 #define CADO_SPARSE_H
+#include "macros.h"
 
 #include <stdio.h>
 #include <stdint.h> /* for int32_t */
@@ -76,7 +77,7 @@ extern int parse_hisfile_line (index_signed_t *ind, const char *t, index_t *j);
 extern void addRowsUpdateIndex(typerow_t **rows, index_data_t index_data_t,
         index_t i1, index_t i2, index_t j);
 
-static inline void addRows(typerow_t **rows, index_t i1, index_t i2, index_t j);
+CADO_INLINE void addRows(typerow_t **rows, index_t i1, index_t i2, index_t j);
 
 typerow_t* mallocRow (uint32_t nb);
 typerow_t* reallocRow (typerow_t* row, uint32_t nb);
@@ -85,7 +86,7 @@ typerow_t* reallocRow (typerow_t* row, uint32_t nb);
 #endif
 
 // The following version without index updating, is for merge.
-static inline void addRows(typerow_t **rows, index_t i1, index_t i2, index_t j) {
+CADO_INLINE void addRows(typerow_t **rows, index_t i1, index_t i2, index_t j) {
     addRowsUpdateIndex(rows, NULL, i1, i2, j);
 }
 

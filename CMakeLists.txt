@@ -22,7 +22,7 @@ endmacro()
 get_override(PREFIX               CMAKE_INSTALL_PREFIX)
 get_override(CFLAGS               CMAKE_C_FLAGS)
 get_override(CXXFLAGS             CMAKE_CXX_FLAGS)
-get_override(MAKE                 CMAKE_MAKE_PROGRAM)
+get_override(MAKE                 GMAKE_EXECUTABLE)
 get_override(CC                   CMAKE_C_COMPILER)
 get_override(CXX                  CMAKE_CXX_COMPILER)
 get_override(CADO_DIST_ARCHIVE_NAME         CADO_DIST_ARCHIVE_NAME)
@@ -47,12 +47,21 @@ endif()
 
 # If you change the min version, also change scripts/call_cmake.sh
 # It must be called before the project() command.
+# Note that c++20 modules support requires 3.28
 cmake_minimum_required(VERSION 3.18.0)
 
-# if we want to use JOB_SERVER_AWARE, we need 3.28.0
-# cmake_minimum_required(VERSION 3.28.0)
-
 project(CADO_NFS)
+
+# Enable native C++20. On the other hand, we've given up on c++20
+# modules.
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28.0)
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+endif()
+
+enable_language(ASM)
 
 # must be done early, but after project()
 include(config/xcode.cmake)
@@ -96,28 +105,12 @@ execute_process(COMMAND scripts/version.sh
 message(STATUS "Configuring CADO revision ${CADO_REV}")
 
 #####################################################################
-# Allow building unit test programs with "make test"
 enable_testing()
-# Also allow testing with "make check", but building all required
-# dependencies (las for the sieve test, etc.) as well. We also add the
-# "verbose" command line option here to get more meaningful output
 
-if(CMAKE_GENERATOR STREQUAL "Unix Makefiles")
-# Note the $(ARGS) here. It is expanded by make, not by cmake, so that
-# the arguments which are present on the "make check" command line are
-# obeyed. This has the consequence that in order to pass a $, you need to
-# pass $$ ; well, plus quoting. So that gives, e.g.:
-#        make check ARGS="-R ^foo\$\$"
-add_custom_target(check
-    COMMAND ${CMAKE_CTEST_COMMAND} -V $(ARGS)
-    # JOB_SERVER_AWARE true
-)
-endif()
-
-if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_C_COMPILER_ID MATCHES "AppleClang")
 	# sigh...
 	# https://cmake.org/Bug/view.php?id=10342
-	message(STATUS "Using ranlib -c for Darwin platforms")
+	message(STATUS "Using ranlib -c for Darwin platforms + apple compiler")
 	SET(CMAKE_C_ARCHIVE_FINISH "<CMAKE_RANLIB> -c <TARGET>")
 	SET(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -c <TARGET>")
 endif()
@@ -150,10 +143,10 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # Someday we'll enable c11. This will provide us aligned_alloc.
 elseif(CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
     message(STATUS "Applying flags for icc (icx)")
-    # icc defaults to -fp-model=fast, which is slightly getting in the
+    # icc defaults to -ffp-model=fast, which is slightly getting in the
     # way. We rarely depend on this in cado-nfs, so let's stick to usual
     # behavior.
-    set (CMAKE_C_FLAGS   "-fp-model=precise -std=c99 ${CMAKE_C_FLAGS}")
+    set (CMAKE_C_FLAGS   "-ffp-model=precise -std=c99 ${CMAKE_C_FLAGS}")
 elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
     message(STATUS "Applying flags for icc")
     set (CMAKE_C_FLAGS   "-W -Wall -wd13200,13203 ${CMAKE_C_FLAGS}")
@@ -207,7 +200,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
     if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "2023")
         message(FATAL_ERROR "cado-nfs requires icx version 2023 or greater")
     endif()
-    set (CMAKE_CXX_FLAGS "-fp-model=precise -std=c++20 ${CMAKE_CXX_FLAGS}")
+    set (CMAKE_CXX_FLAGS "-ffp-model=precise -std=c++20 ${CMAKE_CXX_FLAGS}")
     message(STATUS "Enabling C++20 support")
 elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
     message(FATAL_ERROR "cado-nfs requires icx and does not work with older icc")
@@ -243,7 +236,54 @@ else()
     message(WARNING "C++ compiler not recognized. Setting -std=c++20 as a wild guess")
     set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
 endif()
+
+# *IF* we want to try c++20 modules, as of 2026 the only way to go with
+# Intel compilers is to bring in clang-scan-deps from clang-tools.
+# if (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+#     find_program(CMAKE_CXX_CLANG_SCAN_DEPS
+#         NAMES
+#         clang-scan-deps
+#         clang-scan-deps-18
+#         clang-scan-deps-19
+#         clang-scan-deps-20
+#     )
+#     # starting with clang-21, the debian package clang also includes the
+#     # non-versioned clang-scan-deps symlink
+# 
+#     message(STATUS "clang-scan-deps is ${CMAKE_CXX_CLANG_SCAN_DEPS}")
+# 
+#     if (CMAKE_CXX_CLANG_SCAN_DEPS)
+#        set(CMAKE_CXX_MODULE_MAP_FORMAT "clang")
+#        set(CMAKE_CXX_MODULE_MAP_FLAG "@<MODULE_MAP_FILE>")
+#        set(CMAKE_CXX_MODULE_BMI_ONLY_FLAG "--precompile")
+# 
+#        # <DYNDEP_FILE> captures stdout into .ddi; <DEP_FILE> handles .ddi.d
+#        string(CONCAT CMAKE_CXX_SCANDEP_SOURCE
+#                "\"${CMAKE_CXX_CLANG_SCAN_DEPS}\""
+#                " -format=p1689"
+#                " --"
+#                " <CMAKE_CXX_COMPILER> <DEFINES> <INCLUDES> <FLAGS>"
+#                 " -Qunused-arguments -Wno-unknown-warning-option"
+#                " -x c++ -c -o <OBJECT> <SOURCE>"
+#                " -MT <OBJECT>"
+#                " -MD -MF <DEP_FILE>"
+#                 " > <DYNDEP_FILE>.tmp && mv <DYNDEP_FILE>.tmp <DYNDEP_FILE>"
+#        )
+# 
+#        list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
+#                CMAKE_CXX_CLANG_SCAN_DEPS
+#                CMAKE_CXX_MODULE_MAP_FORMAT
+#                CMAKE_CXX_MODULE_MAP_FLAG
+#                CMAKE_CXX_MODULE_BMI_ONLY_FLAG
+#                CMAKE_CXX_SCANDEP_SOURCE
+#        )
+#     else()
+#         message(FATAL_ERROR "clang-scan-deps not found in PATH.")
+#     endif()
+# endif()
+
 message(STATUS "CXXFLAGS=${CMAKE_CXX_FLAGS} (synthetized)")
+
 
 
 
@@ -334,7 +374,7 @@ endif()
 if (NOT DEFINED ENV{NO_INLINE_ASSEMBLY})
   include(config/gcc-inline-assembly.cmake)
 endif()
-include(config/gcc-bugs.cmake)
+include(config/compiler-bugs.cmake)
 if (NOT DEFINED ENV{NO_GAS_ASSEMBLY})
   include(config/gas-assembly.cmake)
 endif()
@@ -456,23 +496,6 @@ configure_file(cado_mpi_config_h.in cado_mpi_config.h ESCAPE_QUOTES @ONLY)
 # set)
 include(config/gmpecm.cmake)
 
-#####################################################################
-# OK, it's freakin ugly. Don't look.
-
-# there would have been ways to do it without a generated helper script,
-# I guess -- unfortunately I couldn't find one ;-((
-configure_file(config/ccwrap.pl.in ccwrap.pl ESCAPE_QUOTES @ONLY)
-configure_file(config/cxxwrap.pl.in cxxwrap.pl ESCAPE_QUOTES @ONLY)
-
-set(CMAKE_C_COMPILER "${CADO_NFS_BINARY_DIR}/ccwrap.pl")
-set(CMAKE_CXX_COMPILER "${CADO_NFS_BINARY_DIR}/cxxwrap.pl")
-
-# It's weird. This thing does not seem to apply, or at least not always. I've
-# cured the problem by tweaking ccwrap, and let it decide whether it's linking
-# or not. If yes, then it uses g++ rather than gcc (or mpic++ vs mpicc)
-set(CMAKE_C_LINKER_PREFERENCE "${CADO_NFS_BINARY_DIR}/cxxwrap.pl")
-set(CMAKE_CXX_LINKER_PREFERENCE "${CADO_NFS_BINARY_DIR}/cxxwrap.pl")
-
 if (NOT "$ENV{IWYU}" MATCHES "^(0|NO|no|OFF|off|)$")
     message(STATUS "Enabling iwyu when compiling c++ code")
     set(findprog_flags)
@@ -529,16 +552,29 @@ add_custom_command(OUTPUT ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
     COMMENT "Configuring gf2x"
 )
 
+if(NOT GMAKE_EXECUTABLE)
+find_program(GMAKE_EXECUTABLE
+    NAMES gmake gnumake make
+    DOC "Path to GNU Make executable"
+)
+endif()
+
+if(NOT GMAKE_EXECUTABLE)
+    message(FATAL_ERROR "GNU Make is required but was not found on PATH.")
+endif()
+
 add_custom_target(gf2x-build ALL
     DEPENDS ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
     WORKING_DIRECTORY gf2x
-    COMMAND ${CMAKE_MAKE_PROGRAM}
+    COMMAND ${GMAKE_EXECUTABLE}
     COMMENT "Building gf2x"
 )
 
-install(CODE "execute_process(COMMAND ${CMAKE_MAKE_PROGRAM} install WORKING_DIRECTORY gf2x)")
+install(CODE "execute_process(COMMAND ${GMAKE_EXECUTABLE} install WORKING_DIRECTORY gf2x)")
 endif()
 
+
+include(config/pch.cmake)
 
 add_subdirectory (utils)
 add_subdirectory (polyselect)

@@ -7,7 +7,7 @@
 #include <cstdint>
 #include "macros.h"
 
-static inline uint64_t MAYBE_UNUSED bitrev(uint64_t a)
+inline uint64_t MAYBE_UNUSED bitrev(uint64_t a)
 {
     a = (a >> 32) ^ (a << 32);
     uint64_t m;
@@ -24,7 +24,7 @@ static inline uint64_t MAYBE_UNUSED bitrev(uint64_t a)
     return a;
 }
 /* like bitrev, but keep nibbles intact */
-static inline uint64_t MAYBE_UNUSED nibrev(uint64_t a)
+inline uint64_t MAYBE_UNUSED nibrev(uint64_t a)
 {
     a = (a >> 32) ^ (a << 32);
     uint64_t m;

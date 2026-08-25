@@ -25,7 +25,7 @@ extern void perm_matrix_transpose(perm_matrix_ptr x, perm_matrix_srcptr y);
 extern void perm_matrix_get_matrix(mat64 * qm, perm_matrix_ptr qp);
 extern void perm_matrixtab_complete(int * phi, uint64_t * bits, int nbits);
 extern void pqperms_from_phi(perm_matrix_ptr p, perm_matrix_ptr q, int * phi, int m, int n);
-static inline int perm_matrix_get(perm_matrix_srcptr x, int k) { return x->v[k]; }
-static inline void perm_matrix_set(perm_matrix_srcptr x, int k, int w) { x->v[k]=w; }
+inline int perm_matrix_get(perm_matrix_srcptr x, int k) { return x->v[k]; }
+inline void perm_matrix_set(perm_matrix_srcptr x, int k, int w) { x->v[k]=w; }
 
 #endif	/* BBLAS_PERM_MATRIX_HPP_ */

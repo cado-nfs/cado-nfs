@@ -4,12 +4,12 @@ add_definitions(-DWITH_MPI)
 endif()
 
 add_executable(sqrt sqrt.cpp)
-target_link_libraries(sqrt utils_with_io)
+target_link_libraries(sqrt PRIVATE utils_with_io)
 mark_targets_as_openmp(sqrt)
 install(TARGETS sqrt RUNTIME DESTINATION ${LIBSUFFIX}/sqrt)
 
 add_executable(mgmsqrt mgmsqrt.cpp)
-target_link_libraries(mgmsqrt utils_with_io)
+target_link_libraries(mgmsqrt PRIVATE utils_with_io)
 mark_targets_as_openmp(mgmsqrt)
 install(TARGETS mgmsqrt RUNTIME DESTINATION ${LIBSUFFIX}/sqrt)
 
@@ -17,7 +17,7 @@ install(TARGETS mgmsqrt RUNTIME DESTINATION ${LIBSUFFIX}/sqrt)
 add_executable(crtalgsqrt ${EXCLUDE_FROM_RELEASE_BUILD} crtalgsqrt.cpp
     powers_of_p.cpp ab_source.cpp knapsack.c
     sqrt_cachefiles.cpp)
-target_link_libraries(crtalgsqrt utils)
+target_link_libraries(crtalgsqrt PRIVATE utils)
 
 mark_targets_as_mpi(crtalgsqrt)
 

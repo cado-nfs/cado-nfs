@@ -66,7 +66,7 @@ struct dllist_head {
         }								\
     } while (0)
 
-static inline int
+CADO_INLINE int
 dllist_is_consistent(struct dllist_head * L MAYBE_UNUSED)
 {
 #ifdef DLLIST_DEBUG
@@ -78,7 +78,7 @@ dllist_is_consistent(struct dllist_head * L MAYBE_UNUSED)
     return 1;
 }
 
-static inline void
+CADO_INLINE void
 dllist_init_head(struct dllist_head * L) {
 #ifdef DLLIST_DEBUG
     L->kind = 0;
@@ -86,7 +86,7 @@ dllist_init_head(struct dllist_head * L) {
     L->prev = L->next = L;
 }
 
-static inline void
+CADO_INLINE void
 dllist_init_node(struct dllist_head * L) {
 #ifdef DLLIST_DEBUG
     L->kind = 1;
@@ -94,12 +94,12 @@ dllist_init_node(struct dllist_head * L) {
     L->prev = L->next = L;
 }
 
-static inline int
+CADO_INLINE int
 dllist_is_empty(struct dllist_head * L) {
   return L->prev == L;
 }
 
-static inline int
+CADO_INLINE int
 dllist_is_singleton (struct dllist_head * L)
 {
     /* no need to check both prev and next */
@@ -108,7 +108,7 @@ dllist_is_singleton (struct dllist_head * L)
 
 /* attach new element at head of list.
  */
-static inline void
+CADO_INLINE void
 dllist_push_front(struct dllist_head * L, struct dllist_head * new_head)
 {
 #ifdef DLLIST_DEBUG
@@ -122,7 +122,7 @@ dllist_push_front(struct dllist_head * L, struct dllist_head * new_head)
 
 /* attach new element at tail of list.
  */
-static inline void
+CADO_INLINE void
 dllist_push_back (struct dllist_head * L, struct dllist_head * new_tail)
 {
 #ifdef DLLIST_DEBUG
@@ -139,7 +139,7 @@ dllist_push_back (struct dllist_head * L, struct dllist_head * new_tail)
  * Note that this must not be called from a standalone list head, because
  * it might make the whole list loose!
  */
-static inline void
+CADO_INLINE void
 dllist_pop (struct dllist_head * L)
 {
     struct dllist_head * o_next = L->next;
@@ -150,7 +150,7 @@ dllist_pop (struct dllist_head * L)
 }
 
 
-static inline size_t
+CADO_INLINE size_t
 dllist_length (struct dllist_head * L) {
     size_t len = 0;
     dllist_for_each(L, ptr) {
@@ -164,7 +164,7 @@ dllist_length (struct dllist_head * L) {
  * time O(max(n, len(L)))
  *
  */
-static inline struct dllist_head *
+CADO_INLINE struct dllist_head *
 dllist_get_nth (struct dllist_head * L, size_t n) {
     size_t len = 0;
     dllist_for_each(L, ptr) {
@@ -176,7 +176,7 @@ dllist_get_nth (struct dllist_head * L, size_t n) {
 
 /* Get the first node. The list must not be empty.
  */
-static inline struct dllist_head *
+CADO_INLINE struct dllist_head *
 dllist_get_first_node (struct dllist_head * L) {
     struct dllist_head * x = L->next;
     return x == L ? NULL : x;
@@ -184,7 +184,7 @@ dllist_get_first_node (struct dllist_head * L) {
 
 /* move the entire contents of L0 to the back of L. L0 is made empty.
  * Note that we expect L0 to be a bare list head. */
-    static inline void
+    CADO_INLINE void
 dllist_bulk_move_back(struct dllist_head * L, struct dllist_head * L0)
 {
     if (!dllist_is_empty(L0)) {
@@ -197,7 +197,7 @@ dllist_bulk_move_back(struct dllist_head * L, struct dllist_head * L0)
 }
 
 /* move the entire contents of L0 to the head of L. L0 is made empty */
-static inline void
+CADO_INLINE void
 dllist_bulk_move_head(struct dllist_head * L, struct dllist_head * L0)
 {
     if (!dllist_is_empty(L0)) {

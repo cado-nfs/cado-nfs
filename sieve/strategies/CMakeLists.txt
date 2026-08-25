@@ -10,10 +10,10 @@ set (SRC_UTILS
 set (LIB_EXEC facul utils)
 
 add_executable(gfm gfm_exec.cpp generate_factoring_method.cpp ${SRC_UTILS})
-target_link_libraries(gfm ${LIB_EXEC})
+target_link_libraries(gfm PRIVATE ${LIB_EXEC})
 
 add_executable(benchfm benchfm_exec.cpp generate_factoring_method.cpp ${SRC_UTILS})
-target_link_libraries(benchfm ${LIB_EXEC})
+target_link_libraries(benchfm PRIVATE ${LIB_EXEC})
 
 add_executable(gst 
   gst_exec.cpp
@@ -23,14 +23,14 @@ add_executable(gst
   ${SUF_UTILS}/tab_decomp.cpp
   ${SRC_UTILS})
 
-target_link_libraries(gst ${LIB_EXEC})
+target_link_libraries(gst PRIVATE ${LIB_EXEC})
 
 add_executable(finalst 
   final_exec.cpp
   finding_good_strategy.cpp
   ${SRC_UTILS})
 
-target_link_libraries(finalst ${LIB_EXEC})
+target_link_libraries(finalst PRIVATE ${LIB_EXEC})
 
 add_executable(gen_decomp
   gen_decomp_main.cpp
@@ -38,7 +38,7 @@ add_executable(gen_decomp
   ${SUF_UTILS}/decomp.cpp
   ${SUF_UTILS}/tab_decomp.cpp)
 
-target_link_libraries(gen_decomp utils)
+target_link_libraries(gen_decomp PRIVATE utils)
 
 
 include(CMakeLists-nodist.txt OPTIONAL)

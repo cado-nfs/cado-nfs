@@ -49,7 +49,7 @@ extern "C" {
       (4*A*(x3/z3)^3+3*(x3/z3)^4+6*(x3/z3)^2-1).is_zero() # P3 of order 3 ?
  */
 
-static inline int
+CADO_INLINE int
 ec_parameterization_Brent_Suyama_is_valid (const unsigned long sigma)
 {
   if (sigma == 0 || sigma == 1 || sigma == 3 || sigma == 5)
@@ -58,7 +58,7 @@ ec_parameterization_Brent_Suyama_is_valid (const unsigned long sigma)
     return 1;
 }
 
-static inline unsigned long
+CADO_INLINE unsigned long
 ec_parameterization_Brent_Suyama_valid_parameter_from_sequence(const unsigned long sequence_value)
 {
     switch(sequence_value) {
@@ -178,7 +178,7 @@ ec_parameterization_Brent_Suyama (residue_t b, ec_point_t P0,
       # TODO check that 4*P12 is of order 3 and 3*P12 is of order 4
  */
 
-static inline int
+CADO_INLINE int
 ec_parameterization_Montgomery12_is_valid (const unsigned long k)
 {
   if (k <= 1)
@@ -186,7 +186,7 @@ ec_parameterization_Montgomery12_is_valid (const unsigned long k)
   else
     return 1;
 }
-static inline unsigned long
+CADO_INLINE unsigned long
 ec_parameterization_Montgomery12_valid_parameter_from_sequence (const unsigned long sequence_value)
 {
     return sequence_value + 2;
@@ -307,7 +307,7 @@ ec_parameterization_Montgomery12 (residue_t b, ec_point_t P0,
  */
 
 
-static inline int
+CADO_INLINE int
 ec_parameterization_Montgomery16_is_valid (const unsigned long k)
 {
   if (k != 1)
@@ -315,7 +315,7 @@ ec_parameterization_Montgomery16_is_valid (const unsigned long k)
   else
     return 1;
 }
-static inline unsigned long
+CADO_INLINE unsigned long
 ec_parameterization_Montgomery16_valid_parameter_from_sequence (const unsigned long k MAYBE_UNUSED)
 {
     /* there's only one curve. (well, it's more complicated, it seems)
@@ -387,7 +387,7 @@ ec_parameterization_Montgomery16 (residue_t b, ec_point_t P0,
 /******************************************************************************/
 
 
-static inline int
+CADO_INLINE int
 ec_parameterization_Z6_is_valid (const unsigned long k)
 {
   if (k == 0)
@@ -396,7 +396,7 @@ ec_parameterization_Z6_is_valid (const unsigned long k)
     return 1;
 }
 
-static inline unsigned long
+CADO_INLINE unsigned long
 ec_parameterization_Z6_valid_parameter_from_sequence (const unsigned long k)
 {
     return k + 1;

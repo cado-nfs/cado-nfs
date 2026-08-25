@@ -93,7 +93,7 @@ cado_define_test(test_purge_heavy_torture
 endif()
 
 add_executable(create_fake_relation_file create_fake_relation_file.cpp)
-target_link_libraries(create_fake_relation_file utils)
+target_link_libraries(create_fake_relation_file PRIVATE utils)
 
 # under valgrind, this takes easily 200 seconds to run only 16 tests.
 # Let's limit the number of trials in this case. Anyway it doesn't make

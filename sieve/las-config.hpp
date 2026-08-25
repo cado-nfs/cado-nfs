@@ -66,7 +66,7 @@ extern int NB_DEVIATIONS_BUCKET_REGIONS;
 #define NOPROFILE_INLINE
 #define NOPROFILE_STATIC
 #else
-#define NOPROFILE_INLINE static inline
+#define NOPROFILE_INLINE inline
 #define NOPROFILE_STATIC static
 #endif
 

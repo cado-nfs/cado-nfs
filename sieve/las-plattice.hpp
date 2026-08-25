@@ -333,7 +333,7 @@ class plattice_info
 
 // Compute 1/x mod m
 // For m=2,3,6, this is trivial. Otherwise, has to be implemented
-static inline uint32_t invmod(uint32_t x, uint32_t m)
+inline uint32_t invmod(uint32_t x, uint32_t m)
 {
     if (m == 2 || m == 3) {
         return x;

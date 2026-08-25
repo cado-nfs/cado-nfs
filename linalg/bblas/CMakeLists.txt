@@ -31,7 +31,7 @@ add_library(bblas
 )
 
 mark_targets_as_openmp(bblas)
-target_link_libraries(bblas utils)
+target_link_libraries(bblas PUBLIC utils)
 
 if(ENABLE_SHARED)
     install(TARGETS bblas DESTINATION ${LIBSUFFIX}/linalg/bblas)

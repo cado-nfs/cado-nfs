@@ -421,7 +421,7 @@ namespace cado_math_aux
     /* This compares two floating point values with a relative error margin
      */
 
-    template<typename T> static inline void do_not_outsmart_me(T &) {}
+    template<typename T> inline void do_not_outsmart_me(T &) {}
 #if defined(__i386)
     template<> inline void do_not_outsmart_me<double>(double & x) {
         volatile double mx = x; x = mx;
@@ -447,7 +447,7 @@ namespace cado_math_aux
         ~temporary_round_mode() { fesetround(saved); }
     };
 
-    static inline bool rounding_towards_zero_works()
+    inline bool rounding_towards_zero_works()
     {
         /* This runtime check can detect dysfunctional math environments.
          * valgrind is one of them, unfortunately.
@@ -464,7 +464,7 @@ namespace cado_math_aux
     }
 #endif
 
-    static inline bool valgrind_long_double_hopeless()
+    inline bool valgrind_long_double_hopeless()
     {
         /* Another one. This time, the result is even more useless. Note
          * that in fact, I'm not even sure that frexp _works_ under

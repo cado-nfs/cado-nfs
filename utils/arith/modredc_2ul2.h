@@ -51,20 +51,20 @@ typedef struct __modulusredc2ul2_t modulusredc2ul2_t[1];
 
 /* ==================== Functions used internally ==================== */
 
-static inline int
+CADO_INLINE int
 modredc2ul2_intlt (const modintredc2ul2_t a, const modintredc2ul2_t b);
 
-static inline void
+CADO_INLINE void
 modredc2ul2_add (residueredc2ul2_t r, const residueredc2ul2_t a, 
 		 const residueredc2ul2_t b, const modulusredc2ul2_t m);
-static inline void
+CADO_INLINE void
 modredc2ul2_get_int (modintredc2ul2_t r, const residueredc2ul2_t s, 
 		     const modulusredc2ul2_t m MAYBE_UNUSED);
-static inline void
+CADO_INLINE void
 modredc2ul2_intset (modintredc2ul2_t r, const modintredc2ul2_t s);
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_tomontgomery (residueredc2ul2_t r, const residueredc2ul2_t s,
 			  const modulusredc2ul2_t m)
 {
@@ -78,7 +78,7 @@ modredc2ul2_tomontgomery (residueredc2ul2_t r, const residueredc2ul2_t s,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_redc1_wide_inplace (unsigned long t[3],
         const modulusredc2ul2_t m)
 /* This "wide" redc computes a representative of t2:t1:t0 / 2^64,
@@ -103,7 +103,7 @@ modredc2ul2_redc1_wide_inplace (unsigned long t[3],
 /* Do a one-word REDC, i.e., r == s / w (mod m), w = 2^ULONG_BITS. 
    If m > w, r < 2m. If s<m, then r<m */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_redc1 (residueredc2ul2_t r, const residueredc2ul2_t s,
 		   const modulusredc2ul2_t m)
 {
@@ -136,7 +136,7 @@ modredc2ul2_redc1 (residueredc2ul2_t r, const residueredc2ul2_t s,
 /* Converts s out of Montgomery form by dividing by 2^(2*ULONG_BITS).
    Requires s < m. */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_frommontgomery (residueredc2ul2_t r, const residueredc2ul2_t s,
 			    const modulusredc2ul2_t m)
 {
@@ -157,7 +157,7 @@ modredc2ul2_frommontgomery (residueredc2ul2_t r, const residueredc2ul2_t s,
 #endif
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 _modredc2ul2_mul_ul (residueredc2ul2_t r, const residueredc2ul2_t a,
                      const unsigned long b, const modulusredc2ul2_t m)
 {
@@ -242,7 +242,7 @@ _modredc2ul2_mul_ul (residueredc2ul2_t r, const residueredc2ul2_t a,
 /* Some functions for integers of the same width as the modulus */
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_intinit (modintredc2ul2_t r)
 {
   r[0] = 0;
@@ -251,14 +251,14 @@ modredc2ul2_intinit (modintredc2ul2_t r)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_intclear (modintredc2ul2_t r MAYBE_UNUSED)
 {
 }
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_intset (modintredc2ul2_t r, const modintredc2ul2_t s)
 {
   r[0] = s[0];
@@ -266,7 +266,7 @@ modredc2ul2_intset (modintredc2ul2_t r, const modintredc2ul2_t s)
 }
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_intset_ul (modintredc2ul2_t r, const unsigned long s)
 {
   r[0] = s;
@@ -274,7 +274,7 @@ modredc2ul2_intset_ul (modintredc2ul2_t r, const unsigned long s)
 }
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_intset_uls (modintredc2ul2_t r, const unsigned long *s,
                         const size_t n)
 {
@@ -293,14 +293,14 @@ modredc2ul2_intset_uls (modintredc2ul2_t r, const unsigned long *s,
 
 /* Get the least significant unsigned long of r */
 MAYBE_UNUSED
-static inline unsigned long 
+CADO_INLINE unsigned long 
 modredc2ul2_intget_ul (const modintredc2ul2_t r)
 {
   return r[0];
 }
 
 MAYBE_UNUSED
-static inline size_t  
+CADO_INLINE size_t  
 modredc2ul2_intget_uls (unsigned long *r, const modintredc2ul2_t s)
 {
   r[0] = s[0];
@@ -312,7 +312,7 @@ modredc2ul2_intget_uls (unsigned long *r, const modintredc2ul2_t s)
 }
 
 MAYBE_UNUSED
-static inline double
+CADO_INLINE double
 modredc2ul2_intget_double (const modintredc2ul2_t s)
 {
   double d = (double) s[1];
@@ -327,14 +327,14 @@ modredc2ul2_intget_double (const modintredc2ul2_t s)
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_intequal (const modintredc2ul2_t a, const modintredc2ul2_t b)
 {
   return (a[0] == b[0] && a[1] == b[1]);
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_intequal_ul (const modintredc2ul2_t a, const unsigned long b)
 {
   return (a[0] == b && a[1] == 0UL);
@@ -342,7 +342,7 @@ modredc2ul2_intequal_ul (const modintredc2ul2_t a, const unsigned long b)
 
 /* Returns 1 if a < b, 0 otherwise */
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_intlt (const modintredc2ul2_t a, const modintredc2ul2_t b)
 {
     modintredc2ul2_t t;
@@ -352,7 +352,7 @@ modredc2ul2_intlt (const modintredc2ul2_t a, const modintredc2ul2_t b)
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_intcmp (const modintredc2ul2_t a, const modintredc2ul2_t b)
 {
     int r = (a[1] > b[1]) - (a[1] < b[1]);
@@ -361,7 +361,7 @@ modredc2ul2_intcmp (const modintredc2ul2_t a, const modintredc2ul2_t b)
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_intcmp_ul (const modintredc2ul2_t a, const unsigned long b)
 {
   if (a[1] > 0UL)
@@ -370,7 +370,7 @@ modredc2ul2_intcmp_ul (const modintredc2ul2_t a, const unsigned long b)
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_intcmp_uint64 (const modintredc2ul2_t a, const uint64_t b)
 {
   ASSERT(ULONG_MAX == UINT32_MAX || ULONG_MAX == UINT64_MAX);
@@ -385,14 +385,14 @@ modredc2ul2_intcmp_uint64 (const modintredc2ul2_t a, const uint64_t b)
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_intfits_ul (const modintredc2ul2_t a)
 {
   return (a[1] == 0UL);
 }
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_intadd (modintredc2ul2_t r, const modintredc2ul2_t a,
 		    const modintredc2ul2_t b)
 {
@@ -403,7 +403,7 @@ modredc2ul2_intadd (modintredc2ul2_t r, const modintredc2ul2_t a,
 }
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_intsub (modintredc2ul2_t r, const modintredc2ul2_t a,
 		    const modintredc2ul2_t b)
 {
@@ -416,7 +416,7 @@ modredc2ul2_intsub (modintredc2ul2_t r, const modintredc2ul2_t a,
 /* Returns the number of bits in a, that is, floor(log_2(a))+1. 
    For a == 0 returns 0. */
 MAYBE_UNUSED
-static inline size_t 
+CADO_INLINE size_t 
 modredc2ul2_intbits (const modintredc2ul2_t a)
 {
   if (a[1] > 0UL)
@@ -431,7 +431,7 @@ modredc2ul2_intbits (const modintredc2ul2_t a)
 
 /* r = trunc(s / 2^i) */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_intshr (modintredc2ul2_t r, const modintredc2ul2_t s, const unsigned int i)
 {
   if (i >= 2 * ULONG_BITS) {
@@ -448,7 +448,7 @@ modredc2ul2_intshr (modintredc2ul2_t r, const modintredc2ul2_t s, const unsigned
 
 /* r = (s * 2^i) % (2^(2 * ULONG_BITS)) */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_intshl (modintredc2ul2_t r, const modintredc2ul2_t s, const unsigned int i)
 {
   if (i >= 2 * ULONG_BITS) {
@@ -465,7 +465,7 @@ modredc2ul2_intshl (modintredc2ul2_t r, const modintredc2ul2_t s, const unsigned
 
 /* r = n/d. We require d|n */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_intdivexact (modintredc2ul2_t r, const modintredc2ul2_t n,
                          const modintredc2ul2_t d)
 {
@@ -520,7 +520,7 @@ modredc2ul2_intdivexact (modintredc2ul2_t r, const modintredc2ul2_t n,
 }
 
 MAYBE_UNUSED
-static inline unsigned long
+CADO_INLINE unsigned long
 modredc2ul2_intmod_ul (const modintredc2ul2_t n, const unsigned long d)
 {
   unsigned long r;
@@ -539,7 +539,7 @@ modredc2ul2_intmod_ul (const modintredc2ul2_t n, const unsigned long d)
 
 /* r = n % d */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_intmod (modintredc2ul2_t r, const modintredc2ul2_t n,
                     const modintredc2ul2_t d)
 {
@@ -587,7 +587,7 @@ modredc2ul2_intmod (modintredc2ul2_t r, const modintredc2ul2_t n,
 
 /* Init the modulus from modintredc2ul2_t. */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_initmod_int (modulusredc2ul2_t m, const modintredc2ul2_t s)
 {
   ASSERT (s[1] > 0UL);
@@ -611,7 +611,7 @@ modredc2ul2_initmod_int (modulusredc2ul2_t m, const modintredc2ul2_t s)
 
 /* Returns the modulus as a modintredc2ul2_t. */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_getmod_int (modintredc2ul2_t r, const modulusredc2ul2_t m)
 {
   modredc2ul2_intset (r, m[0].m);
@@ -619,7 +619,7 @@ modredc2ul2_getmod_int (modintredc2ul2_t r, const modulusredc2ul2_t m)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_clearmod (modulusredc2ul2_t m MAYBE_UNUSED)
 {
 }
@@ -629,7 +629,7 @@ modredc2ul2_clearmod (modulusredc2ul2_t m MAYBE_UNUSED)
 
 /* Initialises a residueredc2ul2_t and sets it to zero */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_init (residueredc2ul2_t r, const modulusredc2ul2_t m MAYBE_UNUSED)
 {
   modredc2ul2_intset_ul (r, 0UL);
@@ -639,7 +639,7 @@ modredc2ul2_init (residueredc2ul2_t r, const modulusredc2ul2_t m MAYBE_UNUSED)
 /* Initialises a residueredc2ul2_t, but does not set it to zero. For fixed 
    length residueredc2ul2_t, that leaves nothing to do at all. */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_init_noset0 (residueredc2ul2_t r MAYBE_UNUSED, 
 			 const modulusredc2ul2_t m MAYBE_UNUSED)
 {
@@ -647,7 +647,7 @@ modredc2ul2_init_noset0 (residueredc2ul2_t r MAYBE_UNUSED,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_clear (residueredc2ul2_t r MAYBE_UNUSED, 
 		   const modulusredc2ul2_t m MAYBE_UNUSED)
 {
@@ -655,7 +655,7 @@ modredc2ul2_clear (residueredc2ul2_t r MAYBE_UNUSED,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_set (residueredc2ul2_t r, const residueredc2ul2_t s, 
 		 const modulusredc2ul2_t m MAYBE_UNUSED)
 {
@@ -665,7 +665,7 @@ modredc2ul2_set (residueredc2ul2_t r, const residueredc2ul2_t s,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_set_ul (residueredc2ul2_t r, const unsigned long s, 
 		    const modulusredc2ul2_t m)
 {
@@ -685,7 +685,7 @@ modredc2ul2_set_ul (residueredc2ul2_t r, const unsigned long s,
    Assumes that s is reduced (mod m), i.e. 0 <= s < m */
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_set_ul_reduced (residueredc2ul2_t r, const unsigned long s, 
 			    const modulusredc2ul2_t m MAYBE_UNUSED)
 {
@@ -694,7 +694,7 @@ modredc2ul2_set_ul_reduced (residueredc2ul2_t r, const unsigned long s,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_set_int (residueredc2ul2_t r, const modintredc2ul2_t s, 
 		     const modulusredc2ul2_t m)
 {
@@ -708,7 +708,7 @@ modredc2ul2_set_int (residueredc2ul2_t r, const modintredc2ul2_t s,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_set_int_reduced (residueredc2ul2_t r, const modintredc2ul2_t s, 
 			     const modulusredc2ul2_t m)
 {
@@ -719,7 +719,7 @@ modredc2ul2_set_int_reduced (residueredc2ul2_t r, const modintredc2ul2_t s,
 
 
 MAYBE_UNUSED 
-static inline void 
+CADO_INLINE void 
 modredc2ul2_set0 (residueredc2ul2_t r, const modulusredc2ul2_t m MAYBE_UNUSED) 
 { 
   modredc2ul2_intset_ul (r, 0UL);
@@ -727,7 +727,7 @@ modredc2ul2_set0 (residueredc2ul2_t r, const modulusredc2ul2_t m MAYBE_UNUSED)
 
 
 MAYBE_UNUSED 
-static inline void 
+CADO_INLINE void 
 modredc2ul2_set1 (residueredc2ul2_t r, const modulusredc2ul2_t m) 
 { 
   modredc2ul2_intset (r, m[0].one);
@@ -737,7 +737,7 @@ modredc2ul2_set1 (residueredc2ul2_t r, const modulusredc2ul2_t m)
 /* Exchanges the values of the two arguments */
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_swap (residueredc2ul2_t a, residueredc2ul2_t b, 
 		  const modulusredc2ul2_t m MAYBE_UNUSED)
 {
@@ -754,7 +754,7 @@ modredc2ul2_swap (residueredc2ul2_t a, residueredc2ul2_t b,
    if the residue does not fit in one unsigned long? */
 
 MAYBE_UNUSED
-static inline unsigned long
+CADO_INLINE unsigned long
 modredc2ul2_get_ul (const residueredc2ul2_t s, 
 		    const modulusredc2ul2_t m MAYBE_UNUSED)
 {
@@ -769,7 +769,7 @@ modredc2ul2_get_ul (const residueredc2ul2_t s,
 /* Returns the residue as a modintredc2ul2_t */
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_get_int (modintredc2ul2_t r, const residueredc2ul2_t s, 
 		     const modulusredc2ul2_t m MAYBE_UNUSED)
 {
@@ -779,7 +779,7 @@ modredc2ul2_get_int (modintredc2ul2_t r, const residueredc2ul2_t s,
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_equal (const residueredc2ul2_t a, const residueredc2ul2_t b, 
 		   const modulusredc2ul2_t m MAYBE_UNUSED)
 {
@@ -790,7 +790,7 @@ modredc2ul2_equal (const residueredc2ul2_t a, const residueredc2ul2_t b,
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_is0 (const residueredc2ul2_t a, const modulusredc2ul2_t m MAYBE_UNUSED)
 {
   ASSERT_EXPENSIVE (modredc2ul2_intlt (a, m[0].m));
@@ -799,7 +799,7 @@ modredc2ul2_is0 (const residueredc2ul2_t a, const modulusredc2ul2_t m MAYBE_UNUS
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_is1 (const residueredc2ul2_t a, const modulusredc2ul2_t m MAYBE_UNUSED)
 {
   ASSERT_EXPENSIVE (modredc2ul2_intlt (a, m[0].m));
@@ -808,7 +808,7 @@ modredc2ul2_is1 (const residueredc2ul2_t a, const modulusredc2ul2_t m MAYBE_UNUS
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_add (residueredc2ul2_t r, const residueredc2ul2_t a, 
 		 const residueredc2ul2_t b, const modulusredc2ul2_t m)
 {
@@ -824,7 +824,7 @@ modredc2ul2_add (residueredc2ul2_t r, const residueredc2ul2_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_sub (residueredc2ul2_t r, const residueredc2ul2_t a, 
 		 const residueredc2ul2_t b, const modulusredc2ul2_t m)
 {
@@ -864,7 +864,7 @@ modredc2ul2_sub (residueredc2ul2_t r, const residueredc2ul2_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_add1 (residueredc2ul2_t r, const residueredc2ul2_t a, 
 		  const modulusredc2ul2_t m)
 {
@@ -873,7 +873,7 @@ modredc2ul2_add1 (residueredc2ul2_t r, const residueredc2ul2_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_add_ul (residueredc2ul2_t r, const residueredc2ul2_t a,
 		    const unsigned long b, const modulusredc2ul2_t m)
 {
@@ -889,7 +889,7 @@ modredc2ul2_add_ul (residueredc2ul2_t r, const residueredc2ul2_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_sub_ul (residueredc2ul2_t r, const residueredc2ul2_t a,
 		    const unsigned long b, const modulusredc2ul2_t m)
 {
@@ -905,7 +905,7 @@ modredc2ul2_sub_ul (residueredc2ul2_t r, const residueredc2ul2_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_neg (residueredc2ul2_t r, const residueredc2ul2_t a, 
 		 const modulusredc2ul2_t m)
 {
@@ -918,7 +918,7 @@ modredc2ul2_neg (residueredc2ul2_t r, const residueredc2ul2_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_div2 (residueredc2ul2_t r, const residueredc2ul2_t a, 
 		  const modulusredc2ul2_t m)
 {
@@ -932,7 +932,7 @@ modredc2ul2_div2 (residueredc2ul2_t r, const residueredc2ul2_t a,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_mul (residueredc2ul2_t r, const residueredc2ul2_t a, 
                const residueredc2ul2_t b, const modulusredc2ul2_t m)
 {
@@ -1069,7 +1069,7 @@ modredc2ul2_mul (residueredc2ul2_t r, const residueredc2ul2_t a,
 }
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modredc2ul2_sqr (residueredc2ul2_t r, const residueredc2ul2_t a, 
                  const modulusredc2ul2_t m)
 {
@@ -1208,7 +1208,7 @@ modredc2ul2_sqr (residueredc2ul2_t r, const residueredc2ul2_t a,
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_next (residueredc2ul2_t r, const modulusredc2ul2_t m)
 {
   ularith_add_ul_2ul (&(r[0]), &(r[1]), 1UL);
@@ -1217,7 +1217,7 @@ modredc2ul2_next (residueredc2ul2_t r, const modulusredc2ul2_t m)
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_finished (const residueredc2ul2_t r, const modulusredc2ul2_t m)
 {
   return (modredc2ul2_intequal (r, m[0].m));
@@ -1233,7 +1233,7 @@ modredc2ul2_finished (const residueredc2ul2_t r, const modulusredc2ul2_t m)
 */
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modredc2ul2_divn (residueredc2ul2_t r, const residueredc2ul2_t a, 
 		  const unsigned long n, const unsigned long w_mod_n, 
 		  const unsigned long *inv_n, const unsigned long c,

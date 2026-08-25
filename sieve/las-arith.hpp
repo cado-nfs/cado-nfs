@@ -36,7 +36,7 @@
  *
  *   \param [in] p, the modulus for REDC to check
 */
-static inline bool redc_no_carry(const uint32_t p) {
+inline bool redc_no_carry(const uint32_t p) {
     return p < (UINT32_C(1) << 31);
 }
 
@@ -49,7 +49,7 @@ static inline bool redc_no_carry(const uint32_t p) {
 */
 
 template <bool CARRYCHECK>
-static inline uint32_t // NO_INLINE
+inline uint32_t // NO_INLINE
 redc_u32(const uint64_t x, const uint32_t p, const redc_invp_t invp)
 {
   ASSERT_EXPENSIVE(CARRYCHECK || redc_no_carry(p));
@@ -113,7 +113,7 @@ redc_u32(const uint64_t x, const uint32_t p, const redc_invp_t invp)
  *   \param [in] s is an integer 0 <= s < 32
  *   \return x/2^s mod p as an integer in [0, p[
 */
-static inline uint32_t // NO_INLINE
+inline uint32_t // NO_INLINE
 varredc_u32(const uint32_t x, const uint32_t p, const redc_invp_t invp, const uint8_t s)
 {
   ASSERT(s < 32); /* shift by word width is undefined. caller should use
@@ -139,7 +139,7 @@ varredc_u32(const uint32_t x, const uint32_t p, const redc_invp_t invp, const ui
 */
 
 template <bool CARRYCHECK>
-static inline uint32_t
+inline uint32_t
 mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const redc_invp_t invp)
 {
   uint64_t x = (uint64_t) a * (uint64_t) b;
@@ -154,7 +154,7 @@ mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const redc_
  *   \return x/2^32 mod p as an integer in [0, p[
 */
 template <bool CARRYCHECK>
-static inline uint32_t // NO_INLINE
+inline uint32_t // NO_INLINE
 redc_32(const int64_t x, const uint32_t p, const redc_invp_t invp)
 {
   ASSERT_EXPENSIVE(x > 0 && (x >> 32) < p || x < 0 && ((-x) >> 32) < p);
@@ -203,7 +203,7 @@ redc_32(const int64_t x, const uint32_t p, const redc_invp_t invp)
  */
 
 MAYBE_UNUSED
-static inline fbprime_t
+inline fbprime_t
 invmod_po2 (fbprime_t n)
 {
   fbprime_t r;
@@ -238,7 +238,7 @@ invmod_32 (uint32_t *pa, uint32_t b)
 }
 
 /* Requires a < m and b <= m, then r == a+b (mod m) and r < m */
-static inline uint32_t
+inline uint32_t
 addmod_u32 (const uint32_t a, const uint32_t b, const uint32_t m)
 {
 #if (defined(__i386__) && defined(__GNUC__)) || defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
@@ -260,7 +260,7 @@ addmod_u32 (const uint32_t a, const uint32_t b, const uint32_t m)
 }
 
 /* Requires a < m and b < m, then r == a-b (mod m) and r < m */
-static inline uint32_t
+inline uint32_t
 submod_u32(const uint32_t a, const uint32_t b, const uint32_t m)
 {
 #if (defined(__i386__) && defined(__GNUC__)) || defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
@@ -299,7 +299,7 @@ submod_u32(const uint32_t a, const uint32_t b, const uint32_t m)
 // a must be less than b.
 // return result on succes (new a value), UINT32_MAX on failure
 
-static inline uint32_t // NO_INLINE
+inline uint32_t // NO_INLINE
 invmod_redc_32(uint32_t a, const uint32_t orig_b, const uint32_t invb)
 {
   uint32_t b = orig_b;
@@ -392,7 +392,7 @@ done:
  */
 
 template <bool CARRYCHECK>
-static inline bool
+inline bool
 batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
               const uint32_t p, const redc_invp_t invp)
 {
@@ -464,7 +464,7 @@ fbprime_t is_prime_power(fbprime_t q);
 /* Requires 0 < m < 2^31, 0 <= a < m and 0 <= b <= m, then r == a+b (mod m) and
  * r < m
  */
-static inline __m128i
+inline __m128i
 addmod_s32_sse(const __m128i a, const __m128i b, const __m128i m)
 {
   __m128i s = _mm_add_epi32(a, b);
@@ -475,7 +475,7 @@ addmod_s32_sse(const __m128i a, const __m128i b, const __m128i m)
 /* Requires 0 < m < 2^31, 0 <= a < m and 0 <= b <= m, then r == a-b (mod m) and
  * r < m
  */
-static inline __m128i
+inline __m128i
 submod_s32_sse(const __m128i a, const __m128i b, const __m128i m)
 {
   __m128i r = _mm_sub_epi32(a, b);

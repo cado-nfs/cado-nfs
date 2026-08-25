@@ -37,7 +37,7 @@ extern "C" {
 #endif
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_intinit (modintmpz_t r)
 {
   mpz_init (r);
@@ -45,7 +45,7 @@ modmpz_intinit (modintmpz_t r)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_intclear (modintmpz_t r)
 {
   ASSERT_MPZ(r);
@@ -55,7 +55,7 @@ modmpz_intclear (modintmpz_t r)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_intset (modintmpz_t r, const modintmpz_t s)
 {
   ASSERT_MPZ(s);
@@ -64,7 +64,7 @@ modmpz_intset (modintmpz_t r, const modintmpz_t s)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_intset_ul (modintmpz_t r, const unsigned long s)
 {
   ASSERT_DEFINED(s);
@@ -73,7 +73,7 @@ modmpz_intset_ul (modintmpz_t r, const unsigned long s)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_intset_uls (modintmpz_t r, const unsigned long *s, const size_t n)
 {
   mpz_import (r, n, -1, sizeof(*s), 0, 0, s);
@@ -82,7 +82,7 @@ modmpz_intset_uls (modintmpz_t r, const unsigned long *s, const size_t n)
 
 /* Get the least significant unsigned long of r */
 MAYBE_UNUSED
-static inline unsigned long 
+CADO_INLINE unsigned long 
 modmpz_intget_ul (const modintmpz_t s)
 {
   ASSERT_MPZ(s);
@@ -91,7 +91,7 @@ modmpz_intget_ul (const modintmpz_t s)
 
 
 MAYBE_UNUSED
-static inline size_t  
+CADO_INLINE size_t  
 modmpz_intget_uls (unsigned long *r, const modintmpz_t s)
 {
   size_t count;
@@ -105,7 +105,7 @@ modmpz_intget_uls (unsigned long *r, const modintmpz_t s)
 }
 
 MAYBE_UNUSED
-static inline double
+CADO_INLINE double
 modmpz_intget_double (const modintmpz_t s)
 {
   ASSERT_MPZ(s);
@@ -113,7 +113,7 @@ modmpz_intget_double (const modintmpz_t s)
 }
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modmpz_intequal (const modintmpz_t a, const modintmpz_t b)
 {
   ASSERT_MPZ(a);
@@ -123,7 +123,7 @@ modmpz_intequal (const modintmpz_t a, const modintmpz_t b)
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modmpz_intequal_ul (const modintmpz_t a, const unsigned long b)
 {
   ASSERT_MPZ(a);
@@ -133,7 +133,7 @@ modmpz_intequal_ul (const modintmpz_t a, const unsigned long b)
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modmpz_intcmp (const modintmpz_t a, const modintmpz_t b)
 {
   ASSERT_MPZ(a);
@@ -143,7 +143,7 @@ modmpz_intcmp (const modintmpz_t a, const modintmpz_t b)
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modmpz_intcmp_ul (const modintmpz_t a, const unsigned long b)
 {
   ASSERT_MPZ(a);
@@ -153,7 +153,7 @@ modmpz_intcmp_ul (const modintmpz_t a, const unsigned long b)
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modmpz_intcmp_uint64 (const modintmpz_t a, const uint64_t b)
 {
   ASSERT(ULONG_MAX == UINT32_MAX || ULONG_MAX == UINT64_MAX);
@@ -174,7 +174,7 @@ modmpz_intcmp_uint64 (const modintmpz_t a, const uint64_t b)
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modmpz_intfits_ul (const modintmpz_t a)
 {
   ASSERT_MPZ(a);
@@ -183,7 +183,7 @@ modmpz_intfits_ul (const modintmpz_t a)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_intadd (modintmpz_t r, const modintmpz_t a, const modintmpz_t b)
 {
   ASSERT_MPZ(a);
@@ -193,7 +193,7 @@ modmpz_intadd (modintmpz_t r, const modintmpz_t a, const modintmpz_t b)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_intsub (modintmpz_t r, const modintmpz_t a, const modintmpz_t b)
 {
   ASSERT_MPZ(a);
@@ -203,7 +203,7 @@ modmpz_intsub (modintmpz_t r, const modintmpz_t a, const modintmpz_t b)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_intshr (modintmpz_t r, const modintmpz_t s, const int i)
 {
   ASSERT_MPZ(s);
@@ -213,7 +213,7 @@ modmpz_intshr (modintmpz_t r, const modintmpz_t s, const int i)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_intshl (modintmpz_t r, const modintmpz_t s, const int i)
 {
   ASSERT_MPZ(s);
@@ -225,7 +225,7 @@ modmpz_intshl (modintmpz_t r, const modintmpz_t s, const int i)
 /* Returns the number of bits in a, that is, floor(log_2(n))+1. 
    For n==0 returns 0. */
 MAYBE_UNUSED
-static inline size_t 
+CADO_INLINE size_t 
 modmpz_intbits (const modintmpz_t a)
 {
   ASSERT_MPZ(a);
@@ -237,7 +237,7 @@ modmpz_intbits (const modintmpz_t a)
 
 /* r = n/d. We require d|n */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_intdivexact (modintmpz_t r, const modintmpz_t n, const modintmpz_t d)
 {
   ASSERT_MPZ(n);
@@ -249,7 +249,7 @@ modmpz_intdivexact (modintmpz_t r, const modintmpz_t n, const modintmpz_t d)
 
 /* r = n%d */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_intmod (modintmpz_t r, const modintmpz_t n, 
               const modintmpz_t d)
 {
@@ -262,7 +262,7 @@ modmpz_intmod (modintmpz_t r, const modintmpz_t n,
 /* Functions for the modulus */
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_initmod_ul (modulusmpz_t m, const unsigned long s)
 {
   ASSERT_DEFINED(s);
@@ -271,7 +271,7 @@ modmpz_initmod_ul (modulusmpz_t m, const unsigned long s)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_initmod_int (modulusmpz_t m, const modintmpz_t s)
 {
   ASSERT_MPZ(s);
@@ -280,7 +280,7 @@ modmpz_initmod_int (modulusmpz_t m, const modintmpz_t s)
 
 
 MAYBE_UNUSED
-static inline unsigned long
+CADO_INLINE unsigned long
 modmpz_getmod_ul (const modulusmpz_t m)
 {
   ASSERT_MPZ(m);
@@ -290,7 +290,7 @@ modmpz_getmod_ul (const modulusmpz_t m)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_getmod_int (modintmpz_t r, const modulusmpz_t m)
 {
   ASSERT_MPZ(m);
@@ -299,7 +299,7 @@ modmpz_getmod_int (modintmpz_t r, const modulusmpz_t m)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_clearmod (modulusmpz_t m MAYBE_UNUSED)
 {
   ASSERT_MPZ(m);
@@ -312,7 +312,7 @@ modmpz_clearmod (modulusmpz_t m MAYBE_UNUSED)
 
 /* Initialises a residue_t type and sets it to zero */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_init (residuempz_t r, const modulusmpz_t m MAYBE_UNUSED)
 {
   ASSERT_MPZ(m);
@@ -323,7 +323,7 @@ modmpz_init (residuempz_t r, const modulusmpz_t m MAYBE_UNUSED)
 /* Initialises a residue_t type, but does not set it to zero. For fixed length
    residue_t types, that leaves nothing to do at all. */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_init_noset0 (residuempz_t r MAYBE_UNUSED, 
 		   const modulusmpz_t m MAYBE_UNUSED)
 {
@@ -333,7 +333,7 @@ modmpz_init_noset0 (residuempz_t r MAYBE_UNUSED,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_clear (residuempz_t r MAYBE_UNUSED, 
              const modulusmpz_t m MAYBE_UNUSED)
 {
@@ -345,7 +345,7 @@ modmpz_clear (residuempz_t r MAYBE_UNUSED,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_set (residuempz_t r, const residuempz_t s, 
            const modulusmpz_t m MAYBE_UNUSED)
 {
@@ -356,7 +356,7 @@ modmpz_set (residuempz_t r, const residuempz_t s,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_set_ul (residuempz_t r, const unsigned long s, const modulusmpz_t m)
 {
   ASSERT_MPZ(m);
@@ -369,7 +369,7 @@ modmpz_set_ul (residuempz_t r, const unsigned long s, const modulusmpz_t m)
    s is reduced (mod m), i.e. 0 <= s < m */
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_set_ul_reduced (residuempz_t r, const unsigned long s, 
                       const modulusmpz_t m MAYBE_UNUSED)
 {
@@ -380,7 +380,7 @@ modmpz_set_ul_reduced (residuempz_t r, const unsigned long s,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_set_int (residuempz_t r, const modintmpz_t s, 
 		const modulusmpz_t m)
 {
@@ -391,7 +391,7 @@ modmpz_set_int (residuempz_t r, const modintmpz_t s,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_set_int_reduced (residuempz_t r, const modintmpz_t s, 
 		       const modulusmpz_t m MAYBE_UNUSED)
 {
@@ -402,7 +402,7 @@ modmpz_set_int_reduced (residuempz_t r, const modintmpz_t s,
 
 
 MAYBE_UNUSED 
-static inline void 
+CADO_INLINE void 
 modmpz_set0 (residuempz_t r, const modulusmpz_t m MAYBE_UNUSED) 
 { 
   ASSERT_MPZ(m);
@@ -411,7 +411,7 @@ modmpz_set0 (residuempz_t r, const modulusmpz_t m MAYBE_UNUSED)
 
 
 MAYBE_UNUSED 
-static inline void 
+CADO_INLINE void 
 modmpz_set1 (residuempz_t r, const modulusmpz_t m MAYBE_UNUSED) 
 {
   ASSERT_MPZ(m);
@@ -424,7 +424,7 @@ modmpz_set1 (residuempz_t r, const modulusmpz_t m MAYBE_UNUSED)
 
 /* Exchanges the values of the two arguments */
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_swap (residuempz_t a, residuempz_t b, 
             const modulusmpz_t m MAYBE_UNUSED)
 {
@@ -436,7 +436,7 @@ modmpz_swap (residuempz_t a, residuempz_t b,
 
 
 MAYBE_UNUSED
-static inline unsigned long
+CADO_INLINE unsigned long
 modmpz_get_ul (const residuempz_t s, const modulusmpz_t m MAYBE_UNUSED)
 {
   ASSERT_MPZ_RES (s);
@@ -447,7 +447,7 @@ modmpz_get_ul (const residuempz_t s, const modulusmpz_t m MAYBE_UNUSED)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_get_int (modintmpz_t r, const residuempz_t s, 
 		   const modulusmpz_t m MAYBE_UNUSED)
 {
@@ -458,7 +458,7 @@ modmpz_get_int (modintmpz_t r, const residuempz_t s,
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modmpz_equal (const residuempz_t a, const residuempz_t b, 
 	      const modulusmpz_t m MAYBE_UNUSED)
 {
@@ -470,7 +470,7 @@ modmpz_equal (const residuempz_t a, const residuempz_t b,
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modmpz_is0 (const residuempz_t a, const modulusmpz_t m MAYBE_UNUSED)
 {
   ASSERT_MPZ_RES (a);
@@ -480,7 +480,7 @@ modmpz_is0 (const residuempz_t a, const modulusmpz_t m MAYBE_UNUSED)
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modmpz_is1 (const residuempz_t a, const modulusmpz_t m MAYBE_UNUSED)
 {
   ASSERT_MPZ_RES (a);
@@ -490,7 +490,7 @@ modmpz_is1 (const residuempz_t a, const modulusmpz_t m MAYBE_UNUSED)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_add (residuempz_t r, const residuempz_t a, const residuempz_t b, 
 	   const modulusmpz_t m)
 {
@@ -504,7 +504,7 @@ modmpz_add (residuempz_t r, const residuempz_t a, const residuempz_t b,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_add_ul (residuempz_t r, const residuempz_t a, const unsigned long b, 
 	      const modulusmpz_t m)
 {
@@ -516,7 +516,7 @@ modmpz_add_ul (residuempz_t r, const residuempz_t a, const unsigned long b,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_add1 (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 {
   ASSERT_MPZ_RES (a);
@@ -526,7 +526,7 @@ modmpz_add1 (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_sub (residuempz_t r, const residuempz_t a, const residuempz_t b, 
 	    const modulusmpz_t m)
 {
@@ -540,7 +540,7 @@ modmpz_sub (residuempz_t r, const residuempz_t a, const residuempz_t b,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_sub_ul (residuempz_t r, const residuempz_t a, const unsigned long b, 
 	       const modulusmpz_t m)
 {
@@ -552,7 +552,7 @@ modmpz_sub_ul (residuempz_t r, const residuempz_t a, const unsigned long b,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_neg (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 {
   ASSERT_MPZ_RES (a);
@@ -565,7 +565,7 @@ modmpz_neg (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_mul (residuempz_t r, const residuempz_t a, const residuempz_t b, 
            const modulusmpz_t m)
 {
@@ -579,7 +579,7 @@ modmpz_mul (residuempz_t r, const residuempz_t a, const residuempz_t b,
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_sqr (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 {
   ASSERT_MPZ_RES (a);
@@ -590,7 +590,7 @@ modmpz_sqr (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 
 
 MAYBE_UNUSED
-static inline void
+CADO_INLINE void
 modmpz_div2 (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 {
   ASSERT_MPZ_RES (a);
@@ -606,7 +606,7 @@ modmpz_div2 (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modmpz_next (residuempz_t r, const modulusmpz_t m)
 {
   ASSERT_MPZ_RES (r);
@@ -617,7 +617,7 @@ modmpz_next (residuempz_t r, const modulusmpz_t m)
 
 
 MAYBE_UNUSED
-static inline int
+CADO_INLINE int
 modmpz_finished (const residuempz_t a, const modulusmpz_t m)
 {
   ASSERT_MPZ_RES (a);
@@ -626,7 +626,7 @@ modmpz_finished (const residuempz_t a, const modulusmpz_t m)
 }
 
 
-static inline int 
+CADO_INLINE int 
 modmpz_div_ul (residuempz_t r, const residuempz_t a, const unsigned long b, 
               const modulusmpz_t m)
 {
@@ -644,37 +644,37 @@ modmpz_div_ul (residuempz_t r, const residuempz_t a, const unsigned long b,
   return 1;
 }
 
-static inline int 
+CADO_INLINE int 
 modmpz_div3 (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 {
   return modmpz_div_ul(r, a, 3, m);
 }
 
-static inline int 
+CADO_INLINE int 
 modmpz_div5 (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 {
   return modmpz_div_ul(r, a, 5, m);
 }
 
-static inline int 
+CADO_INLINE int 
 modmpz_div7 (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 {
   return modmpz_div_ul(r, a, 7, m);
 }
 
-static inline int 
+CADO_INLINE int 
 modmpz_div11 (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 {
   return modmpz_div_ul(r, a, 11, m);
 }
 
-static inline int 
+CADO_INLINE int 
 modmpz_div13 (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 {
   return modmpz_div_ul(r, a, 13, m);
 }
 
-static inline void 
+CADO_INLINE void 
 modmpz_gcd (modintmpz_t r, const residuempz_t a, const modulusmpz_t m)
 {
   ASSERT_MPZ_RES (a);
@@ -683,7 +683,7 @@ modmpz_gcd (modintmpz_t r, const residuempz_t a, const modulusmpz_t m)
 }
 
 #define MOD_NO_SHARED_MOD_POW_UL 1
-static inline void 
+CADO_INLINE void 
 modmpz_pow_ul (residuempz_t r, const residuempz_t a, const unsigned long e, 
               const modulusmpz_t m)
 {
@@ -693,7 +693,7 @@ modmpz_pow_ul (residuempz_t r, const residuempz_t a, const unsigned long e,
 }
 
 #define MOD_NO_SHARED_MOD_POW_MP 1
-static inline void 
+CADO_INLINE void 
 modmpz_2pow_ul (residuempz_t r, const unsigned long e, const modulusmpz_t m)
 {
   mpz_set_ui (r, 2);
@@ -701,7 +701,7 @@ modmpz_2pow_ul (residuempz_t r, const unsigned long e, const modulusmpz_t m)
   mpz_powm_ui (r, r, e, m);
 }
 
-static inline void 
+CADO_INLINE void 
 modmpz_pow_mp (residuempz_t r, const residuempz_t a, const unsigned long *e,
               const int l, const modulusmpz_t m)
 {
@@ -714,7 +714,7 @@ modmpz_pow_mp (residuempz_t r, const residuempz_t a, const unsigned long *e,
   mpz_clear (t);
 }
 
-static inline void 
+CADO_INLINE void 
 modmpz_2pow_mp (residuempz_t r, const unsigned long *e, const int l, 
                const modulusmpz_t m)
 {
@@ -723,7 +723,7 @@ modmpz_2pow_mp (residuempz_t r, const unsigned long *e, const int l,
   modmpz_pow_mp (r, r, e, l, m);
 }
 
-static inline int 
+CADO_INLINE int 
 modmpz_sprp (const residuempz_t a MAYBE_UNUSED, const modulusmpz_t m)
 {
   ASSERT_MPZ(m);
@@ -731,28 +731,28 @@ modmpz_sprp (const residuempz_t a MAYBE_UNUSED, const modulusmpz_t m)
   return mpz_probab_prime_p(m, 3);
 }
 
-static inline int 
+CADO_INLINE int 
 modmpz_sprp2 (const modulusmpz_t m)
 {
   ASSERT_MPZ(m);
   return mpz_probab_prime_p(m, 1);
 }
 
-static inline int 
+CADO_INLINE int 
 modmpz_isprime (const modulusmpz_t m)
 {
   ASSERT_MPZ(m);
   return mpz_probab_prime_p(m, 5);
 }
 
-static inline int 
+CADO_INLINE int 
 modmpz_inv (residuempz_t r, const residuempz_t a, const modulusmpz_t m)
 {
   ASSERT_MPZ(m);
   return mpz_invert (r, a, m);
 }
 
-static inline int 
+CADO_INLINE int 
 modmpz_jacobi (const residuempz_t a, const modulusmpz_t m)
 {
   ASSERT_MPZ(m);

@@ -11,7 +11,7 @@ add_compile_options(-fno-limit-debug-info)
 endif()
 
 add_executable(test_gdb_printers test_gdb_printers.cpp)
-target_link_libraries(test_gdb_printers utils)
+target_link_libraries(test_gdb_printers PRIVATE utils)
 add_dependencies(all_gdb_printer_tests test_gdb_printers)
 if(NOT ENABLE_SHARED)
     configure_file(${CADO_NFS_SOURCE_DIR}/utils/hook_cado_nfs_gdb.py.in
@@ -87,6 +87,7 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS} b64)
         COMPILE_FLAGS ${our_compile_flags_string})
 
     target_link_libraries(test_gdb_printers_bwc_${layer}
+        PRIVATE
         lingen_${layer}_support)
     # There should be a way to inherit this. Anyway, since
     # lingen_${layer}_support is mpi, this binary has to be mpi too!

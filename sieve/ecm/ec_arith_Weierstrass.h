@@ -26,7 +26,7 @@ extern "C" {
 
 
 #define weierstrass_aff_curve_fprintf MOD_APPEND_TYPE(weierstrass_aff_curve_fprintf)
-static inline void
+CADO_INLINE void
 weierstrass_aff_curve_fprintf (FILE *out, const char *prefix,
                                 const residue_t a, ec_point_t P,
                                 const modulus_t m)
@@ -511,7 +511,7 @@ found_inf:
 
 /* Set P to zero (the neutral point): (0:1:0) */
 #define weierstrass_proj_point_set_zero MOD_APPEND_TYPE(weierstrass_proj_point_set_zero)
-static inline void
+CADO_INLINE void
 weierstrass_proj_point_set_zero (ec_point_t P, const modulus_t m)
 {
   mod_set0 (P->x, m);

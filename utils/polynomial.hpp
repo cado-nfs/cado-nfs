@@ -75,7 +75,7 @@ struct polynomial;
  */
 #define CADO_COEFF_PROXY_OVERLOAD_META_X(CLASS1, CLASS2, OP)	\
     template<typename T, typename U>					\
-    static inline auto OP(					        \
+    inline auto OP(					        \
         cado_details::CLASS1<polynomial_details::polynomial<T>> const & a, \
         cado_details::CLASS2<polynomial_details::polynomial<U>> const & b) \
         -> decltype(OP(T(a), U(b)))                                       \
@@ -84,7 +84,7 @@ struct polynomial;
     }
 #define CADO_COEFF_PROXY_OVERLOAD_META(CLASS, OP)			\
     template<typename T, typename U>					\
-    static inline auto OP(					\
+    inline auto OP(					\
         U const & a,							\
         cado_details::CLASS<polynomial_details::polynomial<T>> const & b) \
         -> decltype(OP(a, T(b)))                                        \
@@ -92,7 +92,7 @@ struct polynomial;
         return OP(a, T(b));						\
     }									\
     template<typename T, typename U>					\
-    static inline auto OP(					        \
+    inline auto OP(					        \
         cado_details::CLASS<polynomial_details::polynomial<T>> const & a, \
         U const & b)							\
         -> decltype(OP(T(a), b))                                        \

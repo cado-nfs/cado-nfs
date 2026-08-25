@@ -1,5 +1,6 @@
 #ifndef CADO_EC_ARITH_COMMON_H
 #define CADO_EC_ARITH_COMMON_H
+#include "macros.h"
 
 #ifndef mod_init
 #error "One of the mod*_default.h headers must be included before this file"
@@ -39,7 +40,7 @@ typedef struct ec_point_s *ec_point_ptr;
 typedef const struct ec_point_s *ec_point_srcptr;
 
 #define ec_point_init MOD_APPEND_TYPE(ec_point_init)
-static inline void
+CADO_INLINE void
 ec_point_init (ec_point_t P, const modulus_t m)
 {
   mod_init (P->x, m);
@@ -49,7 +50,7 @@ ec_point_init (ec_point_t P, const modulus_t m)
 }
 
 #define ec_point_init_noset0 MOD_APPEND_TYPE(ec_point_init_noset0)
-static inline void
+CADO_INLINE void
 ec_point_init_noset0 (ec_point_t P, const modulus_t m)
 {
   mod_init_noset0 (P->x, m);
@@ -59,7 +60,7 @@ ec_point_init_noset0 (ec_point_t P, const modulus_t m)
 }
 
 #define ec_point_clear MOD_APPEND_TYPE(ec_point_clear)
-static inline void
+CADO_INLINE void
 ec_point_clear (ec_point_t P, const modulus_t m)
 {
   mod_clear (P->x, m);
@@ -69,7 +70,7 @@ ec_point_clear (ec_point_t P, const modulus_t m)
 }
 
 #define ec_point_set MOD_APPEND_TYPE(ec_point_set)
-static inline void
+CADO_INLINE void
 ec_point_set (ec_point_t Q, const ec_point_t P, const modulus_t m,
               const ec_point_coord_type_t coord)
 {
@@ -83,7 +84,7 @@ ec_point_set (ec_point_t Q, const ec_point_t P, const modulus_t m,
 }
 
 #define ec_point_swap MOD_APPEND_TYPE(ec_point_swap)
-static inline void
+CADO_INLINE void
 ec_point_swap (ec_point_t Q, ec_point_t P, const modulus_t m,
                const ec_point_coord_type_t coord)
 {
@@ -97,7 +98,7 @@ ec_point_swap (ec_point_t Q, ec_point_t P, const modulus_t m,
 }
 
 #define ec_point_fprintf MOD_APPEND_TYPE(ec_point_fprintf)
-static inline void
+CADO_INLINE void
 ec_point_fprintf (FILE *out, const ec_point_t P,
                   const ec_point_coord_type_t coord, const modulus_t m)
 {
