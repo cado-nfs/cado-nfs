@@ -218,7 +218,7 @@ struct dup1_process {
 
     unsigned int compute_slice (cxx_mpz const & a, cxx_mpz const & b) const
     {
-        const cxx_mpz t = a * CA_DUP1 + b * CA_DUP1;
+        const cxx_mpz t = a * CA_DUP1 + b * CB_DUP1;
         mp_limb_t h = 0U;
         ASSERT_ALWAYS(mpz_size(t) <= std::numeric_limits<mp_size_t>::max());
         for (size_t i = 0; i < mpz_size(t); ++i)
