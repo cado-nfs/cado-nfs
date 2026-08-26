@@ -399,7 +399,7 @@ namespace cado::relation_building_blocks {
     template<typename prime_t, typename parent>
         requires
             requires { typename prime_t::p_or_h_type; }
-         && requires { std::unsigned_integral<typename prime_t::p_or_h_type>; }
+         && std::unsigned_integral<typename prime_t::p_or_h_type>
          && requires { typename prime_t::e_type; }
     struct primes_block
         : public import_p_or_h_type<prime_t>
