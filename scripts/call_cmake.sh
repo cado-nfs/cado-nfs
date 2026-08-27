@@ -253,7 +253,15 @@ if [ "$1" = "check" ] ; then
     shift
     ctest_args=()
     # emulate old behavior with ARGS=
-    eval "u=(${MAKEFLAGS})"
+    # Note that the $ that are passed from the shell
+    # CLI (when calling make check ARGS="blah\$\$") all get turned into
+    # $$ in MAKEFLAGS by the first make invocation. It's fine if it's all
+    # parsed by make in the end, but since we no longer do this, we need
+    # to remove one level of escaping.
+    # We need to deduplicate $ signs *twice* in order to exactly retain
+    # the old behaviour.
+    mf="${MAKEFLAGS//\$\$/\$}"
+    eval "u=(${mf//\$\$/\$})"
     for f in "${u[@]}" ; do
         if [ "$f" = "--" ] ; then
             :
