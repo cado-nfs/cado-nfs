@@ -446,7 +446,7 @@ static void fill_in_buckets_one_side(nfs_work & ws, nfs_aux & aux,
 
 /* This is a compile-time loop over the possible values from 1 to level,
  * and 0 errors out. */
-template<int level, typename hint_t>
+template<int level, hint_type hint_t>
 struct fib1s_caller_s : public fib1s_caller_s<level-1, hint_t> {
     template<typename... Args>
     void operator()(nfs_work & ws, Args&& ...args) const {
@@ -456,7 +456,7 @@ struct fib1s_caller_s : public fib1s_caller_s<level-1, hint_t> {
             fib1s_caller_s<level-1, hint_t>::operator()(ws, std::forward<Args>(args)...);
     }
 };
-template<typename hint_t>
+template<hint_type hint_t>
 struct fib1s_caller_s<0, hint_t> {
     template<typename... Args>
     void operator()(nfs_work &, Args&& ...) const {
@@ -464,7 +464,7 @@ struct fib1s_caller_s<0, hint_t> {
     }
 };
 
-template<int level, typename hint_t, typename... Args>
+template<int level, hint_type hint_t, typename... Args>
 inline void fib_one_side(nfs_work & ws, Args&& ...args)
 {
     fib1s_caller_s<level, hint_t>()(ws, std::forward<Args>(args)...);

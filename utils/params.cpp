@@ -11,8 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include <gmp.h>
-
 #include "fmt/base.h"
 #include "fmt/format.h"
 
@@ -21,14 +19,12 @@
 #include "version_info.h"
 #include "verbose.hpp"
 #include "utils_cxx.hpp"
-#include "cxx_mpz.hpp"
-#include "portability.h" // strdup // IWYU pragma: keep
 
 using cado::params::cxx_param_list;
 
 void cxx_param_list::print_usage(FILE *f) const
 {
-    const auto argv0 = cmdline_argv0[0];
+    const auto * const argv0 = cmdline_argv0[0];
 
     if (argv0 != nullptr)
         fmt::print(f, "Usage: {} <parameters>\n", argv0);
