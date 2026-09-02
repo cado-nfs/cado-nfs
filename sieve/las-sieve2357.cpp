@@ -322,17 +322,13 @@ sieve2357<SIMDTYPE, ELEMTYPE>::sieve(SIMDTYPE * const sievearray, const size_t a
    *    /home/ci/jenkins/workspace/master/compile-debian-8-arm32/sieve/las-sieve2357.cpp:310:12: warning: requested alignment 16 is larger than 8 [-Wattributes]
    SIMDTYPE pattern23[3] = {pattern2, pattern2, pattern2};
    */
-#ifdef HAVE_ALIGNAS
   alignas(sizeof(SIMDTYPE)) 
-#endif
   SIMDTYPE pattern23[3] = {pattern2, pattern2, pattern2};
   for ( ; primes->q == 3 ; primes++) {
     sieve_odd_prime(pattern23, primes->logp, 3, primes->idx, even_mask);
   }
 
-#ifdef HAVE_ALIGNAS
   alignas(sizeof(SIMDTYPE)) 
-#endif
   SIMDTYPE pattern235[15 + 6] = {
     pattern23[0], pattern23[1], pattern23[2],
     pattern23[0], pattern23[1], pattern23[2],
@@ -342,9 +338,7 @@ sieve2357<SIMDTYPE, ELEMTYPE>::sieve(SIMDTYPE * const sievearray, const size_t a
     pattern23[0], pattern23[1], pattern23[2],
     pattern23[0], pattern23[1], pattern23[2],
   };
-#ifdef HAVE_ALIGNAS
   alignas(sizeof(SIMDTYPE)) 
-#endif
   SIMDTYPE pattern5[5] = {zero, zero, zero, zero, zero};
   for ( ; primes->q == 5 ; primes++) {
     sieve_odd_prime(pattern5, primes->logp, 5, primes->idx, even_mask);
@@ -365,9 +359,7 @@ sieve2357<SIMDTYPE, ELEMTYPE>::sieve(SIMDTYPE * const sievearray, const size_t a
   pattern235[15 + 4] = pattern235[4];
   pattern235[15 + 5] = pattern235[5];
 
-#ifdef HAVE_ALIGNAS
   alignas(sizeof(SIMDTYPE))
-#endif
   SIMDTYPE pattern7[7] = {zero, zero, zero, zero, zero, zero, zero};
   for ( ; primes->q == 7 ; primes++) {
     sieve_odd_prime(pattern7, primes->logp, 7, primes->idx, even_mask);

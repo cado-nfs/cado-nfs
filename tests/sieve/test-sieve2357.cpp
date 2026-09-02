@@ -73,7 +73,7 @@ template <typename T> static T * tolerant_malloc_aligned(size_t size)
     size_t s = sizeof(T);
     for (; s % 8; s <<= 1)
         ;
-    return (T *)malloc_aligned(size, s);
+    return static_cast<T *>(malloc_aligned(size, s));
 }
 
 template <typename SIMDTYPE, typename ELEMTYPE>
@@ -89,13 +89,10 @@ static bool test(unsigned long const iter, const size_t arraysize,
     }
 #define ARRAY_ON_HEAP 1
 #if ARRAY_ON_HEAP
-    SIMDTYPE * sievearray = tolerant_malloc_aligned<SIMDTYPE>(arraysize);
-    ELEMTYPE * sievearray2 = tolerant_malloc_aligned<ELEMTYPE>(arraysize);
+    auto * sievearray = tolerant_malloc_aligned<SIMDTYPE>(arraysize);
+    auto * sievearray2 = tolerant_malloc_aligned<ELEMTYPE>(arraysize);
 #else
-#ifdef HAVE_ALIGNAS
-    alignas(sizeof(SIMDTYPE))
-#endif
-        SIMDTYPE sievearray[arraysize / N];
+    alignas(sizeof(SIMDTYPE)) SIMDTYPE sievearray[arraysize / N];
     ELEMTYPE sievearray2[arraysize];
 #endif
     sieve2357base::prime_t
@@ -108,7 +105,7 @@ static bool test(unsigned long const iter, const size_t arraysize,
             use_primes[j++] = all_primes[i];
         }
     }
-    use_primes[j] = sieve2357base::prime_t {0, 0, 0};
+    use_primes[j] = sieve2357base::prime_t { .q=0, .idx=0, .logp=0};
 
     where_am_I w;
 
@@ -140,7 +137,7 @@ static bool test(unsigned long const iter, const size_t arraysize,
 
     /* Do the same thing again, using simple sieve code */
     memset(sievearray2, 0, arraysize);
-    for (sieve2357base::prime_t * p = use_primes; p->q != 0; p++) {
+    for (auto const * p = use_primes; p->q != 0; p++) {
         for (size_t i = p->idx; i < arraysize; i += p->q) {
             sievearray2[i] += p->logp;
         }
