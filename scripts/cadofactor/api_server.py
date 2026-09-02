@@ -33,9 +33,12 @@ from werkzeug import serving
 
 from ipaddress import ip_address, ip_network
 
+import werkzeug
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import HTTPException
 
+# See #30142
+werkzeug.utils._filename_ascii_strip_re = re.compile(r"[^A-Za-z0-9,_.-]")
 
 try:
     from flasgger import Swagger
