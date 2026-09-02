@@ -30,8 +30,8 @@
 #endif
 #include "fb-types.hpp"
 #include "las-sieve2357.hpp"
-#include "las-where-am-i-proxy.hpp" // for where_am_I
-#include "memory.h"                 // free_aligned
+#include "las-where-am-i-proxy.hpp"
+#include "memory.h"
 #include "tests_common.h"
 
 template <typename T> class gettypename
@@ -52,6 +52,30 @@ template <> class gettypename<unsigned char>
     static constexpr char const * name = "unsigned char";
 };
 
+/*
+ * gcc defines __m128i__ as
+ *
+ * typedef long long __m128i __attribute__((__vector_size__(16), __aligned__(16)));
+ *
+ * which is problematic because it opens the can of worms of whether
+ * attributes can be used to disambiguate template arguments. In general,
+ * nothing says they have to. Fortunately, here it's gcc talking to gcc.
+ * Specializations (and explicit instantiations as well) like the ones
+ * below trigger a warning: gcc complains that attributes are _ignored_
+ * on template arguments. What happens is that the __aligned__(16)
+ * argument is indeed ignored. On the other hand (and quite fortunately!)
+ * the __vector_size__ is correctly considered. (if it weren't, then __m128i
+ * and __m256i would be identical.) Note that clang doesn't have this
+ * problem! As far as I can tell, forcefully ignoring the warning is the
+ * right thing to do here, even though it is a bit unsatisfactory.
+ *
+ * For context: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97222
+ */
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-attributes"
+#endif
+
 #ifdef HAVE_SSSE3
 template <> class gettypename<__m128i>
 {
@@ -66,6 +90,10 @@ template <> class gettypename<__m256i>
   public:
     static constexpr char const * name = "__m256i";
 };
+#endif
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
 #endif
 
 template <typename T> static T * tolerant_malloc_aligned(size_t size)
