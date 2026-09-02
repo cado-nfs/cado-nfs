@@ -9,7 +9,7 @@
 #include <queue>
 #include <utility>
 #include <mutex>
-#include <type_traits>
+#include <tuple>
 
 #include "bucket.hpp"
 #include "las-bkmult.hpp"
@@ -25,9 +25,6 @@ class nfs_aux;
    of them for exclusive use and to release it again. */
 template <bucket_array_type T>
 class reservation_array_base {
-    mutable std::mutex my_lock;
-    protected:
-    auto get_lock() const { return std::unique_lock(my_lock); }
     public:
     static constexpr int level = T::level;
     using update_t = T::update_t;
@@ -48,6 +45,13 @@ class reservation_array_base {
     public:
 
     explicit reservation_array_base(size_t n) : BAs(n) { }
+
+    reservation_array_base(reservation_array_base const &) = delete;
+    reservation_array_base& operator=(reservation_array_base const&) = delete;
+
+    reservation_array_base(reservation_array_base &&) = default;
+    reservation_array_base& operator=(reservation_array_base &&) = default;
+
 
     /* Allocate enough memory to be able to store at least n_bucket buckets,
        each of size at least fill_ratio * bucket region size. */
@@ -85,6 +89,8 @@ template<bucket_array_type T>
 class reservation_array<T, false> : public reservation_array_base<T> {
     static constexpr bool has_longhint_v = false;
     using super = reservation_array_base<T>;
+    mutable std::mutex my_lock;
+    auto get_lock() const { return std::unique_lock(my_lock); }
     std::condition_variable cv;
     using available_bucket_t = std::pair<double, size_t>;
     struct prioritize_least_full_bucket {
@@ -117,12 +123,29 @@ class reservation_array<T, false> : public reservation_array_base<T> {
     void release(T &BA);
 
     public:
+    ~reservation_array() = default;
     reservation_array(reservation_array const &) = delete;
     reservation_array& operator=(reservation_array const&) = delete;
 
-    /* I think that moves are ok */
-    reservation_array(reservation_array &&) noexcept = default;
-    reservation_array& operator=(reservation_array &&) noexcept = default;
+    /* even moves are unholy, of course. We only ever need them in places
+     * where no locking is needed, and fortunately so. Because there is
+     * no such thing as _moving_ a mutex, obviously. So there is ample
+     * potential to shoot yourself in the foot if you use these, really.
+     */
+    reservation_array(reservation_array && o, std::unique_lock<std::mutex> &&) noexcept
+        : super(std::move(o))
+        {}
+
+    reservation_array(reservation_array && o) noexcept
+        : reservation_array(std::move(o), get_lock())
+        {}
+
+    reservation_array& operator=(reservation_array && o) noexcept {
+        auto me = get_lock();
+        auto them = o.get_lock();
+        static_cast<super&>(*this) = std::move(o);
+        return *this;
+    }
 
     explicit reservation_array(size_t n)
         : super(n)
@@ -131,8 +154,10 @@ class reservation_array<T, false> : public reservation_array_base<T> {
             available_buckets.emplace(0, i);
     }
 
+    reservation_array() = default;
+
     void reset_all_pointers() {
-        auto lock = super::get_lock();
+        auto lock = get_lock();
         super::reset_all_pointers(lock);
         available_buckets = decltype(available_buckets)();
         for(size_t i = 0 ; i < super::BAs.size() ; i++)
@@ -147,14 +172,34 @@ class reservation_array<T, false> : public reservation_array_base<T> {
  */
 template <bucket_array_type T>
 class reservation_array<T, true> : public reservation_array_base<T> {
+    mutable std::mutex my_lock;
+    auto get_lock() const { return std::unique_lock(my_lock); }
     static constexpr bool has_longhint_v = true;
     using super = reservation_array_base<T>;
 
     public:
     explicit reservation_array(size_t n) : super(n) { }
 
+    ~reservation_array() = default;
+    reservation_array(reservation_array const &) = delete;
+    reservation_array& operator=(reservation_array const&) = delete;
+    reservation_array(reservation_array && o, std::unique_lock<std::mutex> &&) noexcept
+        : super(std::move(o))
+        {}
+
+    reservation_array(reservation_array && o) noexcept
+        : reservation_array(std::move(o), get_lock())
+        {}
+
+    reservation_array& operator=(reservation_array && o) noexcept {
+        auto me = get_lock();
+        auto them = o.get_lock();
+        static_cast<super&>(*this) = std::move(o);
+        return *this;
+    }
+
     void reset_all_pointers() {
-        auto lock = super::get_lock();
+        auto lock = get_lock();
         super::reset_all_pointers(lock);
     }
 
@@ -166,88 +211,99 @@ class reservation_array<T, true> : public reservation_array_base<T> {
    update, that returns the corresponding reservation array, i.e.,
    it provides a type -> object mapping. */
 class reservation_group {
-  friend class nfs_work;
-  reservation_array<bucket_array_t<1, shorthint_t> > RA1_short;
-  reservation_array<bucket_array_t<1, emptyhint_t> > RA1_empty;
-#if MAX_TOPLEVEL >= 2
-  reservation_array<bucket_array_t<2, shorthint_t> > RA2_short;
-  reservation_array<bucket_array_t<2, emptyhint_t> > RA2_empty;
-  reservation_array<bucket_array_t<1, longhint_t> > RA1_long;
-  reservation_array<bucket_array_t<1, logphint_t> > RA1_logp;
-#endif
-#if MAX_TOPLEVEL >= 3
-  reservation_array<bucket_array_t<3, shorthint_t> > RA3_short;
-  reservation_array<bucket_array_t<3, emptyhint_t> > RA3_empty;
-  reservation_array<bucket_array_t<2, longhint_t> > RA2_long;
-  reservation_array<bucket_array_t<2, logphint_t> > RA2_logp;
-#endif
-  static_assert(MAX_TOPLEVEL == 3);
-protected:
-#define RA_NAME(LEVEL, HINTTYPE) RA ## LEVEL ## _ ## HINTTYPE
-#define RA_ACCESSOR(LEVEL, HINTTYPE)					\
-  template<int LEV, typename HINT>					\
-  reservation_array<bucket_array_t<LEV, HINT> > &			\
-  get()									\
-  requires (LEV == (LEVEL) && std::is_same_v<HINT, CPP_PAD(HINTTYPE, hint_t)>)\
-  { return RA_NAME(LEVEL,HINTTYPE); }                                   \
-  template<int LEV, typename HINT>					\
-  reservation_array<bucket_array_t<LEV, HINT> > const &			\
-  cget() const								\
-  requires (LEV == (LEVEL) && std::is_same_v<HINT, CPP_PAD(HINTTYPE, hint_t)>)\
-  { return RA_NAME(LEVEL,HINTTYPE); }
+    friend class nfs_work;
+    private:
+    template <int LEVEL, typename HINT>
+    using target_array_t = reservation_array<bucket_array_t<LEVEL, HINT>>;
 
-  RA_ACCESSOR(1, short)
-  RA_ACCESSOR(1, empty)
+    static_assert(MAX_TOPLEVEL <= 3);
+
+    using RAs_t = std::tuple<
+          target_array_t<1, shorthint_t>
+        , target_array_t<1, emptyhint_t>
 #if MAX_TOPLEVEL >= 2
-  RA_ACCESSOR(1, long)
-  RA_ACCESSOR(1, logp)
-  RA_ACCESSOR(2, short)
-  RA_ACCESSOR(2, empty)
+        , target_array_t<2, shorthint_t>
+        , target_array_t<2, emptyhint_t>
+        , target_array_t<1, longhint_t>
+        , target_array_t<1, logphint_t>
 #endif
 #if MAX_TOPLEVEL >= 3
-  RA_ACCESSOR(2, long)
-  RA_ACCESSOR(2, logp)
-  RA_ACCESSOR(3, short)
-  RA_ACCESSOR(3, empty)
+        , target_array_t<3, shorthint_t>
+        , target_array_t<3, emptyhint_t>
+        , target_array_t<2, longhint_t>
+        , target_array_t<2, logphint_t>
 #endif
-  static_assert(MAX_TOPLEVEL == 3);
+    >;
+
+    RAs_t RAs;
+
+    template <std::size_t... Is>
+        reservation_group(int nr_bucket_arrays, std::index_sequence<Is...>)
+            : RAs(((void)Is, nr_bucket_arrays)...) {}
+
 public:
-  reservation_group(int nr_bucket_arrays);
-  void allocate_buckets(
-        las_memory_accessor & memory,
-        const int *n_bucket,
-        bkmult_specifier const& mult,
-        std::array<double, FB_MAX_PARTS> const & fill_ratio, int logI,
-        nfs_aux & aux,
-        thread_pool & pool,
-        bool with_hints);
+    template <int LEVEL, typename HINT>
+        [[nodiscard]] auto& get() {
+            return std::get<target_array_t<LEVEL, HINT>>(RAs);
+        }
 
-  void slice_statistics(int side, int level, fb_factorbase::slicing const & fbs) const {
-      switch(level) {
-          case 1:
-              RA1_short.slice_statistics(side, fbs);
-              RA1_long.slice_statistics(side, fbs);
-              break;
-          case 2:
-              RA2_short.slice_statistics(side, fbs);
-              RA2_long.slice_statistics(side, fbs);
-              break;
-          case 3:
-              RA3_short.slice_statistics(side, fbs);
-              break;
-          default:
-              ASSERT_ALWAYS(0);
-      }
-  }
+    template <int LEVEL, typename HINT>
+        [[nodiscard]] auto const& get() const {
+            return std::get<target_array_t<LEVEL, HINT>>(RAs);
+        }
 
-private:
-  template<bool> void allocate_buckets(
-        las_memory_accessor & memory,
-        const int *n_bucket,
-        bkmult_specifier const& mult,
-        std::array<double, FB_MAX_PARTS> const & fill_ratio, int logI,
-        nfs_aux & aux,
-        thread_pool & pool);
+public:
+    /* Reserve the required number of bucket arrays. For shorthint BAs, we
+     * need at least as many as there are threads filling them (or more, for
+     * balancing). This is controlled by the nr_workspaces field in
+     * nfs_work.  For longhint, the parallelization scheme is a bit
+     * different, hence we specify directly here the number of threads that
+     * will fill these bucket arrays by downsosrting. Older code had that
+     * downsorting single-threaded.
+     */
+
+    /* call the private ctor to initialize all RA members */
+    explicit reservation_group(int nr_bucket_arrays)
+        : reservation_group(
+              nr_bucket_arrays,
+              std::make_index_sequence<std::tuple_size_v<RAs_t>>{}
+    ) {}
+
+    void allocate_buckets(
+            las_memory_accessor & memory,
+            const int *n_bucket,
+            bkmult_specifier const& mult,
+            std::array<double, FB_MAX_PARTS> const & fill_ratio, int logI,
+            nfs_aux & aux,
+            thread_pool & pool,
+            bool with_hints);
+
+    void slice_statistics(int side, int level, fb_factorbase::slicing const & fbs) const {
+        switch(level) {
+            case 1:
+                get<1, shorthint_t>().slice_statistics(side, fbs);
+                get<1, longhint_t>().slice_statistics(side, fbs);
+                break;
+            case 2:
+                get<2, shorthint_t>().slice_statistics(side, fbs);
+                get<2, longhint_t>().slice_statistics(side, fbs);
+                break;
+            case 3:
+                get<3, shorthint_t>().slice_statistics(side, fbs);
+                break;
+            default:
+                ASSERT_ALWAYS(0);
+        }
+    }
+
+    private:
+    template<bool> void allocate_buckets(
+            las_memory_accessor & memory,
+            const int *n_bucket,
+            bkmult_specifier const& mult,
+            std::array<double, FB_MAX_PARTS> const & fill_ratio, int logI,
+            nfs_aux & aux,
+            thread_pool & pool);
 };
 
 extern template class reservation_array<bucket_array_t<1, shorthint_t> >;

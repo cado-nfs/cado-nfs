@@ -179,7 +179,7 @@ void nfs_work::allocate_bucket_regions() {
         T.allocate_bucket_regions();
 }
 
-template <int LEVEL, typename HINT>
+template <int LEVEL, hint_type HINT>
 double
 nfs_work::buckets_max_full() const
 {

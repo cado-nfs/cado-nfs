@@ -30,8 +30,8 @@
 #endif
 #include "fb-types.hpp"
 #include "las-sieve2357.hpp"
-#include "las-where-am-i-proxy.hpp" // for where_am_I
-#include "memory.h"                 // free_aligned
+#include "las-where-am-i-proxy.hpp"
+#include "memory.h"
 #include "tests_common.h"
 
 template <typename T> class gettypename
@@ -52,6 +52,30 @@ template <> class gettypename<unsigned char>
     static constexpr char const * name = "unsigned char";
 };
 
+/*
+ * gcc defines __m128i__ as
+ *
+ * typedef long long __m128i __attribute__((__vector_size__(16), __aligned__(16)));
+ *
+ * which is problematic because it opens the can of worms of whether
+ * attributes can be used to disambiguate template arguments. In general,
+ * nothing says they have to. Fortunately, here it's gcc talking to gcc.
+ * Specializations (and explicit instantiations as well) like the ones
+ * below trigger a warning: gcc complains that attributes are _ignored_
+ * on template arguments. What happens is that the __aligned__(16)
+ * argument is indeed ignored. On the other hand (and quite fortunately!)
+ * the __vector_size__ is correctly considered. (if it weren't, then __m128i
+ * and __m256i would be identical.) Note that clang doesn't have this
+ * problem! As far as I can tell, forcefully ignoring the warning is the
+ * right thing to do here, even though it is a bit unsatisfactory.
+ *
+ * For context: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97222
+ */
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-attributes"
+#endif
+
 #ifdef HAVE_SSSE3
 template <> class gettypename<__m128i>
 {
@@ -68,12 +92,16 @@ template <> class gettypename<__m256i>
 };
 #endif
 
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
 template <typename T> static T * tolerant_malloc_aligned(size_t size)
 {
     size_t s = sizeof(T);
     for (; s % 8; s <<= 1)
         ;
-    return (T *)malloc_aligned(size, s);
+    return static_cast<T *>(malloc_aligned(size, s));
 }
 
 template <typename SIMDTYPE, typename ELEMTYPE>
@@ -89,13 +117,10 @@ static bool test(unsigned long const iter, const size_t arraysize,
     }
 #define ARRAY_ON_HEAP 1
 #if ARRAY_ON_HEAP
-    SIMDTYPE * sievearray = tolerant_malloc_aligned<SIMDTYPE>(arraysize);
-    ELEMTYPE * sievearray2 = tolerant_malloc_aligned<ELEMTYPE>(arraysize);
+    auto * sievearray = tolerant_malloc_aligned<SIMDTYPE>(arraysize);
+    auto * sievearray2 = tolerant_malloc_aligned<ELEMTYPE>(arraysize);
 #else
-#ifdef HAVE_ALIGNAS
-    alignas(sizeof(SIMDTYPE))
-#endif
-        SIMDTYPE sievearray[arraysize / N];
+    alignas(sizeof(SIMDTYPE)) SIMDTYPE sievearray[arraysize / N];
     ELEMTYPE sievearray2[arraysize];
 #endif
     sieve2357base::prime_t
@@ -108,7 +133,7 @@ static bool test(unsigned long const iter, const size_t arraysize,
             use_primes[j++] = all_primes[i];
         }
     }
-    use_primes[j] = sieve2357base::prime_t {0, 0, 0};
+    use_primes[j] = sieve2357base::prime_t { .q=0, .idx=0, .logp=0};
 
     where_am_I w;
 
@@ -140,7 +165,7 @@ static bool test(unsigned long const iter, const size_t arraysize,
 
     /* Do the same thing again, using simple sieve code */
     memset(sievearray2, 0, arraysize);
-    for (sieve2357base::prime_t * p = use_primes; p->q != 0; p++) {
+    for (auto const * p = use_primes; p->q != 0; p++) {
         for (size_t i = p->idx; i < arraysize; i += p->q) {
             sievearray2[i] += p->logp;
         }

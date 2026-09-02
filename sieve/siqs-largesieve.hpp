@@ -2,14 +2,16 @@
 #define CADO_SIQS_LARGESIEVE_HPP
 
 #include <cstdint>
+#include <cstddef>
 
 #include <array>
-#include <bit>
 #include <concepts>
 #include <span>
 #include <utility>
 
 #include "bucket.hpp"
+#include "fb.hpp"
+#include "fb-types.hpp"
 #include "las-arith.hpp"
 #include "las-qlattice.hpp"
 #include "macros.h"
@@ -154,7 +156,7 @@ class siqs_largesieve
             uint32_t const pminusr,
             Mask const ...mask)
     {
-        auto const middle = binary_search(input, size, pminusr);
+        const auto * const middle = binary_search(input, size, pminusr);
 
         T_elt const * const end = input + size;
         for (T_elt const * ptr = middle; ptr != end; ++ptr) {
@@ -218,20 +220,20 @@ class siqs_largesieve
         ASSERT_EXPENSIVE(start < end);
         ASSERT_EXPENSIVE(end <= crt_data_modp.size());
 
-        uint32_t mask = ((uint32_t) 1u << (start+1u)) - 1u;
+        uint32_t mask = ((uint32_t) 1U << (start+1U)) - 1U;
 
         T_elt * const Tp =scratch;
 
-        T[0] = {0u, 0u};
-        for (size_t k = start, s = 1u;
+        T[0] = { .v=0U, .l=0U };
+        for (size_t k = start, s = 1U;
                 k < end;
-                ++k, mask=(mask << 1u) xor 1u, s<<=1u) {
+                ++k, mask=(mask << 1U) xor 1U, s<<=1U) {
             /* Invariants:
              *  - s = 2^(k-start)
              *  - mask = 0...01...1 with (k+1) 1s at the end
              */
-            uint32_t rk = crt_data_modp[k];
-            uint32_t pminusrk = pp-rk;
+            const uint32_t rk = crt_data_modp[k];
+            const uint32_t pminusrk = pp-rk;
             T_elt * const Tm = scratch+s;
 
             shift(Tp, T, s, rk, pminusrk, mask);
@@ -243,12 +245,12 @@ class siqs_largesieve
 
     std::size_t n1() const
     {
-        return (n+1u)/2u;
+        return (n+1U)/2U;
     }
 
     std::size_t n2() const
     {
-        return n/2u;
+        return n/2U;
     }
 
     static std::span<std::byte> init_mem(
@@ -266,13 +268,13 @@ class siqs_largesieve
     std::span<T_elt> init_T1() const
     {
         std::byte * ptr = mem.data()+crt_data_modp.size_bytes();
-        return { (T_elt *) ptr, 1u << n1() };
+        return { (T_elt *) ptr, 1U << n1() };
     }
 
     std::span<T_elt> init_T2() const
     {
         std::byte * ptr = mem.data()+crt_data_modp.size_bytes()+T1.size_bytes();
-        return { (T_elt *) ptr, 1u << n2() };
+        return { (T_elt *) ptr, 1U << n2() };
     }
 
     T_elt * get_Tscratch() const
@@ -294,6 +296,7 @@ class siqs_largesieve
         , mem(init_mem(scratch, memory_required(Q, n)))
         , mem_owner(scratch.empty())
         , crt_data_modp((uint32_t *) mem.data(), Q.crt_data_modq.size())
+        , roots()
         , n(n)
         , T1(init_T1())
         , T2(init_T2())
@@ -313,7 +316,7 @@ class siqs_largesieve
         }
         ASSERT_EXPENSIVE(1 <= nroots && nroots <= 2);
 
-        for(unsigned int i = 0u; i < nroots; ++i) {
+        for(unsigned int i = 0U; i < nroots; ++i) {
             uint32_t r;
             if constexpr (std::is_same_v<FB_ENTRY_TYPE, fb_entry_general>) {
                 r = e.roots[i].r;
@@ -321,15 +324,15 @@ class siqs_largesieve
                 r = e.roots[i];
             }
 
-            if (UNLIKELY(!(pp & 1u))) { /* p power of 2 */
-                roots[i] = (r * invq) & (pp - 1u);
+            if (UNLIKELY(!(pp & 1U))) { /* p power of 2 */
+                roots[i] = (r * invq) & (pp - 1U);
             } else {
                 roots[i] = mulmodredc_u32<true>(r, invq, pp, e.invq);
             }
         }
 
         T_elt * Tt = get_Tscratch();
-        set_Ti(T1.data(), 0u, n1(), Tt);
+        set_Ti(T1.data(), 0U, n1(), Tt);
         set_Ti(T2.data(), n1(), n, Tt);
     }
 
@@ -339,12 +342,12 @@ class siqs_largesieve
     /* The moved-from object loose ownership of the memory, i.e.,
      * other.mem_owner is set to false uncondionnally.
      */
-    siqs_largesieve(siqs_largesieve && other)
+    siqs_largesieve(siqs_largesieve && other) noexcept
         : pp(other.pp)
         , mem(other.mem)
         , mem_owner(std::exchange(other.mem_owner, false))
         , crt_data_modp(other.crt_data_modp)
-        , roots(std::move(other.roots))
+        , roots(other.roots)
         , nroots(other.nroots)
         , n(other.n)
         , T1(other.T1)
@@ -373,33 +376,33 @@ class siqs_largesieve
          * - temporary vector: size = 2^n1 (max of T1 and T2); type = T_elt;
          * - crt_data_modp: size = #factors in sq; type = uint32_t.
          */
-        return (2*(1u << (n+1u)/2u) + (1u << n/2u)) * sizeof(T_elt)
+        return (2*(1U << (n+1U)/2U) + (1U << n/2U)) * sizeof(T_elt)
                 + Q.crt_data_modq.size() * sizeof(uint32_t);
     }
 
     uint32_t prepare_for_root_mask(uint32_t const j_high) const
     {
-        uint32_t mask = ((uint32_t) 1u << n);
-        bool is_nth_bit_set = j_high & mask;
-        mask = mask - 1u; /* mask is 0...01..1 with n 1's */
+        uint32_t mask = ((uint32_t) 1U << n);
+        const bool is_nth_bit_set = j_high & mask;
+        mask = mask - 1U; /* mask is 0...01..1 with n 1's */
         /* We do not need to put j_high in the mask because it would force us to
          * remove it later later to compute the bucket index. But we still need
          * to xor the mask if the nth bit of j_high is 1 in order to compute the
          * correct lowest bits of j later.
          */
-        return is_nth_bit_set ? mask : 0u;
+        return is_nth_bit_set ? mask : 0U;
     }
 
     uint32_t prepare_for_root_precomp(
             int const logI,
             uint32_t const j_high) const
     {
-        ASSERT_EXPENSIVE(!(j_high & (((uint32_t) 1u << n) - 1u)));
+        ASSERT_EXPENSIVE(!(j_high & (((uint32_t) 1U << n) - 1U)));
 
-        uint32_t s = 1u << (logI-1); /* by hypothesis: 2^(I-1) < p */
+        uint32_t s = 1U << (logI-1); /* by hypothesis: 2^(I-1) < p */
         uint32_t g = siqs_special_q_data::gray_code_from_j(j_high >> n);
         for (size_t i = n; i < crt_data_modp.size(); ++i, g>>=1) {
-            if (g & 1u) {
+            if (g & 1U) {
                 s = addmod_u32(s, crt_data_modp[i], pp);
             } else {
                 s = submod_u32(s, crt_data_modp[i], pp);
@@ -415,7 +418,7 @@ class siqs_largesieve
             uint32_t const mask) const
     {
         s = addmod_u32(root, s, pp);
-        std::span<T_elt> T2s { get_Tscratch(), T2.size() };
+        const std::span<T_elt> T2s { get_Tscratch(), T2.size() };
         if (mask) {
             shift(T2s.data(), T2.data(), T2.size(), s, pp-s, mask);
         } else {
@@ -428,10 +431,10 @@ class siqs_largesieve
     friend void fill_in_buckets_siqs_compute_hits(
             siqs_largesieve & ple,
             BA_t & BA,
-            int const logI,
-            int const logB,
-            uint32_t const j_high,
-            slice_index_t const slice_index,
+            int logI,
+            int logB,
+            uint32_t j_high,
+            slice_index_t slice_index,
             where_am_I & w);
 };
 

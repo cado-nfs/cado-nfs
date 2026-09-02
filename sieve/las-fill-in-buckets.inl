@@ -1,12 +1,15 @@
 #ifndef CADO_LAS_FILL_IN_BUCKETS_INL
 #define CADO_LAS_FILL_IN_BUCKETS_INL
 
+#include "bucket.hpp"
+#include "bucket-push-update.hpp"
 #include "fb-types.hpp"
 #include "fb.hpp"
 #include "las-plattice.hpp"
 #include "las-qlattice.hpp"
 #include "threadpool.hpp"
 #include "las-threads-work-data.hpp"
+#include "las-fill-in-buckets.hpp"
 
 template <int LEVEL, class FB_ENTRY_TYPE>
 void make_lattice_bases(
@@ -189,9 +192,9 @@ static void fill_in_buckets_toplevel_sublat(
             }
         }
     } else { // Use precomputed FK-basis
-        for (unsigned int i = 0; i < precomp_slice.size(); ++i) {
-            plattice_info const pli(precomp_slice[i].unpack(logI));
-            slice_offset_t const i_entry = precomp_slice[i].get_hint();
+        for (auto const & psl : precomp_slice) {
+            plattice_info const pli(psl.unpack(logI));
+            slice_offset_t const i_entry = psl.get_hint();
 
             plattice_enumerator ple(pli, i_entry, logI, Q.sublat);
 

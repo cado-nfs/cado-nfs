@@ -85,7 +85,6 @@
 
 #cmakedefine    HAVE_SIGHUP
 #cmakedefine    HAVE_POSIX_MEMALIGN
-#cmakedefine    HAVE_ALIGNAS
 #cmakedefine    HAVE_NANOSLEEP
 #cmakedefine    HAVE_USLEEP
 #cmakedefine    HAVE_POPEN

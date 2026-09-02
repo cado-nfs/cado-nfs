@@ -32,7 +32,7 @@ struct j_divisibility_helper; // IWYU pragma: keep
 struct las_info; // IWYU pragma: keep
 struct trialdiv_data; // IWYU pragma: keep
 struct unsieve_data; // IWYU pragma: keep
-template <int LEVEL, typename HINT> class bucket_array_t; // IWYU pragma: keep
+template <int LEVEL, hint_type HINT> class bucket_array_t; // IWYU pragma: keep
 
 #define NUMBER_OF_BAS_FOR_THREADS(n)    ((n) == 1 ? 1 : ((n) + 2))
 
@@ -171,39 +171,39 @@ class nfs_work {
         {
         }
 
-        template <int LEVEL, typename HINT> void reset_all_pointers()
+        template <int LEVEL, hint_type HINT> void reset_all_pointers()
         {
             group.get<LEVEL, HINT>().reset_all_pointers();
         }
-        template <int LEVEL, typename HINT>
+        template <int LEVEL, hint_type HINT>
             requires (!HINT::is_long_v)
             auto
             reserve_BA() {
                 return group.get<LEVEL, HINT>().reserve();
             }
-        template <int LEVEL, typename HINT>
+        template <int LEVEL, hint_type HINT>
             requires HINT::is_long_v
             bucket_array_t<LEVEL, HINT> &
             acquire_BA(size_t rank) {
                 return group.get<LEVEL, HINT>().acquire(rank);
             }
 
-        template <int LEVEL, typename HINT>
+        template <int LEVEL, hint_type HINT>
             size_t rank_BA(bucket_array_t<LEVEL, HINT> const & BA) {
                 return group.get<LEVEL, HINT>().rank(BA);
             }
 
         /*
          * not even needed. Better to expose only reserve() and release()
-         template <int LEVEL, typename HINT>
+         template <int LEVEL, hint_type HINT>
          std::vector<bucket_array_t<LEVEL, HINT>> &
          bucket_arrays() {return group.get<LEVEL, HINT>().bucket_arrays();}
          */
 
-        template <int LEVEL, typename HINT>
+        template <int LEVEL, hint_type HINT>
             std::vector<bucket_array_t<LEVEL, HINT>> const &
             bucket_arrays() const {
-                return group.cget<LEVEL, HINT>().bucket_arrays();
+                return group.get<LEVEL, HINT>().bucket_arrays();
             }
 
         dumpfile_t dumpfile;
@@ -296,7 +296,7 @@ class nfs_work {
     void buckets_free();
 
     private:
-    template <int LEVEL, typename HINT> double buckets_max_full() const;
+    template <int LEVEL, hint_type HINT> double buckets_max_full() const;
 
     public:
     double check_buckets_max_full() const;
@@ -304,9 +304,9 @@ class nfs_work {
 
 #if 0
     private:
-    template <typename HINT> double check_buckets_max_full(int level)
+    template <hint_type HINT> double check_buckets_max_full(int level)
         requires (HINT::allowed_at_toplevel);
-    template <typename HINT> double check_buckets_max_full(int level)
+    template <hint_type HINT> double check_buckets_max_full(int level)
         requires (!(HINT::allowed_at_toplevel));
 #endif
 };

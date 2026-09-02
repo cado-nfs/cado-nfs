@@ -12,25 +12,25 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <vector>
-#include <type_traits>
 
-#include "bucket-push-update.hpp"
 #include "bucket.hpp"
+#include "bucket-push-update.hpp"       // IWYU pragma: keep
+#include "chronograms.hpp"
 #include "fb-types.hpp"
 #include "fb.hpp"
 #include "las-auxiliary-data.hpp"
 #include "las-bkmult.hpp"
 #include "las-config.hpp"
 #include "las-fill-in-buckets.hpp"
-#include "las-process-bucket-region.hpp"
-#include "las-qlattice.hpp"
 #include "las-globals.hpp"
+#include "las-process-bucket-region.hpp"
 #include "las-report-stats.hpp"
 #include "las-siever-config.hpp"
-#include "las-smallsieve.hpp"
 #include "las-threads-work-data.hpp"
 #include "las-where-am-i-proxy.hpp"
 #include "las-where-am-i.hpp"
@@ -38,14 +38,7 @@
 #include "multityped_array.hpp"
 #include "tdict.hpp"
 #include "threadpool.hpp"
-#include "utils_cxx.hpp"
 #include "verbose.hpp"
-
-/* is this in the std library or not ? */
-template <typename T> static inline T const & const_ref(T & x)
-{
-    return x;
-}
 
 /***************************************************************************/
 /********        Main bucket sieving functions                    **********/
@@ -164,40 +157,6 @@ void fill_in_buckets_prepare_plattices(
 
 /* {{{ */
 
-/* short of a better solution. I know some exist, but it seems way
- * overkill to me.
- *
- * This needs constexpr, though... So maybe I could use a more powerful
- * C++11 trick after all.
- */
-#define PREPARE_TEMPLATE_INST_NAMES(F, suffix)                                 \
-    template <int> struct CADO_CONCATENATE(F, _name) {                         \
-    };                                                                         \
-    PREPARE_TEMPLATE_INST_NAME(F, suffix, 0);                                  \
-    PREPARE_TEMPLATE_INST_NAME(F, suffix, 1);                                  \
-    PREPARE_TEMPLATE_INST_NAME(F, suffix, 2);                                  \
-    PREPARE_TEMPLATE_INST_NAME(F, suffix, 3);                                  \
-    PREPARE_TEMPLATE_INST_NAME(F, suffix, 4);                                  \
-    PREPARE_TEMPLATE_INST_NAME(F, suffix, 5);                                  \
-    PREPARE_TEMPLATE_INST_NAME(F, suffix, 6);                                  \
-    PREPARE_TEMPLATE_INST_NAME(F, suffix, 7);                                  \
-    PREPARE_TEMPLATE_INST_NAME(F, suffix, 8);                                  \
-    PREPARE_TEMPLATE_INST_NAME(F, suffix, 9)
-
-#define PREPARE_TEMPLATE_INST_NAME(F, suffix, k)                               \
-    template <> struct CADO_CONCATENATE(F, _name)<k> {                         \
-        static constexpr const char * value = #F "<" #k ">" suffix;            \
-    }
-
-/* By tweaking the "" argument, it is possible to have these names
- * embody a suffix like " on side ", so that it's possible tu run
- * parametric timer slots.
- */
-PREPARE_TEMPLATE_INST_NAMES(fill_in_buckets_one_slice_internal, "");
-PREPARE_TEMPLATE_INST_NAMES(downsort, "");
-PREPARE_TEMPLATE_INST_NAMES(downsort_tree, " (dispatcher only)");
-
-#define TEMPLATE_INST_NAME(x, y) CADO_CONCATENATE(x, _name)<y>::value
 
 // For internal levels, the fill-in is not exactly the same as for
 // top-level, since the plattices have already been precomputed.
@@ -229,7 +188,7 @@ fill_in_buckets_one_slice_internal(worker_thread * worker,
     // in fill_in_buckets_lowlevel. We happen to have access to
     // param->side here, so we use it to provide a nicer timing report.
     CHILD_TIMER(timer,
-                TEMPLATE_INST_NAME(fill_in_buckets_one_slice_internal, LEVEL));
+            fmt::format("fill_in_buckets_one_slice_internal<{}>", LEVEL));
 
     WHERE_AM_I_UPDATE(w, side, side);
     WHERE_AM_I_UPDATE(w, i, plattices_vector->get_index());
@@ -446,7 +405,7 @@ static void fill_in_buckets_one_side(nfs_work & ws, nfs_aux & aux,
 
 /* This is a compile-time loop over the possible values from 1 to level,
  * and 0 errors out. */
-template<int level, typename hint_t>
+template<int level, hint_type hint_t>
 struct fib1s_caller_s : public fib1s_caller_s<level-1, hint_t> {
     template<typename... Args>
     void operator()(nfs_work & ws, Args&& ...args) const {
@@ -456,7 +415,7 @@ struct fib1s_caller_s : public fib1s_caller_s<level-1, hint_t> {
             fib1s_caller_s<level-1, hint_t>::operator()(ws, std::forward<Args>(args)...);
     }
 };
-template<typename hint_t>
+template<hint_type hint_t>
 struct fib1s_caller_s<0, hint_t> {
     template<typename... Args>
     void operator()(nfs_work &, Args&& ...) const {
@@ -464,7 +423,7 @@ struct fib1s_caller_s<0, hint_t> {
     }
 };
 
-template<int level, typename hint_t, typename... Args>
+template<int level, hint_type hint_t, typename... Args>
 inline void fib_one_side(nfs_work & ws, Args&& ...args)
 {
     fib1s_caller_s<level, hint_t>()(ws, std::forward<Args>(args)...);
@@ -536,7 +495,7 @@ static void downsort_aux(nfs_work & ws,
                 ENTER_THREAD_TIMER(timer);
                 MARK_TIMER_FOR_SIDE(timer, side);
                 taux.w = std::move(w);
-                CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort, LEVEL));
+                CHILD_TIMER(timer, fmt::format("downsort<{}>", LEVEL));
                 auto tt = worker->trace(chronograms::DS(side,LEVEL,bucket_index));
                 downsort<LEVEL + 1>(fbs,
                         wss.acquire_BA<LEVEL, my_longhint_t>(wss.rank_BA(BA_in)),
@@ -599,7 +558,7 @@ static void downsort_tree_inner(
     using my_longhint_t = hints_proxy<WITH_HINTS>::l;
     using my_shorthint_t = hints_proxy<WITH_HINTS>::s;
 
-    CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort_tree, LEVEL));
+    CHILD_TIMER(timer, fmt::format("downsort_tree<{}>", LEVEL));
     TIMER_CATEGORY(timer, sieving_mixed());
     ASSERT_ALWAYS(LEVEL > 0);
 
@@ -663,7 +622,7 @@ static void downsort_tree_inner(
                         taux.w = std::move(w);
                         ENTER_THREAD_TIMER(timer);
                         MARK_TIMER_FOR_SIDE(timer, side);
-                        CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort, LEVEL));
+                        CHILD_TIMER(timer, fmt::format("downsort<{}>", LEVEL));
                         auto tt = worker->trace(chronograms::DS(side, LEVEL, bucket_index));
 
                         downsort<LEVEL + 1>(fbs,

@@ -42,8 +42,6 @@
 #endif
 #include "portability.h"
 
-template <int LEVEL, typename HINT> struct bucket_update_t;
-
 static size_t bucket_misalignment(size_t const sz, size_t const sr MAYBE_UNUSED)
 {
     size_t size = sz;
@@ -57,7 +55,7 @@ static size_t bucket_misalignment(size_t const sz, size_t const sr MAYBE_UNUSED)
 
 /* Set the read and write pointers of the buckets back to the respective bucket
    start, and set nr_slices back to 0. */
-template <int LEVEL, typename HINT>
+template <int LEVEL, hint_type HINT>
 void bucket_array_t<LEVEL, HINT>::reset_pointers()
 {
     std::copy_n(bucket_start.get(), pointer_pack, bucket_write.get());
@@ -71,7 +69,7 @@ void bucket_array_t<LEVEL, HINT>::reset_pointers()
 /* Allocate enough memory to be able to store _n_bucket buckets, each of at
    least min_bucket_size entries. If enough (or more) memory was already
    allocated, does not shrink the allocation. */
-template <int LEVEL, typename HINT>
+template <int LEVEL, hint_type HINT>
 void bucket_array_t<LEVEL, HINT>::allocate_memory(
     las_memory_accessor & memory, uint32_t const new_n_bucket,
     double const fill_ratio, int MAYBE_UNUSED logI,
@@ -225,7 +223,7 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
 }
 
 /* Returns how full the fullest bucket is, as a fraction of its size */
-template <int LEVEL, typename HINT>
+template <int LEVEL, hint_type HINT>
 double bucket_array_t<LEVEL, HINT>::max_full(unsigned int * fullest_index) const
 {
     double max = 0;
@@ -240,7 +238,7 @@ double bucket_array_t<LEVEL, HINT>::max_full(unsigned int * fullest_index) const
     }
     return max;
 }
-template <int LEVEL, typename HINT>
+template <int LEVEL, hint_type HINT>
 double bucket_array_t<LEVEL, HINT>::average_full() const
 {
     size_t a = 0;
@@ -249,7 +247,7 @@ double bucket_array_t<LEVEL, HINT>::average_full() const
     return double_ratio(a, bucket_start[n_bucket] - bucket_start[0]);
 }
 
-template <int LEVEL, typename HINT>
+template <int LEVEL, hint_type HINT>
 void
 bucket_array_t<LEVEL, HINT>::slice_statistics(int side, int idx, fb_factorbase::slicing const & fbs) const {
     size_t a = 0;
@@ -284,7 +282,7 @@ bucket_array_t<LEVEL, HINT>::slice_statistics(int side, int idx, fb_factorbase::
 }
 
 
-template <int LEVEL, typename HINT>
+template <int LEVEL, hint_type HINT>
 void bucket_array_t<LEVEL, HINT>::log_this_update(update_t const update
                                                   MAYBE_UNUSED,
                                                   uint64_t const bucket_number
@@ -340,7 +338,7 @@ bucket_cmp_x (const bucket_update_t<1, longhint_t>  *a, const bucket_update_t<1,
 }
 #endif
 
-template <int LEVEL, typename HINT> void bucket_single<LEVEL, HINT>::sort()
+template <int LEVEL, hint_type_general HINT> void bucket_single<LEVEL, HINT>::sort()
 {
 //  qsort (start, write - start, sizeof (bucket_update_t<1, longhint_t> ),
 //	 (int(*)(const void *, const void *)) &bucket_cmp_x);
@@ -381,7 +379,7 @@ void bucket_primes_t::purge(bucket_array_t<1, shorthint_t> const & BA,
 */
 
 /*
-template <typename HINT>
+template <hint_type HINT>
 static inline bucket_update_t<1, longhint_t>
 to_longhint(const bucket_update_t<1, HINT> &update, slice_index_t slice_index);
 */
@@ -400,7 +398,7 @@ to_longhint(bucket_update_t<1, longhint_t> const & update,
     return update;
 }
 
-template <typename HINT>
+template <hint_type HINT>
 void bucket_array_complete::purge(bucket_array_t<1, HINT> const & BA,
                                   int const i, unsigned char const * S)
 {
@@ -437,7 +435,7 @@ template void bucket_array_complete::purge<longhint_t>(
 
 #if defined(HAVE_SSE2)
 
-template <typename HINT, int SIZE>
+template <hint_type HINT, int SIZE>
 void bucket_array_complete::purge_1(
     const bucket_array_t<1, HINT> & BA, const int i,
     const std::vector<typename bucket_update_t<1, HINT>::br_index_t> &
@@ -456,7 +454,7 @@ void bucket_array_complete::purge_1(
     }
 }
 
-template <typename HINT>
+template <hint_type HINT>
 void bucket_array_complete::purge(
     bucket_array_t<1, HINT> const & BA, int const i, unsigned char const * S,
     std::vector<typename bucket_update_t<1, HINT>::br_index_t> const &
@@ -626,7 +624,7 @@ void downsort(fb_factorbase::slicing const & fbs,
         slice_index_t const slice_index = BA_in.get_slice_index(i_slice);
         // WHERE_AM_I_UPDATE(w, i, slice_index);
         for (auto const & it: BA_in.slice_range(bucket_number, i_slice)) {
-            logphint_t h = fbs[slice_index].get_logp();
+            logphint_t h { fbs[slice_index].get_logp() };
             lower_update_t u_low(it.x & maskB, h);
             BA_out.push_update(it.x >> logB, u_low, w);
         }
@@ -636,7 +634,7 @@ void downsort(fb_factorbase::slicing const & fbs,
         // we have no slice offset here, so no p.
         // WHERE_AM_I_UPDATE(w, p, fbs[ru.slice_index].get_prime(ru.hint));
         // WHERE_AM_I_UPDATE(w, h, ru);
-        logphint_t h = fbs[ru.slice_index].get_logp();
+        logphint_t h { fbs[ru.slice_index].get_logp() };
         lower_update_t u_low(ru.x & maskB, h);
         lower_row_update_t ru_low(u_low, ru.slice_index, ru.inc, ru.n);
         BA_out.row_updates[ru.x >> logB].push_back(ru_low);

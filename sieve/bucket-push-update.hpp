@@ -10,7 +10,7 @@
 #include "las-where-am-i.hpp"
 #include "macros.h"
 
-template <int LEVEL, typename HINT>
+template <int LEVEL, hint_type HINT>
 inline void
 bucket_array_t<LEVEL, HINT>::push_update(int const i, update_t const & update,
                                          where_am_I & w MAYBE_UNUSED)
@@ -22,13 +22,13 @@ bucket_array_t<LEVEL, HINT>::push_update(int const i, update_t const & update,
         return;
     }
 #endif
-#if defined(TRACE_K)
+#ifdef TRACE_K
     log_this_update(update, i, w);
 #endif
     *bucket_write[i]++ = update;
 }
 
-template <int LEVEL, typename HINT>
+template <int LEVEL, hint_type_general HINT>
 inline void bucket_single<LEVEL, HINT>::push_update(update_t const & update)
 {
 #ifdef SAFE_BUCKETS_SINGLE
@@ -41,7 +41,7 @@ inline void bucket_single<LEVEL, HINT>::push_update(update_t const & update)
     *(write++) = update;
 }
 
-template <int LEVEL, typename HINT>
+template <int LEVEL, hint_type_general HINT>
 inline typename bucket_single<LEVEL, HINT>::update_t const &
 bucket_single<LEVEL, HINT>::get_next_update()
 {
