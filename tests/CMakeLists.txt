@@ -66,160 +66,163 @@ cado_define_test(full_c30
     SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
     EXPECT_SHA1 6d5cc85d048b2003fb129bef28e670a5314f433d
         )
-    cado_divert_test(full_c30 pq2
-        ARGUMENTS
-        --server-threads 2
-        1000000008500000023430000020691
+
+cado_divert_test(full_c30 with_comma
+    APPEND_ARGUMENTS name=c30,funny)
+
+cado_divert_test(full_c30 pq2
+    ARGUMENTS
+    --server-threads 2
+    1000000008500000023430000020691
+    slaves.downloadretry=1
+    SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
+    EXPECT_SHA1 a56b28a490e2a8f240f6102c695456e59d119a9e
+)
+
+if(pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
+    # no need to have both the JL and non-JL in normal tests, I
+    # think, given that there's always at least one machine that does
+    # the expensive tests.
+    cado_define_test(full_p30
+        PROVIDE_TEMPORARY_WDIR_ARG workdir
+        SCRIPT
+        ${CADO_NFS_BINARY_DIR}/cado-nfs.py
+        -dlp -ell 445257213376519703258944813
+        -t 2 -dlp-no-keep
         slaves.downloadretry=1
+        target=92800609832959449330691138186
+        3037544709654617415632521514287
+        TARGET_DEPENDENCIES full_dependencies_base
+        bwc_full_gfp
+        lingen_pz sm sm_simple las_descent reconstructlog-dl
+        merge-dl replay-dl numbertheory_tool
+        AVOID_CONCURRENT 16
+        ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
+        TIMEOUT 360
         SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
-        EXPECT_SHA1 a56b28a490e2a8f240f6102c695456e59d119a9e
+        EXPECT_SHA1 c427998c92b82ce31b71f50d340b7ee1f9f164e2
+    )
+    # The following case was hitting the bug #21707
+    set(full_p30_JL_params
+        fastSM=true
+        jlpoly=true tasks.polyselect.bound=3 tasks.polyselect.modm=5
+        tasks.polyselect.degree=3
+        tasks.reconstructlog.checkdlp=false
+        tasks.lim0=4000 tasks.lim1=600
+        tasks.lpb0=12
+        tasks.lpb1=11
+        tasks.descent.lpb1=11
+        tasks.descent.init_lpb=20
+        tasks.sieve.mfb0=12
+        tasks.sieve.mfb1=22
+        tasks.sieve.lambda0=1.1
+        tasks.sieve.lambda1=2.1
+        tasks.qmin=700
+        tasks.sieve.qrange=400
+        tasks.sieve.sqside=0
+        tasks.sieve.rels_wanted=1500
+    )
+    set(full_p30_JL_deps
+        full_dependencies_base
+        bwc_full_gfp
+        lingen_pz sm sm_simple las_descent reconstructlog-dl
+        dlpolyselect merge-dl replay-dl numbertheory_tool
+        )
+    if(HAVE_GMPECM)
+        set(full_p30_JL_deps ${full_p30_JL_deps} descent_init_Fp)
+        set(full_p30_JL_params ${full_p30_JL_params} target=2,3)
+    else()
+        set(full_p30_JL_params ${full_p30_JL_params} tasks.reconstructlog.checkdlp=false)
+    endif()
+    cado_define_test(full_p30_JL
+        PROVIDE_TEMPORARY_WDIR_ARG workdir
+        SCRIPT
+        ${CADO_NFS_BINARY_DIR}/cado-nfs.py
+        -dlp -ell 350586976534485556208993720963
+        -t 2 -dlp-no-keep
+        slaves.downloadretry=1
+        701173953068971112417987441927
+        ${full_p30_JL_params}
+        TARGET_DEPENDENCIES
+        ${full_p30_JL_deps}
+        AVOID_CONCURRENT 16
+        ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
+        TIMEOUT 360
+        )
+
+    # Test for factorization computation using QS
+    cado_define_test(full_c40_qs
+        PROVIDE_TEMPORARY_WDIR_ARG workdir
+        SCRIPT
+        ${CADO_NFS_BINARY_DIR}/cado-nfs.py
+        -qs -t 2
+        slaves.downloadretry=1
+        tasks.linalg.bwc.balancing_options=reorder=columns
+        1513082186477365836608886586480243097453
+        TARGET_DEPENDENCIES full_dependencies_base
+        siqs
+        merge replay filter_galois
+        bwc_full_gf2
+        characters sqrt
+        AVOID_CONCURRENT 16
+        ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16
+                    OMP_THREAD_LIMIT=16
+        TIMEOUT 360
+        SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
+        EXPECT_SHA1 8c8ad33929acc3040ace7051c02380dcbb2c6a06
     )
 
-    if(pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
-        # no need to have both the JL and non-JL in normal tests, I
-        # think, given that there's always at least one machine that does
-        # the expensive tests.
-        cado_define_test(full_p30
+    if(HAVE_GMPECM)
+        # Test for CL computation with 20-digit discriminant
+        # It requires the factor binary which requires gmp-ecm
+        cado_define_test(full_d20
             PROVIDE_TEMPORARY_WDIR_ARG workdir
             SCRIPT
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
-            -dlp -ell 445257213376519703258944813
-            -t 2 -dlp-no-keep
+            -cl -qs -t 2
             slaves.downloadretry=1
-            target=92800609832959449330691138186
-            3037544709654617415632521514287
+            -13674958956416022623
             TARGET_DEPENDENCIES full_dependencies_base
+            det_from_lingen
             bwc_full_gfp
-            lingen_pz sm sm_simple las_descent reconstructlog-dl
-            merge-dl replay-dl numbertheory_tool
-            AVOID_CONCURRENT 16
-            ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
-            TIMEOUT 360
-            SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
-            EXPECT_SHA1 c427998c92b82ce31b71f50d340b7ee1f9f164e2
-        )
-        # The following case was hitting the bug #21707
-        set(full_p30_JL_params
-            fastSM=true
-            jlpoly=true tasks.polyselect.bound=3 tasks.polyselect.modm=5
-            tasks.polyselect.degree=3
-            tasks.reconstructlog.checkdlp=false
-            tasks.lim0=4000 tasks.lim1=600
-            tasks.lpb0=12
-            tasks.lpb1=11
-            tasks.descent.lpb1=11
-            tasks.descent.init_lpb=20
-            tasks.sieve.mfb0=12
-            tasks.sieve.mfb1=22
-            tasks.sieve.lambda0=1.1
-            tasks.sieve.lambda1=2.1
-            tasks.qmin=700
-            tasks.sieve.qrange=400
-            tasks.sieve.sqside=0
-            tasks.sieve.rels_wanted=1500
-        )
-        set(full_p30_JL_deps
-            full_dependencies_base
-            bwc_full_gfp
-            lingen_pz sm sm_simple las_descent reconstructlog-dl
-            dlpolyselect merge-dl replay-dl numbertheory_tool
-            )
-        if(HAVE_GMPECM)
-            set(full_p30_JL_deps ${full_p30_JL_deps} descent_init_Fp)
-            set(full_p30_JL_params ${full_p30_JL_params} target=2,3)
-        else()
-            set(full_p30_JL_params ${full_p30_JL_params} tasks.reconstructlog.checkdlp=false)
-        endif()
-        cado_define_test(full_p30_JL
-            PROVIDE_TEMPORARY_WDIR_ARG workdir
-            SCRIPT
-            ${CADO_NFS_BINARY_DIR}/cado-nfs.py
-            -dlp -ell 350586976534485556208993720963
-            -t 2 -dlp-no-keep
-            slaves.downloadretry=1
-            701173953068971112417987441927
-            ${full_p30_JL_params}
-            TARGET_DEPENDENCIES
-            ${full_p30_JL_deps}
-            AVOID_CONCURRENT 16
-            ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
-            TIMEOUT 360
-            )
-
-        # Test for factorization computation using QS
-        cado_define_test(full_c40_qs
-            PROVIDE_TEMPORARY_WDIR_ARG workdir
-            SCRIPT
-            ${CADO_NFS_BINARY_DIR}/cado-nfs.py
-            -qs -t 2
-            slaves.downloadretry=1
-            tasks.linalg.bwc.balancing_options=reorder=columns
-            1513082186477365836608886586480243097453
-            TARGET_DEPENDENCIES full_dependencies_base
-            siqs
-            merge replay filter_galois
-            bwc_full_gf2
-            characters sqrt
+            siqs lingen_pz merge-dl replay-dl filter_galois factor
+            cl_structure_from_group_order
             AVOID_CONCURRENT 16
             ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16
                         OMP_THREAD_LIMIT=16
             TIMEOUT 360
-            SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
-            EXPECT_SHA1 8c8ad33929acc3040ace7051c02380dcbb2c6a06
+            SHA1_ON_REGEXP_LINES "^[a-z0-9_ ]* = .*$"
+            EXPECT_SHA1 d5f8f6080a3cb6230e8bd4c8946450a5f411162d
         )
-
-
-        if(HAVE_GMPECM)
-            # Test for CL computation with 20-digit discriminant
-            # It requires the factor binary which requires gmp-ecm
-            cado_define_test(full_d20
-                PROVIDE_TEMPORARY_WDIR_ARG workdir
-                SCRIPT
-                ${CADO_NFS_BINARY_DIR}/cado-nfs.py
-                -cl -qs -t 2
-                slaves.downloadretry=1
-                -13674958956416022623
-                TARGET_DEPENDENCIES full_dependencies_base
-                det_from_lingen
-                bwc_full_gfp
-                siqs lingen_pz merge-dl replay-dl filter_galois factor
-                cl_structure_from_group_order
-                AVOID_CONCURRENT 16
-                ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16
-                            OMP_THREAD_LIMIT=16
-                TIMEOUT 360
-                SHA1_ON_REGEXP_LINES "^[a-z0-9_ ]* = .*$"
-                EXPECT_SHA1 d5f8f6080a3cb6230e8bd4c8946450a5f411162d
-            )
-        endif()
     endif()
+endif()
 
-    # Test importing an SNFS polynomial with no skew: line
-    cado_define_test(full_F7
-        PROVIDE_TEMPORARY_WDIR_ARG workdir
-    SCRIPT
-    ${CADO_NFS_BINARY_DIR}/cado-nfs.py
-        --server-threads 2
-        -s 1
-        340282366920938463463374607431768211457
-        ${CADO_NFS_SOURCE_DIR}/parameters/factor/parameters.F7
-        tasks.polyselect.import=${CADO_NFS_SOURCE_DIR}/tests/misc/F7.poly
-        slaves.hostnames=localhost
-        slaves.downloadretry=1
-    TARGET_DEPENDENCIES
-        full_dependencies_base
-        skewness
-        merge replay
-        characters
-        bwc_full_gf2
-        sqrt
-        score
-    AVOID_CONCURRENT 16
-    ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
-    TIMEOUT 300
-    SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
-    EXPECT_SHA1 68cb2f84a5f3a6c68a0c3b0a1cd04c878a8f856d
-        )
+# Test importing an SNFS polynomial with no skew: line
+cado_define_test(full_F7
+    PROVIDE_TEMPORARY_WDIR_ARG workdir
+SCRIPT
+${CADO_NFS_BINARY_DIR}/cado-nfs.py
+    --server-threads 2
+    -s 1
+    340282366920938463463374607431768211457
+    ${CADO_NFS_SOURCE_DIR}/parameters/factor/parameters.F7
+    tasks.polyselect.import=${CADO_NFS_SOURCE_DIR}/tests/misc/F7.poly
+    slaves.hostnames=localhost
+    slaves.downloadretry=1
+TARGET_DEPENDENCIES
+    full_dependencies_base
+    skewness
+    merge replay
+    characters
+    bwc_full_gf2
+    sqrt
+    score
+AVOID_CONCURRENT 16
+ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
+TIMEOUT 300
+SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
+EXPECT_SHA1 68cb2f84a5f3a6c68a0c3b0a1cd04c878a8f856d
+    )
 endif()
 # MPI binaries are not properly launched by cado-nfs.py (see #21819)
 if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
