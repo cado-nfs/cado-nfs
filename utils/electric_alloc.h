@@ -71,12 +71,48 @@ void electric_free(void * p0, size_t s)
     p += s;
     mprotect((void*) p, r, PROT_READ | PROT_WRITE);
     p -= multip * r;
+    // XXX new!
+    mprotect((void*) p, multip * r, PROT_READ | PROT_WRITE);
 #else
+    // XXX new!
+    mprotect((void*) p, multip * r, PROT_READ | PROT_WRITE);
     p -= r;
     mprotect(p, r, PROT_READ | PROT_WRITE);
 #endif
     munmap(p, (multip + 1) * r);
 }
+
+CADO_INLINE
+void electric_mark_readonly(void * p0, size_t s)
+{
+    char * p = (char *) p0; // W: C-style casts are discouraged; use static_cast (fix available)
+    size_t r = 8192; // W: variable 'r' of type 'size_t' (aka 'unsigned long') can be declared 'co…
+    unsigned int multip = (s+r-1)/r; // W: variable 'multip' of type 'unsigned int' can be declare…
+#ifdef PROTECT_OVERRUN
+    p += s;
+    mprotect((void*) (p - multip * r), multip * r, PROT_READ); // W: C-style casts are discouraged; use stati…
+#else
+    mprotect(p, multip * r, PROT_READ);
+#endif
+}
+
+CADO_INLINE
+void electric_mark_readwrite(void * p0, size_t s)
+{
+    char * p = (char *) p0; // W: C-style casts are discouraged; use static_cast (fix available)
+    size_t r = 8192; // W: variable 'r' of type 'size_t' (aka 'unsigned long') can be declared 'co…
+    unsigned int multip = (s+r-1)/r; // W: variable 'multip' of type 'unsigned int' can be declare…
+#ifdef PROTECT_OVERRUN
+    p += s;
+    mprotect((void*) (p - multip * r), multip * r, PROT_READ | PROT_WRITE); // W: C-style casts are discouraged; use stati…
+#else
+    mprotect(p, multip * r, PROT_READ | PROT_WRITE);
+#endif
+}
+
+
+
+
 
 CADO_INLINE
 void * electric_alloc_nosize(size_t s)
@@ -95,6 +131,9 @@ void electric_free_nosize(void * p0)
 }
 
 #ifdef  __cplusplus
+#include <memory>
+#include <new>
+#include <type_traits>
 
 namespace cado {
 template<typename T>
@@ -115,20 +154,98 @@ struct ElectricAllocator {
     }
 
 };
+
+template<typename T>
+struct electric_deleter {
+    void operator()(T* ptr) const {
+        if (ptr) {
+            ptr->~T();
+            electric_free(ptr, sizeof(T));
+        }
+    }
+};
+
+template<typename T>
+struct electric_deleter<T[]> {
+    size_t size;
+
+    explicit electric_deleter(size_t s = 0) : size(s) {}
+
+    void operator()(T* ptr) const {
+        if (ptr) {
+            for (size_t i = size; i > 0; --i)
+                ptr[i - 1].~T();
+            electric_free(ptr, size * sizeof(T));
+        }
+    }
+};
+
+template<typename T>
+using electric_unique_ptr = std::unique_ptr<T, electric_deleter<T>>;
+
+
+template<typename T, typename... Args>
+T* electric_new(Args&&... args) {
+    void* p = electric_alloc(sizeof(T));
+    if (!p) throw std::bad_alloc();
+    try {
+        return new (p) T(std::forward<Args>(args)...);
+    } catch (...) {
+        electric_free(p, sizeof(T));
+        throw;
+    }
+}
+
+template<typename T>
+T* electric_new_array(size_t size) {
+    if (size == 0) return nullptr;
+    
+    void* p = electric_alloc(sizeof(T) * size);
+    if (!p) throw std::bad_alloc();
+    
+    T* arr = static_cast<T*>(p);
+    size_t i = 0;
+    try {
+        for (; i < size; ++i) {
+            new (&arr[i]) T();
+        }
+    } catch (...) {
+        // Rollback on throw
+        while (i > 0)
+            arr[--i].~T();
+        electric_free(p, sizeof(T) * size);
+        throw;
+    }
+    return arr;
+}
+
+template<typename T, typename... Args>
+    requires (!std::is_array_v<T>)
+electric_unique_ptr<T> electric_make_unique(Args&&... args) {
+    return { electric_new<T>(std::forward<Args>(args)...) };
+}
+
+template<typename T>
+    requires std::is_unbounded_array_v<T>
+electric_unique_ptr<T> electric_make_unique(size_t size) {
+    using Elem = std::remove_extent_t<T>;
+    return { electric_new_array<Elem>(size), electric_deleter<T>(size) };
+}
+
+template<typename T, typename... Args>
+    requires std::is_bounded_array_v<T>
+void electric_make_unique(Args&&...) = delete;
+
+template<typename T>
+    requires std::is_unbounded_array_v<T>
+void electric_mark_readonly(electric_unique_ptr<T> & u) {
+    auto size = u.get_deleter().size;
+    using Elem = std::remove_extent_t<T>;
+    ::electric_mark_readonly(u.get(), size * sizeof(Elem));
+}
 } // namespace cado
 
-template<typename T> inline T * electric_new(size_t s) {
-    void * p = electric_alloc(sizeof(T)*s);
-    if (!p)
-        throw std::bad_alloc();
-    T * res = new (p) T[s];
-    return res;
-}
-template<typename T> inline void electric_delete(T * p, size_t s) {
-    for(size_t i = 0 ; i < s ; i++)
-        p[i].~T();
-    electric_free(p, sizeof(T)*s);
-}
+
 #endif
 
 #endif  /* CADO_UTILS_ELECTRIC_ALLOC_H */
