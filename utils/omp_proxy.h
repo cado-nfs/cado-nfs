@@ -30,7 +30,7 @@ CADO_INLINE void omp_set_num_threads(int n MAYBE_UNUSED)
 {
 }
 
-CADO_INLINE void omp_set_nested(int n MAYBE_UNUSED)
+CADO_INLINE void omp_set_max_active_levels(int n MAYBE_UNUSED)
 {
 }
 

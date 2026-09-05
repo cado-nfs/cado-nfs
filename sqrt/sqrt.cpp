@@ -371,7 +371,7 @@ static typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std
       const size_t nloops = (N + 1) / 2;
       if (nthr < 2 * nloops)
 	{
-	  omp_set_nested (0);
+	  omp_set_max_active_levels (1);
 	  local_nthreads = 1;
 	}
       else
@@ -379,7 +379,7 @@ static typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std
 	  /* we have to set omp_set_nested here and not at the beginning of
 	     main(), since it seems that the pthreads reset OpenMP's "nested"
 	     value to 0 */
-	  omp_set_nested (1);
+	  omp_set_max_active_levels (INT_MAX);
 	  local_nthreads = nthr / nloops;
 	}
 #pragma omp parallel for
@@ -390,7 +390,7 @@ static typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std
       }
 
       /* reset "nested" to 0 */
-      omp_set_nested (0);
+      omp_set_max_active_levels(1);
 
       /* shrink (not parallel), takes negligible time */
       for(size_t j = 2 ; j < v.size() ; j += 2) {

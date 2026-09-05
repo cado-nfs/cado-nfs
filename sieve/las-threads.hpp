@@ -127,6 +127,7 @@ class reservation_array<T, false> : public reservation_array_base<T> {
     reservation_array(reservation_array const &) = delete;
     reservation_array& operator=(reservation_array const&) = delete;
 
+#if 0
     /* even moves are unholy, of course. We only ever need them in places
      * where no locking is needed, and fortunately so. Because there is
      * no such thing as _moving_ a mutex, obviously. So there is ample
@@ -146,6 +147,9 @@ class reservation_array<T, false> : public reservation_array_base<T> {
         static_cast<super&>(*this) = std::move(o);
         return *this;
     }
+#endif
+    reservation_array(reservation_array && o) = delete;
+    reservation_array& operator=(reservation_array &&) = delete;
 
     explicit reservation_array(size_t n)
         : super(n)
@@ -183,13 +187,21 @@ class reservation_array<T, true> : public reservation_array_base<T> {
     ~reservation_array() = default;
     reservation_array(reservation_array const &) = delete;
     reservation_array& operator=(reservation_array const&) = delete;
+
+#if 0
     reservation_array(reservation_array && o, std::unique_lock<std::mutex> &&) noexcept
         : super(std::move(o))
         {}
 
-    reservation_array(reservation_array && o) noexcept
-        : reservation_array(std::move(o), get_lock())
-        {}
+    /* It doesn't make much sense to move these lock-protected things,
+     * except in the very specific case where moves occur in clearly
+     * lock-guarded sections anyway.
+     */
+    reservation_array(reservation_array && o) noexcept {
+        auto me = get_lock();
+        auto them = o.get_lock();
+        static_cast<super&>(*this) = std::move(o);
+    }
 
     reservation_array& operator=(reservation_array && o) noexcept {
         auto me = get_lock();
@@ -197,6 +209,9 @@ class reservation_array<T, true> : public reservation_array_base<T> {
         static_cast<super&>(*this) = std::move(o);
         return *this;
     }
+#endif
+    reservation_array(reservation_array && o) = delete;
+    reservation_array& operator=(reservation_array &&) = delete;
 
     void reset_all_pointers() {
         auto lock = get_lock();
