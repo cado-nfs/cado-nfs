@@ -19,7 +19,9 @@ void * realloc_aligned(void * p, size_t old_size, size_t new_size,
                        size_t alignment);
 extern void free_aligned(void * ptr);
 
+#ifndef HAVE_ALIGNED_ALLOC
 extern void * aligned_alloc(size_t alignment, size_t size);
+#endif
 
 extern void * malloc_pagealigned(size_t sz) ATTR_ASSUME_ALIGNED(32);
 extern void free_pagealigned(void * ptr);

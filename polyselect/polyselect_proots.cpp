@@ -105,8 +105,9 @@ roots_lift (uint64_t *r, mpz_srcptr N, unsigned long d, mpz_srcptr m0,
 
   if (sizeof (unsigned long) == 8) {
     for (i = j = 0; j < n; j++) {
-        if (r[j] == 0)
+        if (r[j] == 0) {
            continue;
+        }
 	/* we have for r=r[j]: r^d = N (mod p), lift mod p^2:
 	   (r+lambda*p)^d = N (mod p^2) implies
 	   r^d + d*lambda*p*r^(d-1) = N (mod p^2)

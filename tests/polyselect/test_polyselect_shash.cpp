@@ -59,7 +59,7 @@ static void onetest(int64_t umax, size_t pushed_entries, unsigned long seed, int
             polyselect_shash_reset(H);
             for(size_t i = 0 ; i < pushed_entries ; i++) {
                 auto const v = i64_random(rstate) % (2*umax) - umax;
-                polyselect_shash_add(H, v);
+                polyselect_shash_add(H, v, 1);
             }
             tfill += clock() - st; st = clock();
             if (polyselect_shash_find_collision(H))
@@ -179,9 +179,9 @@ int main()
          * Getting a collision when the value space exceeds 2^40 (which
          * is the case here) isn't much of a surprise, though!
          */
-        polyselect_shash_add(H, INT64_C(0x47087285be));
-        polyselect_shash_add(H, INT64_C(-0xb9f78d7942));
-        polyselect_shash_add(H, INT64_C(-0x4dde60d7a42));
+        polyselect_shash_add(H, INT64_C(0x47087285be), 1);
+        polyselect_shash_add(H, INT64_C(-0xb9f78d7942), 1);
+        polyselect_shash_add(H, INT64_C(-0x4dde60d7a42), 1);
         if (polyselect_shash_find_collision(H))
             fmt::print("corner case check: collision found\n");
         else

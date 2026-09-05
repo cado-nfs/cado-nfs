@@ -14,6 +14,7 @@
 #include "polyselect_proots.h"
 #include "polyselect_poly_header.h"
 #include "roots_mod.hpp"
+#include "macros.h"
 
 
 /* first combination of k elements among 0, ..., n-1: 0, 1, 2, 3, \cdots */
@@ -124,7 +125,8 @@ comp_sq_roots ( polyselect_poly_header_srcptr header,
       continue;
 
     nrq = roots_mod_uint64 (rq, mpz_fdiv_ui (header->Ntilde, q), header->d, q, rstate);
-    roots_lift (rq, header->Ntilde, header->d, header->m0, q, nrq);
+    unsigned long nrq2 = roots_lift (rq, header->Ntilde, header->d, header->m0, q, nrq);
+    ASSERT_ALWAYS(nrq == nrq2);
 
 #ifdef DEBUG_POLYSELECT
     unsigned int j = 0;
