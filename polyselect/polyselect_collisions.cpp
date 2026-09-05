@@ -25,6 +25,9 @@
 #include "portability.h"
 #include "timing.h"
 #include "misc.h"
+#ifdef DEBUG_SHASH_OVERRUNS
+#include "utils_cxx.hpp"
+#endif
 
 /* CCS = computational collision search
  * DCS = decisional collision search
@@ -300,10 +303,11 @@ void polyselect_proots_dispatch_to_shash_flat(
         {
             // int64_t u0 = (((int64_t) roots_per_prime[c] + umax) % ppl) - umax;
             const int64_t u0 = roots_per_prime[c];
+            ASSERT(0 <= u0 && u0 < ppl);
             for(int64_t u = u0 ; u < umax ; u += ppl)
-                polyselect_shash_add(H, u);
+                polyselect_shash_add(H, u, ppl);
             for(int64_t u = u0 - ppl ; u + umax >= 0; u -= ppl)
-                polyselect_shash_add(H, u);
+                polyselect_shash_add(H, u, ppl);
         }
     }
 
@@ -333,10 +337,11 @@ void polyselect_proots_dispatch_to_shash2_flat(
         {
             // int64_t u0 = (((int64_t) roots_per_prime[c] + umax) % ppl) - umax;
             const int64_t u0 = roots_per_prime[c];
+            ASSERT(0 <= u0 && u0 < ppl);
             for(int64_t u = u0 ; u < umax ; u += ppl)
-                polyselect_shash2_add(H, u, p);
+                polyselect_shash2_add(H, u, p, ppl);
             for(int64_t u = u0 - ppl ; u + umax >= 0; u -= ppl)
-                polyselect_shash2_add(H, u, p);
+                polyselect_shash2_add(H, u, p, ppl);
         }
     }
 
@@ -369,10 +374,11 @@ void polyselect_proots_dispatch_to_shash_notflat(
         {
             // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
             int64_t u0 = roots_per_prime[nprimes][j];
+            ASSERT(0 <= u0 && u0 < ppl);
             for(int64_t u = u0 ; u < umax ; u += ppl)
-                polyselect_shash_add(H, u);
+                polyselect_shash_add(H, u, ppl);
             for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
-                polyselect_shash_add(H, u);
+                polyselect_shash_add(H, u, ppl);
         }
     }
 
@@ -404,9 +410,9 @@ void polyselect_proots_dispatch_to_shash2_notflat(
             // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
             const int64_t u0 = roots_per_prime[nprimes][j];
             for(int64_t u = u0 ; u < umax ; u += ppl)
-                polyselect_shash2_add(H, u, p);
+                polyselect_shash2_add(H, u, p, ppl);
             for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
-                polyselect_shash2_add(H, u, p);
+                polyselect_shash2_add(H, u, p, ppl);
         }
     }
 
@@ -456,6 +462,22 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
         const size_t rt = pt->lenPrimes % nt;
         const unsigned long i0 = qt * it + MIN(it, rt);
         const unsigned long i1 = i0 + qt + (it < rt);
+#ifdef DEBUG_SHASH_OVERRUNS
+        double cx = 0;
+        auto M = polyselect_main_data_get_M(thread->team->league->main);
+        for(unsigned long i = i0 ; i < i1 ; i++) {
+            auto p = pt->Primes[i];
+            auto a = double_ratio(2 * M, p*p);
+            cx += thread->team->R->nr[i] * a;
+        }
+        SH->average_hits = double_ratio(4 * pt->lenPrimes, nt);
+        SH->my_expected_hits = cx;
+        /*
+        fprintf(stderr, "t %u/%u np %lu xhit %.1f vs %u\n",
+                it, nt, i1 - i0, double_ratio(c, polyselect_SHASH_NBUCKETS),
+                thread->team->SH[0]->balloc);
+                */
+#endif
         polyselect_proots_dispatch_to_shash2_notflat(SH,
                 pt->Primes + i0,
                 i1 - i0,
@@ -650,6 +672,36 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
         for(unsigned int i = 0 ; i < i0 ; i++) {
             z += thread->team->R->nr[i];
         }
+
+#ifdef DEBUG_SHASH_OVERRUNS
+        fprintf(stderr, "root block of thread %u (primes %lu to %lu) begins at %p+%u;"
+                " first few roots are"
+                " [ 0x%lx, 0x%lx, 0x%lx, 0x%lx ]"
+                "\n", it, 
+                i0, i1,
+                invq_roots_per_prime,
+                z,
+                invq_roots_per_prime[z],
+                invq_roots_per_prime[z+1],
+                invq_roots_per_prime[z+2],
+                invq_roots_per_prime[z+3]
+                );
+
+        double cx = 0;
+        auto M = polyselect_main_data_get_M(thread->team->league->main);
+        for(unsigned long i = i0 ; i < i1 ; i++) {
+            uint64_t p = pt->Primes[i];
+            auto a = double_ratio(2 * M, p*p);
+            cx += thread->team->R->nr[i] * a;
+        }
+        SH->average_hits = double_ratio(4 * pt->lenPrimes, nt);
+        SH->my_expected_hits = cx;
+        /*
+        fprintf(stderr, "t %u/%u np %lu xhit %.1f vs %u\n",
+                it, nt, i1 - i0, double_ratio(c, polyselect_SHASH_NBUCKETS),
+                thread->team->SH[0]->balloc);
+                */
+#endif
         polyselect_proots_dispatch_to_shash_flat(SH,
                 pt->Primes + i0,
                 i1 - i0,
@@ -845,6 +897,11 @@ void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
         const uint8_t nr = thread->team->R->nr[i];
         c += nr;
     }
+
+#ifdef DEBUG_SHASH_OVERRUNS
+    fprintf(stderr, "thread %d (it %d/%d) modcalc processing primes %lu to %lu, starting at c=%lu\n", thread->thread_index, it, nt, i0, i1, c);
+#endif
+
     for (unsigned long i = i0; i < i1; i++) {
         const uint8_t nr = thread->team->R->nr[i];
         if (!nr)

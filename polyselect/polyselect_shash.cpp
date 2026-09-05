@@ -177,6 +177,10 @@ polyselect_shash_reset_multi (polyselect_shash_t * H, unsigned int k)
          *
          */
         memset (H[i]->base[polyselect_SHASH_NBUCKETS], 0, sizeof(**H[0]->base) * 8);
+#ifdef DEBUG_SHASH_OVERRUNS
+        H[i]->it = i;
+        H[i]->nt = k;
+#endif
     }
 }
 

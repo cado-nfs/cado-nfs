@@ -1,6 +1,12 @@
 #ifndef CADO_POLYSELECT_SHASH_H
 #define CADO_POLYSELECT_SHASH_H
 
+#define xxxDEBUG_SHASH_OVERRUNS
+
+#ifdef DEBUG_SHASH_OVERRUNS
+#include <stdio.h>
+#endif
+
 #include <stdint.h>     // int64_t
 #include <stdlib.h>
 #include <inttypes.h>
@@ -40,6 +46,14 @@ struct polyselect_shash_s
   uint32_t *pmem;
   uint32_t alloc;      /* total allocated size */
   uint32_t balloc;     /* allocated size for each bucket */
+#ifdef DEBUG_SHASH_OVERRUNS
+  /* this structure is attached to one thread doing the work. Let's add
+   * some debug info.
+   */
+  unsigned int it, nt;
+  double average_hits;
+  double my_expected_hits;
+#endif
 };
 typedef struct polyselect_shash_s polyselect_shash_t[1];
 typedef struct polyselect_shash_s * polyselect_shash_ptr;
@@ -53,17 +67,25 @@ inline
 # endif
 #endif
 void
-polyselect_shash_add (polyselect_shash_t H, uint64_t i)
+polyselect_shash_add (polyselect_shash_t H, uint64_t i, int64_t ppl MAYBE_UNUSED)
 {
-  *(H->current[i & (polyselect_SHASH_NBUCKETS - 1)])++ = i >> LN2SHASH_NBUCKETS;
-#if 0
-  if (UNLIKELY(H->current[i & (polyselect_SHASH_NBUCKETS - 1)] >= H->base[(i & (polyselect_SHASH_NBUCKETS - 1)) + 1]))
-    {
-      fprintf (stderr, "polyselect_Shash bucket %" PRIu64 " is full.\n",
-               i & (polyselect_SHASH_NBUCKETS - 1));
-      H->current[i & (polyselect_SHASH_NBUCKETS - 1)]--;
+  const unsigned int ib = i & (polyselect_SHASH_NBUCKETS - 1);
+  *(H->current[ib])++ = i >> LN2SHASH_NBUCKETS;
+#ifdef DEBUG_SHASH_OVERRUNS
+  const uint64_t * cur = H->current[ib];
+  const uint64_t * b0 = H->base[ib];
+  const uint64_t * b1 = H->base[ib+1];
+  if (UNLIKELY(cur >= b1)) {
+      fprintf (stderr, "polyselect_Shash bucket %u is full (%zd/%zd)"
+              " on i=0x%" PRIx64 " p2=0x%" PRIx64 "."
+              " Called from thread %u/%u. Average hit rate %.1f, actual %.1f\n",
+              ib, cur-b0, b1-b0,
+              i, ppl,
+              H->it, H->nt, H->average_hits, H->my_expected_hits);
+      // H->current[i & (polyselect_SHASH_NBUCKETS - 1)]--;
+      ASSERT_ALWAYS((cur-b0) < 2*(b1-b0));
       // exit (1);
-    }
+  }
 #endif
 }
 
@@ -75,18 +97,25 @@ inline
 # endif
 #endif
 void
-polyselect_shash2_add (polyselect_shash_t H, uint64_t i, uint32_t p)
+polyselect_shash2_add (polyselect_shash_t H, uint64_t i, uint32_t p, int64_t ppl MAYBE_UNUSED)
 {
   const unsigned int ib = i & (polyselect_SHASH_NBUCKETS - 1);
   H->pmem[H->current[ib] - H->mem] = p;
   *H->current[ib]++ = i >> LN2SHASH_NBUCKETS;
-#if 0
-  if (UNLIKELY(H->current[i & (polyselect_SHASH_NBUCKETS - 1)] >= H->base[(i & (polyselect_SHASH_NBUCKETS - 1)) + 1]))
-    {
-      fprintf (stderr, "polyselect_Shash2 bucket %" PRIu64 " is full.\n",
-               i & (polyselect_SHASH_NBUCKETS - 1));
-      exit (1);
-    }
+#ifdef DEBUG_SHASH_OVERRUNS
+  const uint64_t * cur = H->current[ib];
+  const uint64_t * b0 = H->base[ib];
+  const uint64_t * b1 = H->base[ib+1];
+  if (UNLIKELY(cur >= b1)) {
+      fprintf (stderr, "polyselect_Shash2 bucket %u is full (%zd/%zd)"
+              " on i=0x%" PRIx64 " p2=0x%" PRIx64 "."
+              " Called from thread %u/%u. Average hit rate %.1f, actual %.1f\n",
+              ib, cur-b0, b1-b0,
+              i, ppl,
+              H->it, H->nt, H->average_hits, H->my_expected_hits);
+      ASSERT_ALWAYS((cur-b0) < 2*(b1-b0));
+      // exit (1);
+  }
 #endif
 }
 
