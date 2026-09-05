@@ -312,7 +312,7 @@ void polyselect_proots_dispatch_to_shash_flat(
 }
 /*}}}*/
 
-/*{{{ polyselect_proots_dispatch_to_shash_flat */
+/*{{{ polyselect_proots_dispatch_to_shash2_flat */
 void polyselect_proots_dispatch_to_shash2_flat(
         polyselect_shash_ptr H,
         const uint32_t * Primes,
