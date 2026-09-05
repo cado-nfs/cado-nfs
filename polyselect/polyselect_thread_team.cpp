@@ -251,9 +251,18 @@ void polyselect_thread_team_post_work(polyselect_thread_team_ptr team, polyselec
     //
     // polyselect_shash_reset_multi(team->SH, tk->expected);
 
+    /* Set the number of expected tasks now, all in one go. Otherwise we
+     * have a race condition if the first thread that gets schedules
+     * manages to finish *before* a second one is scheduled!
+     */
+    team->count->sync2 = team->task->expected;
     pthread_cond_broadcast(&team->count->w_job);
 
     /* do my share ! */
+
+    /* as per the remark above, polyselect_thread_team_enter_sync_task is
+     * a no-op. The other threads call this from within polyselect.cpp
+     */
     polyselect_thread_team_enter_sync_task(team, thread);
     (*f)(thread);
     /* same as polyselect_thread_team_leave_sync_task, but we're the one
@@ -421,7 +430,9 @@ void polyselect_thread_team_leave_sync_task(polyselect_thread_team_ptr team MAYB
 
 void polyselect_thread_team_enter_sync_task(polyselect_thread_team_ptr team MAYBE_UNUSED, polyselect_thread_ptr thread MAYBE_UNUSED)
 {
-    ++team->count->sync2;
+    /* This is actually a no-op, on purpose. See
+     * polyselect_thread_team_post_work.
+     */
 }
 
 /* This must be called with the lock acquired ! */
