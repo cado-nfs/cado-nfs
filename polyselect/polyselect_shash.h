@@ -77,7 +77,7 @@ inline
 void
 polyselect_shash2_add (polyselect_shash_t H, uint64_t i, uint32_t p)
 {
-  unsigned int ib = i & (polyselect_SHASH_NBUCKETS - 1);
+  const unsigned int ib = i & (polyselect_SHASH_NBUCKETS - 1);
   H->pmem[H->current[ib] - H->mem] = p;
   *H->current[ib]++ = i >> LN2SHASH_NBUCKETS;
 #if 0

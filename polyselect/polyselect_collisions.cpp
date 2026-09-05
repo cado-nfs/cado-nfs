@@ -293,13 +293,13 @@ void polyselect_proots_dispatch_to_shash_flat(
     unsigned long c = 0;
     for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
     {
-        unsigned long p = Primes[nprimes];
-        int64_t ppl = (int64_t) p *(int64_t) p;
-        unsigned long nr = number_of_roots_per_prime[nprimes];
+        const unsigned long p = Primes[nprimes];
+        const int64_t ppl = (int64_t) p *(int64_t) p;
+        const unsigned long nr = number_of_roots_per_prime[nprimes];
         for (unsigned long j = 0; j < nr; j++, c++)
         {
             // int64_t u0 = (((int64_t) roots_per_prime[c] + umax) % ppl) - umax;
-            int64_t u0 = roots_per_prime[c];
+            const int64_t u0 = roots_per_prime[c];
             for(int64_t u = u0 ; u < umax ; u += ppl)
                 polyselect_shash_add(H, u);
             for(int64_t u = u0 - ppl ; u + umax >= 0; u -= ppl)
@@ -326,13 +326,13 @@ void polyselect_proots_dispatch_to_shash2_flat(
     unsigned long c = 0;
     for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
     {
-        unsigned long p = Primes[nprimes];
-        int64_t ppl = (int64_t) p *(int64_t) p;
-        unsigned long nr = number_of_roots_per_prime[nprimes];
+        const unsigned long p = Primes[nprimes];
+        const int64_t ppl = (int64_t) p *(int64_t) p;
+        const unsigned long nr = number_of_roots_per_prime[nprimes];
         for (unsigned long j = 0; j < nr; j++, c++)
         {
             // int64_t u0 = (((int64_t) roots_per_prime[c] + umax) % ppl) - umax;
-            int64_t u0 = roots_per_prime[c];
+            const int64_t u0 = roots_per_prime[c];
             for(int64_t u = u0 ; u < umax ; u += ppl)
                 polyselect_shash2_add(H, u, p);
             for(int64_t u = u0 - ppl ; u + umax >= 0; u -= ppl)
@@ -396,13 +396,13 @@ void polyselect_proots_dispatch_to_shash2_notflat(
     // polyselect_shash_reset(H);
     for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
     {
-        unsigned long p = Primes[nprimes];
-        int64_t ppl = (int64_t) p *(int64_t) p;
-        unsigned long nr = number_of_roots_per_prime[nprimes];
+        const unsigned long p = Primes[nprimes];
+        const int64_t ppl = (int64_t) p *(int64_t) p;
+        const unsigned long nr = number_of_roots_per_prime[nprimes];
         for (unsigned long j = 0; j < nr; j++)
         {
             // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
-            int64_t u0 = roots_per_prime[nprimes][j];
+            const int64_t u0 = roots_per_prime[nprimes][j];
             for(int64_t u = u0 ; u < umax ; u += ppl)
                 polyselect_shash2_add(H, u, p);
             for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
@@ -452,10 +452,10 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
     // reset has been done by the caller with polyselect_shash_reset_multi
     // polyselect_shash_reset(H);
     {
-        size_t qt = pt->lenPrimes / nt;
-        size_t rt = pt->lenPrimes % nt;
-        unsigned long i0 = qt * it + MIN(it, rt);
-        unsigned long i1 = i0 + qt + (it < rt);
+        const size_t qt = pt->lenPrimes / nt;
+        const size_t rt = pt->lenPrimes % nt;
+        const unsigned long i0 = qt * it + MIN(it, rt);
+        const unsigned long i1 = i0 + qt + (it < rt);
         polyselect_proots_dispatch_to_shash2_notflat(SH,
                 pt->Primes + i0,
                 i1 - i0,
@@ -472,10 +472,10 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
     polyselect_thread_chronogram_chat(thread, "enter p_find_transverse");
     {
         /* which of the buckets do we have to scan for collisions ? */
-        unsigned int wt = polyselect_SHASH_NBUCKETS;
-        unsigned int rt = wt % nt;
-        unsigned int k0 = it * (wt / nt) + MIN(it, rt);
-        unsigned int k1 = k0 + (wt / nt) + (it < rt);
+        const unsigned int wt = polyselect_SHASH_NBUCKETS;
+        const unsigned int rt = wt % nt;
+        const unsigned int k0 = it * (wt / nt) + MIN(it, rt);
+        const unsigned int k1 = k0 + (wt / nt) + (it < rt);
 
         polyselect_shash2_find_collision_multi(thread->team->SH, nt, k0, k1,
                 q, rq, thread);
@@ -614,10 +614,10 @@ struct polyselect_DCS_flat_subtask_data {
 void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
 {
     auto * arg = static_cast<struct polyselect_DCS_flat_subtask_data *>(thread->team->task->arg);
-    unsigned long * invq_roots_per_prime = arg->invq_roots_per_prime;
+    const unsigned long * invq_roots_per_prime = arg->invq_roots_per_prime;
 
-    unsigned int nt = thread->team->task->expected;
-    unsigned int it = thread->index_in_sync_zone;
+    const unsigned int nt = thread->team->task->expected;
+    const unsigned int it = thread->index_in_sync_zone;
     polyselect_primes_table_srcptr pt = thread->team->league->pt;
 
     /* thread->team->SH[it] might be different from one call to the next,
@@ -641,10 +641,10 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
     // reset has been done by the caller with polyselect_shash_reset_multi
     // polyselect_shash_reset(SH);
     {
-        size_t qt = pt->lenPrimes / nt;
-        size_t rt = pt->lenPrimes % nt;
-        unsigned long i0 = qt * it + MIN(it, rt);
-        unsigned long i1 = i0 + qt + (it < rt);
+        const size_t qt = pt->lenPrimes / nt;
+        const size_t rt = pt->lenPrimes % nt;
+        const unsigned long i0 = qt * it + MIN(it, rt);
+        const unsigned long i1 = i0 + qt + (it < rt);
         /* This is unfortunate. It's caused by the "flat" layout. */
         unsigned int z = 0;
         for(unsigned int i = 0 ; i < i0 ; i++) {
@@ -668,10 +668,10 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
 
     {
         /* which of the buckets do we have to scan for collisions ? */
-        unsigned int wt = polyselect_SHASH_NBUCKETS;
-        unsigned int rt = wt % nt;
-        unsigned int k0 = it * (wt / nt) + MIN(it, rt);
-        unsigned int k1 = k0 + (wt / nt) + (it < rt);
+        const unsigned int wt = polyselect_SHASH_NBUCKETS;
+        const unsigned int rt = wt % nt;
+        const unsigned int k0 = it * (wt / nt) + MIN(it, rt);
+        const unsigned int k1 = k0 + (wt / nt) + (it < rt);
 
         found = polyselect_shash_find_collision_multi(thread->team->SH, nt, k0, k1);
     }
@@ -696,12 +696,12 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
 void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
 {
     auto * arg = static_cast<struct polyselect_CCS_subtask_data *>(thread->team->task->arg);
-    unsigned long q = arg->q;
+    const unsigned long q = arg->q;
     mpz_srcptr rq = arg->rq;
-    unsigned long * invq_roots_per_prime = arg->invq_roots_per_prime;
+    const unsigned long * invq_roots_per_prime = arg->invq_roots_per_prime;
 
-    unsigned int nt = thread->team->task->expected;
-    unsigned int it = thread->index_in_sync_zone;
+    const unsigned int nt = thread->team->task->expected;
+    const unsigned int it = thread->index_in_sync_zone;
     polyselect_primes_table_srcptr pt = thread->team->league->pt;
 
     polyselect_shash_ptr SH = thread->team->SH[it];
@@ -718,10 +718,10 @@ void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
     // reset has been done by the caller with polyselect_shash_reset_multi
     // polyselect_shash_reset(SH);
     {
-        size_t qt = pt->lenPrimes / nt;
-        size_t rt = pt->lenPrimes % nt;
-        unsigned long i0 = qt * it + MIN(it, rt);
-        unsigned long i1 = i0 + qt + (it < rt);
+        const size_t qt = pt->lenPrimes / nt;
+        const size_t rt = pt->lenPrimes % nt;
+        const unsigned long i0 = qt * it + MIN(it, rt);
+        const unsigned long i1 = i0 + qt + (it < rt);
         /* This is unfortunate. It's caused by the "flat" layout. */
         unsigned int z = 0;
         for(unsigned int i = 0 ; i < i0 ; i++) {
@@ -743,10 +743,10 @@ void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
     polyselect_thread_chronogram_chat(thread, "enter q_find_transverse");
     {
         /* which of the buckets do we have to scan for collisions ? */
-        unsigned int wt = polyselect_SHASH_NBUCKETS;
-        unsigned int rt = wt % nt;
-        unsigned int k0 = it * (wt / nt) + MIN(it, rt);
-        unsigned int k1 = k0 + (wt / nt) + (it < rt);
+        const unsigned int wt = polyselect_SHASH_NBUCKETS;
+        const unsigned int rt = wt % nt;
+        const unsigned int k0 = it * (wt / nt) + MIN(it, rt);
+        const unsigned int k1 = k0 + (wt / nt) + (it < rt);
 
         polyselect_shash2_find_collision_multi(thread->team->SH, nt, k0, k1,
                 q, rq, thread);
@@ -816,14 +816,14 @@ unsigned long modcalc_nroots_interval(polyselect_proots_srcptr R, unsigned long 
 void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
 {
     auto * arg = static_cast<struct modcalc_arg *>(thread->team->task->arg);
-    int count = arg->count;
+    const int count = arg->count;
     const mpz_t * rqqz = arg->rqqz;
     const unsigned long *inv_qq = arg->inv_qq;
-    unsigned long **tinv_qq = arg->tinv_qq;
+    unsigned long ** const tinv_qq = arg->tinv_qq;
     unsigned long c = 0;
 
-    unsigned int nt = thread->team->task->expected;
-    unsigned int it = thread->index_in_sync_zone;
+    const unsigned int nt = thread->team->task->expected;
+    const unsigned int it = thread->index_in_sync_zone;
     polyselect_primes_table_ptr pt = thread->team->league->pt;
 
     polyselect_thread_team_enter_roaming(thread->team, thread);
@@ -835,22 +835,22 @@ void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
     fprintf(stderr, "enter modcalc with %d threads\n", nt);
 #endif
 
-    size_t qt = pt->lenPrimes / nt;
-    size_t rt = pt->lenPrimes % nt;
-    unsigned long i0 = qt * it + MIN(it, rt);
-    unsigned long i1 = i0 + qt + (it < rt);
+    const size_t qt = pt->lenPrimes / nt;
+    const size_t rt = pt->lenPrimes % nt;
+    const unsigned long i0 = qt * it + MIN(it, rt);
+    const unsigned long i1 = i0 + qt + (it < rt);
 
     /* This is unfortunate. It's caused by the "flat" layout. */
     for (unsigned long i = 0; i < i0; i++) {
-        uint8_t nr = thread->team->R->nr[i];
+        const uint8_t nr = thread->team->R->nr[i];
         c += nr;
     }
     for (unsigned long i = i0; i < i1; i++) {
-        uint8_t nr = thread->team->R->nr[i];
+        const uint8_t nr = thread->team->R->nr[i];
         if (!nr)
             continue;
-        uint32_t p = pt->Primes[i];
-        uint64_t pp = (int64_t) p *(int64_t) p;
+        const uint32_t p = pt->Primes[i];
+        const uint64_t pp = (int64_t) p *(int64_t) p;
 
         modulusredcul_t modpp;
         residueredcul_t res_rqi, res_rp, res_tmp;
@@ -861,12 +861,12 @@ void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
 
         for (int k = 0; k < count; k++)
         {
-            unsigned long rqi = mpz_fdiv_ui(rqqz[k], pp);
+            const unsigned long rqi = mpz_fdiv_ui(rqqz[k], pp);
             modredcul_intset_ul(res_rqi, rqi);
             modredcul_intset_ul(res_tmp, inv_qq[i]);
             for (uint8_t j = 0; j < nr; j++, c++)
             {
-                unsigned long rp = thread->team->R->roots[i][j];
+                const unsigned long rp = thread->team->R->roots[i][j];
                 modredcul_intset_ul(res_rp, rp);
                 /* rp - rq */
                 modredcul_sub(res_rp, res_rp, res_rqi, modpp);
@@ -1062,7 +1062,7 @@ struct invert_q2_mod_all_p2_data {
 static inline void invert_q2_mod_all_p2_subtask(polyselect_thread_ptr thread) /*{{{*/
 {
     auto * arg = static_cast<struct invert_q2_mod_all_p2_data *>(thread->team->task->arg);
-    unsigned long q = arg->q;
+    const unsigned long q = arg->q;
     unsigned long *invqq = arg->invqq;
 
     polyselect_thread_team_enter_roaming(thread->team, thread);
@@ -1070,25 +1070,25 @@ static inline void invert_q2_mod_all_p2_subtask(polyselect_thread_ptr thread) /*
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter invert_q2");
     polyselect_primes_table_srcptr pt = thread->team->league->pt;
-    unsigned int nt = thread->team->task->expected;
-    unsigned int it = thread->index_in_sync_zone;
-    size_t qt = pt->lenPrimes / nt;
-    size_t rt = pt->lenPrimes % nt;
-    unsigned long i0 = qt * it + MIN(it, rt);
-    unsigned long i1 = i0 + qt + (it < rt);
+    const unsigned int nt = thread->team->task->expected;
+    const unsigned int it = thread->index_in_sync_zone;
+    const size_t qt = pt->lenPrimes / nt;
+    const size_t rt = pt->lenPrimes % nt;
+    const unsigned long i0 = qt * it + MIN(it, rt);
+    const unsigned long i1 = i0 + qt + (it < rt);
 
     const uint32_t * Primes = pt->Primes;
     polyselect_poly_header_srcptr header = thread->team->header;
     const uint8_t * number_of_roots_per_prime = thread->team->R->nr;
     for (unsigned long i = i0; i < i1; i++)
     {
-        unsigned long p = Primes[i];
+        const unsigned long p = Primes[i];
         if (polyselect_poly_header_skip(header, p))
             continue;
-        unsigned int nr = number_of_roots_per_prime[i];
+        const unsigned int nr = number_of_roots_per_prime[i];
         if (nr == 0)
             continue;
-        uint64_t pp = ((uint64_t) p) * (uint64_t) p;
+        const uint64_t pp = ((uint64_t) p) * (uint64_t) p;
 
         modulusredcul_t modpp;
         residueredcul_t qq, tmp;
@@ -1159,7 +1159,7 @@ collision_on_sq_conductor(unsigned long c, polyselect_thread_ptr thread)
  
       {
           /* Step 2: find collisions on q. */
-          int st2 = milliseconds();
+          const int st2 = milliseconds();
 
           collision_on_batch_sq_r(SQ_R, q, idx_q, invqq, c,
                   &curr_nq, k, thread);
@@ -1169,7 +1169,7 @@ collision_on_sq_conductor(unsigned long c, polyselect_thread_ptr thread)
                       curr_nq, milliseconds() - st2);
       }
 
-      unsigned long ret = next_comb(lq, k, idx_q);
+      const unsigned long ret = next_comb(lq, k, idx_q);
       if (ret == k)		/* in case binomial(lq, k) < nq */
 	break;
     }
