@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <climits>
 
+#include <memory>
+
 #include <gmp.h>
 
 #include <pthread.h>
@@ -25,6 +27,7 @@
 #include "portability.h"
 #include "timing.h"
 #include "misc.h"
+#include "cxx_mpz.hpp"
 #ifdef DEBUG_SHASH_OVERRUNS
 #include "utils_cxx.hpp"
 #endif
@@ -960,7 +963,7 @@ collision_on_each_sq_r(unsigned long q,
 
   polyselect_thread_chronogram_chat(thread, "enter malloc");
 
-  auto * tinv_qq = new unsigned long * [count];
+  auto tinv_qq = std::make_unique<unsigned long *[]>(count);
 
   if (!tinv_qq)
     {
@@ -968,11 +971,11 @@ collision_on_each_sq_r(unsigned long q,
       exit(1);
     }
   /* number_pr + 1 for guard for pre-load in collision_on_each_sq (nv) */
-  tinv_qq[0] = new unsigned long[(number_pr + 1) * count];
+  auto tq = std::make_unique<unsigned long[]>((number_pr + 1) * count);
+
   for (int k = 0; k < count; k++)
     {
-      if (k)
-          tinv_qq[k] = tinv_qq[k-1] + number_pr + 1;
+      tinv_qq[k] = tq.get() + (number_pr + 1) * k;
       tinv_qq[k][number_pr] = 0;
     }
 
@@ -980,7 +983,7 @@ collision_on_each_sq_r(unsigned long q,
           .rqqz = rqqz,
           .count = count,
           .inv_qq = inv_qq,
-          .tinv_qq = tinv_qq
+          .tinv_qq = tinv_qq.get()
   }};
   polyselect_thread_chronogram_chat(thread, "leave malloc");
   polyselect_thread_team_post_work(thread->team, thread, modcalc_subtask, arg);
@@ -988,10 +991,6 @@ collision_on_each_sq_r(unsigned long q,
   /* core function to find collisions */
   for (int k = 0; k < count; k++)
     collision_on_each_sq(q, rqqz[k], tinv_qq[k], thread);
-
-  delete[] tinv_qq[0];
-
-  delete[] tinv_qq;
 }
 
 /* Next combination */
@@ -1039,8 +1038,6 @@ aux_return_rq(polyselect_qroots_srcptr SQ_R,
 
   /* crt roots */
   crt_sq(qqz, rqqz, q, rq, k);
-
-  return;
 }
 
 /* Consider each rq which is the product of k pairs (q,r).
@@ -1061,11 +1058,8 @@ collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
 {
   unsigned int ind_qr[k];	/* indices of roots for each small q */
   unsigned int len_qnr[k];	/* for each small q, number of roots */
-  mpz_t qqz, rqqz[BATCH_SIZE];
-
-  mpz_init(qqz);
-  for (unsigned long i = 0; i < BATCH_SIZE; i++)
-    mpz_init(rqqz[i]);
+  cxx_mpz qqz;
+  std::array<cxx_mpz, BATCH_SIZE> rqqz;
 
 #if 0
   fprintf(stderr, "q: %lu, ", q);
@@ -1102,13 +1096,9 @@ collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
 	}
 
       /* core function for a fixed qq and several rqqz[] */
-      collision_on_each_sq_r(q, (const mpz_t *) rqqz, inv_qq,
+      collision_on_each_sq_r(q, (const mpz_t *) rqqz.data(), inv_qq,
 			     number_pr, num_rq, thread);
     }
-
-  mpz_clear(qqz);
-  for (unsigned long i = 0; i < BATCH_SIZE; i++)
-    mpz_clear(rqqz[i]);
 }
 
 struct invert_q2_mod_all_p2_data {
