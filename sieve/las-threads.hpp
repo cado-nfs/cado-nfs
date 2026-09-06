@@ -89,9 +89,9 @@ template<bucket_array_type T>
 class reservation_array<T, false> : public reservation_array_base<T> {
     static constexpr bool has_longhint_v = false;
     using super = reservation_array_base<T>;
-    mutable std::mutex my_lock;
-    auto get_lock() const { return std::unique_lock(my_lock); }
-    std::condition_variable cv;
+    std::unique_ptr<std::mutex> my_lock = std::make_unique<std::mutex>();
+    auto get_lock() const { return std::unique_lock(*my_lock); }
+    std::unique_ptr<std::condition_variable> cv = std::make_unique<std::condition_variable>();
     using available_bucket_t = std::pair<double, size_t>;
     struct prioritize_least_full_bucket {
         /* a priority queue takes the "top" element, so the comparator
@@ -127,29 +127,8 @@ class reservation_array<T, false> : public reservation_array_base<T> {
     reservation_array(reservation_array const &) = delete;
     reservation_array& operator=(reservation_array const&) = delete;
 
-#if 0
-    /* even moves are unholy, of course. We only ever need them in places
-     * where no locking is needed, and fortunately so. Because there is
-     * no such thing as _moving_ a mutex, obviously. So there is ample
-     * potential to shoot yourself in the foot if you use these, really.
-     */
-    reservation_array(reservation_array && o, std::unique_lock<std::mutex> &&) noexcept
-        : super(std::move(o))
-        {}
-
-    reservation_array(reservation_array && o) noexcept
-        : reservation_array(std::move(o), get_lock())
-        {}
-
-    reservation_array& operator=(reservation_array && o) noexcept {
-        auto me = get_lock();
-        auto them = o.get_lock();
-        static_cast<super&>(*this) = std::move(o);
-        return *this;
-    }
-#endif
-    reservation_array(reservation_array && o) = delete;
-    reservation_array& operator=(reservation_array &&) = delete;
+    reservation_array(reservation_array && o) = default;
+    reservation_array& operator=(reservation_array &&) = default;
 
     explicit reservation_array(size_t n)
         : super(n)
@@ -176,8 +155,8 @@ class reservation_array<T, false> : public reservation_array_base<T> {
  */
 template <bucket_array_type T>
 class reservation_array<T, true> : public reservation_array_base<T> {
-    mutable std::mutex my_lock;
-    auto get_lock() const { return std::unique_lock(my_lock); }
+    std::unique_ptr<std::mutex> my_lock = std::make_unique<std::mutex>();
+    auto get_lock() const { return std::unique_lock(*my_lock); }
     static constexpr bool has_longhint_v = true;
     using super = reservation_array_base<T>;
 
@@ -188,30 +167,8 @@ class reservation_array<T, true> : public reservation_array_base<T> {
     reservation_array(reservation_array const &) = delete;
     reservation_array& operator=(reservation_array const&) = delete;
 
-#if 0
-    reservation_array(reservation_array && o, std::unique_lock<std::mutex> &&) noexcept
-        : super(std::move(o))
-        {}
-
-    /* It doesn't make much sense to move these lock-protected things,
-     * except in the very specific case where moves occur in clearly
-     * lock-guarded sections anyway.
-     */
-    reservation_array(reservation_array && o) noexcept {
-        auto me = get_lock();
-        auto them = o.get_lock();
-        static_cast<super&>(*this) = std::move(o);
-    }
-
-    reservation_array& operator=(reservation_array && o) noexcept {
-        auto me = get_lock();
-        auto them = o.get_lock();
-        static_cast<super&>(*this) = std::move(o);
-        return *this;
-    }
-#endif
-    reservation_array(reservation_array && o) = delete;
-    reservation_array& operator=(reservation_array &&) = delete;
+    reservation_array(reservation_array && o) = default;
+    reservation_array& operator=(reservation_array &&) = default;
 
     void reset_all_pointers() {
         auto lock = get_lock();
