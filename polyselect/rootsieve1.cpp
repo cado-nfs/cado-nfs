@@ -967,7 +967,11 @@ int main(int argc, char const * argv[])
         usage_and_die (argv[0]);
 
 #pragma omp parallel
-#pragma omp master
+#if defined(_OPENMP) && _OPENMP >= 202011
+    #pragma omp masked
+#else
+    #pragma omp master
+#endif
     printf ("# Using %d thread(s)\n", omp_get_num_threads ());
 
     ASSERT_ALWAYS(B <= 65536);

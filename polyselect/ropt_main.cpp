@@ -824,7 +824,11 @@ static int main_basic (int argc, char const * argv[])
       omp_set_num_threads (nthreads);
   /* if nthreads is zero, we use an automatic number of threads */
 #pragma omp parallel
-#pragma omp master
+#if defined(_OPENMP) && _OPENMP >= 202011
+    #pragma omp masked
+#else
+    #pragma omp master
+#endif
   printf ("# Info: Using OpenMP with %u thread(s)\n", omp_get_num_threads ());
 #pragma omp parallel
 #endif
