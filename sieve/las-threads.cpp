@@ -64,7 +64,7 @@ T & reservation_array<T, false>::inner_reserve()
     auto lock = get_lock();
 
     while (available_buckets.empty())
-        cv.wait(lock);
+        cv->wait(lock);
 
     auto [ ratio, i ] = available_buckets.top();
     available_buckets.pop();
@@ -84,7 +84,7 @@ void reservation_array<T, false>::release(T &BA) {
     auto lock = get_lock();
     const double ratio = BA.average_full();
     available_buckets.emplace(ratio, super::rank(BA));
-    cv.notify_one();
+    cv->notify_one();
 }
 
 
