@@ -244,6 +244,10 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     const char *dump_filename;
 
     /* ---- misc ---- */
+    /* chronogram_map is filled by pool.collect_traces() from within each
+     * subjob's cleanup; the subjobs run as concurrent std::threads, so
+     * this must be serialised. */
+    std::mutex chronogram_map_mtx;
     std::map<size_t, std::vector<chronograms::bubble>> chronogram_map;
 
     /* typicall call order is as follows */

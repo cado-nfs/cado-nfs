@@ -1141,6 +1141,9 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
         auto dummy = call_dtor([&](){
             /* we can't collect traces of running threads, of course!! */
             pool.drain_all_queues();
+            /* subjobs run concurrently and all merge into the same
+             * las.chronogram_map -- serialise the merge. */
+            const std::lock_guard<std::mutex> lock(las.chronogram_map_mtx);
             pool.collect_traces(las.chronogram_map, las.number_of_threads_per_subjob() * subjob);
         });
         nfs_work ws(las, ALGO{});
