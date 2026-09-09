@@ -43,7 +43,7 @@ class plattices_vector_t : public std::vector<ALGO::largesieve>
     }
     /* returns a global index */
     slice_index_t get_index() const { return index; };
-    slice_index_t get_weight() const { return weight; };
+    double get_weight() const { return weight; };
 };
 
 
