@@ -467,9 +467,19 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
 
             /* we duplicate code that is found in allocate_memory. TODO:
              * refactor that */
+            /* At the toplevel the sieve area may be smaller than one
+             * bucket region, in which case sc.logA <
+             * LOG_BUCKET_REGIONS[fib_level] and the shift below used to
+             * be by a negative amount, which is undefined behaviour: it
+             * produced a garbage region count, hence a garbage memory
+             * estimate, and expected_memory_usage_per_subjob() then
+             * refused to start ("This machine does not have enough
+             * memory ... to fit jobs that need 2013265920.04 GB").
+             * iceildiv() gives the 1 that compute_toplevel_and_buckets()
+             * also computes for that case. */
             size_t const nreg = (fib_level == toplevel) ?
-                (1UL << (sc.logA - LOG_BUCKET_REGIONS[fib_level]))
-                : (1 << (LOG_BUCKET_REGIONS[fib_level + 1] - LOG_BUCKET_REGIONS[fib_level]));
+                iceildiv(size_t(1) << sc.logA, BUCKET_REGIONS[fib_level])
+                : (size_t(1) << (LOG_BUCKET_REGIONS[fib_level + 1] - LOG_BUCKET_REGIONS[fib_level]));
             size_t nup_per_reg = 0.25 * w * BUCKET_REGIONS[fib_level] / nba;
             /* assume LOG_BUCKET_REGIONS[fib_level] > logI */
             nup_per_reg *= 3;
@@ -1141,6 +1151,9 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
         auto dummy = call_dtor([&](){
             /* we can't collect traces of running threads, of course!! */
             pool.drain_all_queues();
+            /* subjobs run concurrently and all merge into the same
+             * las.chronogram_map -- serialise the merge. */
+            const std::lock_guard<std::mutex> lock(las.chronogram_map_mtx);
             pool.collect_traces(las.chronogram_map, las.number_of_threads_per_subjob() * subjob);
         });
         nfs_work ws(las, ALGO{});

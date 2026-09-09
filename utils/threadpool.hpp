@@ -67,11 +67,9 @@ class task_group : private NonCopyable {
     std::function<void()> completion_cb;
 
     void notify_joined() {
-        // 1. Mark task as finished
         size_t const f = finished_count.fetch_add(1, std::memory_order_acq_rel) + 1;
         size_t const c = created_count.load(std::memory_order_acquire);
 
-        // 2. If this is the last task, extract the callback
         std::function<void()> cb;
         if (f >= c) {
             const std::scoped_lock lock(mx);
@@ -84,19 +82,23 @@ class task_group : private NonCopyable {
             }
         }
 
-        // 3. Execute the callback completely lock-free
-        if (cb) {
+        if (cb)
             cb();
-        }
 
-        // 4. Mark task as joined (and callback as completed)
-        size_t const j = joined_count.fetch_add(1, std::memory_order_release) + 1;
-        if (j >= created_count.load(std::memory_order_acquire)) {
-            // Wake up wait(). The lock ensures we don't miss a wakeup if wait()
-            // is just about to sleep.
-            const std::scoped_lock lock(mx);
+        // The joined_count bump and the notification must both happen
+        // while holding mx. wait() keys on joined_count, and a task_group
+        // is very frequently a short-lived automatic object (e.g. the
+        // per-side task_group vectors rebuilt on every downsort-tree
+        // node) that is destroyed the instant wait() returns. If we
+        // bumped joined_count outside the lock, wait() on another thread
+        // could see the group as complete and let it be destroyed while
+        // this thread is still about to touch mx / cv -- a use-after-free
+        // that TSan flags and that shows up as rare heap corruption or
+        // wrong results, mostly with many threads and bucket_batch_size>1.
+        const std::scoped_lock lock(mx);
+        size_t const j = joined_count.fetch_add(1, std::memory_order_acq_rel) + 1;
+        if (j >= created_count.load(std::memory_order_relaxed))
             cv.notify_all();
-        }
     }
 
 public:
@@ -131,11 +133,12 @@ public:
         // Execute late callback exactly as if it were a worker task
         cb();
         finished_count.fetch_add(1, std::memory_order_acq_rel);
-        size_t const j = joined_count.fetch_add(1, std::memory_order_release) + 1;
-        if (j >= created_count.load(std::memory_order_acquire)) {
-            const std::scoped_lock lock(mx);
+        // Join + notify under the lock, for the same reason as in
+        // notify_joined() above.
+        const std::scoped_lock lock(mx);
+        size_t const j = joined_count.fetch_add(1, std::memory_order_acq_rel) + 1;
+        if (j >= created_count.load(std::memory_order_relaxed))
             cv.notify_all();
-        }
     }
 
     size_t created() const {
