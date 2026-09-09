@@ -9,6 +9,12 @@ cado_divert_test(test_params_struct works --bar 4 -nl)
 cado_divert_test(test_params_struct fails_missing_arg foo=8 EXPECT_FAIL)
 cado_divert_test(test_params_struct fails_unknown_arg bar=2 --zoom 1 EXPECT_FAIL)
 
+cado_define_test(test_params_per_side.cpp LIBRARIES utils NO_DEFAULT_RUN)
+# a per-side parameter given for a subset of the sides must be honoured
+cado_divert_test(test_params_per_side partial -fb0 zero -lim0 17)
+# the comma-separated form keeps working, and fills the remaining sides
+cado_divert_test(test_params_per_side commas -fbs zero, -lims 17)
+
 cado_define_test(test_params_declarator.cpp LIBRARIES utils NO_DEFAULT_RUN)
 cado_divert_test(test_params_declarator works --bar 4 -nl)
 cado_divert_test(test_params_declarator fails_missing_arg foo=8 EXPECT_FAIL)

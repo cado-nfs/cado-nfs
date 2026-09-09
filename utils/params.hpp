@@ -630,15 +630,27 @@ struct cxx_param_list {
      * using.
      */
     template<typename T>
-    std::vector<T> parse_per_side_base(std::string const & key0, size_t n)
+    std::vector<T> parse_per_side_base(std::string const & key0, size_t n,
+            std::vector<bool> * given = nullptr)
     {
         auto key = drop_one_or_two_leading_dashes(key0);
         bool has_lpb01 = false;
         std::vector<T> lpb_arg;
+        std::vector<bool> was_given(n, false);
         for(size_t side = 0 ; side < n ; side++) {
             auto keyi = fmt::format("{}{}", key, side);
             T r {};
-            has_lpb01 = parse_stealth(keyi, r);
+            /* Note that we accumulate. A per-side parameter may
+             * legitimately be given for only some of the sides: a DL
+             * computation that sieves on side 0 only passes -fb0 and no
+             * -fb1. Overwriting here would leave has_lpb01 reflecting the
+             * *last* side alone, so that a value given for any earlier
+             * side would be silently dropped and replaced by the default
+             * -- with no diagnostic, since parse_stealth() did consume the
+             * argument. */
+            bool const g = parse_stealth(keyi, r);
+            was_given[side] = g;
+            has_lpb01 = has_lpb01 || g;
             lpb_arg.push_back(r);
         }
 
@@ -660,6 +672,16 @@ struct cxx_param_list {
         if (!has_nlpbs && !has_lpb01)
             return {};
 
+        if (has_nlpbs) {
+            /* the comma-separated form specifies a prefix of the sides */
+            was_given.assign(n, false);
+            for(size_t i = 0 ; i < lpb_arg.size() && i < n ; i++)
+                was_given[i] = true;
+        }
+
+        if (given)
+            *given = was_given;
+
         return lpb_arg;
     }
 
@@ -674,7 +696,8 @@ struct cxx_param_list {
     template <typename T>
     bool parse_per_side(std::string const & key0, std::vector<T> & r, size_t n, copy_previous_side const &)
     {
-        r = parse_per_side_base<T>(key0, n);
+        std::vector<bool> given;
+        r = parse_per_side_base<T>(key0, n, &given);
         if (r.empty())
             return false;
 
@@ -684,6 +707,17 @@ struct cxx_param_list {
                     key0, n);
         for(size_t i = r.size() ; i < n ; i++)
             r.push_back(r.back());
+        /* Sides that were not specified individually inherit the value of
+         * the preceding one; leading unspecified sides inherit the first
+         * one that was given. */
+        size_t first = 0;
+        while (first < n && !given[first]) first++;
+        if (first < n) {
+            for(size_t i = 0 ; i < first ; i++)
+                r[i] = r[first];
+            for(size_t i = first + 1 ; i < n ; i++)
+                if (!given[i]) r[i] = r[i-1];
+        }
         return true;
     }
 
@@ -693,7 +727,8 @@ struct cxx_param_list {
     template <typename T>
     bool parse_per_side(std::string const & key0, std::vector<T> & r, size_t n, T const & v)
     {
-        r = parse_per_side_base<T>(key0, n);
+        std::vector<bool> given;
+        r = parse_per_side_base<T>(key0, n, &given);
         if (r.empty())
             return false;
 
@@ -704,6 +739,8 @@ struct cxx_param_list {
 
         for(size_t i = r.size() ; i < n ; i++)
             r.push_back(v);
+        for(size_t i = 0 ; i < n ; i++)
+            if (!given[i]) r[i] = v;
         return true;
     }
 
@@ -711,10 +748,19 @@ struct cxx_param_list {
     template <typename T>
     bool parse_per_side(std::string const & key0, std::vector<T> & v, size_t n)
     {
-        v = parse_per_side_base<T>(key0, n);
-        if (v.size() != n)
+        std::vector<bool> given;
+        v = parse_per_side_base<T>(key0, n, &given);
+        if (v.size() != n) {
             v.clear();
-        return v.size() == n;
+            return false;
+        }
+        for(size_t i = 0 ; i < n ; i++) {
+            if (!given[i]) {
+                v.clear();
+                return false;
+            }
+        }
+        return true;
     }
     template <typename T, size_t N, typename... Args>
     bool parse_per_side(std::string const & key0, std::array<T, N> & v, Args && ...args)
