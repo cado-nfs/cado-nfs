@@ -44,6 +44,9 @@ void las_info::configure(cxx_param_list & pl)
 
     batch_side_config::declare_usage(pl);
     pl.declare_usage("batch", "use batch cofactorization");
+    pl.declare_usage("batch-chunk-size", "hand at most that many survivors to a single batch cofactorization product tree "
+            "(0 = no limit, which is the default). Smaller values save memory, at the "
+            "cost of reducing the large prime product modulo more, smaller trees.");
     pl.declare_usage("batch-print-survivors", "just print survivors to files with the given basename for an external cofactorization");
     pl.declare_usage("batch-print-survivors-filesize", "write that many survivors per file");
     pl.declare_usage("batch-print-survivors-number-of-printers", "use this number of I/O threads to write survivor files. defaults to 1, and should not be changed except in very unusual cases");
@@ -195,6 +198,8 @@ las_info::las_info(cxx_param_list & pl, Algo)
         }
     }
 
+
+    pl.parse("batch-chunk-size", batch_chunk_size);
 
     batch_print_survivors.filename = pl.lookup_old("batch-print-survivors");
     if (batch_print_survivors.filename) {

@@ -581,9 +581,19 @@ smoothness_test (std::vector<cxx_mpz> & R, mpz_srcptr P, FILE *out, double& extr
   clear_product_tree (T, n, w);
 }
 
-/* return the number n of smooth relations in l (same as l.size()) */
-size_t
-find_smooth (std::list<cofac_candidate> & l,
+/* Run the batch smoothness test over several survivor lists at once, and
+ * remove from them the candidates that are found to be non-smooth.
+ * Returns the total number of survivors left.
+ *
+ * The lists are kept distinct because the caller wants to know which
+ * special-q each survivor came from, but the product tree and (above
+ * all) the reduction of the large prime product modulo the root of that
+ * tree do not care: those are paid once per call, not once per list.
+ * Hence the caller has an interest in passing many lists at a time --
+ * see the batch-chunk-size documentation for the counterpart in memory.
+ */
+static size_t
+find_smooth_groups (std::vector<std::list<cofac_candidate> *> const & groups,
         std::vector<cxx_mpz> const & batchP,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
@@ -621,7 +631,9 @@ find_smooth (std::list<cofac_candidate> & l,
         e0 = extra_time;
         wct = wct_seconds ();
 
-        size_t const input_candidates = l.size();
+        size_t input_candidates = 0;
+        for(auto const * lp : groups)
+            input_candidates += lp->size();
 
         int const side = xside ^ first_smoothness_test_side;
 
@@ -640,22 +652,25 @@ find_smooth (std::list<cofac_candidate> & l,
          */
 
         std::vector<cxx_mpz> temp;
-        temp.reserve(l.size());
-        for(auto const & x : l) {
-            cxx_mpz const & c(x.cofactor[side]);
-            /* If a cofactor is marked as zero, it means "not smooth".
-             * This might be the case if the mfb check didn't succeed
-             * after sieving for one of the sides > 0 (hence only in an
-             * MNFS setting)
-             */
-            if (c == 0) continue;
-            temp.push_back(c);
+        for(auto const * lp : groups) {
+            for(auto const & x : *lp) {
+                cxx_mpz const & c(x.cofactor[side]);
+                /* If a cofactor is marked as zero, it means "not smooth".
+                 * This might be the case if the mfb check didn't succeed
+                 * after sieving for one of the sides > 0 (hence only in an
+                 * MNFS setting)
+                 */
+                if (c == 0) continue;
+                temp.push_back(c);
+            }
         }
 
         smoothness_test (temp, batchP[side], out, extra_time);
 
         size_t smooth = 0;
         auto jt = begin(temp);
+        for(auto * lp : groups) {
+        std::list<cofac_candidate> & l(*lp);
         for(auto it = begin(l) ; it != end(l) ; /* it++ within loop */) {
             /* If we read a zero cofactor in the input set, then it did
              * not enter the product tree. Therefore, we must skip it.
@@ -702,6 +717,7 @@ find_smooth (std::list<cofac_candidate> & l,
                 }
             }
         }
+        }
 
         fprintf (out, "# batch (side %d): took %.2fs (%.2fs + %.2fs ; wct %.2fs) to detect %zu smooth relations out of %zu\n",
                 side,
@@ -712,7 +728,24 @@ find_smooth (std::list<cofac_candidate> & l,
                 smooth, input_candidates);
     }
 
-    return l.size();
+    size_t n = 0;
+    for(auto const * lp : groups)
+        n += lp->size();
+    return n;
+}
+
+/* return the number n of smooth relations in l (same as l.size()) */
+size_t
+find_smooth (std::list<cofac_candidate> & l,
+        std::vector<cxx_mpz> const & batchP,
+        std::vector<unsigned int> const & batchlpb,
+        std::vector<unsigned int> const & lpb,
+        std::vector<unsigned int> const & batchmfb,
+        FILE *out,
+        int nthreads MAYBE_UNUSED, double & extra_time)
+{
+    return find_smooth_groups ({ &l }, batchP, batchlpb, lpb, batchmfb,
+            out, nthreads, extra_time);
 }
 
 size_t
@@ -722,17 +755,40 @@ find_smooth (std::list<std::pair<special_q, std::list<cofac_candidate>>> & L,
         std::vector<unsigned int> const & lpb,
         std::vector<unsigned int> const & batchmfb,
         FILE *out,
-        int nthreads MAYBE_UNUSED, double & extra_time)
+        int nthreads MAYBE_UNUSED, double & extra_time,
+        size_t chunk_size)
 {
     size_t n = 0;
     std::list<std::pair<special_q, std::list<cofac_candidate>>> R;
     for( ; !L.empty() ; ) {
-        auto M = std::move(L.front());
-        L.pop_front();
-        const size_t m = find_smooth(M.second, batchP, batchlpb, lpb, batchmfb, out, nthreads, extra_time);
-        n += m;
-        if (m)
-            R.emplace_back(std::move(M));
+        /* Take as many special-q's as chunk_size allows. A single
+         * special-q that is on its own larger than chunk_size is never
+         * split: we always make progress.
+         */
+        std::list<std::pair<special_q, std::list<cofac_candidate>>> C;
+        std::vector<std::list<cofac_candidate> *> groups;
+        for(size_t c = 0 ; !L.empty() ; ) {
+            size_t const sz = L.front().second.size();
+            if (!C.empty() && chunk_size && c + sz > chunk_size)
+                break;
+            c += sz;
+            C.splice(C.end(), L, L.begin());
+            groups.push_back(&C.back().second);
+        }
+
+        find_smooth_groups (groups, batchP, batchlpb, lpb, batchmfb,
+                out, nthreads, extra_time);
+
+        while (!C.empty()) {
+            auto const it = C.begin();
+            size_t const m = it->second.size();
+            if (!m) {
+                C.pop_front();
+                continue;
+            }
+            n += m;
+            R.splice(R.end(), C, it);
+        }
     }
     std::swap(L, R);
     return n;
