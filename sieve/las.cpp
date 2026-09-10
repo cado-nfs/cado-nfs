@@ -1825,6 +1825,15 @@ int main (int argc0, char const * argv0[])/*{{{*/
 
     if (tdict::is_production_mode()) {
         verbose_fmt_print (2, 1, "# Total cpu time {:1.2f}s [remove -production flag for timings]\n", t0);
+    } else if (!tdict::is_enabled()) {
+        /* The fine-grained timers were never armed, so every figure in
+         * the breakdown below would be a zero -- and a printed zero reads
+         * as a measurement. Report only what we actually know: the total,
+         * and the number of bkmult adjustments (that one is counted
+         * regardless of whether timings are on). */
+        verbose_fmt_print (2, 1, "# Total cpu time {:1.2f}s [add -T for a breakdown]\n", t0);
+        verbose_fmt_print (2, 1, "# {} bkmult adjustment(s) [add -T to see what they cost]\n", global_rt.rep.nwaste);
+        verbose_fmt_print (0, 1, "# Cumulated wait time over all threads {:.2f}\n", global_rt.rep.cumulated_wait_time);
     } else {
         verbose_fmt_print (2, 1, "# Wasted cpu time due to {} bkmult adjustments: {:1.2f}\n", global_rt.rep.nwaste, global_rt.rep.waste);
         verbose_fmt_print(0, 1, "# Cumulated wait time over all threads {:.2f}\n", global_rt.rep.cumulated_wait_time);

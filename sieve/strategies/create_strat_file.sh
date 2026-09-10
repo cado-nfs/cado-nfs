@@ -195,7 +195,7 @@ $MAKEFB -poly $poly -lim $lim0 -maxbits $I -out XXXX.roots0 -side 0
 $MAKEFB -poly $poly -lim $lim1 -maxbits $I -out XXXX.roots1 -side 1
 q0=$((4*$lim1))
 q1=$(($q0+1000))
-$LAS -poly $poly -I $I -fb0 XXXX.roots0 -fb1 XXXX.roots1 -lim0 $lim0 -lim1 $lim1 -lpb0 $lpb0 -lpb1 $lpb1 -mfb0 $mfb0 -mfb1 $mfb1 -t 2 -stats-cofact cofactors.stats -q0 $q0 -q1 $q1 -out XXXX.out --adjust-strategy 0
+$LAS -poly $poly -I $I -fb0 XXXX.roots0 -fb1 XXXX.roots1 -lim0 $lim0 -lim1 $lim1 -lpb0 $lpb0 -lpb1 $lpb1 -mfb0 $mfb0 -mfb1 $mfb1 -t 2 -stats-cofact cofactors.stats -q0 $q0 -q1 $q1 -out XXXX.out --adjust-strategy 0 -T
 
 line=`grep "Total cpu time" XXXX.out`
 t0=`echo $line | cut -d " " -f 5 | cut -d s -f 1`
