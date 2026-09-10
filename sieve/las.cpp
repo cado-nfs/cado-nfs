@@ -290,10 +290,15 @@ static size_t expected_memory_usage_per_binding_zone(siever_config const & sc,/*
 static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
         las_info const & las,
         int nthreads,
-        int print)
+        int print,
+        bkmult_specifier const * hypothetical_bkmult = nullptr)
 {
     int const hush = print ? 0 : 3;
-    bkmult_specifier const bkmult = las.get_bk_multiplier();
+    /* The caller may ask what the footprint *would* be under a different
+     * bucket multiplier, so as to price a prospective growth before
+     * committing to it. */
+    bkmult_specifier const bkmult =
+        hypothetical_bkmult ? *hypothetical_bkmult : las.get_bk_multiplier();
 
     /* FIXME: I think that this code misses the case of sublat. */
 
@@ -576,7 +581,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
 
     return memory;
 }/*}}}*/
-static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & sc0, las_info const & las, int nthreads, int print)/*{{{*/
+static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & sc0, las_info const & las, int nthreads, int print, bkmult_specifier const * hypothetical_bkmult = nullptr)/*{{{*/
 {
     /* We're not getting number_of_threads_per_subjob() from las, because
      * this function gets called before the las_parallel_desc layer of
@@ -603,7 +608,7 @@ static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & 
                 "# Expected memory usage per subjob for logI={} [{} threads]:\n",
                 sc.logI, nthreads);
 
-        size_t const memory = expected_memory_usage_per_subjob(sc, las, nthreads, print);
+        size_t const memory = expected_memory_usage_per_subjob(sc, las, nthreads, print, hypothetical_bkmult);
 
         verbose_fmt_print(0, 2 + hush,
                 "# Expected memory usage per subjob for logI={}: {}\n",
@@ -625,7 +630,8 @@ static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & 
 static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
         las_info & las,
         int print,
-        size_t base_memory = 0)
+        size_t base_memory = 0,
+        bkmult_specifier const * hypothetical_bkmult = nullptr)
 {
     /* Contrary to the previous functions which are used very early on in
      * order to decide on the parallel setting, this function can safely
@@ -638,7 +644,7 @@ static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
             "# Expected memory usage per binding zone for the factor base: {}\n",
             size_disp(fb_memory));
 
-    size_t const subjob_memory = expected_memory_usage_per_subjob_worst_logI(sc, las, las.number_of_threads_per_subjob(), print);
+    size_t const subjob_memory = expected_memory_usage_per_subjob_worst_logI(sc, las, las.number_of_threads_per_subjob(), print, hypothetical_bkmult);
 
     size_t memory;
     memory = subjob_memory;
@@ -1275,6 +1281,48 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
                     auto ratio = double_ratio(e.reached_size, e.theoretical_max_size) * 1.05;
                     double new_value = old_value * ratio;
                     double las_value;
+
+                    /* Growing the multiplier grows every bucket array,
+                     * hence the footprint of every subjob -- but the
+                     * subjob placement was decided once, at startup, from
+                     * the multiplier we had then, and is never revisited.
+                     * Left unchecked, a run that keeps adjusting walks
+                     * itself past the machine's RAM and is killed by the
+                     * OOM killer, with the projected figure printed a few
+                     * lines below and nobody looking at it. Price the
+                     * growth first, and decline it if we cannot pay. */
+                    bool affordable = true;
+                    if (las.config_pool.default_config_ptr) {
+                        uint64_t const budget = las.memory_budget();
+                        if (budget) {
+                            bkmult_specifier hypothetical = las.get_bk_multiplier();
+                            double r = ratio;
+                            hypothetical.grow(e.key, r);
+                            size_t const projected = expected_memory_usage(
+                                    las.config_pool.base, las, false,
+                                    base_memory, &hypothetical);
+                            if (projected > budget) {
+                                affordable = false;
+                                verbose_fmt_print(0, 0,
+                                        "# Not growing the {} bucket multiplier past {:.3f}:"
+                                        " doing so would bring the projected memory use to {},"
+                                        " above the {} that this machine can give us.\n"
+                                        "# This special-q is abandoned. Consider"
+                                        " restarting with a larger initial -bkmult, fewer"
+                                        " subjobs, or a smaller -memory-margin.\n",
+                                        bkmult_specifier::printkey(e.key),
+                                        old_value,
+                                        size_disp(projected),
+                                        size_disp(budget));
+                            }
+                        }
+                    }
+
+                    if (!affordable) {
+                        /* Give up on this special-q rather than on the job. */
+                        break;
+                    }
+
                     if (!las.grow_bk_multiplier(e.key, ratio, new_value, las_value)) {
 
                         verbose_fmt_print(0, 1, "# Global {} bucket multiplier has already grown to {:.3f}. Not updating, since this will cover {:.3f}*{}/{}*1.05={:.3f}\n",

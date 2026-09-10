@@ -1,6 +1,7 @@
 #ifndef CADO_LAS_PARALLEL_HPP
 #define CADO_LAS_PARALLEL_HPP
 
+#include <cstdint>
 #include "cado_config.h"
 #include <exception>
 #include <memory>
@@ -52,6 +53,10 @@ public:
 #endif
 
     int number_of_memory_binding_zones() const { return nmemory_binding_zones; }
+    /* Physical RAM usable by this process, i.e. what the automatic job
+     * placement budgeted against (already net of -memory-margin).
+     * Returns 0 if we have no hwloc-based view of the machine. */
+    uint64_t memory_budget() const;
     int number_of_subjobs_per_cpu_binding_zone() const { return nsubjobs_per_cpu_binding_zone; }
     int number_of_threads_per_subjob() const { return nthreads_per_subjob; }
 
