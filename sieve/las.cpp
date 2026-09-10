@@ -1653,7 +1653,8 @@ int main (int argc0, char const * argv0[])/*{{{*/
                     batchP, batchlpb, lpb, batchmfb,
                     main_output->output,
                     las.number_of_threads_loose(),
-                    extra_time);
+                    extra_time,
+                    las.batch_chunk_size);
 
             /* We may go back to our general thread placement at this point.
              * Currently the code below still uses openmp */

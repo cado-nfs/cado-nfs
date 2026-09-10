@@ -176,6 +176,10 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     
     // ----- batch mode
     int batch; /* batch mode for cofactorization */
+    /* how many survivors we are willing to submit to a single
+     * product tree in the batch cofactorization step. 0 means no
+     * limit. See the batch-chunk-size documentation. */
+    size_t batch_chunk_size = 0;
 
     /* the batch_print_survivors holds several variables that are
      * attached to the process of printing the survivors to files. This
