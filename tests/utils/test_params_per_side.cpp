@@ -34,6 +34,7 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
 
     pl.declare_usage("fb", "factor base files per side");
+    pl.declare_usage("batch", "batch limits per side");
     pl.declare_usage("lim", "sieving bounds per side");
 
     pl.process_command_line(argc, argv);
@@ -46,6 +47,16 @@ int main(int argc, char const * argv[])
         if (r) {
             check("fb[0]", v[0], "zero");
             check("fb[1]", v[1], "");
+        }
+    }
+
+    {
+        std::vector<std::string> v;
+        bool const r = pl.parse_per_side("batch", v, 2, std::string(""));
+        check("batch parsed", r ? "yes" : "no", "yes");
+        if (r) {
+            check("batch[0]", v[0], "");
+            check("batch[1]", v[1], "zero");
         }
     }
 
