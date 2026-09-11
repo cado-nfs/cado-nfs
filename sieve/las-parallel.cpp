@@ -921,6 +921,16 @@ las_parallel_desc::las_parallel_desc()
     : help (std::make_shared<helper>())
 {}
 
+uint64_t las_parallel_desc::memory_budget() const
+{
+    if (!help) return 0;
+#ifdef HAVE_HWLOC
+    return help->total_ram();
+#else
+    return 0;
+#endif
+}
+
 las_parallel_desc::las_parallel_desc(cxx_param_list & pl, double jobram_arg)
     : las_parallel_desc()
 {

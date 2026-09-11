@@ -2,6 +2,11 @@
 
 set -ex
 
+# when it fails this script outputs megabytes of OMP displayed stuff
+# (the real fix would be to fix this script to be better-behaved, of
+# course)
+unset OMP_DISPLAY_ENV
+
 : ${CADO_NFS_SOURCE_DIR:?missing}
 : ${CADO_NFS_BINARY_DIR:?missing}
 : ${wdir:?missing}

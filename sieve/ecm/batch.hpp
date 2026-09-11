@@ -56,7 +56,8 @@ find_smooth (std::list<std::pair<special_q, std::list<cofac_candidate>>> & l,
         std::vector<unsigned int> const & lpb,
         std::vector<unsigned int> const & batchmfb,
         FILE *out,
-        int nthreads MAYBE_UNUSED, double & extra_time);
+        int nthreads MAYBE_UNUSED, double & extra_time,
+        size_t chunk_size = 0);
 
 std::list<relation> factor (
         std::list<cofac_candidate> const &,

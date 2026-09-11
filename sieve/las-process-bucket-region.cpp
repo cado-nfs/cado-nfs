@@ -756,14 +756,35 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             /* outside this loop, cur will only go to the cofac_list,
              * and will be processed asynchronously with the call to
              * factor() (from batch.cpp) ; check the recomp_norm flag
-             * there. In fact, *both* norms are recomputed there, so we
-             * don't have to compute them at all here.
+             * there. Since factor() recomputes the norms anyway, we
+             * could in principle leave all of them unset here.
+             *
+             * We must however special-case the sides that have no
+             * factor base at all. On those, sieving is replaced by the
+             * product tree in find_smooth(), and find_smooth() needs an
+             * actual value to feed to the remainder tree: a zero
+             * cofactor is understood as "this one is already known to
+             * be non-smooth", and is skipped. Leaving the norm unset on
+             * such a side would therefore silently turn the whole batch
+             * cofactorization into a no-op, and hand every single
+             * survivor over to the ecm-based factor().
              */
-            for (int side = 0 ; side < nsides ; side++)
-                /* 0 is a special value that is recognized later on in
-                 * batch.cpp
-                 */
-                cur.norm[side] = 0;
+            for (int side = 0 ; side < nsides ; side++) {
+                nfs_work::side_data const& wss(ws.sides[side]);
+
+                CHILD_TIMER_PARAMETRIC(timer, "side ", side, " pre-cofactoring checks");
+                TIMER_CATEGORY(timer, cofactoring(side));
+
+                if (wss.no_fb()) {
+                    SIBLING_TIMER(timer, "recompute complete norm");
+                    wss.lognorms.norm(cur.norm[side], i, j, Q);
+                } else {
+                    /* 0 is a special value that is recognized later on
+                     * in batch.cpp
+                     */
+                    cur.norm[side] = 0;
+                }
+            }
 
             /* We don't even bother with q and its prime factors.
              * We're expecting to recover just everything after the
