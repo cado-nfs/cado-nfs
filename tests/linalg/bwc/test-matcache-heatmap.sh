@@ -111,6 +111,16 @@ check(attributed <= J["total"] * 1.05 + 1e-6,
       "blocks account for %g s, more than the %g s of the whole loop"
       % (attributed, J["total"]))
 
+# The vertical staircase sees every coefficient twice, and the second
+# pass is attributed from the flush batches. If that walk goes wrong the
+# combine time silently vanishes, so insist that it is there.
+dis = J["types"].index("d-dis") if "d-dis" in J["types"] else None
+if dis is not None and any(b[5] == dis for b in J["blocks"]):
+    combine = sum(b[7] for b in J["blocks"])
+    check(combine > 0, "the staircase blocks were given no combine time")
+    check(all(b[7] > 0 for b in J["blocks"] if b[5] == dis and b[4]),
+          "some staircase block was given no combine time")
+
 sys.stderr.write("%s: %d blocks, %d coefficients, %.1f%% of the loop attributed\n"
                  % (out, len(J["blocks"]), ncoeffs, 100.0 * attributed / J["total"]))
 print(ncoeffs)

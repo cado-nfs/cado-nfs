@@ -875,10 +875,13 @@ Two remarks on what the numbers mean.
 
  - Coefficients of the vertical staircase slices (the "vsc" method) are
    seen twice, once by the dispatch pass and once by the combine pass.
-   Only the dispatch pass is timed per block. The combine time is
-   measured for a whole horizontal strip, and spread over the blocks of
-   that strip proportionally to the number of coefficients. The viewer
-   shows the two separately.
+   Only the dispatch pass is timed per block. The combine pass is timed
+   one flush batch at a time -- a contiguous run of vertical strips at
+   one step -- and each batch's time is spread over the blocks it covers,
+   proportionally to the number of coefficients. That is as fine as the
+   instrumentation goes; going finer would mean timing inside the inner
+   loops, which would cost something even when the heat map is not asked
+   for. The viewer shows the two passes separately.
  - The blocks do not account for the whole of the cpu-bound loop: the
    envelope slices carry some overhead of their own, which is reported as
    the difference between the "total" field and the sum over blocks.

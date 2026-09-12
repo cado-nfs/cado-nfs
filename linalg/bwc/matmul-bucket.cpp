@@ -3457,22 +3457,91 @@ static void heatmap_collect_vsc(matmul_bucket<Arith> const * mm,
         }
     }
 
-    /* and finally the row headers, which hold the combine timings */
+    /* then the row headers, which hold the combine time of a whole
+     * horizontal strip */
+    vector<double> row_time(nsteps, 0);
+    vector<uint32_t> row_i0(nsteps, 0);
+    vector<uint64_t> row_ncoeffs(nsteps, 0);
     for(unsigned int l = 0 ; l < nsteps ; l++, hdr++) {
         ASSERT_ALWAYS(hdr != end);
         ASSERT_ALWAYS(hdr->t == SLICE_TYPE_DEFER_ROW);
-        double const t = mm->slice_timings[hdr - begin].t;
-        uint64_t const nc = hdr->ncoeffs;
-        if (!nc) continue;
-        for(unsigned int k = 0 ; k < nvstrips ; k++) {
-            heatmap_block & B(dest[first + k * nsteps + l]);
-            B.combine = t * double(B.ncoeffs) / double(nc);
-        }
+        row_time[l] = mm->slice_timings[hdr - begin].t;
+        row_i0[l] = hdr->i0;
+        row_ncoeffs[l] = hdr->ncoeffs;
     }
 
-    /* the combine operations appear once more, batch by batch, as
-     * DEFER_CMB headers. We have accounted for them already. */
-    for( ; hdr != end && hdr->t == SLICE_TYPE_DEFER_CMB ; hdr++);
+    /* and finally the same combine operations once more, one header per
+     * flush batch: a contiguous run of vertical strips at one step. Those
+     * are timed one by one, which says more than the row header does.
+     *
+     * We take the shape from them but keep the row total, because the
+     * batch timers are only fed when the product runs in the direction
+     * the cache was built for, while the row timers are fed in both (see
+     * matmul_bucket_mul_vsc). In the direction that bwc actually uses
+     * the two agree, and we gain the per-batch detail; in the other one
+     * we lose nothing.
+     */
+    struct flush_batch {
+        unsigned int l;         /* which step */
+        unsigned int k0, k1;    /* the strips it covers */
+        uint64_t ncoeffs;
+        double t;
+    };
+    vector<flush_batch> batches;
+    vector<double> batch_total(nsteps, 0);
+
+    for( ; hdr != end && hdr->t == SLICE_TYPE_DEFER_CMB ; hdr++) {
+        flush_batch b;
+        /* the row range tells which step this batch belongs to */
+        for(b.l = 0 ; b.l < nsteps ; b.l++)
+            if (row_i0[b.l] == hdr->i0) break;
+        ASSERT_ALWAYS(b.l < nsteps);
+        /* a batch is a union of whole strips */
+        b.k0 = nvstrips;
+        b.k1 = 0;
+        for(unsigned int k = 0 ; k < nvstrips ; k++) {
+            heatmap_block const & B(dest[first + k * nsteps + b.l]);
+            if (B.j0 < hdr->j0 || B.j1 > hdr->j1) continue;
+            if (k < b.k0) b.k0 = k;
+            b.k1 = k + 1;
+        }
+        ASSERT_ALWAYS(b.k0 < b.k1);
+        b.ncoeffs = hdr->ncoeffs;
+        b.t = mm->slice_timings[hdr - begin].t;
+        batch_total[b.l] += b.t;
+        batches.push_back(b);
+    }
+
+    /* a step with no batch of its own keeps the old uniform treatment */
+    for(unsigned int l = 0 ; l < nsteps ; l++) {
+        if (std::any_of(batches.begin(), batches.end(),
+                    [l](flush_batch const & b) { return b.l == l; }))
+            continue;
+        batches.push_back({ l, 0, nvstrips, row_ncoeffs[l], 0 });
+    }
+
+    for(auto const & b : batches) {
+        /* the share of the step's combine time that this batch took */
+        double w;
+        if (batch_total[b.l] > 0) {
+            w = b.t / batch_total[b.l];
+        } else if (row_ncoeffs[b.l]) {
+            w = double(b.ncoeffs) / double(row_ncoeffs[b.l]);
+        } else {
+            continue;
+        }
+        double const t = row_time[b.l] * w;
+
+        /* and how that share splits over the strips of the batch */
+        uint64_t nc = 0;
+        for(unsigned int k = b.k0 ; k < b.k1 ; k++)
+            nc += dest[first + k * nsteps + b.l].ncoeffs;
+        if (!nc) continue;
+        for(unsigned int k = b.k0 ; k < b.k1 ; k++) {
+            heatmap_block & B(dest[first + k * nsteps + b.l]);
+            B.combine += t * double(B.ncoeffs) / double(nc);
+        }
+    }
 
     /* leave the iterator on the last header we consumed, the caller
      * increments it */
