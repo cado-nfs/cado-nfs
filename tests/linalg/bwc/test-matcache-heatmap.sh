@@ -266,4 +266,33 @@ ENDOFPYTHON
     echo "collected heatmap ok"
 fi
 
+# The name of the file decides whether it is compressed. Check that the
+# suffix survives the decoration with the name of the local matrix, and
+# that what comes out is really compressed and really our json.
+if type -p zstd > /dev/null ; then
+    rm -f $wdir/mat.bin-bucket.bin
+    $bindir/linalg/bwc/bench_matcache -r --nmax $niter --nchecks 0 \
+        -impl bucket -mm_bucket_heatmap $wdir/z.json.zst \
+        $wdir/mat.bin > $wdir/bench.zst.out 2>&1
+
+    out=$wdir/z.mat.bin.json.zst
+    if ! [ -f "$out" ] ; then
+        echo "$out was not created; the compression suffix must stay last" >&2
+        cat $wdir/bench.zst.out >&2
+        exit 1
+    fi
+    if ! zstd -t "$out" 2> /dev/null ; then
+        echo "$out is not zstd-compressed" >&2
+        exit 1
+    fi
+    zstd -dc "$out" > $wdir/z.json
+    ncoeffs=$("$python" $wdir/check.py $wdir/z.json $N $M $niter)
+    if [ "$ncoeffs" != "$reference" ] ; then
+        echo "the compressed heat map holds $ncoeffs coefficients," \
+             "expected $reference" >&2
+        exit 1
+    fi
+    echo "compressed heatmap ok"
+fi
+
 echo "matcache heatmap ok ($reference coefficients)"

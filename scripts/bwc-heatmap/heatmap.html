@@ -249,20 +249,48 @@ const subSection = document.getElementById("sub-section");
 /* ---------------------------------------------------------------- */
 /* loading                                                          */
 
+/* Lazy-loaded Zstandard decoder (@hpcc-js/wasm-zstd), for the browsers
+ * whose DecompressionStream does not know about zstd. Fetched only when
+ * a .zst file is actually dropped on the page, and only once. This is
+ * the same fallback as the chronogram viewer's. */
+let zstdWasmInstance = null;
+
+async function getZstd() {
+  if (!zstdWasmInstance) {
+    const { Zstd } = await import("https://cdn.jsdelivr.net/npm/@hpcc-js/wasm-zstd/+esm");
+    zstdWasmInstance = await Zstd.load();
+  }
+  return zstdWasmInstance;
+}
+
+/* bwc writes whatever the name of the file says: heat.json, heat.json.gz
+ * and heat.json.zst all come out of the same parameter. Read them all. */
 async function decompressAndRead(file) {
   const arrayBuffer = await file.arrayBuffer();
   const fileName = file.name.toLowerCase();
 
-  if (fileName.endsWith(".gz")) {
+  if (fileName.endsWith(".gz") || fileName.endsWith(".gzip")) {
     const blob = new Blob([arrayBuffer]);
     const stream = blob.stream().pipeThrough(new DecompressionStream("gzip"));
     return await new Response(stream).text();
   }
+
   if (fileName.endsWith(".zst") || fileName.endsWith(".zstd")) {
-    const blob = new Blob([arrayBuffer]);
-    const stream = blob.stream().pipeThrough(new DecompressionStream("zstd"));
-    return await new Response(stream).text();
+    try {
+      if (typeof DecompressionStream !== "undefined") {
+        const blob = new Blob([arrayBuffer]);
+        const stream = blob.stream().pipeThrough(new DecompressionStream("zstd"));
+        return await new Response(stream).text();
+      }
+    } catch (e) {
+      /* fall through to the wasm decoder */
+    }
+
+    const zstd = await getZstd();
+    return new TextDecoder("utf-8").decode(
+        zstd.decompress(new Uint8Array(arrayBuffer)));
   }
+
   return new TextDecoder("utf-8").decode(arrayBuffer);
 }
 

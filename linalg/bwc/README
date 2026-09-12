@@ -842,6 +842,10 @@ Open the file with scripts/bwc-heatmap/heatmap.html (drag and drop). The
 page colours each block by its cost per coefficient, and a rectangle can
 be dragged over the picture to get the aggregated cost of a region.
 
+The name of the file decides whether it is compressed, as elsewhere in
+cado-nfs: heat.json, heat.json.gz and heat.json.zst all come out of the
+same parameter, and the viewer reads all three.
+
 The cheapest way to look at one matrix is with bench_matcache, which
 needs no bwc run around it:
 
