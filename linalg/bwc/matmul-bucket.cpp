@@ -2087,6 +2087,12 @@ void matmul_bucket<Arith>::build_cache(matrix_u32 && m)
 {
     builder<Arith> mb(this, std::move(m));
 
+    /* the push_*_slice routines below add up the coefficients they see,
+     * so we must not start from whatever the caller may have put there
+     * (build_matcache and bench_matcache do set it from the matrix
+     * file). matmul-zone does the same. */
+    ncoeffs = 0;
+
     verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
             "%u rows %u cols\n", dim[0], dim[1]);
 
