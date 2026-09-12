@@ -116,7 +116,8 @@
         <option value="total" selected="selected">ns per coefficient (total)</option>
         <option value="dispatch">ns per coefficient (first pass)</option>
         <option value="combine">ns per coefficient (second pass)</option>
-        <option value="share">share of the total time</option>
+        <option value="share">share of the time</option>
+        <option value="submatrix">time of the whole submatrix</option>
         <option value="density">log2 of the block density</option>
       </select>
 
@@ -171,6 +172,10 @@
         <table class="blocks" id="type-table"><tbody></tbody></table>
         <h4 style="margin-top:10px;">Slowest blocks</h4>
         <table class="blocks" id="top-table"><tbody></tbody></table>
+        <div id="sub-section" hidden="hidden">
+          <h4 style="margin-top:10px;">Submatrices, slowest first</h4>
+          <table class="blocks" id="sub-table"><tbody></tbody></table>
+        </div>
       </div>
     </div>
   </div>
@@ -233,6 +238,8 @@ const colorbarTicks = document.getElementById("colorbar-ticks");
 const colorbarLabel = document.getElementById("colorbar-label");
 const typeTable = document.getElementById("type-table").tBodies[0];
 const topTable = document.getElementById("top-table").tBodies[0];
+const subTable = document.getElementById("sub-table").tBodies[0];
+const subSection = document.getElementById("sub-section");
 
 /* ---------------------------------------------------------------- */
 /* loading                                                          */
@@ -284,13 +291,24 @@ function loadJSON(text) {
     };
   });
 
+  /* The submatrices are dealt with at the same time, by one thread each,
+   * so their times do not add up to anything one waits for. Keep them
+   * apart: within one submatrix a share of the time means something,
+   * across several it does not. */
   SUBTOTALS = new Map();
   if (SUBGRID) {
     for (const b of BLOCKS) {
-      const k = Math.floor(b.i0 / SUBGRID.nrows) + "."
-              + Math.floor(b.j0 / SUBGRID.ncols);
-      SUBTOTALS.set(k, (SUBTOTALS.get(k) || 0) + b.time);
+      const k = submatrixKey(b.i0, b.j0);
+      const e = SUBTOTALS.get(k)
+        || { h: Math.floor(b.i0 / SUBGRID.nrows),
+             v: Math.floor(b.j0 / SUBGRID.ncols),
+             time: 0, ncoeffs: 0, nblocks: 0 };
+      e.time += b.time;
+      e.ncoeffs += b.ncoeffs;
+      e.nblocks++;
+      SUBTOTALS.set(k, e);
     }
+    for (const b of BLOCKS) b.sub = SUBTOTALS.get(submatrixKey(b.i0, b.j0));
   }
 
   view = { r0: 0, r1: J.nrows, c0: 0, c1: J.ncols };
@@ -299,24 +317,37 @@ function loadJSON(text) {
   const niter = (J.iterations[0] || 0) + (J.iterations[1] || 0);
   let meta =
     `${J.matrix || "(unnamed matrix)"} — ${fmtInt(J.nrows)} rows × ${fmtInt(J.ncols)} cols, `
-    + `${fmtInt(J.ncoeffs)} coefficients in ${fmtInt(BLOCKS.length)} blocks — `
-    + `${niter} iterations, ${(J.total * 1e3).toFixed(2)} ms/iter for the whole loop `
-    + `(${fmtNs(J.total * 1e9 / J.ncoeffs)} ns/coeff), of which `
-    + `${(TOTAL_TIME * 1e3).toFixed(2)} ms is attributed to blocks.`;
+    + `${fmtInt(J.ncoeffs)} coefficients in ${fmtInt(BLOCKS.length)} blocks, `
+    + `${niter} iterations. `;
   if (SUBGRID) {
-    const nsub = SUBGRID.nh * SUBGRID.nv;
-    meta += ` Collected from ${SUBGRID.nh}×${SUBGRID.nv} submatrices of `
-      + `${fmtInt(SUBGRID.nrows)}×${fmtInt(SUBGRID.ncols)}`;
-    /* the product waits for the slowest of them, so the gap between the
-     * mean and the max is the load imbalance */
-    if (J.total_max) {
-      const imbalance = 100 * (J.total_max - J.total / nsub) / (J.total / nsub);
-      meta += `; the busiest took ${(J.total_max * 1e3).toFixed(2)} ms/iter, `
-        + `${imbalance.toFixed(0)}% above the average`;
-    }
-    meta += ".";
+    /* The submatrices run side by side, so what one waits for is the
+     * slowest of them, not the sum. Say that, and keep the sum for what
+     * it is: processor time, not time. */
+    const subs = [...SUBTOTALS.values()];
+    const mean = subs.reduce((s, e) => s + e.time, 0) / subs.length;
+    const slowest = Math.max(...subs.map(e => e.time));
+    meta += `${SUBGRID.nh}×${SUBGRID.nv} submatrices of `
+      + `${fmtInt(SUBGRID.nrows)}×${fmtInt(SUBGRID.ncols)}, dealt with at the `
+      + `same time: an iteration waits for the slowest of them, `
+      + `${(J.total_max * 1e3).toFixed(2)} ms of loop. By the time that the `
+      + `blocks account for, the busiest submatrix is `
+      + `${((slowest / mean - 1) * 100).toFixed(0)}% above the average. `
+      + `Summed over the grid that is `
+      + `${(J.total * 1e3).toFixed(2)} ms of processor time per iteration, `
+      + `${fmtNs(J.total * 1e9 / J.ncoeffs)} ns/coeff — not something one `
+      + `waits for.`;
+  } else {
+    meta += `${(J.total * 1e3).toFixed(2)} ms/iter for the whole loop `
+      + `(${fmtNs(J.total * 1e9 / J.ncoeffs)} ns/coeff), of which `
+      + `${(TOTAL_TIME * 1e3).toFixed(2)} ms is attributed to blocks.`;
   }
   metaElement.textContent = meta;
+
+  /* nothing to say about the grid when the file describes one piece */
+  const subOption = metricSelect.querySelector('option[value="submatrix"]');
+  subOption.hidden = !SUBGRID;
+  subOption.disabled = !SUBGRID;
+  if (!SUBGRID && metric === "submatrix") metric = metricSelect.value = "total";
 
   autoRange = true;
   recomputeRange();
@@ -334,7 +365,16 @@ function valueOf(b) {
     case "total":    return b.ncoeffs ? b.time * 1e9 / b.ncoeffs : NaN;
     case "dispatch": return b.ncoeffs ? b.dispatch * 1e9 / b.ncoeffs : NaN;
     case "combine":  return b.ncoeffs ? b.combine * 1e9 / b.ncoeffs : NaN;
-    case "share":    return TOTAL_TIME ? 100 * b.time / TOTAL_TIME : NaN;
+    case "share": {
+      /* of its own submatrix, since the submatrices are dealt with at
+       * the same time and their times do not add up to a wait */
+      const d = b.sub ? b.sub.time : TOTAL_TIME;
+      return d ? 100 * b.time / d : NaN;
+    }
+    case "submatrix":
+      /* every block of a submatrix takes its colour, so that the fast
+       * and the slow pieces of the grid stand out */
+      return b.sub ? b.sub.time * 1e3 : NaN;
     case "density":
       if (!b.ncoeffs) return NaN;
       return Math.log2(b.ncoeffs / ((b.i1 - b.i0) * (b.j1 - b.j0)));
@@ -344,7 +384,8 @@ function valueOf(b) {
 
 function metricUnit() {
   switch (metric) {
-    case "share": return "%";
+    case "share": return SUBGRID ? "% of submatrix" : "%";
+    case "submatrix": return "ms/iter";
     case "density": return "log2";
     default: return "ns/coeff";
   }
@@ -622,16 +663,55 @@ function rebuildTables() {
   }
 
   topTable.innerHTML = "";
-  addRow(topTable, ["rows", "cols", "coeffs", "ns/c", "%"], true);
+  addRow(topTable, ["rows", "cols", "coeffs", "ns/c",
+      SUBGRID ? "% sub" : "%"], true);
   const top = [...BLOCKS].sort((a, b) => b.time - a.time).slice(0, 15);
   for (const b of top) {
+    /* a share of the whole would mix submatrices that run side by side */
+    const d = b.sub ? b.sub.time : TOTAL_TIME;
     addRow(topTable, [
       `${fmtShort(b.i0)} + ${fmtShort(b.i1 - b.i0)}`,
       `${fmtShort(b.j0)} + ${fmtShort(b.j1 - b.j0)}`,
       fmtShort(b.ncoeffs),
       b.ncoeffs ? fmtNs(b.time * 1e9 / b.ncoeffs) : "-",
-      TOTAL_TIME ? (100 * b.time / TOTAL_TIME).toFixed(1) : "-"
+      d ? (100 * b.time / d).toFixed(1) : "-"
     ], false, true);
+  }
+
+  rebuildSubmatrixTable();
+}
+
+/* Which pieces of the grid are the fast ones and which are the slow
+ * ones. An iteration waits for the slowest, so this is where a matrix
+ * that is badly balanced shows itself. */
+function rebuildSubmatrixTable() {
+  subTable.innerHTML = "";
+  subSection.hidden = !SUBGRID;
+  if (!SUBGRID) return;
+
+  const subs = [...SUBTOTALS.values()].sort((a, b) => b.time - a.time);
+  const mean = subs.reduce((s, e) => s + e.time, 0) / subs.length;
+
+  addRow(subTable, ["submatrix", "coeffs", "ms/iter", "ns/c", "vs avg"], true);
+
+  /* with a big grid, only the ends of the range are worth the room */
+  const show = subs.length <= 12
+    ? subs.map((e, k) => ({ e, k }))
+    : [...subs.slice(0, 5).map((e, k) => ({ e, k })),
+       null,
+       ...subs.slice(-3).map((e, k) => ({ e, k: subs.length - 3 + k }))];
+
+  for (const row of show) {
+    if (!row) { addRow(subTable, ["…", "", "", "", ""]); continue; }
+    const e = row.e;
+    const rel = mean ? (e.time / mean - 1) * 100 : 0;
+    addRow(subTable, [
+      `h${e.h}.v${e.v}`,
+      fmtShort(e.ncoeffs),
+      (e.time * 1e3).toFixed(3),
+      e.ncoeffs ? fmtNs(e.time * 1e9 / e.ncoeffs) : "-",
+      (rel >= 0 ? "+" : "") + rel.toFixed(1) + "%"
+    ], false, row.k === 0);
   }
 }
 
@@ -661,6 +741,7 @@ function blockAt(i, j) {
  * are spread evenly over its area. */
 function aggregate(sel) {
   let ncoeffs = 0, time = 0, dispatch = 0, combine = 0, nblocks = 0, npartial = 0;
+  const subs = new Set();
   for (const b of BLOCKS) {
     const or_ = Math.min(sel.r1, b.i1) - Math.max(sel.r0, b.i0);
     const oc = Math.min(sel.c1, b.j1) - Math.max(sel.c0, b.j0);
@@ -668,12 +749,14 @@ function aggregate(sel) {
     const f = (or_ / (b.i1 - b.i0)) * (oc / (b.j1 - b.j0));
     nblocks++;
     if (f < 0.999) npartial++;
+    if (b.sub) subs.add(b.sub);
     ncoeffs += f * b.ncoeffs;
     dispatch += f * b.dispatch;
     combine += f * b.combine;
     time += f * b.time;
   }
-  return { ncoeffs, time, dispatch, combine, nblocks, npartial };
+  return { ncoeffs, time, dispatch, combine, nblocks, npartial,
+           nsub: subs.size };
 }
 
 /* The submatrix a selection sits in, or null when it straddles several.
@@ -685,7 +768,21 @@ function enclosingSubmatrix(sel) {
   const v = Math.floor(sel.c0 / SUBGRID.ncols);
   if (Math.floor((sel.r1 - 1) / SUBGRID.nrows) !== h) return null;
   if (Math.floor((sel.c1 - 1) / SUBGRID.ncols) !== v) return null;
-  return { h, v, time: SUBTOTALS.get(h + "." + v) || 0 };
+  return SUBTOTALS.get(h + "." + v) || null;
+}
+
+/* What a time is a share of. Inside one submatrix, of that submatrix,
+ * since one thread does all of it in sequence. Across several there is
+ * no denominator worth printing: the submatrices are dealt with at the
+ * same time, so their times do not add up to a wait. Without a grid, the
+ * file describes a single piece of work and the whole of it will do. */
+function shareOf(time, sub) {
+  if (SUBGRID) {
+    if (!sub || !sub.time) return "";
+    return ` = ${(100 * time / sub.time).toFixed(1)}% of h${sub.h}.v${sub.v}`;
+  }
+  if (!TOTAL_TIME) return "";
+  return ` = ${(100 * time / TOTAL_TIME).toFixed(1)}% of the attributed time`;
 }
 
 function describeSelection(sel) {
@@ -697,14 +794,12 @@ function describeSelection(sel) {
     `rows ${fmtInt(sel.r0)} + ${fmtInt(nr)}   cols ${fmtInt(sel.c0)} + ${fmtInt(nc)}`
     + (sub ? ` [h${sub.h}.v${sub.v}]` : "")
     + `   (${area.toFixed(2)}% of the matrix, ${a.nblocks} blocks`
-    + (a.npartial ? `, ${a.npartial} partly` : "") + ")",
+    + (a.npartial ? `, ${a.npartial} partly` : "")
+    + (SUBGRID && !sub ? `, over ${a.nsub} submatrices` : "") + ")",
     `${fmtInt(Math.round(a.ncoeffs))} coefficients (log2 density `
     + `${a.ncoeffs ? Math.log2(a.ncoeffs / (nr * nc)).toFixed(2) : "-"}) — `
-    + `${(a.time * 1e3).toFixed(3)} ms/iter = `
-    + `${TOTAL_TIME ? (100 * a.time / TOTAL_TIME).toFixed(1) : "-"}% of the attributed time`
-    + (sub && sub.time
-        ? ` (${(100 * a.time / sub.time).toFixed(1)}% of its own submatrix)`
-        : "")
+    + `${(a.time * 1e3).toFixed(3)} ms/iter`
+    + shareOf(a.time, sub)
     + ` — ${a.ncoeffs ? fmtNs(a.time * 1e9 / a.ncoeffs) : "-"} ns/coeff`
     + (a.combine > 0
         ? ` (${fmtNs(a.dispatch * 1e9 / a.ncoeffs)} + ${fmtNs(a.combine * 1e9 / a.ncoeffs)})`
@@ -714,11 +809,14 @@ function describeSelection(sel) {
 }
 
 /* which piece of the mpi/thread grid a point belongs to */
-function submatrixOf(i, j) {
-  if (!SUBGRID) return "";
+function submatrixKey(i, j) {
   const h = Math.min(SUBGRID.nh - 1, Math.floor(i / SUBGRID.nrows));
   const v = Math.min(SUBGRID.nv - 1, Math.floor(j / SUBGRID.ncols));
-  return ` [h${h}.v${v}]`;
+  return h + "." + v;
+}
+
+function submatrixOf(i, j) {
+  return SUBGRID ? ` [h${submatrixKey(i, j).replace(".", ".v")}]` : "";
 }
 
 function describeBlock(b) {
@@ -727,8 +825,9 @@ function describeBlock(b) {
     + `rows ${fmtInt(b.i0)} + ${fmtInt(nr)}   cols ${fmtInt(b.j0)} + ${fmtInt(nc)}\n`
     + `${fmtInt(b.ncoeffs)} coefficients (log2 density `
     + `${b.ncoeffs ? Math.log2(b.ncoeffs / (nr * nc)).toFixed(2) : "-"}) — `
-    + `${(b.time * 1e3).toFixed(3)} ms/iter = `
-    + `${TOTAL_TIME ? (100 * b.time / TOTAL_TIME).toFixed(1) : "-"}% of the attributed time — `
+    + `${(b.time * 1e3).toFixed(3)} ms/iter`
+    + shareOf(b.time, b.sub)
+    + ` — `
     + `${b.ncoeffs ? fmtNs(b.time * 1e9 / b.ncoeffs) : "-"} ns/coeff`
     + (b.combine > 0
         ? ` (${fmtNs(b.dispatch * 1e9 / b.ncoeffs)} first pass + ${fmtNs(b.combine * 1e9 / b.ncoeffs)} second pass)`
