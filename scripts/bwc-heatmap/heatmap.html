@@ -80,6 +80,8 @@
   table.blocks th { color: #52514e; font-weight: 600; text-align: right; }
   table.blocks td.name, table.blocks th.name { text-align: left; }
   table.blocks tr.hot td { background: #f2f7fe; }
+  table.blocks tr.pickable { cursor: crosshair; }
+  table.blocks tr.pickable:hover td { background: #dfeafb; }
 
   #colorbar-wrap { display: flex; align-items: center; gap: 6px; margin: 6px 0; font-size: 11px; color: #52514e; }
   #colorbar-scale { width: 100%; max-width: 420px; }
@@ -194,6 +196,7 @@ const RAMP = [
 const EMPTY_COLOR = "#f0efec";   /* a block with no coefficient at all */
 const SURFACE = "#fcfcfb";
 const PAST_EDGE = "#f0efec";   /* beyond the edge of the matrix */
+const WASH = "rgba(252,252,251,0.74)";  /* over what is not being pointed at */
 const GRID = "#e1e0d9";
 const AXIS = "#c3c2b7";
 const MUTED = "#898781";
@@ -223,6 +226,8 @@ let selection = null;
 let drag = null;
 /* the block under the cursor, or null */
 let hovered = null;
+/* the row of a side table being pointed at, or null */
+let focus = null;
 
 const canvas = document.getElementById("viewport-canvas");
 const ctx = canvas.getContext("2d");
@@ -529,13 +534,40 @@ function draw() {
       colToX(DATA.ncols, R) - colToX(0, R),
       rowToY(DATA.nrows, R) - rowToY(0, R));
 
-  for (const b of BLOCKS) {
+  const paint = b => {
     const x0 = colToX(b.j0, R), x1 = colToX(b.j1, R);
     const y0 = rowToY(b.i0, R), y1 = rowToY(b.i1, R);
-    if (x1 < R.x || x0 > R.x + R.w || y1 < R.y || y0 > R.y + R.h) continue;
+    if (x1 < R.x || x0 > R.x + R.w || y1 < R.y || y0 > R.y + R.h) return;
     ctx.fillStyle = b.ncoeffs ? rampColor(normalize(valueOf(b))) : EMPTY_COLOR;
     /* never let a block vanish: a sub-pixel block still gets one pixel */
     ctx.fillRect(x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0));
+  };
+
+  for (const b of BLOCKS) paint(b);
+
+  /* what a row of the side tables is pointing at */
+  if (focus) {
+    ctx.fillStyle = WASH;
+    ctx.fillRect(R.x, R.y, R.w, R.h);
+    for (const b of focus.blocks) paint(b);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1;
+    if (focus.rect) {
+      const x0 = colToX(focus.rect.c0, R), x1 = colToX(focus.rect.c1, R);
+      const y0 = rowToY(focus.rect.r0, R), y1 = rowToY(focus.rect.r1, R);
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    } else if (focus.blocks.length <= 40) {
+      /* past a few dozen, the outlines are a thicket and the blocks
+       * standing out of the wash say it well enough on their own */
+      for (const b of focus.blocks) {
+        const x0 = colToX(b.j0, R), x1 = colToX(b.j1, R);
+        const y0 = rowToY(b.i0, R), y1 = rowToY(b.i1, R);
+        if (x1 < R.x || x0 > R.x + R.w || y1 < R.y || y0 > R.y + R.h) continue;
+        ctx.strokeRect(x0 + 0.5, y0 + 0.5,
+            Math.max(1, x1 - x0) - 1, Math.max(1, y1 - y0) - 1);
+      }
+    }
   }
 
   /* the boundaries between the submatrices of the grid: the vectors are
@@ -654,12 +686,22 @@ function rebuildTables() {
     perType.set(b.name, e);
   }
   typeTable.innerHTML = "";
-  addRow(typeTable, ["kind", "blocks", "coeffs", "ms/iter", "ns/c"], true);
+  addRow(typeTable, ["kind", "blocks", "coeffs",
+      SUBGRID ? "ms cpu" : "ms/iter", "ns/c"], true);
   const rows = [...perType.entries()].sort((a, b) => b[1].time - a[1].time);
   for (const [name, e] of rows) {
-    addRow(typeTable, [name, fmtShort(e.n), fmtShort(e.ncoeffs),
+    const tr = addRow(typeTable, [name, fmtShort(e.n), fmtShort(e.ncoeffs),
       (e.time * 1e3).toFixed(3),
       e.ncoeffs ? fmtNs(e.time * 1e9 / e.ncoeffs) : "-"]);
+    pickable(tr, () => ({
+      blocks: BLOCKS.filter(b => b.name === name),
+      rect: null,
+      describe: `${name} — ${fmtInt(e.n)} blocks, `
+        + `${fmtInt(e.ncoeffs)} coefficients\n`
+        + `${(e.time * 1e3).toFixed(3)} ms/iter`
+        + (SUBGRID ? " summed over the grid" : "")
+        + ` — ${e.ncoeffs ? fmtNs(e.time * 1e9 / e.ncoeffs) : "-"} ns/coeff`
+    }));
   }
 
   topTable.innerHTML = "";
@@ -669,13 +711,16 @@ function rebuildTables() {
   for (const b of top) {
     /* a share of the whole would mix submatrices that run side by side */
     const d = b.sub ? b.sub.time : TOTAL_TIME;
-    addRow(topTable, [
+    const tr = addRow(topTable, [
       `${fmtShort(b.i0)} + ${fmtShort(b.i1 - b.i0)}`,
       `${fmtShort(b.j0)} + ${fmtShort(b.j1 - b.j0)}`,
       fmtShort(b.ncoeffs),
       b.ncoeffs ? fmtNs(b.time * 1e9 / b.ncoeffs) : "-",
       d ? (100 * b.time / d).toFixed(1) : "-"
     ], false, true);
+    pickable(tr, () => ({
+      blocks: [b], rect: null, describe: describeBlock(b)
+    }));
   }
 
   rebuildSubmatrixTable();
@@ -705,13 +750,23 @@ function rebuildSubmatrixTable() {
     if (!row) { addRow(subTable, ["…", "", "", "", ""]); continue; }
     const e = row.e;
     const rel = mean ? (e.time / mean - 1) * 100 : 0;
-    addRow(subTable, [
+    const tr = addRow(subTable, [
       `h${e.h}.v${e.v}`,
       fmtShort(e.ncoeffs),
       (e.time * 1e3).toFixed(3),
       e.ncoeffs ? fmtNs(e.time * 1e9 / e.ncoeffs) : "-",
       (rel >= 0 ? "+" : "") + rel.toFixed(1) + "%"
     ], false, row.k === 0);
+    pickable(tr, () => ({
+      blocks: BLOCKS.filter(b => b.sub === e),
+      rect: { r0: e.h * SUBGRID.nrows, r1: (e.h + 1) * SUBGRID.nrows,
+              c0: e.v * SUBGRID.ncols, c1: (e.v + 1) * SUBGRID.ncols },
+      describe: `submatrix h${e.h}.v${e.v} — ${fmtInt(e.nblocks)} blocks, `
+        + `${fmtInt(e.ncoeffs)} coefficients\n`
+        + `${(e.time * 1e3).toFixed(3)} ms/iter, `
+        + `${(rel >= 0 ? "+" : "") + rel.toFixed(1)}% against the average `
+        + `submatrix — ${e.ncoeffs ? fmtNs(e.time * 1e9 / e.ncoeffs) : "-"} ns/coeff`
+    }));
   }
 }
 
@@ -725,6 +780,16 @@ function addRow(tbody, cells, header, hot) {
     tr.appendChild(td);
   });
   tbody.appendChild(tr);
+  return tr;
+}
+
+/* Pointing at a row of the side tables shows, on the picture, what the
+ * row is talking about: the rest is washed out and the blocks concerned
+ * are outlined. */
+function pickable(tr, make) {
+  tr.classList.add("pickable");
+  tr.addEventListener("mouseenter", () => { focus = make(); setInfo(); draw(); });
+  tr.addEventListener("mouseleave", () => { focus = null; setInfo(); draw(); });
 }
 
 /* ---------------------------------------------------------------- */
@@ -860,8 +925,9 @@ function setInfo() {
   const sel = selection
     ? twoLines("selection  ", describeSelection(selection))
     : NO_SELECTION;
-  const cur = hovered ? twoLines("cursor     ", describeBlock(hovered))
-                      : NO_CURSOR;
+  const cur = focus ? twoLines("pointed at ", focus.describe)
+    : hovered ? twoLines("cursor     ", describeBlock(hovered))
+    : NO_CURSOR;
   infoElement.textContent = "";
   infoElement.appendChild(document.createTextNode(sel + "\n"));
   const span = document.createElement("span");
