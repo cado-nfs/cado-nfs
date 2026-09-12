@@ -43,13 +43,21 @@
   .legend-item { display: inline-flex; align-items: center; font-size: 11px; color: #444; }
   .color-box { width: 10px; height: 10px; display: inline-block; margin-right: 4px; border: 1px solid rgba(0,0,0,0.15); }
 
-  /* Information Box guaranteed 2-lines tall to prevent layout jitter */
+  /* Information Box: two lines for the selection, which stays until it
+   * is cleared, and two for whatever the cursor is over. The height is
+   * fixed rather than a minimum, so that nothing below it ever moves as
+   * the mouse travels: a message that wraps past its two lines would
+   * make the box grow otherwise. In a window narrow enough for that to
+   * happen, the box scrolls instead. The padding is part of the height,
+   * since the box sizes itself border-box. */
   #information {
     padding: 6px 10px; background: #1e1e1e; color: #00ff66;
     font-family: SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.4;
-    border-radius: 3px; min-height: 2.8em; white-space: pre-wrap; word-break: break-word;
+    border-radius: 3px; height: calc(4 * 1.4em + 12px); overflow-y: auto;
+    white-space: pre-wrap; word-break: break-word;
     box-sizing: border-box;
   }
+  #information .cursor-part { color: #9fe8b5; }
 
   /* Viewport & Native Scrollbar Container Layout */
   .viewport-layout { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
@@ -123,6 +131,9 @@
       <button id="auto-range-btn" style="cursor:pointer; font-size:11px;">Auto</button>
 
       <span style="color:#ccc;">|</span>
+      <label><input type="checkbox" id="square-aspect" checked="checked" /> square cells</label>
+
+      <span style="color:#ccc;">|</span>
       <button id="zoom-sel-btn" style="cursor:pointer; font-size:11px;">Zoom to selection</button>
       <button id="reset-view-btn" style="cursor:pointer; font-size:11px;">Reset zoom</button>
 
@@ -130,7 +141,11 @@
       <span style="font-size: 11px; color: #666;">
         <strong>Drag:</strong> select a region
         &nbsp;•&nbsp;
-        <strong>Click:</strong> clear the selection
+        <strong>Click:</strong> clear it
+        &nbsp;•&nbsp;
+        <strong>Scroll / Shift:</strong> pan
+        &nbsp;•&nbsp;
+        <strong>Ctrl+Scroll:</strong> zoom
       </span>
     </div>
 
@@ -173,6 +188,7 @@ const RAMP = [
 ];
 const EMPTY_COLOR = "#f0efec";   /* a block with no coefficient at all */
 const SURFACE = "#fcfcfb";
+const PAST_EDGE = "#f0efec";   /* beyond the edge of the matrix */
 const GRID = "#e1e0d9";
 const AXIS = "#c3c2b7";
 const MUTED = "#898781";
@@ -185,9 +201,12 @@ let BLOCKS = [];        /* decorated copy of DATA.blocks */
 let TOTAL_TIME = 0;     /* sum over blocks of dispatch+combine */
 /* set when the file was collected from a whole mpi/thread grid */
 let SUBGRID = null;
+/* per-submatrix attributed time, keyed "h.v" */
+let SUBTOTALS = new Map();
 
 let metric = "total";
 let scaleMode = "linear";
+let squareAspect = true;
 let vmin = 0, vmax = 1;
 let autoRange = true;
 
@@ -197,6 +216,8 @@ let view = { r0: 0, r1: 1, c0: 0, c1: 1 };
 let selection = null;
 /* an in-progress drag, in canvas pixels */
 let drag = null;
+/* the block under the cursor, or null */
+let hovered = null;
 
 const canvas = document.getElementById("viewport-canvas");
 const ctx = canvas.getContext("2d");
@@ -263,6 +284,15 @@ function loadJSON(text) {
     };
   });
 
+  SUBTOTALS = new Map();
+  if (SUBGRID) {
+    for (const b of BLOCKS) {
+      const k = Math.floor(b.i0 / SUBGRID.nrows) + "."
+              + Math.floor(b.j0 / SUBGRID.ncols);
+      SUBTOTALS.set(k, (SUBTOTALS.get(k) || 0) + b.time);
+    }
+  }
+
   view = { r0: 0, r1: J.nrows, c0: 0, c1: J.ncols };
   selection = null;
 
@@ -292,7 +322,8 @@ function loadJSON(text) {
   recomputeRange();
   rebuildTables();
   draw();
-  infoElement.textContent = "Hover a block for its details, drag to measure a region.";
+  hovered = null;
+  setInfo();
 }
 
 /* ---------------------------------------------------------------- */
@@ -379,11 +410,39 @@ function hex2rgb(h) {
 /* ---------------------------------------------------------------- */
 /* drawing                                                          */
 
+/* The plot always takes all the room the window gives it. */
 function plotRect() {
   return {
     x: MARGIN.left, y: MARGIN.top,
     w: Math.max(1, canvas.clientWidth - MARGIN.left - MARGIN.right),
     h: Math.max(1, canvas.clientHeight - MARGIN.top - MARGIN.bottom)
+  };
+}
+
+/* Square cells means that a row and a column get the same number of
+ * pixels. Since the plot fills the window, it is the view that has to
+ * take the shape of the plot, and not the other way round: we choose how
+ * much of the matrix to put in the box we are given. Widening the window
+ * therefore brings more columns into view rather than stretching the
+ * ones already there.
+ *
+ * Only ever grow the view, so that nothing that was visible drops out.
+ * At the widest, that means seeing past the edge of the matrix, which is
+ * what happens at the reset view of a matrix whose shape does not match
+ * the window's.
+ */
+function fitViewToBox() {
+  if (!DATA || !squareAspect) return;
+  const R = plotRect();
+  const dr = view.r1 - view.r0, dc = view.c1 - view.c0;
+  if (!(dr > 0 && dc > 0)) return;
+  const want = R.w / R.h;       /* columns per row, once on screen */
+  let nr = dr, nc = dc;
+  if (dc / dr < want) nc = dr * want; else nr = dc / want;
+  const cr = (view.r0 + view.r1) / 2, cc = (view.c0 + view.c1) / 2;
+  view = {
+    r0: cr - nr / 2, r1: cr + nr / 2,
+    c0: cc - nc / 2, c1: cc + nc / 2
   };
 }
 
@@ -410,12 +469,24 @@ function draw() {
   ctx.fillRect(0, 0, W, H);
   if (!DATA) return;
 
+  /* the window may have been resized since the view was last set */
+  fitViewToBox();
+  clampView();
+
   const R = plotRect();
 
   ctx.save();
   ctx.beginPath();
   ctx.rect(R.x, R.y, R.w, R.h);
   ctx.clip();
+
+  /* where the matrix ends, when the view reaches past it */
+  ctx.fillStyle = PAST_EDGE;
+  ctx.fillRect(R.x, R.y, R.w, R.h);
+  ctx.fillStyle = SURFACE;
+  ctx.fillRect(colToX(0, R), rowToY(0, R),
+      colToX(DATA.ncols, R) - colToX(0, R),
+      rowToY(DATA.nrows, R) - rowToY(0, R));
 
   for (const b of BLOCKS) {
     const x0 = colToX(b.j0, R), x1 = colToX(b.j1, R);
@@ -472,9 +543,14 @@ function drawAxes(R) {
   const ntx = Math.max(1, Math.min(5, Math.floor(R.w / 90)));
   const nty = Math.max(1, Math.min(5, Math.floor(R.h / 40)));
 
+  /* the view can reach past the edge of the matrix, and there are no
+   * row or column numbers out there to put on the axes */
+  const c0 = Math.max(0, view.c0), c1 = Math.min(DATA.ncols, view.c1);
+  const r0 = Math.max(0, view.r0), r1 = Math.min(DATA.nrows, view.r1);
+
   ctx.textBaseline = "top";
   for (let k = 0; k <= ntx; k++) {
-    const j = view.c0 + (view.c1 - view.c0) * k / ntx;
+    const j = c0 + (c1 - c0) * k / ntx;
     const x = colToX(j, R);
     /* keep the end labels inside the plot rather than clipped */
     ctx.textAlign = k === 0 ? "left" : (k === ntx ? "right" : "center");
@@ -483,7 +559,7 @@ function drawAxes(R) {
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
   for (let k = 0; k <= nty; k++) {
-    const i = view.r0 + (view.r1 - view.r0) * k / nty;
+    const i = r0 + (r1 - r0) * k / nty;
     const y = rowToY(i, R);
     ctx.fillText(fmtInt(Math.round(i)), R.x - 6, y);
   }
@@ -600,19 +676,36 @@ function aggregate(sel) {
   return { ncoeffs, time, dispatch, combine, nblocks, npartial };
 }
 
+/* The submatrix a selection sits in, or null when it straddles several.
+ * Each submatrix is one thread's whole job, so a share of one of them is
+ * a share of what that thread actually has to do. */
+function enclosingSubmatrix(sel) {
+  if (!SUBGRID) return null;
+  const h = Math.floor(sel.r0 / SUBGRID.nrows);
+  const v = Math.floor(sel.c0 / SUBGRID.ncols);
+  if (Math.floor((sel.r1 - 1) / SUBGRID.nrows) !== h) return null;
+  if (Math.floor((sel.c1 - 1) / SUBGRID.ncols) !== v) return null;
+  return { h, v, time: SUBTOTALS.get(h + "." + v) || 0 };
+}
+
 function describeSelection(sel) {
   const a = aggregate(sel);
   const nr = sel.r1 - sel.r0, nc = sel.c1 - sel.c0;
   const area = 100 * nr * nc / DATA.nrows / DATA.ncols;
+  const sub = enclosingSubmatrix(sel);
   const lines = [
     `rows ${fmtInt(sel.r0)} + ${fmtInt(nr)}   cols ${fmtInt(sel.c0)} + ${fmtInt(nc)}`
+    + (sub ? ` [h${sub.h}.v${sub.v}]` : "")
     + `   (${area.toFixed(2)}% of the matrix, ${a.nblocks} blocks`
     + (a.npartial ? `, ${a.npartial} partly` : "") + ")",
     `${fmtInt(Math.round(a.ncoeffs))} coefficients (log2 density `
     + `${a.ncoeffs ? Math.log2(a.ncoeffs / (nr * nc)).toFixed(2) : "-"}) — `
     + `${(a.time * 1e3).toFixed(3)} ms/iter = `
-    + `${TOTAL_TIME ? (100 * a.time / TOTAL_TIME).toFixed(1) : "-"}% of the attributed time — `
-    + `${a.ncoeffs ? fmtNs(a.time * 1e9 / a.ncoeffs) : "-"} ns/coeff`
+    + `${TOTAL_TIME ? (100 * a.time / TOTAL_TIME).toFixed(1) : "-"}% of the attributed time`
+    + (sub && sub.time
+        ? ` (${(100 * a.time / sub.time).toFixed(1)}% of its own submatrix)`
+        : "")
+    + ` — ${a.ncoeffs ? fmtNs(a.time * 1e9 / a.ncoeffs) : "-"} ns/coeff`
     + (a.combine > 0
         ? ` (${fmtNs(a.dispatch * 1e9 / a.ncoeffs)} + ${fmtNs(a.combine * 1e9 / a.ncoeffs)})`
         : "")
@@ -644,6 +737,39 @@ function describeBlock(b) {
 
 /* ---------------------------------------------------------------- */
 /* formatting                                                       */
+
+/* The box holds two lines about the selection and two about whatever is
+ * under the cursor. The selection stays until it is cleared, so its
+ * measurement stays on screen while the mouse wanders. Both halves are
+ * always exactly two lines, so the box never resizes. */
+const NO_SELECTION =
+  "selection  none — drag over the picture to measure a region\n"
+  + "           and to read what share of the time it takes.";
+const NO_CURSOR =
+  "cursor     nothing under the cursor\n"
+  + "           scroll to pan, shift-scroll sideways, ctrl-scroll to zoom.";
+
+/* label, then exactly two lines, the second one indented under the
+ * first so that the two halves of the box stay apart at a glance */
+function twoLines(label, text) {
+  const l = String(text).split("\n");
+  while (l.length < 2) l.push("");
+  return label + l[0] + "\n" + " ".repeat(label.length) + l[1];
+}
+
+function setInfo() {
+  const sel = selection
+    ? twoLines("selection  ", describeSelection(selection))
+    : NO_SELECTION;
+  const cur = hovered ? twoLines("cursor     ", describeBlock(hovered))
+                      : NO_CURSOR;
+  infoElement.textContent = "";
+  infoElement.appendChild(document.createTextNode(sel + "\n"));
+  const span = document.createElement("span");
+  span.className = "cursor-part";
+  span.textContent = cur;
+  infoElement.appendChild(span);
+}
 
 function fmtInt(n) {
   if (!isFinite(n)) return "-";
@@ -708,6 +834,7 @@ document.getElementById("zoom-sel-btn").addEventListener("click", () => {
   if (!selection) return;
   view = { ...selection };
   selection = null;
+  setInfo();
   draw();
 });
 
@@ -715,6 +842,7 @@ document.getElementById("reset-view-btn").addEventListener("click", () => {
   if (!DATA) return;
   view = { r0: 0, r1: DATA.nrows, c0: 0, c1: DATA.ncols };
   selection = null;
+  setInfo();
   draw();
 });
 
@@ -731,15 +859,14 @@ canvas.addEventListener("mousemove", (e) => {
   if (drag) {
     drag.x1 = p.x; drag.y1 = p.y;
     selection = dragToSelection(drag, R);
-    if (selection) infoElement.textContent = describeSelection(selection);
+    setInfo();
     draw();
     return;
   }
   const i = Math.floor(yToRow(p.y, R)), j = Math.floor(xToCol(p.x, R));
-  const b = (i >= 0 && i < DATA.nrows && j >= 0 && j < DATA.ncols) ? blockAt(i, j) : null;
-  if (b) infoElement.textContent = describeBlock(b);
-  else if (selection) infoElement.textContent = describeSelection(selection);
-  else infoElement.textContent = "Hover a block for its details, drag to measure a region.";
+  hovered = (i >= 0 && i < DATA.nrows && j >= 0 && j < DATA.ncols)
+    ? blockAt(i, j) : null;
+  setInfo();
 });
 
 canvas.addEventListener("mouseup", () => {
@@ -747,10 +874,77 @@ canvas.addEventListener("mouseup", () => {
   const moved = Math.abs(drag.x1 - drag.x0) > 3 || Math.abs(drag.y1 - drag.y0) > 3;
   if (!moved) selection = null;
   drag = null;
+  setInfo();
   draw();
 });
 
-canvas.addEventListener("mouseleave", () => { drag = null; });
+canvas.addEventListener("mouseleave", () => {
+  drag = null;
+  hovered = null;
+  setInfo();
+});
+
+/* Keep the view inside the matrix, and never wider than the matrix. */
+/* Keep the matrix in sight without ever changing the shape of the view:
+ * an axis that shows more than the matrix has is centred on it, and one
+ * that shows less is kept inside it. */
+function clampView() {
+  const dr = Math.max(1, view.r1 - view.r0);
+  const dc = Math.max(1, view.c1 - view.c0);
+  const r0 = dr >= DATA.nrows ? (DATA.nrows - dr) / 2
+    : Math.max(0, Math.min(DATA.nrows - dr, view.r0));
+  const c0 = dc >= DATA.ncols ? (DATA.ncols - dc) / 2
+    : Math.max(0, Math.min(DATA.ncols - dc, view.c0));
+  view = { r0, r1: r0 + dr, c0, c1: c0 + dc };
+}
+
+canvas.addEventListener("wheel", (e) => {
+  if (!DATA) return;
+  e.preventDefault();
+
+  const R = plotRect();
+  const p = canvasPoint(e);
+  const delta = e.deltaY || e.deltaX;
+  if (!delta) return;
+
+  if (e.ctrlKey || e.metaKey) {
+    /* zoom both axes about the cursor, so that whatever is under it
+     * stays under it */
+    const f = delta > 0 ? 1.15 : 1 / 1.15;
+    const fr = Math.max(0, Math.min(1, (p.y - R.y) / R.h));
+    const fc = Math.max(0, Math.min(1, (p.x - R.x) / R.w));
+    const dr = view.r1 - view.r0, dc = view.c1 - view.c0;
+    const anchorR = view.r0 + fr * dr;
+    const anchorC = view.c0 + fc * dc;
+    /* One factor for both axes: scaling them separately would change the
+     * shape of what is on screen, which is a stretch rather than a zoom.
+     * Zooming out stops once the whole matrix is in view, and zooming in
+     * once a single row or column is left. */
+    let g = f;
+    g = Math.min(g, Math.max(1, DATA.nrows / dr, DATA.ncols / dc));
+    g = Math.max(g, Math.min(1, 1 / dr, 1 / dc));
+    const sr = dr * g;
+    const sc = dc * g;
+    view = {
+      r0: anchorR - fr * sr, r1: anchorR - fr * sr + sr,
+      c0: anchorC - fc * sc, c1: anchorC - fc * sc + sc
+    };
+  } else if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+    const step = 0.15 * (view.c1 - view.c0) * Math.sign(delta);
+    view = { ...view, c0: view.c0 + step, c1: view.c1 + step };
+  } else {
+    const step = 0.15 * (view.r1 - view.r0) * Math.sign(delta);
+    view = { ...view, r0: view.r0 + step, r1: view.r1 + step };
+  }
+
+  clampView();
+  draw();
+}, { passive: false });
+
+document.getElementById("square-aspect").addEventListener("change", (e) => {
+  squareAspect = e.target.checked;
+  draw();
+});
 
 function canvasPoint(e) {
   const r = canvas.getBoundingClientRect();
