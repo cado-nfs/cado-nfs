@@ -853,14 +853,23 @@ In a real run, pass the parameter to krylov or mksol the usual way:
     ./linalg/bwc/bwc.pl :complete matrix=... [...] \
             mm_bucket_heatmap=/tmp/heat.json
 
-Each of the matrices that the mpi/thread grid deals with gets its own
-file: the name of the local matrix is inserted before the extension, so
-that the instances do not fight over one file. Note that krylov and mksol
-both write, so that in a :complete run the files that remain are the ones
-that mksol wrote. The parameter costs nothing at all when it is not given
--- the timings it reports are collected in all cases. With
-random_matrix=, there is no local matrix to name the files after, and
-nothing is written.
+The file that the parameter names holds the picture of the whole matrix:
+the blocks of all the submatrices that the mpi/thread grid deals with are
+collected into it, in the coordinates of the (padded) matrix that the
+grid works on. It also records the shape of the grid, so that the viewer
+can draw the submatrix boundaries, and the time of the busiest
+submatrix, which is what the whole product waits for.
+
+Each submatrix also writes its own file, in its own local coordinates,
+with the name of the local matrix inserted before the extension. Those
+are the ones to look at when a single piece of the grid is of interest.
+With random_matrix=, there is no local matrix to name them after, so only
+the collected file is written.
+
+Note that krylov and mksol both write, so that in a :complete run the
+files that remain are the ones that mksol wrote. The parameter costs
+nothing at all when it is not given -- the timings it reports are
+collected in all cases.
 
 Two remarks on what the numbers mean.
 

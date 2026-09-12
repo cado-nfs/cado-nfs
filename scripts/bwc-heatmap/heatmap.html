@@ -183,6 +183,8 @@ const MARGIN = { left: 62, right: 14, top: 14, bottom: 30 };
 let DATA = null;        /* the parsed file */
 let BLOCKS = [];        /* decorated copy of DATA.blocks */
 let TOTAL_TIME = 0;     /* sum over blocks of dispatch+combine */
+/* set when the file was collected from a whole mpi/thread grid */
+let SUBGRID = null;
 
 let metric = "total";
 let scaleMode = "linear";
@@ -247,6 +249,9 @@ function loadJSON(text) {
   if (!J.blocks || !J.types) throw new Error("not a heat map file");
 
   DATA = J;
+  SUBGRID = (J.grid && J.submatrix)
+    ? { nh: J.grid[0], nv: J.grid[1], nrows: J.submatrix[0], ncols: J.submatrix[1] }
+    : null;
   TOTAL_TIME = 0;
   BLOCKS = J.blocks.map((b, n) => {
     const [i0, i1, j0, j1, ncoeffs, type, dispatch, combine] = b;
@@ -262,12 +267,26 @@ function loadJSON(text) {
   selection = null;
 
   const niter = (J.iterations[0] || 0) + (J.iterations[1] || 0);
-  metaElement.textContent =
+  let meta =
     `${J.matrix || "(unnamed matrix)"} — ${fmtInt(J.nrows)} rows × ${fmtInt(J.ncols)} cols, `
     + `${fmtInt(J.ncoeffs)} coefficients in ${fmtInt(BLOCKS.length)} blocks — `
     + `${niter} iterations, ${(J.total * 1e3).toFixed(2)} ms/iter for the whole loop `
     + `(${fmtNs(J.total * 1e9 / J.ncoeffs)} ns/coeff), of which `
     + `${(TOTAL_TIME * 1e3).toFixed(2)} ms is attributed to blocks.`;
+  if (SUBGRID) {
+    const nsub = SUBGRID.nh * SUBGRID.nv;
+    meta += ` Collected from ${SUBGRID.nh}×${SUBGRID.nv} submatrices of `
+      + `${fmtInt(SUBGRID.nrows)}×${fmtInt(SUBGRID.ncols)}`;
+    /* the product waits for the slowest of them, so the gap between the
+     * mean and the max is the load imbalance */
+    if (J.total_max) {
+      const imbalance = 100 * (J.total_max - J.total / nsub) / (J.total / nsub);
+      meta += `; the busiest took ${(J.total_max * 1e3).toFixed(2)} ms/iter, `
+        + `${imbalance.toFixed(0)}% above the average`;
+    }
+    meta += ".";
+  }
+  metaElement.textContent = meta;
 
   autoRange = true;
   recomputeRange();
@@ -407,6 +426,23 @@ function draw() {
     ctx.fillRect(x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0));
   }
 
+  /* the boundaries between the submatrices of the grid: the vectors are
+   * exchanged across them, so they are where the picture really breaks */
+  if (SUBGRID) {
+    ctx.strokeStyle = "rgba(11,11,11,0.35)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let k = 1; k < SUBGRID.nh; k++) {
+      const y = Math.round(rowToY(k * SUBGRID.nrows, R)) + 0.5;
+      ctx.moveTo(R.x, y); ctx.lineTo(R.x + R.w, y);
+    }
+    for (let k = 1; k < SUBGRID.nv; k++) {
+      const x = Math.round(colToX(k * SUBGRID.ncols, R)) + 0.5;
+      ctx.moveTo(x, R.y); ctx.lineTo(x, R.y + R.h);
+    }
+    ctx.stroke();
+  }
+
   if (selection) {
     const x0 = colToX(selection.c0, R), x1 = colToX(selection.c1, R);
     const y0 = rowToY(selection.r0, R), y1 = rowToY(selection.r1, R);
@@ -514,8 +550,8 @@ function rebuildTables() {
   const top = [...BLOCKS].sort((a, b) => b.time - a.time).slice(0, 15);
   for (const b of top) {
     addRow(topTable, [
-      `${fmtShort(b.i0)}+${fmtShort(b.i1 - b.i0)}`,
-      `${fmtShort(b.j0)}+${fmtShort(b.j1 - b.j0)}`,
+      `${fmtShort(b.i0)} + ${fmtShort(b.i1 - b.i0)}`,
+      `${fmtShort(b.j0)} + ${fmtShort(b.j1 - b.j0)}`,
       fmtShort(b.ncoeffs),
       b.ncoeffs ? fmtNs(b.time * 1e9 / b.ncoeffs) : "-",
       TOTAL_TIME ? (100 * b.time / TOTAL_TIME).toFixed(1) : "-"
@@ -569,7 +605,7 @@ function describeSelection(sel) {
   const nr = sel.r1 - sel.r0, nc = sel.c1 - sel.c0;
   const area = 100 * nr * nc / DATA.nrows / DATA.ncols;
   const lines = [
-    `rows ${fmtInt(sel.r0)}+${fmtInt(nr)}   cols ${fmtInt(sel.c0)}+${fmtInt(nc)}`
+    `rows ${fmtInt(sel.r0)} + ${fmtInt(nr)}   cols ${fmtInt(sel.c0)} + ${fmtInt(nc)}`
     + `   (${area.toFixed(2)}% of the matrix, ${a.nblocks} blocks`
     + (a.npartial ? `, ${a.npartial} partly` : "") + ")",
     `${fmtInt(Math.round(a.ncoeffs))} coefficients (log2 density `
@@ -584,9 +620,18 @@ function describeSelection(sel) {
   return lines.join("\n");
 }
 
+/* which piece of the mpi/thread grid a point belongs to */
+function submatrixOf(i, j) {
+  if (!SUBGRID) return "";
+  const h = Math.min(SUBGRID.nh - 1, Math.floor(i / SUBGRID.nrows));
+  const v = Math.min(SUBGRID.nv - 1, Math.floor(j / SUBGRID.ncols));
+  return ` [h${h}.v${v}]`;
+}
+
 function describeBlock(b) {
   const nr = b.i1 - b.i0, nc = b.j1 - b.j0;
-  return `${b.name} block #${b.n} — rows ${fmtInt(b.i0)}+${fmtInt(nr)}   cols ${fmtInt(b.j0)}+${fmtInt(nc)}\n`
+  return `${b.name} block #${b.n}${submatrixOf(b.i0, b.j0)} — `
+    + `rows ${fmtInt(b.i0)} + ${fmtInt(nr)}   cols ${fmtInt(b.j0)} + ${fmtInt(nc)}\n`
     + `${fmtInt(b.ncoeffs)} coefficients (log2 density `
     + `${b.ncoeffs ? Math.log2(b.ncoeffs / (nr * nc)).toFixed(2) : "-"}) — `
     + `${(b.time * 1e3).toFixed(3)} ms/iter = `
@@ -602,7 +647,7 @@ function describeBlock(b) {
 
 function fmtInt(n) {
   if (!isFinite(n)) return "-";
-  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return Math.round(n).toString();
 }
 /* short enough to keep the side tables on one line each */
 function fmtShort(n) {

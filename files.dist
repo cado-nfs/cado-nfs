@@ -590,11 +590,11 @@ linalg/bwc/logline.cpp
 linalg/bwc/logline.hpp
 linalg/bwc/matmul-basic.cpp
 linalg/bwc/matmul-basicp.cpp
-linalg/bwc/matmul-bucket-heatmap.cpp
-linalg/bwc/matmul-bucket-heatmap.hpp
 linalg/bwc/matmul-bucket.cpp
 linalg/bwc/matmul-common.cpp
 linalg/bwc/matmul-common.hpp
+linalg/bwc/matmul-heatmap.cpp
+linalg/bwc/matmul-heatmap.hpp
 linalg/bwc/matmul-sliced.cpp
 linalg/bwc/matmul-sub-large-fbd.S
 linalg/bwc/matmul-sub-large-fbd.h

@@ -9,7 +9,7 @@
 
 #include "nlohmann/json.hpp"
 
-#include "matmul-bucket-heatmap.hpp"
+#include "matmul-heatmap.hpp"
 #include "fstream_maybe_compressed.hpp"
 #include "gzip.h"
 #include "verbose.hpp"
@@ -55,14 +55,19 @@ void heatmap_dump(std::string const & filename,
     using json = nlohmann::json;
 
     json J;
-    J["format"] = 20260912;
+    J["format"] = 20260913;
     J["matrix"] = info.matrix;
     J["nrows"] = info.nrows;
     J["ncols"] = info.ncols;
     J["ncoeffs"] = info.ncoeffs;
     J["iterations"] = info.iterations;
     J["total"] = info.total / double(niter);
+    J["total_max"] = info.total_max / double(niter);
     J["types"] = info.type_names;
+    if (info.nh && info.nv) {
+        J["grid"] = { info.nh, info.nv };
+        J["submatrix"] = { info.submatrix_nrows, info.submatrix_ncols };
+    }
     J["blocks"] = json::array();
 
     for(auto const & B : blocks) {

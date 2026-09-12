@@ -29,7 +29,7 @@
 #include "fmt/format.h"     // for fmt::format, fmt::print
 
 #include "matmul.hpp"       // for matmul_ptr, matmul_public_s, MATMUL_AUX_Z...
-#include "matmul-bucket-heatmap.hpp"
+#include "matmul-heatmap.hpp"
 #include "macros.h"
 #include "verbose.hpp"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
 #include "timing.h"     // wct_seconds
@@ -464,6 +464,7 @@ struct matmul_bucket : public matmul_interface {
 
     void finish_init();
     void dump_heatmap();
+    bool heatmap(heatmap_info &, vector<heatmap_block> &) const override;
 
     void build_cache(matrix_u32 &&) override;
     int reload_cache_private() override;
@@ -3422,8 +3423,8 @@ static std::ostream& matmul_bucket_report_vsc(std::ostream& os, matmul_bucket<Ar
  */
 
 template<typename Arith>
-static void heatmap_collect_vsc(matmul_bucket<Arith> * mm,
-        vector<slice_header_t>::iterator & hdr,
+static void heatmap_collect_vsc(matmul_bucket<Arith> const * mm,
+        vector<slice_header_t>::const_iterator & hdr,
         vector<heatmap_block> & dest)
 {
     auto const begin = mm->headers.begin();
@@ -3479,20 +3480,10 @@ static void heatmap_collect_vsc(matmul_bucket<Arith> * mm,
 }
 
 template<typename Arith>
-void matmul_bucket<Arith>::dump_heatmap()
+bool matmul_bucket<Arith>::heatmap(heatmap_info & info,
+        vector<heatmap_block> & blocks) const
 {
-    if (heatmap_file.empty()) return;
-
-    heatmap_info info;
-    info.nrows = dim[0];
-    info.ncols = dim[1];
-    info.iterations = iteration;
-    info.total = main_timing.t;
-    info.matrix = locfile;
-    for(int i = 0 ; i < SLICE_TYPE_MAX ; i++)
-        info.type_names.emplace_back(slice_name(i));
-
-    vector<heatmap_block> blocks;
+    blocks.clear();
 
     for(auto hdr = headers.begin() ; hdr != headers.end() ; hdr++) {
         switch(hdr->t) {
@@ -3517,8 +3508,37 @@ void matmul_bucket<Arith>::dump_heatmap()
         }
     }
 
+    /* The slice headers count i along dim[store_transposed] and j along
+     * dim[!store_transposed] (see pos_desc), so when the matrix is
+     * stored column-major they are the transpose of what the caller
+     * expects. Hand out blocks that always read (rows, columns). */
+    if (store_transposed) {
+        for(auto & B : blocks) {
+            std::swap(B.i0, B.j0);
+            std::swap(B.i1, B.j1);
+        }
+    }
+
+    info = heatmap_info();
+    info.nrows = dim[0];
+    info.ncols = dim[1];
+    info.iterations = iteration;
+    info.total = main_timing.t;
+    info.total_max = main_timing.t;
+    info.matrix = locfile;
+    for(int i = 0 ; i < SLICE_TYPE_MAX ; i++)
+        info.type_names.emplace_back(slice_name(i));
+
     for(auto const & B : blocks)
         info.ncoeffs += B.ncoeffs;
+
+    return true;
+}
+
+template<typename Arith>
+void matmul_bucket<Arith>::dump_heatmap()
+{
+    if (heatmap_file.empty()) return;
 
     /* Several instances run side by side in an mpi/thread grid, and each
      * of them has its own piece of the matrix. The name of the local
@@ -3530,6 +3550,10 @@ void matmul_bucket<Arith>::dump_heatmap()
                 " the heat map needs a named matrix\n", heatmap_file);
         return;
     }
+
+    heatmap_info info;
+    vector<heatmap_block> blocks;
+    heatmap(info, blocks);
 
     auto const slash = locfile.rfind('/');
     std::string const tag =

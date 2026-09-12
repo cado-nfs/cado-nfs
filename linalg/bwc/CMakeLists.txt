@@ -314,7 +314,7 @@ target_link_libraries(bwc_base PUBLIC utils ${pthread_libs} bwc_arith)
 # shared, as embarking the code within the impl-specific .so is fine.
 # Unfortunately, we do want matmul_common to be compiled with -fPIC,
 # then. Which is easiest to trigger by making it a shared object.
-add_library(matmul_common ${CADO_SHARED} matmul-common.cpp)
+add_library(matmul_common ${CADO_SHARED} matmul-common.cpp matmul-heatmap.cpp)
 mark_targets_as_mpi(matmul_common)
 cado_apply_pch(matmul_common)
 target_link_libraries(matmul_common PUBLIC utils)
@@ -322,12 +322,17 @@ if(ENABLE_SHARED)
     install(TARGETS matmul_common DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endif()
 
+# matmul-heatmap.cpp sits in matmul_common because both sides need it:
+# the implementation that collects the blocks, and matmul_top, which
+# collates the blocks of the whole mpi/thread grid.
+target_link_libraries(bwc_base PUBLIC matmul_common)
+
 
 set(matmul_basic_sources    matmul-basic.cpp)
 set(matmul_basicp_sources   matmul-basicp.cpp)
 set(matmul_zone_sources   matmul-zone.cpp)
 set(matmul_sliced_sources   matmul-sliced.cpp)
-set(matmul_bucket_sources   matmul-bucket.cpp matmul-bucket-heatmap.cpp)
+set(matmul_bucket_sources   matmul-bucket.cpp)
 
 
 

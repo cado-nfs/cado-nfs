@@ -11,6 +11,7 @@
  */
 #include "params.hpp"
 #include "arith-generic.hpp"
+#include "matmul-heatmap.hpp"
 #include "matrix_u32.hpp"
 #include "bwc_config.h" // BUILD_DYNAMICALLY_LINKABLE_BWC // IWYU pragma: keep
 
@@ -73,6 +74,17 @@ struct matmul_interface : public matmul_public {
     virtual void mul(void * dst, const void * src, int d) = 0;
 
     virtual void report(double) {}
+
+    /* Where the time of the mul() calls went, block by block, in (row,
+     * column) coordinates local to this submatrix. Implementations that
+     * have no such notion return false, and matmul_top then has no heat
+     * map to collect. The grid fields of info are left for matmul_top to
+     * fill in.
+     */
+    virtual bool heatmap(heatmap_info &, std::vector<heatmap_block> &) const
+    {
+        return false;
+    }
 
     /* matmul_aux is used on some occasions for obtaining private
      * informations on the matmul structure. It's really a virtual method
