@@ -590,6 +590,8 @@ linalg/bwc/logline.cpp
 linalg/bwc/logline.hpp
 linalg/bwc/matmul-basic.cpp
 linalg/bwc/matmul-basicp.cpp
+linalg/bwc/matmul-bucket-heatmap.cpp
+linalg/bwc/matmul-bucket-heatmap.hpp
 linalg/bwc/matmul-bucket.cpp
 linalg/bwc/matmul-common.cpp
 linalg/bwc/matmul-common.hpp
@@ -869,6 +871,7 @@ polyselect/table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.hpp
 portability.h
 scripts/CMakeLists.txt
 scripts/build_environment.sh
+scripts/bwc-heatmap/heatmap.html
 scripts/cadofactor/README.md
 scripts/cadofactor/api_server.py
 scripts/cadofactor/cadocommand.py
@@ -1283,6 +1286,7 @@ tests/linalg/bwc/test-blocklanczos.sh
 tests/linalg/bwc/test-lingen-checkpoints.sh
 tests/linalg/bwc/test-lingen-crc.sh
 tests/linalg/bwc/test-lingen.sh
+tests/linalg/bwc/test-matcache-heatmap.sh
 tests/linalg/bwc/test-matcache.sh
 tests/linalg/bwc/test-parallelizing_info.cpp
 tests/linalg/bwc/test-plingen.sh

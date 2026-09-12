@@ -299,6 +299,10 @@ Some more internal parameters.
       (0) or column-major (1). The low-level implementations are written with
       a preferred ordering in mind which is set automatically, so don't change
       this unless you're willing to try out with something new.
+    - mm_bucket_heatmap=<file> asks mm_impl=bucket to write, at the end of
+      the run, a json file that says how much time was spent in each block
+      of the matrix. See "Heat map of the matrix times vector product"
+      below. This costs nothing when the parameter is absent.
     - other mm_xxx_* parameters are not yet documented.
 * sequential_cache_build=[0|1] whether the in-memory caches must be built
   one after another (=1), or all in parallel (=0, default behaviour).
@@ -822,6 +826,53 @@ Using several sequences
 
 See https://sympa.inria.fr/sympa/arc/cado-nfs/2015-04/msg00000.html and
 https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/16857
+
+Heat map of the matrix times vector product
+===========================================
+
+mm_impl=bucket cuts the matrix into blocks, and already times each of
+them (this is what the per-slice report at the end of a run prints). The
+mm_bucket_heatmap=<file> parameter writes that same information to a json
+file, with the geometry of each block, so that it can be looked at as a
+two-dimensional picture of the matrix rather than as a list of numbers.
+The question it answers is where in the matrix the time goes, and whether
+that has anything to do with the local density.
+
+Open the file with scripts/bwc-heatmap/heatmap.html (drag and drop). The
+page colours each block by its cost per coefficient, and a rectangle can
+be dragged over the picture to get the aggregated cost of a region.
+
+The cheapest way to look at one matrix is with bench_matcache, which
+needs no bwc run around it:
+
+    ./build/<host>/linalg/bwc/bench_matcache -impl bucket --nmax 1000 \
+            -mm_bucket_heatmap /tmp/heat.json /path/to/mat.bin
+
+In a real run, pass the parameter to krylov or mksol the usual way:
+
+    ./linalg/bwc/bwc.pl :complete matrix=... [...] \
+            mm_bucket_heatmap=/tmp/heat.json
+
+Each of the matrices that the mpi/thread grid deals with gets its own
+file: the name of the local matrix is inserted before the extension, so
+that the instances do not fight over one file. Note that krylov and mksol
+both write, so that in a :complete run the files that remain are the ones
+that mksol wrote. The parameter costs nothing at all when it is not given
+-- the timings it reports are collected in all cases. With
+random_matrix=, there is no local matrix to name the files after, and
+nothing is written.
+
+Two remarks on what the numbers mean.
+
+ - Coefficients of the vertical staircase slices (the "vsc" method) are
+   seen twice, once by the dispatch pass and once by the combine pass.
+   Only the dispatch pass is timed per block. The combine time is
+   measured for a whole horizontal strip, and spread over the blocks of
+   that strip proportionally to the number of coefficients. The viewer
+   shows the two separately.
+ - The blocks do not account for the whole of the cpu-bound loop: the
+   envelope slices carry some overhead of their own, which is reported as
+   the difference between the "total" field and the sum over blocks.
 
 Notes:
 ======

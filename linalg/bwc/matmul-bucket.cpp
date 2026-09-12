@@ -29,6 +29,7 @@
 #include "fmt/format.h"     // for fmt::format, fmt::print
 
 #include "matmul.hpp"       // for matmul_ptr, matmul_public_s, MATMUL_AUX_Z...
+#include "matmul-bucket-heatmap.hpp"
 #include "macros.h"
 #include "verbose.hpp"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
 #include "timing.h"     // wct_seconds
@@ -457,8 +458,12 @@ struct matmul_bucket : public matmul_interface {
     slice_runtime_stats main_timing;
     vector<slice_runtime_stats> slice_timings;
     matmul_bucket_methods<Arith> methods;
+    /* empty unless the mm_bucket_heatmap parameter was given. Nothing at
+     * all happens on account of this feature when it is empty. */
+    std::string heatmap_file;
 
     void finish_init();
+    void dump_heatmap();
 
     void build_cache(matrix_u32 &&) override;
     int reload_cache_private() override;
@@ -522,6 +527,8 @@ matmul_bucket<Arith>::matmul_bucket(matmul_public && P, arith_concrete_base * px
     }   
 
     methods = matmul_bucket_methods<Arith>(pl.lookup_old("matmul_bucket_methods"));
+
+    pl.parse("mm_bucket_heatmap", heatmap_file);
 }
 
 /* This moves an element at the tail of a list with no copy, transferring
@@ -3388,6 +3395,150 @@ static std::ostream& matmul_bucket_report_vsc(std::ostream& os, matmul_bucket<Ar
 }
 
 
+/* {{{ heat map */
+
+/* The heat map is a two-dimensional view of where the time goes in the
+ * matrix times vector product. We report one record per _leaf_ of the
+ * slice header tree, since those are the ones that carry both a
+ * meaningful geometry and a timing:
+ *  - SMALL1_VBLOCK (and not its SMALL1 parent),
+ *  - SMALL2, LARGE_ENVELOPE, HUGE_ENVELOPE,
+ *  - DEFER_DIS for the vertical staircase code.
+ *
+ * The vertical staircase needs a word. There, coefficients are seen
+ * twice: once by the dispatch pass, and once by the combine pass. Only
+ * the dispatch pass has proper two-dimensional geometry (the DEFER_DIS
+ * headers). Combine operations are timed by the DEFER_ROW headers, which
+ * span a full horizontal strip, so we spread the time of a strip over
+ * the DEFER_DIS blocks it covers, proportionally to the number of
+ * coefficients.
+ *
+ * The finer-grained DEFER_CMB headers would let us do slightly better,
+ * since each of them covers only the vertical strips of one flush batch.
+ * But they are only instrumented in the non-transposed direction (see
+ * matmul_bucket_mul_vsc), so relying on them would silently lose the
+ * combine time of transposed products. DEFER_ROW is correct in both
+ * directions, and matches what report() prints.
+ */
+
+template<typename Arith>
+static void heatmap_collect_vsc(matmul_bucket<Arith> * mm,
+        vector<slice_header_t>::iterator & hdr,
+        vector<heatmap_block> & dest)
+{
+    auto const begin = mm->headers.begin();
+    auto const end = mm->headers.end();
+
+    ASSERT_ALWAYS(hdr->t == SLICE_TYPE_DEFER_ENVELOPE);
+    unsigned int const nvstrips = hdr->nchildren;
+
+    ASSERT_ALWAYS(end - hdr > 1);
+    hdr++;
+    ASSERT_ALWAYS(hdr->t == SLICE_TYPE_DEFER_COLUMN);
+    unsigned int const nsteps = hdr->nchildren;
+
+    /* the column headers only carry bookkeeping information */
+    for(unsigned int k = 0 ; k < nvstrips ; k++, hdr++) {
+        ASSERT_ALWAYS(hdr != end);
+        ASSERT_ALWAYS(hdr->t == SLICE_TYPE_DEFER_COLUMN);
+    }
+
+    /* then the two-dimensional grid of dispatch blocks */
+    size_t const first = dest.size();
+    for(unsigned int k = 0 ; k < nvstrips ; k++) {
+        for(unsigned int l = 0 ; l < nsteps ; l++, hdr++) {
+            ASSERT_ALWAYS(hdr != end);
+            ASSERT_ALWAYS(hdr->t == SLICE_TYPE_DEFER_DIS);
+            dest.push_back(heatmap_block {
+                    hdr->i0, hdr->i1, hdr->j0, hdr->j1,
+                    hdr->ncoeffs, hdr->t,
+                    mm->slice_timings[hdr - begin].t, 0 });
+        }
+    }
+
+    /* and finally the row headers, which hold the combine timings */
+    for(unsigned int l = 0 ; l < nsteps ; l++, hdr++) {
+        ASSERT_ALWAYS(hdr != end);
+        ASSERT_ALWAYS(hdr->t == SLICE_TYPE_DEFER_ROW);
+        double const t = mm->slice_timings[hdr - begin].t;
+        uint64_t const nc = hdr->ncoeffs;
+        if (!nc) continue;
+        for(unsigned int k = 0 ; k < nvstrips ; k++) {
+            heatmap_block & B(dest[first + k * nsteps + l]);
+            B.combine = t * double(B.ncoeffs) / double(nc);
+        }
+    }
+
+    /* the combine operations appear once more, batch by batch, as
+     * DEFER_CMB headers. We have accounted for them already. */
+    for( ; hdr != end && hdr->t == SLICE_TYPE_DEFER_CMB ; hdr++);
+
+    /* leave the iterator on the last header we consumed, the caller
+     * increments it */
+    hdr--;
+}
+
+template<typename Arith>
+void matmul_bucket<Arith>::dump_heatmap()
+{
+    if (heatmap_file.empty()) return;
+
+    heatmap_info info;
+    info.nrows = dim[0];
+    info.ncols = dim[1];
+    info.iterations = iteration;
+    info.total = main_timing.t;
+    info.matrix = locfile;
+    for(int i = 0 ; i < SLICE_TYPE_MAX ; i++)
+        info.type_names.emplace_back(slice_name(i));
+
+    vector<heatmap_block> blocks;
+
+    for(auto hdr = headers.begin() ; hdr != headers.end() ; hdr++) {
+        switch(hdr->t) {
+            case SLICE_TYPE_SMALL1:
+                /* an envelope: its SMALL1_VBLOCK children are reported */
+                break;
+            case SLICE_TYPE_SMALL1_VBLOCK:
+            case SLICE_TYPE_SMALL2:
+            case SLICE_TYPE_LARGE_ENVELOPE:
+            case SLICE_TYPE_HUGE_ENVELOPE:
+                blocks.push_back(heatmap_block {
+                        hdr->i0, hdr->i1, hdr->j0, hdr->j1,
+                        hdr->ncoeffs, hdr->t,
+                        slice_timings[hdr - headers.begin()].t, 0 });
+                break;
+            case SLICE_TYPE_DEFER_ENVELOPE:
+                heatmap_collect_vsc(this, hdr, blocks);
+                break;
+            default:
+                fmt::print(stderr, "Bogus slice type seen: {}\n", hdr->t);
+                ASSERT_ALWAYS(0);
+        }
+    }
+
+    for(auto const & B : blocks)
+        info.ncoeffs += B.ncoeffs;
+
+    /* Several instances run side by side in an mpi/thread grid, and each
+     * of them has its own piece of the matrix. The name of the local
+     * matrix tells them apart. Without one -- this happens with
+     * random_matrix= -- they would all write to the same file, so we
+     * would rather write nothing at all. */
+    if (locfile.empty()) {
+        fmt::print(stderr, "Warning: not writing {}:"
+                " the heat map needs a named matrix\n", heatmap_file);
+        return;
+    }
+
+    auto const slash = locfile.rfind('/');
+    std::string const tag =
+        (slash == std::string::npos) ? locfile : locfile.substr(slash + 1);
+
+    heatmap_dump(heatmap_file, tag, info, blocks);
+}
+/* }}} */
+
 template<typename Arith>
 void matmul_bucket<Arith>::report(double scale)
 {
@@ -3440,6 +3591,8 @@ void matmul_bucket<Arith>::report(double scale)
             nc, a, scale, a * scale);
     }
     report_string = os.str();
+
+    dump_heatmap();
 }
 
 template<typename Arith>

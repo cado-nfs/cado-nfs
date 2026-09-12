@@ -851,6 +851,19 @@ cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-matcache.sh
     bwc_matmul_gf2
 )
 
+# checks that mm_bucket_heatmap writes a json file that agrees with the
+# matrix. The matrix must be wide enough (more than 1<<16 columns) for
+# the cutting into blocks to be two-dimensional.
+cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-matcache-heatmap.sh
+    --matrix-size 100000 --density 20
+    --python ${PYTHON_EXECUTABLE}
+    TARGET_DEPENDENCIES
+    random_matrix
+    bench_matcache
+    bwc_matmul_gf2
+    TIMEOUT 60
+)
+
 # This test is not very important. And honestly. since we don't use its
 # output, it way very well be total garbage. The whole point is that
 # bench_polmatmul contains important test code that should perhaps

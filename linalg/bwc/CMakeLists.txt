@@ -327,7 +327,7 @@ set(matmul_basic_sources    matmul-basic.cpp)
 set(matmul_basicp_sources   matmul-basicp.cpp)
 set(matmul_zone_sources   matmul-zone.cpp)
 set(matmul_sliced_sources   matmul-sliced.cpp)
-set(matmul_bucket_sources   matmul-bucket.cpp)
+set(matmul_bucket_sources   matmul-bucket.cpp matmul-bucket-heatmap.cpp)
 
 
 

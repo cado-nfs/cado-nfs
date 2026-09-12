@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CADO-NFS Matrix Heat Map</title>
+<style type="text/css">
+  /* The block from here down to the end-of-shared marker is kept in sync
+   * with scripts/chronograms/chronogram.html, so that the two viewer
+   * pages look alike. Both pages are meant to stay self-contained, hence
+   * the duplication rather than a shared stylesheet. */
+  html, body {
+    height: 100%; margin: 0; padding: 0; overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #f4f5f7;
+  }
+  .app-container { display: flex; flex-direction: column; height: 100vh; padding: 12px; box-sizing: border-box; }
+
+  .top-frame {
+    flex: 0 0 auto; background: #ffffff; border: 1px solid #ccc;
+    border-radius: 4px; padding: 10px 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); margin-bottom: 8px;
+  }
+  .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .header-title { margin: 0; font-size: 16px; color: #222; }
+
+  /* Dropzone & Controls */
+  .file-dropzone {
+    border: 2px dashed #b0b0b0; background: #fafafa; border-radius: 4px;
+    padding: 8px; text-align: center; font-size: 12px; color: #555; cursor: pointer; transition: all 0.2s;
+  }
+  .file-dropzone.dragover { background: #e8f4ff; border-color: #2b8a3e; }
+
+  .controls-bar {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    background: #f8f9fa; padding: 6px 10px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 12px; margin-top: 6px;
+  }
+  .controls-bar label { cursor: pointer; display: flex; align-items: center; gap: 4px; }
+  .controls-bar input[type="number"] {
+    padding: 2px 4px; font-size: 11px; border: 1px solid #ccc; border-radius: 3px;
+  }
+
+  .window-meta { font-size: 11px; color: #666; margin: 6px 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; max-height: 40px; overflow-y: auto; margin-bottom: 6px; }
+  .legend-item { display: inline-flex; align-items: center; font-size: 11px; color: #444; }
+  .color-box { width: 10px; height: 10px; display: inline-block; margin-right: 4px; border: 1px solid rgba(0,0,0,0.15); }
+
+  /* Information Box guaranteed 2-lines tall to prevent layout jitter */
+  #information {
+    padding: 6px 10px; background: #1e1e1e; color: #00ff66;
+    font-family: SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.4;
+    border-radius: 3px; min-height: 2.8em; white-space: pre-wrap; word-break: break-word;
+    box-sizing: border-box;
+  }
+
+  /* Viewport & Native Scrollbar Container Layout */
+  .viewport-layout { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+  .canvas-and-vscroll { flex: 1 1 auto; display: flex; flex-direction: row; min-height: 0; }
+  .chart-viewport { flex: 1 1 auto; position: relative; background: #ffffff; border: 1px solid #bbb; border-radius: 4px 0 0 0; overflow: hidden; }
+  #viewport-canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+  /* ---- end of the block shared with chronogram.html ---- */
+
+  .chart-viewport { border-radius: 4px; }
+  .side-panel {
+    flex: 0 0 300px; margin-left: 8px; background: #ffffff; border: 1px solid #bbb;
+    border-radius: 4px; padding: 8px 10px; box-sizing: border-box; overflow-y: auto; font-size: 11px;
+  }
+  .side-panel h4 { margin: 0 0 6px 0; font-size: 12px; color: #222; }
+  table.blocks { border-collapse: collapse; width: 100%; font-size: 11px; }
+  table.blocks th, table.blocks td {
+    text-align: right; padding: 2px 4px; border-bottom: 1px solid #eee;
+    font-variant-numeric: tabular-nums;
+  }
+  table.blocks th { color: #52514e; font-weight: 600; text-align: right; }
+  table.blocks td.name, table.blocks th.name { text-align: left; }
+  table.blocks tr.hot td { background: #f2f7fe; }
+
+  #colorbar-wrap { display: flex; align-items: center; gap: 6px; margin: 6px 0; font-size: 11px; color: #52514e; }
+  #colorbar-scale { width: 100%; max-width: 420px; }
+  #colorbar { height: 12px; border: 1px solid rgba(11,11,11,0.10); border-radius: 2px; }
+  #colorbar-ticks {
+    display: flex; justify-content: space-between; font-size: 10px; color: #898781;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* On a narrow window the tables go under the plot rather than
+   * squeezing it to nothing. */
+  @media (max-width: 900px) {
+    .canvas-and-vscroll { flex-direction: column; }
+    .chart-viewport { flex: 1 1 60%; min-height: 200px; }
+    .side-panel { flex: 0 1 auto; margin: 8px 0 0 0; max-height: 40%; }
+  }
+</style>
+</head>
+<body>
+<div class="app-container">
+
+  <div class="top-frame">
+    <div class="header-row">
+      <h3 class="header-title">CADO-NFS Matrix Heat Map</h3>
+
+      <div class="file-dropzone" id="dropzone">
+        📁 Drag &amp; Drop a heat map file or <input type="file" id="file-input" accept=".json,.json.gz,.json.zst,.json.zstd" style="display:inline;" />
+      </div>
+    </div>
+
+    <div class="controls-bar">
+      <strong>Colour by:</strong>
+      <select id="metric">
+        <option value="total" selected="selected">ns per coefficient (total)</option>
+        <option value="dispatch">ns per coefficient (first pass)</option>
+        <option value="combine">ns per coefficient (second pass)</option>
+        <option value="share">share of the total time</option>
+        <option value="density">log2 of the block density</option>
+      </select>
+
+      <span style="color:#ccc;">|</span>
+      <strong>Scale:</strong>
+      <label><input type="radio" name="scale-opt" value="linear" checked="checked" /> linear</label>
+      <label><input type="radio" name="scale-opt" value="log" /> log</label>
+
+      <span style="color:#ccc;">|</span>
+      <label>min: <input type="number" id="input-vmin" step="any" style="width: 70px;" /></label>
+      <label>max: <input type="number" id="input-vmax" step="any" style="width: 70px;" /></label>
+      <button id="auto-range-btn" style="cursor:pointer; font-size:11px;">Auto</button>
+
+      <span style="color:#ccc;">|</span>
+      <button id="zoom-sel-btn" style="cursor:pointer; font-size:11px;">Zoom to selection</button>
+      <button id="reset-view-btn" style="cursor:pointer; font-size:11px;">Reset zoom</button>
+
+      <span style="color:#ccc;">|</span>
+      <span style="font-size: 11px; color: #666;">
+        <strong>Drag:</strong> select a region
+        &nbsp;•&nbsp;
+        <strong>Click:</strong> clear the selection
+      </span>
+    </div>
+
+    <div id="colorbar-wrap">
+      <span id="colorbar-label">ns/coeff</span>
+      <div id="colorbar-scale">
+        <div id="colorbar"></div>
+        <div id="colorbar-ticks"></div>
+      </div>
+    </div>
+
+    <div class="window-meta" id="meta-info">No heat map loaded.</div>
+    <div id="information">Load a file written by bwc with -mm_bucket_heatmap &lt;file&gt;...</div>
+  </div>
+
+  <div class="viewport-layout">
+    <div class="canvas-and-vscroll">
+      <div class="chart-viewport">
+        <canvas id="viewport-canvas"></canvas>
+      </div>
+      <div class="side-panel">
+        <h4>Where the time goes</h4>
+        <table class="blocks" id="type-table"><tbody></tbody></table>
+        <h4 style="margin-top:10px;">Slowest blocks</h4>
+        <table class="blocks" id="top-table"><tbody></tbody></table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+
+/* The sequential blue ramp, light to dark. Magnitude gets one hue: a
+ * rainbow would make differences look bigger than they are. */
+const RAMP = [
+  "#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7",
+  "#3987e5", "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b"
+];
+const EMPTY_COLOR = "#f0efec";   /* a block with no coefficient at all */
+const SURFACE = "#fcfcfb";
+const GRID = "#e1e0d9";
+const AXIS = "#c3c2b7";
+const MUTED = "#898781";
+const INK = "#0b0b0b";
+
+const MARGIN = { left: 62, right: 14, top: 14, bottom: 30 };
+
+let DATA = null;        /* the parsed file */
+let BLOCKS = [];        /* decorated copy of DATA.blocks */
+let TOTAL_TIME = 0;     /* sum over blocks of dispatch+combine */
+
+let metric = "total";
+let scaleMode = "linear";
+let vmin = 0, vmax = 1;
+let autoRange = true;
+
+/* the part of the matrix that is on screen, in matrix coordinates */
+let view = { r0: 0, r1: 1, c0: 0, c1: 1 };
+/* the current selection, in matrix coordinates, or null */
+let selection = null;
+/* an in-progress drag, in canvas pixels */
+let drag = null;
+
+const canvas = document.getElementById("viewport-canvas");
+const ctx = canvas.getContext("2d");
+const infoElement = document.getElementById("information");
+const metaElement = document.getElementById("meta-info");
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("file-input");
+const metricSelect = document.getElementById("metric");
+const inputVmin = document.getElementById("input-vmin");
+const inputVmax = document.getElementById("input-vmax");
+const colorbar = document.getElementById("colorbar");
+const colorbarTicks = document.getElementById("colorbar-ticks");
+const colorbarLabel = document.getElementById("colorbar-label");
+const typeTable = document.getElementById("type-table").tBodies[0];
+const topTable = document.getElementById("top-table").tBodies[0];
+
+/* ---------------------------------------------------------------- */
+/* loading                                                          */
+
+async function decompressAndRead(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const fileName = file.name.toLowerCase();
+
+  if (fileName.endsWith(".gz")) {
+    const blob = new Blob([arrayBuffer]);
+    const stream = blob.stream().pipeThrough(new DecompressionStream("gzip"));
+    return await new Response(stream).text();
+  }
+  if (fileName.endsWith(".zst") || fileName.endsWith(".zstd")) {
+    const blob = new Blob([arrayBuffer]);
+    const stream = blob.stream().pipeThrough(new DecompressionStream("zstd"));
+    return await new Response(stream).text();
+  }
+  return new TextDecoder("utf-8").decode(arrayBuffer);
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  infoElement.textContent = `Reading ${file.name}...`;
+  try {
+    loadJSON(await decompressAndRead(file));
+  } catch (err) {
+    alert(`Error loading ${file.name}: ` + err.message);
+    infoElement.textContent = "Error reading file.";
+  }
+}
+
+function loadJSON(text) {
+  const J = JSON.parse(text);
+  if (!J.blocks || !J.types) throw new Error("not a heat map file");
+
+  DATA = J;
+  TOTAL_TIME = 0;
+  BLOCKS = J.blocks.map((b, n) => {
+    const [i0, i1, j0, j1, ncoeffs, type, dispatch, combine] = b;
+    TOTAL_TIME += dispatch + combine;
+    return {
+      n, i0, i1, j0, j1, ncoeffs, type,
+      dispatch, combine, time: dispatch + combine,
+      name: J.types[type] || `type ${type}`
+    };
+  });
+
+  view = { r0: 0, r1: J.nrows, c0: 0, c1: J.ncols };
+  selection = null;
+
+  const niter = (J.iterations[0] || 0) + (J.iterations[1] || 0);
+  metaElement.textContent =
+    `${J.matrix || "(unnamed matrix)"} — ${fmtInt(J.nrows)} rows × ${fmtInt(J.ncols)} cols, `
+    + `${fmtInt(J.ncoeffs)} coefficients in ${fmtInt(BLOCKS.length)} blocks — `
+    + `${niter} iterations, ${(J.total * 1e3).toFixed(2)} ms/iter for the whole loop `
+    + `(${fmtNs(J.total * 1e9 / J.ncoeffs)} ns/coeff), of which `
+    + `${(TOTAL_TIME * 1e3).toFixed(2)} ms is attributed to blocks.`;
+
+  autoRange = true;
+  recomputeRange();
+  rebuildTables();
+  draw();
+  infoElement.textContent = "Hover a block for its details, drag to measure a region.";
+}
+
+/* ---------------------------------------------------------------- */
+/* the metric                                                       */
+
+function valueOf(b) {
+  switch (metric) {
+    case "total":    return b.ncoeffs ? b.time * 1e9 / b.ncoeffs : NaN;
+    case "dispatch": return b.ncoeffs ? b.dispatch * 1e9 / b.ncoeffs : NaN;
+    case "combine":  return b.ncoeffs ? b.combine * 1e9 / b.ncoeffs : NaN;
+    case "share":    return TOTAL_TIME ? 100 * b.time / TOTAL_TIME : NaN;
+    case "density":
+      if (!b.ncoeffs) return NaN;
+      return Math.log2(b.ncoeffs / ((b.i1 - b.i0) * (b.j1 - b.j0)));
+  }
+  return NaN;
+}
+
+function metricUnit() {
+  switch (metric) {
+    case "share": return "%";
+    case "density": return "log2";
+    default: return "ns/coeff";
+  }
+}
+
+/* Bounds from the 2nd and 98th percentile of the values, weighted by the
+ * number of coefficients: a handful of tiny blocks must not set the
+ * scale for the whole matrix. */
+function recomputeRange() {
+  if (!BLOCKS.length) return;
+  const pts = BLOCKS
+    .filter(b => b.ncoeffs && isFinite(valueOf(b)))
+    .map(b => ({ v: valueOf(b), w: b.ncoeffs }))
+    .sort((a, b) => a.v - b.v);
+  if (!pts.length) { vmin = 0; vmax = 1; syncRangeInputs(); return; }
+
+  const total = pts.reduce((s, p) => s + p.w, 0);
+  const at = (q) => {
+    let acc = 0;
+    for (const p of pts) { acc += p.w; if (acc >= q * total) return p.v; }
+    return pts[pts.length - 1].v;
+  };
+  vmin = at(0.02);
+  vmax = at(0.98);
+  if (!(vmax > vmin)) { vmin = pts[0].v; vmax = pts[pts.length - 1].v; }
+  if (!(vmax > vmin)) { vmax = vmin + 1; }
+  syncRangeInputs();
+}
+
+function syncRangeInputs() {
+  inputVmin.value = fmtNs(vmin);
+  inputVmax.value = fmtNs(vmax);
+}
+
+function normalize(v) {
+  if (!isFinite(v)) return NaN;
+  let lo = vmin, hi = vmax, x = v;
+  if (scaleMode === "log") {
+    const floor = 1e-12;
+    lo = Math.log(Math.max(lo, floor));
+    hi = Math.log(Math.max(hi, floor));
+    x = Math.log(Math.max(v, floor));
+  }
+  if (!(hi > lo)) return 0.5;
+  return Math.max(0, Math.min(1, (x - lo) / (hi - lo)));
+}
+
+function rampColor(t) {
+  if (!isFinite(t)) return EMPTY_COLOR;
+  const x = Math.max(0, Math.min(1, t)) * (RAMP.length - 1);
+  const i = Math.min(RAMP.length - 2, Math.floor(x));
+  const f = x - i;
+  const a = hex2rgb(RAMP[i]), b = hex2rgb(RAMP[i + 1]);
+  return `rgb(${Math.round(a[0] + f * (b[0] - a[0]))},`
+       + `${Math.round(a[1] + f * (b[1] - a[1]))},`
+       + `${Math.round(a[2] + f * (b[2] - a[2]))})`;
+}
+
+function hex2rgb(h) {
+  return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+}
+
+/* ---------------------------------------------------------------- */
+/* drawing                                                          */
+
+function plotRect() {
+  return {
+    x: MARGIN.left, y: MARGIN.top,
+    w: Math.max(1, canvas.clientWidth - MARGIN.left - MARGIN.right),
+    h: Math.max(1, canvas.clientHeight - MARGIN.top - MARGIN.bottom)
+  };
+}
+
+function colToX(j, R) { return R.x + (j - view.c0) / (view.c1 - view.c0) * R.w; }
+function rowToY(i, R) { return R.y + (i - view.r0) / (view.r1 - view.r0) * R.h; }
+function xToCol(x, R) { return view.c0 + (x - R.x) / R.w * (view.c1 - view.c0); }
+function yToRow(y, R) { return view.r0 + (y - R.y) / R.h * (view.r1 - view.r0); }
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = Math.max(1, Math.round(rect.width * dpr));
+  canvas.height = Math.max(1, Math.round(rect.height * dpr));
+  canvas.style.width = rect.width + "px";
+  canvas.style.height = rect.height + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function draw() {
+  resizeCanvas();
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = SURFACE;
+  ctx.fillRect(0, 0, W, H);
+  if (!DATA) return;
+
+  const R = plotRect();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(R.x, R.y, R.w, R.h);
+  ctx.clip();
+
+  for (const b of BLOCKS) {
+    const x0 = colToX(b.j0, R), x1 = colToX(b.j1, R);
+    const y0 = rowToY(b.i0, R), y1 = rowToY(b.i1, R);
+    if (x1 < R.x || x0 > R.x + R.w || y1 < R.y || y0 > R.y + R.h) continue;
+    ctx.fillStyle = b.ncoeffs ? rampColor(normalize(valueOf(b))) : EMPTY_COLOR;
+    /* never let a block vanish: a sub-pixel block still gets one pixel */
+    ctx.fillRect(x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0));
+  }
+
+  if (selection) {
+    const x0 = colToX(selection.c0, R), x1 = colToX(selection.c1, R);
+    const y0 = rowToY(selection.r0, R), y1 = rowToY(selection.r1, R);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 3]);
+    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    ctx.setLineDash([]);
+  }
+
+  ctx.restore();
+
+  drawAxes(R);
+  drawColorbar();
+}
+
+function drawAxes(R) {
+  ctx.strokeStyle = AXIS;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(R.x + 0.5, R.y + 0.5, R.w, R.h);
+
+  ctx.fillStyle = MUTED;
+  ctx.font = "10px system-ui, -apple-system, sans-serif";
+  ctx.strokeStyle = GRID;
+
+  /* a tick every 90px or so, so that labels never collide */
+  const ntx = Math.max(1, Math.min(5, Math.floor(R.w / 90)));
+  const nty = Math.max(1, Math.min(5, Math.floor(R.h / 40)));
+
+  ctx.textBaseline = "top";
+  for (let k = 0; k <= ntx; k++) {
+    const j = view.c0 + (view.c1 - view.c0) * k / ntx;
+    const x = colToX(j, R);
+    /* keep the end labels inside the plot rather than clipped */
+    ctx.textAlign = k === 0 ? "left" : (k === ntx ? "right" : "center");
+    ctx.fillText(fmtInt(Math.round(j)), x, R.y + R.h + 5);
+  }
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let k = 0; k <= nty; k++) {
+    const i = view.r0 + (view.r1 - view.r0) * k / nty;
+    const y = rowToY(i, R);
+    ctx.fillText(fmtInt(Math.round(i)), R.x - 6, y);
+  }
+
+  ctx.fillStyle = MUTED;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "top";
+  ctx.fillText("columns →", R.x + R.w, R.y + R.h + 17);
+  ctx.save();
+  ctx.translate(11, R.y + R.h);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "left";
+  ctx.fillText("rows →", 0, 0);
+  ctx.restore();
+}
+
+function drawColorbar() {
+  const stops = RAMP.map((c, i) => `${c} ${(100 * i / (RAMP.length - 1)).toFixed(1)}%`);
+  colorbar.style.background = `linear-gradient(to right, ${stops.join(", ")})`;
+  colorbarLabel.textContent = metricUnit();
+  colorbarTicks.innerHTML = "";
+  const vals = [];
+  for (let k = 0; k <= 4; k++) {
+    const t = k / 4;
+    if (scaleMode === "log") {
+      const lo = Math.log(Math.max(vmin, 1e-12)), hi = Math.log(Math.max(vmax, 1e-12));
+      vals.push(Math.exp(lo + t * (hi - lo)));
+    } else {
+      vals.push(vmin + t * (vmax - vmin));
+    }
+  }
+  /* enough decimals that two consecutive ticks do not read alike */
+  const step = Math.abs(vals[1] - vals[0]);
+  let prec = 2;
+  if (step > 0) prec = Math.max(0, Math.min(6, 1 - Math.floor(Math.log10(step))));
+  for (const v of vals) {
+    const span = document.createElement("span");
+    span.textContent = Math.abs(v) >= 1e5 ? v.toExponential(2) : v.toFixed(prec);
+    colorbarTicks.appendChild(span);
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* the tables -- the same information without relying on colour     */
+
+function rebuildTables() {
+  const perType = new Map();
+  for (const b of BLOCKS) {
+    const e = perType.get(b.name) || { n: 0, ncoeffs: 0, time: 0 };
+    e.n++; e.ncoeffs += b.ncoeffs; e.time += b.time;
+    perType.set(b.name, e);
+  }
+  typeTable.innerHTML = "";
+  addRow(typeTable, ["kind", "blocks", "coeffs", "ms/iter", "ns/c"], true);
+  const rows = [...perType.entries()].sort((a, b) => b[1].time - a[1].time);
+  for (const [name, e] of rows) {
+    addRow(typeTable, [name, fmtShort(e.n), fmtShort(e.ncoeffs),
+      (e.time * 1e3).toFixed(3),
+      e.ncoeffs ? fmtNs(e.time * 1e9 / e.ncoeffs) : "-"]);
+  }
+
+  topTable.innerHTML = "";
+  addRow(topTable, ["rows", "cols", "coeffs", "ns/c", "%"], true);
+  const top = [...BLOCKS].sort((a, b) => b.time - a.time).slice(0, 15);
+  for (const b of top) {
+    addRow(topTable, [
+      `${fmtShort(b.i0)}+${fmtShort(b.i1 - b.i0)}`,
+      `${fmtShort(b.j0)}+${fmtShort(b.j1 - b.j0)}`,
+      fmtShort(b.ncoeffs),
+      b.ncoeffs ? fmtNs(b.time * 1e9 / b.ncoeffs) : "-",
+      TOTAL_TIME ? (100 * b.time / TOTAL_TIME).toFixed(1) : "-"
+    ], false, true);
+  }
+}
+
+function addRow(tbody, cells, header, hot) {
+  const tr = document.createElement("tr");
+  if (hot) tr.className = "hot";
+  cells.forEach((c, i) => {
+    const td = document.createElement(header ? "th" : "td");
+    if (i === 0) td.className = "name";
+    td.textContent = c;
+    tr.appendChild(td);
+  });
+  tbody.appendChild(tr);
+}
+
+/* ---------------------------------------------------------------- */
+/* hit testing and aggregation                                      */
+
+function blockAt(i, j) {
+  for (const b of BLOCKS)
+    if (i >= b.i0 && i < b.i1 && j >= b.j0 && j < b.j1) return b;
+  return null;
+}
+
+/* Aggregate over a rectangle of the matrix. A block that is only partly
+ * inside contributes its share, assuming its coefficients and its time
+ * are spread evenly over its area. */
+function aggregate(sel) {
+  let ncoeffs = 0, time = 0, dispatch = 0, combine = 0, nblocks = 0, npartial = 0;
+  for (const b of BLOCKS) {
+    const or_ = Math.min(sel.r1, b.i1) - Math.max(sel.r0, b.i0);
+    const oc = Math.min(sel.c1, b.j1) - Math.max(sel.c0, b.j0);
+    if (or_ <= 0 || oc <= 0) continue;
+    const f = (or_ / (b.i1 - b.i0)) * (oc / (b.j1 - b.j0));
+    nblocks++;
+    if (f < 0.999) npartial++;
+    ncoeffs += f * b.ncoeffs;
+    dispatch += f * b.dispatch;
+    combine += f * b.combine;
+    time += f * b.time;
+  }
+  return { ncoeffs, time, dispatch, combine, nblocks, npartial };
+}
+
+function describeSelection(sel) {
+  const a = aggregate(sel);
+  const nr = sel.r1 - sel.r0, nc = sel.c1 - sel.c0;
+  const area = 100 * nr * nc / DATA.nrows / DATA.ncols;
+  const lines = [
+    `rows ${fmtInt(sel.r0)}+${fmtInt(nr)}   cols ${fmtInt(sel.c0)}+${fmtInt(nc)}`
+    + `   (${area.toFixed(2)}% of the matrix, ${a.nblocks} blocks`
+    + (a.npartial ? `, ${a.npartial} partly` : "") + ")",
+    `${fmtInt(Math.round(a.ncoeffs))} coefficients (log2 density `
+    + `${a.ncoeffs ? Math.log2(a.ncoeffs / (nr * nc)).toFixed(2) : "-"}) — `
+    + `${(a.time * 1e3).toFixed(3)} ms/iter = `
+    + `${TOTAL_TIME ? (100 * a.time / TOTAL_TIME).toFixed(1) : "-"}% of the attributed time — `
+    + `${a.ncoeffs ? fmtNs(a.time * 1e9 / a.ncoeffs) : "-"} ns/coeff`
+    + (a.combine > 0
+        ? ` (${fmtNs(a.dispatch * 1e9 / a.ncoeffs)} + ${fmtNs(a.combine * 1e9 / a.ncoeffs)})`
+        : "")
+  ];
+  return lines.join("\n");
+}
+
+function describeBlock(b) {
+  const nr = b.i1 - b.i0, nc = b.j1 - b.j0;
+  return `${b.name} block #${b.n} — rows ${fmtInt(b.i0)}+${fmtInt(nr)}   cols ${fmtInt(b.j0)}+${fmtInt(nc)}\n`
+    + `${fmtInt(b.ncoeffs)} coefficients (log2 density `
+    + `${b.ncoeffs ? Math.log2(b.ncoeffs / (nr * nc)).toFixed(2) : "-"}) — `
+    + `${(b.time * 1e3).toFixed(3)} ms/iter = `
+    + `${TOTAL_TIME ? (100 * b.time / TOTAL_TIME).toFixed(1) : "-"}% of the attributed time — `
+    + `${b.ncoeffs ? fmtNs(b.time * 1e9 / b.ncoeffs) : "-"} ns/coeff`
+    + (b.combine > 0
+        ? ` (${fmtNs(b.dispatch * 1e9 / b.ncoeffs)} first pass + ${fmtNs(b.combine * 1e9 / b.ncoeffs)} second pass)`
+        : "");
+}
+
+/* ---------------------------------------------------------------- */
+/* formatting                                                       */
+
+function fmtInt(n) {
+  if (!isFinite(n)) return "-";
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+/* short enough to keep the side tables on one line each */
+function fmtShort(n) {
+  if (!isFinite(n)) return "-";
+  const a = Math.abs(n);
+  if (a >= 1e6) return (n / 1e6).toFixed(a >= 1e7 ? 0 : 1) + "M";
+  if (a >= 1e4) return (n / 1e3).toFixed(a >= 1e5 ? 0 : 1) + "k";
+  return Math.round(n).toString();
+}
+function fmtNs(v) {
+  if (!isFinite(v)) return "-";
+  const a = Math.abs(v);
+  if (a === 0) return "0";
+  if (a < 0.01 || a >= 1e5) return v.toExponential(2);
+  return v.toFixed(a < 1 ? 3 : 2);
+}
+
+/* ---------------------------------------------------------------- */
+/* events                                                           */
+
+fileInput.addEventListener("change", (e) => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+dropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropzone.classList.remove("dragover");
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+
+metricSelect.addEventListener("change", () => {
+  metric = metricSelect.value;
+  if (autoRange) recomputeRange();
+  draw();
+});
+
+for (const el of document.querySelectorAll('input[name="scale-opt"]')) {
+  el.addEventListener("change", () => {
+    scaleMode = document.querySelector('input[name="scale-opt"]:checked').value;
+    draw();
+  });
+}
+
+for (const el of [inputVmin, inputVmax]) {
+  el.addEventListener("change", () => {
+    const a = parseFloat(inputVmin.value), b = parseFloat(inputVmax.value);
+    if (isFinite(a) && isFinite(b) && b > a) { vmin = a; vmax = b; autoRange = false; draw(); }
+    else syncRangeInputs();
+  });
+}
+
+document.getElementById("auto-range-btn").addEventListener("click", () => {
+  autoRange = true; recomputeRange(); draw();
+});
+
+document.getElementById("zoom-sel-btn").addEventListener("click", () => {
+  if (!selection) return;
+  view = { ...selection };
+  selection = null;
+  draw();
+});
+
+document.getElementById("reset-view-btn").addEventListener("click", () => {
+  if (!DATA) return;
+  view = { r0: 0, r1: DATA.nrows, c0: 0, c1: DATA.ncols };
+  selection = null;
+  draw();
+});
+
+canvas.addEventListener("mousedown", (e) => {
+  if (!DATA) return;
+  const p = canvasPoint(e);
+  drag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
+});
+
+canvas.addEventListener("mousemove", (e) => {
+  if (!DATA) return;
+  const p = canvasPoint(e);
+  const R = plotRect();
+  if (drag) {
+    drag.x1 = p.x; drag.y1 = p.y;
+    selection = dragToSelection(drag, R);
+    if (selection) infoElement.textContent = describeSelection(selection);
+    draw();
+    return;
+  }
+  const i = Math.floor(yToRow(p.y, R)), j = Math.floor(xToCol(p.x, R));
+  const b = (i >= 0 && i < DATA.nrows && j >= 0 && j < DATA.ncols) ? blockAt(i, j) : null;
+  if (b) infoElement.textContent = describeBlock(b);
+  else if (selection) infoElement.textContent = describeSelection(selection);
+  else infoElement.textContent = "Hover a block for its details, drag to measure a region.";
+});
+
+canvas.addEventListener("mouseup", () => {
+  if (!drag) return;
+  const moved = Math.abs(drag.x1 - drag.x0) > 3 || Math.abs(drag.y1 - drag.y0) > 3;
+  if (!moved) selection = null;
+  drag = null;
+  draw();
+});
+
+canvas.addEventListener("mouseleave", () => { drag = null; });
+
+function canvasPoint(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+function dragToSelection(d, R) {
+  const c0 = Math.round(xToCol(Math.min(d.x0, d.x1), R));
+  const c1 = Math.round(xToCol(Math.max(d.x0, d.x1), R));
+  const r0 = Math.round(yToRow(Math.min(d.y0, d.y1), R));
+  const r1 = Math.round(yToRow(Math.max(d.y0, d.y1), R));
+  const sel = {
+    c0: Math.max(0, Math.min(DATA.ncols, c0)),
+    c1: Math.max(0, Math.min(DATA.ncols, c1)),
+    r0: Math.max(0, Math.min(DATA.nrows, r0)),
+    r1: Math.max(0, Math.min(DATA.nrows, r1))
+  };
+  if (sel.c1 <= sel.c0 || sel.r1 <= sel.r0) return null;
+  return sel;
+}
+
+window.addEventListener("resize", () => draw());
+
+draw();
+//]]>
+</script>
+</body>
+</html>
