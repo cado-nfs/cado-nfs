@@ -145,16 +145,7 @@ int mkdir_with_parents(char const * dir, int fatal)
                 if (fatal) exit(1);
                 return -errno;
             }
-/* MinGW's mkdir has only one argument,
-   cf http://lists.gnu.org/archive/html/bug-gnulib/2008-04/msg00259.html */
-#if (defined _WIN32 || defined __WIN32__) && ! defined __CYGWIN__
-            /* Test if it's an MSDOS drive specifier */
-            if (strlen(tmp) == 2 && (isupper(tmp[0]) || islower(tmp[0])) && tmp[1] == ':')
-              continue;
-            rc = mkdir (tmp);
-#else
             rc = mkdir (tmp, 0777);
-#endif
             /* We have an obvious race condition between the check above
              * and the mkdir here. So failing with EEXIST can be a
              * legitimate event */

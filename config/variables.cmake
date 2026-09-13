@@ -75,9 +75,6 @@ MESSAGE( STATUS "WIN32: " ${WIN32} )
 # is TRUE on Apple OS X
 MESSAGE( STATUS "APPLE: " ${APPLE} )
 
-# is TRUE when using the MinGW compiler in Windows
-MESSAGE( STATUS "MINGW: " ${MINGW} )
-
 # is TRUE on Windows when using the CygWin version of cmake
 MESSAGE( STATUS "CYGWIN: " ${CYGWIN} )
 

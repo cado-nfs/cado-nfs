@@ -78,7 +78,7 @@ las_output::las_output(cxx_param_list & pl)
         outputname = std::string(tmp);
     }
     pl.parse("-v", verbose);
-    setvbuf(output, nullptr, _IOLBF, 0);      /* mingw has no setlinebuf */
+    setvbuf(output, nullptr, _IOLBF, 0);
     las_verbose_enter(pl, output, verbose);
 
     pl.print_command_line(output);
