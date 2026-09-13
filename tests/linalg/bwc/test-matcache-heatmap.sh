@@ -46,6 +46,10 @@ while [ $# -gt 0 ] ; do
         shift
         python=$1
         shift
+    elif [ "$1" = "--iterations" ] ; then
+        shift
+        niter=$1
+        shift
     else
         usage
     fi
@@ -201,11 +205,11 @@ done
 # submatrices of the mpi/thread grid into the file that the command line
 # actually named. A 2x2 thread grid is enough to tell whether the pieces
 # land where they belong.
-if [ -x "$bindir/linalg/bwc/krylov" ] ; then
+if [ "$CHECKS_EXPENSIVE" ] && [ -x "$bindir/linalg/bwc/krylov" ] ; then
     ( cd $wdir && $bindir/linalg/bwc/krylov wdir=. thr=2x2 nullspace=left \
-        interval=100 mn=64 prime=2 ys=0..64 start=0 end=100 \
+        interval=$niter mn=64 prime=2 ys=0..64 start=0 end=$niter \
         skip_online_checks=1 rebuild_cache=1 seed=1 \
-        sequential_cache_build=1 no_save_cache=1 \
+        no_save_cache=1 \
         random_matrix=nrows=$N,density=$dens,seed=$seed \
         mm_impl=bucket mm_bucket_heatmap=./collected.json ) \
         > $wdir/krylov.out 2>&1

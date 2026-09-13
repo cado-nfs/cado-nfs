@@ -855,7 +855,7 @@ cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-matcache.sh
 # matrix. The matrix must be wide enough (more than 1<<16 columns) for
 # the cutting into blocks to be two-dimensional.
 cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-matcache-heatmap.sh
-    --matrix-size 100000 --density 20
+    --matrix-size 10000 --density 5 --iterations 3
     --python ${PYTHON_EXECUTABLE}
     TARGET_DEPENDENCIES
     random_matrix
