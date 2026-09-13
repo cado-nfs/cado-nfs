@@ -439,37 +439,20 @@ bwc.sagemath specific expensive checks with gcc:
   script:
     - *checks-script
   artifacts:
+    # raw gcov counters, a couple of megabytes per job. Exactly one job
+    # also ships the (much larger) .gcno files, see ci/ci.sh.
     paths:
-      - coverage-*.json
-      - coverage-*.info
-      - coverage-*-generated-sources.tar.gz
+      - coverage-*-gcda.tar.gz
+      - coverage-*-gcno.tar.gz
     expire_in: 1 week
 
-coverage tests 1/13 on checks with gcc:
+coverage tests 1/4 on checks with gcc:
   <<: *coverage-job
-coverage tests 2/13 on checks with gcc:
+coverage tests 2/4 on checks with gcc:
   <<: *coverage-job
-coverage tests 3/13 on checks with gcc:
+coverage tests 3/4 on checks with gcc:
   <<: *coverage-job
-coverage tests 4/13 on checks with gcc:
-  <<: *coverage-job
-coverage tests 5/13 on checks with gcc:
-  <<: *coverage-job
-coverage tests 6/13 on checks with gcc:
-  <<: *coverage-job
-coverage tests 7/13 on checks with gcc:
-  <<: *coverage-job
-coverage tests 8/13 on checks with gcc:
-  <<: *coverage-job
-coverage tests 9/13 on checks with gcc:
-  <<: *coverage-job
-coverage tests 10/13 on checks with gcc:
-  <<: *coverage-job
-coverage tests 11/13 on checks with gcc:
-  <<: *coverage-job
-coverage tests 12/13 on checks with gcc:
-  <<: *coverage-job
-coverage tests 13/13 on checks with gcc:
+coverage tests 4/4 on checks with gcc:
   <<: *coverage-job
 
 
@@ -502,7 +485,6 @@ merge coverage tests:
   #   - job: coverage tests on checks with gcc
   #     artifacts: true
   #   # list more of these...
-  # This image has gcovr installed
   image: alpine:latest
   before_script:
     - ci/ci/00-prepare-docker.sh
@@ -517,7 +499,8 @@ merge coverage tests:
       coverage_report:
         coverage_format: cobertura
         path: coverage.xml
-  coverage: '/lines:\s\d+\.\d+\%/'
+  # ci/ci.bash:step_coverage_report prints this line for us
+  coverage: '/coverage: lines \d+\.\d+\%/'
 
 
 ############################################################################

@@ -50,6 +50,8 @@ case "$JOB_NAME" in
         # # normal tests.
         # export CHECKS_EXPENSIVE=1
 
+        # lcov is only needed by the job that renders the report
+        # (genhtml), but it costs nothing to have it everywhere.
         debian_packages="$debian_packages     lcov libmpc-dev libmpfr-dev"
         alpine_packages="$alpine_packages     lcov mpc1-dev mpfr-dev"
         needs_optional_ecm=1
@@ -60,6 +62,16 @@ case "$JOB_NAME" in
             # in doing it on several systems anyway.
             exit 1
         fi
+
+        # The .gcno files are the same in every job of the pipeline and
+        # weigh a hundred times what the counters do, so exactly one job
+        # ships them for the report job to pick up. Pick the first
+        # stride, or the only job if the tests are not split at all.
+        case "$JOB_NAME" in
+            *"coverage tests 1/"*) coverage_ship_gcno=1;;
+            *"coverage tests on"*) coverage_ship_gcno=1;;
+        esac
+        export coverage_ship_gcno
         ;;
     *"using package libfmt-dev"*)
         export install_package_libfmt_dev=1
@@ -77,6 +89,14 @@ case "$JOB_NAME" in
         # here we're not even tied to a compiler in particular, so let's
         # avoid requesting software that requires recompilation.
         needs_optional_ecm=
+        # this is the one job that turns counters into a report.
+        needs_grcov=1
+        # ... which we fetch as a bzip2-compressed tarball. Note that we
+        # deliberately do *not* install bzip2 for the jobs that run the
+        # test suite, since coping with its absence is something we want
+        # to keep testing.
+        debian_packages="$debian_packages     bzip2 curl"
+        alpine_packages="$alpine_packages     bzip2 curl"
     ;;
 esac
 
@@ -191,6 +211,39 @@ after_package_install() {
     fi
     mkdir -p /etc/gdb
     echo "set auto-load safe-path /" > /etc/gdb/gdbinit
+
+    if [ "$needs_grcov" ] ; then
+        # grcov reads .gcno/.gcda and writes lcov and cobertura in one
+        # pass. It is distributed as a single statically linked
+        # executable, which is exactly what we want here: no python, no
+        # perl modules, and the same binary works on alpine and debian.
+        #
+        # Keep the version pinned and the checksum with it. Upstream is
+        # https://github.com/mozilla/grcov/releases
+        grcov_version=0.10.8
+        grcov_tarball="grcov-x86_64-unknown-linux-musl.tar.bz2"
+        grcov_sha256=36d90cd7d4a92c5dd9bf7ec521e751d10c272e6a44ca228c46655119d6805c0d
+        (
+            # -f, so that a proxy or a 404 is an error and not an html
+            # page written into the tarball. And -e, so that we stop at
+            # the first thing that goes wrong rather than carry on and
+            # fail obscurely much later.
+            set -e
+            cd /tmp
+            curl -sSfLO "https://github.com/mozilla/grcov/releases/download/v$grcov_version/$grcov_tarball"
+            echo "$grcov_sha256  $grcov_tarball" | sha256sum -c -
+            tar xjf "$grcov_tarball" -C /usr/local/bin
+            rm -f "$grcov_tarball"
+        )
+        if ! grcov --version ; then
+            echo "Could not install grcov (see above)." >&2
+            echo "The coverage report cannot be built without it." >&2
+            # 00-prepare-docker.sh does not run under set -e, so say so
+            # here rather than let the job limp on and fail later with a
+            # missing coverage.xml.
+            exit 1
+        fi
+    fi
 
     if [ "$needs_optional_ecm" ] && ! (is_debian || is_ubuntu || is_fedora) ; then
         url=https://gitlab.inria.fr/-/project/24244/uploads/ad3e5019fef98819ceae58b78f4cce93/ecm-7.0.6.tar.gz
