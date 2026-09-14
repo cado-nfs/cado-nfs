@@ -153,10 +153,11 @@ main (int argc, char const *argv[])
   find_smooth(List, batchP, batchlpb, lpb, batchmfb, stdout, nb_threads, extra_time);
   
   if (doecm) {
-      for(auto const & lq : List) {
+      auto const rels = factor(List, cpoly, batchlpb, lpb, ncurves, stdout,
+              nb_threads, extra_time, !no_recomp_norm);
+      for(auto const & lq : rels) {
           fmt::print("# {}\n", lq.first);
-          std::list<relation> const smooth = factor(lq.second, cpoly, lq.first, batchlpb, lpb, ncurves, stdout, nb_threads, extra_time, !no_recomp_norm);
-          for(auto const & rel : smooth)
+          for(auto const & rel : lq.second)
               fmt::print("{}\n", rel);
       }
   } else {
