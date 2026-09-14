@@ -1565,7 +1565,9 @@ sub task_common_run {
     # We start with lingen, because it's slightly specific
     # take out the ones we don't need (and acollect shares some
     # peculiarities).
-    @_ = grep !/^(skip_bw_early_rank_check|rebuild_cache|cpubinding|balancing.*|interleaving|matrix|mm_impl|mpi|thr)?=/, @_ if $program =~ /(lingen|acollect$)/;
+    # none of the mm_* and matmul_* parameters, which configure the
+    # low-level matrix times vector code, mean anything here.
+    @_ = grep !/^(skip_bw_early_rank_check|rebuild_cache|cpubinding|balancing.*|interleaving|matrix|mm_.*|matmul_.*|mpi|thr)?=/, @_ if $program =~ /(lingen|acollect$)/;
     if ($program =~ /lingen/) {
         @_ = map { s/^lingen_mpi\b/mpi/; $_; } @_;
         @_ = map { s/^lingen_thr\b/thr/; $_; } @_;

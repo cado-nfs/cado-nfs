@@ -206,15 +206,16 @@ uint64_t bench_args::get_ncoeffs_total()// {{{
 
 void bench_args::display_per_thread_info() const// {{{
 {
-    uint64_t ncoeffs_total = 0;
+    uint64_t total = 0;
     for(auto const & P : p) {
         fmt::print (stderr, "T{} {}: {} rows {} cols {} coeffs\n",
                 P.tnum, mfiles[P.tnum],
                 P.mm->dim[0],
                 P.mm->dim[1],
                 P.mm->ncoeffs);
+        total += P.mm->ncoeffs;
     }
-    fmt::print (stderr, "total {} coeffs\n", ncoeffs_total);
+    fmt::print (stderr, "total {} coeffs\n", total);
 }// }}}
 
 void bench_args::do_simple_matmul_if_requested()// {{{
@@ -275,6 +276,9 @@ void bench_args::do_timing_run()// {{{
     double last[10]={0,};
     double sum_last = 0;
 
+    /* the ns/coeff figures below divide by this */
+    get_ncoeffs_total();
+
     clock_t const t0 = clock();
     clock_t next = 0.25 * CLOCKS_PER_SEC;
     clock_t t1 = 0;
@@ -300,14 +304,17 @@ void bench_args::do_timing_run()// {{{
         if (dt > next || n == nmax - 1) {
             do { next += 0.25 * CLOCKS_PER_SEC; } while (dt > next);
             next = std::min(next, timecap);
-            dt /= CLOCKS_PER_SEC;
 
-            auto fromstart = fmt::format("{} iters in {}s",
-                    n, dt / CLOCKS_PER_SEC);
+            /* dt stays in clock ticks, so that the comparison with
+             * timecap below is meaningful */
+            double const dt_seconds = double(dt) / CLOCKS_PER_SEC;
+
+            auto fromstart = fmt::format("{} iters in {:.2f}s",
+                    n, dt_seconds);
 
             auto average = fmt::format("{:.3f}/1, {:.2f} {}",
-                    double(dt) / CLOCKS_PER_SEC / n,
-                    freq * 1.0e9 * double(dt)/n/double(ncoeffs_total), unit);
+                    dt_seconds / n,
+                    freq * 1.0e9 * dt_seconds / n / double(ncoeffs_total), unit);
             auto window = fmt::format("last {} : {:.3f}/1, {:.2f} {}",
                     nlast,
                     sum_last / nlast,
@@ -516,6 +523,7 @@ int main(int argc, char const * argv[])
     bench_args ba(pl, mfiles);
 
     pl.lookup("matmul_bucket_methods");
+    pl.lookup("mm_bucket_heatmap");
     pl.lookup("l1_cache_size");
     pl.lookup("l2_cache_size");
     pl.lookup("srcvec");

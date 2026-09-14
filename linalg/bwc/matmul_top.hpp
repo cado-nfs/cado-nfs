@@ -91,6 +91,12 @@ struct matmul_top_data {
      * matrices[0] * matrices[1] * ... * matrices[nmatrices-1]
      */
     std::vector<matmul_top_matrix> matrices;
+
+    /* mm_bucket_heatmap. When set, matmul_top_report collects the heat
+     * maps of all the submatrices into this one file. Empty by default,
+     * and then nothing of the sort happens. */
+    std::string heatmap_file;
+
     matmul_top_data(
         arith_generic * abase,
         parallelizing_info & pi,

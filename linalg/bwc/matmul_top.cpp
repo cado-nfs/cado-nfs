@@ -8,6 +8,7 @@
 #include <cerrno>
 
 #include <algorithm>
+#include <ranges>
 #include <memory>
 #include <string>
 #include <utility>
@@ -26,6 +27,7 @@
 #include "balancing_workhorse.hpp"
 #include "intersections.h"
 #include "macros.h"
+#include "matmul-heatmap.hpp"
 #include "matmul.hpp"
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
@@ -1098,6 +1100,8 @@ matmul_top_data::matmul_top_data(
 {
     matmul_top_data & mmt = *this;
 
+    pl.parse("mm_bucket_heatmap", mmt.heatmap_file);
+
     int const nbals = pl.get_list_count("balancing");
     int multimat = 0;
     int nmatrices = pl.lookup_old("matrix") != nullptr;
@@ -1531,9 +1535,107 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
     }
 }
 
+/* Collect the heat maps of all the submatrices of the grid into the
+ * picture of the whole matrix, and write it to the file that the user
+ * asked for. The per-submatrix files, which the implementation writes on
+ * its own, use local coordinates and a decorated name; this one uses the
+ * coordinates of the (padded, balanced) matrix that the grid works on.
+ */
+static void matmul_top_collect_heatmap(matmul_top_data & mmt,
+        size_t midx, std::string const & filename)
+{
+    matmul_top_matrix const & Mloc = mmt.matrices[midx];
+    parallelizing_info & pi = mmt.pi;
+
+    heatmap_info info;
+    std::vector<heatmap_block> blocks;
+
+    /* Careful: everything below is collective, so we may not return
+     * early on the instances that have nothing to say. They take part
+     * with an empty contribution instead. */
+    size_t nonempty = Mloc.mm->heatmap(info, blocks) ? 1 : 0;
+    pi.m.allreduce(nullptr, &nonempty, 1, BWC_PI_SIZE_T, BWC_PI_MAX);
+
+    if (!nonempty) {
+        if (pi.m.jrank == 0 && pi.m.trank == 0)
+            fmt::print(stderr, "Warning: not writing {}: this matmul"
+                    " implementation has no heat map to report\n", filename);
+        return;
+    }
+
+    /* wr[1] walks the grid downwards, wr[0] rightwards -- the same
+     * convention as the h and v tags of the cache file names. */
+    unsigned int const nh = pi.wr[1].totalsize;
+    unsigned int const nv = pi.wr[0].totalsize;
+    unsigned int const submatrix_nrows = Mloc.n[0] / nh;
+    unsigned int const submatrix_ncols = Mloc.n[1] / nv;
+    unsigned int const h = pi.wr[1].jrank * pi.wr[1].ncores + pi.wr[1].trank;
+    unsigned int const v = pi.wr[0].jrank * pi.wr[0].ncores + pi.wr[0].trank;
+
+    for(auto & B : blocks) {
+        B.i0 += h * submatrix_nrows;
+        B.i1 += h * submatrix_nrows;
+        B.j0 += v * submatrix_ncols;
+        B.j1 += v * submatrix_ncols;
+    }
+
+    /* every instance contributes a slot of the same size */
+    size_t slot = blocks.size();
+    pi.m.allreduce(nullptr, &slot, 1, BWC_PI_SIZE_T, BWC_PI_MAX);
+
+    size_t const n = pi.m.totalsize;
+    size_t const me = pi.m.jrank * pi.m.ncores + pi.m.trank;
+
+    std::vector<size_t> counts(n, 0);
+    counts[me] = blocks.size();
+    pi.m.allgather(nullptr, 0, nullptr,
+            counts.data(), 1, BWC_PI_SIZE_T);
+
+    std::vector<heatmap_block> all(n * slot);
+    std::ranges::copy(blocks, all.begin() + ptrdiff_t(me * slot));
+    pi.m.allgather(nullptr, 0, nullptr,
+            all.data(), slot * sizeof(heatmap_block), BWC_PI_BYTE);
+
+    double total = info.total;
+    double total_max = info.total;
+    size_t ncoeffs = info.ncoeffs;
+    pi.m.allreduce(nullptr, &total, 1, BWC_PI_DOUBLE, BWC_PI_SUM);
+    pi.m.allreduce(nullptr, &total_max, 1, BWC_PI_DOUBLE, BWC_PI_MAX);
+    pi.m.allreduce(nullptr, &ncoeffs, 1, BWC_PI_SIZE_T, BWC_PI_SUM);
+
+    if (pi.m.jrank || pi.m.trank)
+        return;
+
+    blocks.clear();
+    for(size_t k = 0 ; k < n ; k++) {
+        auto const * p = all.data() + k * slot;
+        blocks.insert(blocks.end(), p, p + counts[k]);
+    }
+
+    info.nrows = Mloc.n[0];
+    info.ncols = Mloc.n[1];
+    info.ncoeffs = ncoeffs;
+    info.total = total;
+    info.total_max = total_max;
+    info.matrix = Mloc.mname;
+    if (info.matrix.empty()) info.matrix = Mloc.locfile;
+    if (info.matrix.empty()) info.matrix = "(random matrix)";
+    info.nh = nh;
+    info.nv = nv;
+    info.submatrix_nrows = submatrix_nrows;
+    info.submatrix_ncols = submatrix_ncols;
+
+    /* with several matrices in a chain, they cannot share one file */
+    std::string const tag =
+        mmt.matrices.size() > 1 ? fmt::format("m{}", midx) : std::string();
+
+    heatmap_dump(filename, tag, info, blocks);
+}
+
 void matmul_top_report(matmul_top_data & mmt, double scale, int full)
 {
-    for(auto const & Mloc : mmt.matrices) {
+    for(size_t midx = 0 ; midx < mmt.matrices.size() ; midx++) {
+        matmul_top_matrix const & Mloc = mmt.matrices[midx];
         Mloc.mm->report(scale);
         size_t max_report_size = Mloc.mm->report_string.size() + 1;
         mmt.pi.m.allreduce(nullptr, &max_report_size, 1, BWC_PI_SIZE_T, BWC_PI_MAX);
@@ -1555,6 +1657,11 @@ void matmul_top_report(matmul_top_data & mmt, double scale, int full)
             }
         }
         mmt.pi.m.serialize(__FILE__, __LINE__);
+
+        if (!mmt.heatmap_file.empty()) {
+            matmul_top_collect_heatmap(mmt, midx, mmt.heatmap_file);
+            mmt.pi.m.serialize(__FILE__, __LINE__);
+        }
     }
 }
 

@@ -159,6 +159,11 @@ void matmul_sliced<Arith>::build_cache(matrix_u32 && m)
 {
     ASSERT_ALWAYS(!m.p.empty());
 
+    /* we recount the coefficients below, so we must not add to whatever
+     * the caller may have put there (build_matcache and bench_matcache
+     * do set it from the matrix file) */
+    ncoeffs = 0;
+
     uint32_t const i0 = 0;
     uint32_t const i1 = dim[ store_transposed];
 

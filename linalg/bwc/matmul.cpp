@@ -58,6 +58,8 @@ void matmul_decl_usage(cxx_param_list & pl)
 
     pl.declare_usage("matmul_bucket_methods",
             "internal, for mm_impl=bucket");
+    pl.declare_usage("mm_bucket_heatmap",
+            "for mm_impl=bucket, write a json file with the per-block timings of the matrix times vector product");
 
     pl.declare_usage("local_cache_copy_dir",
             "path to a local directory where a secondary copy of the cache will be saved");
@@ -82,6 +84,7 @@ void matmul_lookup_parameters(cxx_param_list & pl)
     pl.lookup("mm_threaded_densify_tolerance");
 #endif
     pl.lookup("matmul_bucket_methods");
+    pl.lookup("mm_bucket_heatmap");
 
     pl.lookup("local_cache_copy_dir");
     pl.lookup("no_save_cache");
