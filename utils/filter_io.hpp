@@ -582,6 +582,26 @@ namespace cado::relation_building_blocks {
             return out;
         }
 
+        /* two entries may be collated only if they refer to the same
+         * ideal, which for sieve relations means that the side must
+         * match as well. Under normal circumstances the polynomials on
+         * different sides have no small factor in the resultant, but
+         * that can happen (e.g., in SNFS), and it's not for us to
+         * assert. So we have to assume that a prime may perfectly well
+         * divide the norms on both sides.
+         */
+        static bool same_ideal(prime_type const & a, prime_type const & b)
+            requires requires { decltype(prime_type::side)(); }
+        {
+            return a.p_or_h() == b.p_or_h() && a.side == b.side;
+        }
+
+        static bool same_ideal(prime_type const & a, prime_type const & b)
+            requires (!requires { decltype(prime_type::side)(); })
+        {
+            return a.p_or_h() == b.p_or_h();
+        }
+
         void sort_and_compress() {
             std::vector<prime_type> A;
             for(auto const & pse : primes)
@@ -590,7 +610,7 @@ namespace cado::relation_building_blocks {
             primes.clear();
             size_t j = 0;
             for(size_t i = 0; i < A.size(); i++) {
-                if (j && A[i].p_or_h() == A[j-1].p_or_h()) {
+                if (j && same_ideal(A[i], A[j-1])) {
                     A[j-1].e += A[i].e;
                     if (A[j-1].e == 0)
                         j--;

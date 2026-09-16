@@ -17,6 +17,7 @@
 #include <iterator>
 #include <list>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -970,9 +971,8 @@ strip (unsigned long *l, unsigned long n, mpz_t P)
 #endif
 
 /* sqside = 1 if the special-q is on side 1 (algebraic) */
-static bool
+static std::optional<relation>
 factor_one (
-        std::list<relation> & smooth,
         cofac_candidate const & C,
         cxx_cado_poly const & cpoly,
         special_q const & doing,
@@ -1029,7 +1029,7 @@ factor_one (
                             os.str().c_str(), side, (mpz_srcptr) cofac);
                 }
             }
-            return false;
+            return {};
         }
     }
 
@@ -1039,23 +1039,31 @@ factor_one (
             rel.add(side, z, 0);
     }
     rel.compress();
-    smooth.push_back(rel);
 
-    return true;
+    return rel;
 }
 
-/* Given a list L of bi-smooth cofactors, print the corresponding relations
- * on "out".
- * n is the number of bi-smooth cofactors in L.
- * 
+/* Given the survivors of a bunch of special-q's, all of them bi-smooth
+ * as far as the product tree is concerned, return the relations, grouped
+ * by special-q as on input (special-q's that yield no relation are kept,
+ * with an empty list).
+ *
+ * The setup that this function does -- the list of small primes for each
+ * side, and the bytecode for the factoring methods -- does not depend on
+ * how many candidates we hand over, and neither does the cost of
+ * entering the openmp parallel region. None of it has any reason to be
+ * paid once per special-q, so the caller has an interest in passing as
+ * many special-q's at a time as it can. There is no product tree here,
+ * hence no counterpart in memory: the working set is one candidate per
+ * thread.
+ *
  * Adds to extra_time the cpu time (RUSAGE_THREAD, seconds_thread())
  * spent in openmp helper threads, NOT counting the time spent in the
  * main thread.
  */
-std::list<relation>
-factor (std::list<cofac_candidate> const & L,
+std::list<std::pair<special_q, std::list<relation>>>
+factor (std::list<std::pair<special_q, std::list<cofac_candidate>>> const & L,
         cxx_cado_poly const & cpoly,
-        special_q const & doing,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
         int ncurves,
@@ -1095,37 +1103,55 @@ factor (std::list<cofac_candidate> const & L,
   for(auto const & mp : facul_strategy_oneside::default_strategy (ncurves))
       methods.emplace_back(mp);
 
-  std::list<relation> smooth;
-  std::list<cofac_candidate>::const_iterator it;
-  
+  /* Flatten the input. Each candidate needs the special-q it came from,
+   * since the special-q divides the norm on its own side.
+   */
+  std::vector<std::pair<special_q const *, cofac_candidate const *>> todo;
+  {
+      size_t n = 0;
+      for(auto const & x : L) n += x.second.size();
+      todo.reserve(n);
+  }
+  for(auto const & x : L)
+      for(auto const & C : x.second)
+          todo.emplace_back(&x.first, &C);
+
+  /* One slot per candidate: the threads never write to the same place,
+   * and the result does not depend on the scheduling.
+   */
+  std::vector<std::optional<relation>> res(todo.size());
+
 #ifdef HAVE_OPENMP
   omp_set_num_threads (nthreads);
 #endif
 
   subtract_openmp_subtimings(extra_time);
 
+  /* The candidates are not equally expensive: whether we find a factor
+   * early or go through the whole method list varies a lot. Hence
+   * dynamic scheduling, one candidate at a time.
+   */
 #ifdef HAVE_OPENMP
-#pragma omp parallel private(it)
-  {
-      std::list<relation> smooth_local;
-#else
-      std::list<relation> & smooth_local(smooth);
+#pragma omp parallel for schedule(dynamic)
 #endif
-      for (it = begin(L); it != end(L); ++it) {
-#ifdef HAVE_OPENMP
-#pragma omp single nowait
-#endif
-          factor_one (smooth_local, *it, cpoly, doing,
-                  B, batchlpb, lpb, out, methods,
-                  SP, recomp_norm);
-      }
-#ifdef HAVE_OPENMP
-#pragma omp critical
-      smooth.splice(smooth.end(), smooth_local);
-  }
-#endif
+  for (size_t i = 0 ; i < todo.size() ; i++)
+      res[i] = factor_one (*todo[i].second, cpoly, *todo[i].first,
+              B, batchlpb, lpb, out, methods,
+              SP, recomp_norm);
 
   add_openmp_subtimings(extra_time);
+
+  std::list<std::pair<special_q, std::list<relation>>> R;
+  size_t nrels = 0;
+  size_t i = 0;
+  for(auto const & [q, qcand] : L) {
+      std::list<relation> rels;
+      for(size_t j = 0 ; j < qcand.size() ; j++, i++)
+          if (auto r = res[i]; r.has_value())
+              rels.push_back(std::move(*r));
+      nrels += rels.size();
+      R.emplace_back(q, std::move(rels));
+  }
 
   fprintf (out,
           "# batch: took %.2fs (%.2f + %.2f ; wct %.2fs) to factor %zu smooth relations (%zd final cofac misses)\n",
@@ -1133,9 +1159,9 @@ factor (std::list<cofac_candidate> const & L,
           seconds_thread () - st,
           extra_time - e0,
           wct_seconds () - wct,
-          smooth.size(), L.size()-smooth.size());
+          nrels, todo.size()-nrels);
 
-  return smooth;
+  return R;
 }
 
 static void

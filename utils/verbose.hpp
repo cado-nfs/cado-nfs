@@ -107,7 +107,8 @@ FILE *verbose_output_get(size_t channel, int verbose, size_t index);
    to declare prototypes for functions that take va_list.
    
    WARNING: do not print PRI?64 format strings with gmp_vfprintf(), this
-   crashes on MinGW! */
+   might crash. E.g., it does crash on MinGW!
+ */
 int verbose_output_vfprint(size_t channel, int verbose, vfprintf_func_t func,
                            const char * fmt, ...);
 

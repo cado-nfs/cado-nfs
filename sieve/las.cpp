@@ -1734,20 +1734,20 @@ int main (int argc0, char const * argv0[])/*{{{*/
             if (ncurves <= 0)
                 ncurves = 50; // use the same default as finishbatch
 
-            std::list<std::pair<special_q, std::list<relation>>> rels;
-
-            for(auto const & x : las.survivors.L) {
-                rels.emplace_back(x.first, factor (x.second,
+            /* One call for all special-q's: the setup that factor()
+             * does is independent of how many candidates we hand over,
+             * and the grouping by special-q is preserved on output.
+             */
+            std::list<std::pair<special_q, std::list<relation>>> const rels =
+                factor (las.survivors.L,
                     las.cpoly,
-                    x.first,
                     batchlpb,
                     lpb,
                     ncurves,
                     main_output->output,
                     las.number_of_threads_loose(),
                     extra_time,
-                    1));
-            }
+                    1);
             verbose_fmt_print (0, 1, "# batch reported time for additional threads: {:.2f}\n", extra_time);
             batch_timer.add_foreign_time(extra_time);
 

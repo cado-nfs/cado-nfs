@@ -169,7 +169,6 @@ static int max_loglevel=99;
 static char prefix[20]={'\0'};
 
 int
-/* Don't check format under MinGW as it still contains %zu here */
 ATTR_PRINTF(1, 2)
 logprint(const char * fmt, ...)
 {

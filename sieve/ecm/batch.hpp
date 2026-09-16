@@ -59,10 +59,9 @@ find_smooth (std::list<std::pair<special_q, std::list<cofac_candidate>>> & l,
         int nthreads MAYBE_UNUSED, double & extra_time,
         size_t chunk_size = 0);
 
-std::list<relation> factor (
-        std::list<cofac_candidate> const &,
+std::list<std::pair<special_q, std::list<relation>>> factor (
+        std::list<std::pair<special_q, std::list<cofac_candidate>>> const &,
         cxx_cado_poly const&,
-        special_q const &,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
         int max_ncurves,

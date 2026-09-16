@@ -122,6 +122,16 @@ class reservation_array<T, false> : public reservation_array_base<T> {
     T & inner_reserve();
     void release(T &BA);
 
+    /* The occupancy that we record when an array is released goes stale
+     * as soon as the array is emptied, so the queue must be rebuilt
+     * whenever that happens.
+     */
+    void reset_queue() {
+        available_buckets = decltype(available_buckets)();
+        for(size_t i = 0 ; i < super::BAs.size() ; i++)
+            available_buckets.emplace(0, i);
+    }
+
     public:
     ~reservation_array() = default;
     reservation_array(reservation_array const &) = delete;
@@ -139,12 +149,22 @@ class reservation_array<T, false> : public reservation_array_base<T> {
 
     reservation_array() = default;
 
+    /* allocate_memory() resets the write pointers, so this empties all
+     * arrays. It happens once per special-q.
+     */
+    void allocate_buckets(las_memory_accessor & memory, int n_bucket,
+            double fill_ratio, int logI, nfs_aux & aux, thread_pool & pool)
+    {
+        super::allocate_buckets(memory, n_bucket, fill_ratio, logI, aux, pool);
+        if (n_bucket <= 0) return;
+        auto lock = get_lock();
+        reset_queue();
+    }
+
     void reset_all_pointers() {
         auto lock = get_lock();
         super::reset_all_pointers(lock);
-        available_buckets = decltype(available_buckets)();
-        for(size_t i = 0 ; i < super::BAs.size() ; i++)
-            available_buckets.emplace(0, i);
+        reset_queue();
     }
 
     acquired_BA reserve() { return acquired_BA(*this); }

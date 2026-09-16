@@ -5,7 +5,6 @@
 # wildcards are *NOT* recognized (by the fascist sanity check program).
 .mailmap
 README.nonlinear
-Toolchain-MinGW64.cmake
 dev_docs/
 files.dist
 files.nodist
