@@ -355,6 +355,11 @@ private:/*{{{ more implementation-level stuff. */
     /* there's no write_table, because writing the table is done by
      * the build() function (called from freerel) */
     void read_table(std::istream& is);
+    /* Same as read_table(), but for a file that we can mmap: the parse
+     * is then done by all threads at once. Returns false if the file
+     * cannot be dealt with this way, and nothing was read.
+     */
+    bool read_table_parallel(std::string const & filename, size_t offset);
     void read_table_binary(std::istream& is, std::string const & filename,
             bool may_mmap);
     /* fills index_from_p_cache and above_cache, once flat_data is

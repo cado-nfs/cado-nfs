@@ -40,20 +40,26 @@ ${FREEREL} -poly ${POLY} -lpbs "$LPBS" -renumber ${wdir}/renumber.bin
 ${FREEREL} -poly ${POLY} -lpbs "$LPBS" -renumber ${wdir}/renumber.gz
 ${FREEREL} -poly ${POLY} -lpbs "$LPBS" -renumber ${wdir}/renumber.flat.gz \
            -renumber_format flat
+${FREEREL} -poly ${POLY} -lpbs "$LPBS" -renumber ${wdir}/renumber.flat \
+           -renumber_format flat
 
-for f in renumber.bin renumber.gz renumber.flat.gz ; do
+for f in renumber.bin renumber.gz renumber.flat.gz renumber.flat ; do
     ${DEBUG_RENUMBER} -poly ${POLY} -renumber ${wdir}/$f -check \
         > ${wdir}/$f.dump
     grep -v '^#' ${wdir}/$f.dump > ${wdir}/$f.data
 done
 
-# the plain file must go through mmap, and the two others must not
+# the plain binary file must go through mmap, the plain text file must
+# be parsed by all threads, and the compressed ones can do neither
 grep -q "entries mmapped from" ${wdir}/renumber.bin.dump
+grep -q "entries parsed from" ${wdir}/renumber.flat.dump
 ! grep -q "entries mmapped from" ${wdir}/renumber.gz.dump
+! grep -q "entries parsed from" ${wdir}/renumber.flat.gz.dump
 
 # and all three must describe the very same table
 diff ${wdir}/renumber.bin.data ${wdir}/renumber.gz.data
 diff ${wdir}/renumber.bin.data ${wdir}/renumber.flat.gz.data
+diff ${wdir}/renumber.bin.data ${wdir}/renumber.flat.data
 
 ${DEBUG_RENUMBER} -poly ${POLY} -renumber ${wdir}/renumber.bin -check -quiet
 

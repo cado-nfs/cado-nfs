@@ -5,8 +5,11 @@
 #include <climits>
 #include <cmath>
 
+#include <charconv>
+
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <bit>
 #include <iostream>
 #include <limits>
@@ -18,7 +21,10 @@
 #include <utility>
 #include <vector>
 
+#include <sys/mman.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include <gmp.h>
 #include "fmt/format.h"
@@ -1007,6 +1013,112 @@ void renumber_t::read_table(std::istream& is)
     compute_index_from_p_cache();
 }
 
+/* Read the text table with all the threads at once. The file is mmapped
+ * and cut in as many pieces as there are threads; a first pass counts
+ * the entries in each piece, so that the second one can parse straight
+ * into the right place in the table. std::istream::operator>> is about
+ * four times slower than this on one thread alone.
+ */
+bool renumber_t::read_table_parallel(std::string const & filename,
+        size_t offset)
+{
+    int const fd = open(filename.c_str(), O_RDONLY);
+    if (fd < 0)
+        return false;
+
+    struct stat sbuf[1];
+    if (fstat(fd, sbuf) < 0 || size_t(sbuf->st_size) < offset) {
+        close(fd);
+        return false;
+    }
+
+    size_t const len = size_t(sbuf->st_size) - offset;
+    if (!len) {
+        close(fd);
+        above_all = above_bad;
+        compute_index_from_p_cache();
+        return true;
+    }
+
+    /* mmap from a page boundary, since offset need not be one */
+    size_t const page_size = size_t(sysconf(_SC_PAGE_SIZE));
+    size_t const mstart = (offset / page_size) * page_size;
+    void * area = mmap(nullptr, len + offset - mstart, PROT_READ, MAP_SHARED,
+            fd, off_t(mstart));
+    close(fd);
+    if (area == MAP_FAILED)
+        return false;
+
+    char const * const buf =
+        static_cast<char const *>(area) + (offset - mstart);
+
+    auto const nthreads = size_t(omp_get_max_threads());
+
+    /* cut on line boundaries */
+    std::vector<size_t> bounds(nthreads + 1, len);
+    std::vector<size_t> counts(nthreads + 1, 0);
+    bounds[0] = 0;
+    for(size_t j = 1 ; j < nthreads ; j++) {
+        size_t b = len * j / nthreads;
+        for( ; b < len && buf[b-1] != '\n' ; b++) ;
+        bounds[j] = std::max(b, bounds[j-1]);
+    }
+
+#pragma omp parallel for schedule(static, 1)
+    for(size_t j = 0 ; j < nthreads ; j++) {
+        size_t n = 0;
+        for(size_t i = bounds[j] ; i < bounds[j+1] ; i++)
+            n += buf[i] == '\n';
+        counts[j+1] = n;
+    }
+    for(size_t j = 0 ; j < nthreads ; j++)
+        counts[j+1] += counts[j];
+
+    flat_data.resize_uninitialized(counts[nthreads]);
+
+    /* several threads may want to set this */
+    std::atomic<bool> ok { true };
+#pragma omp parallel for schedule(static, 1)
+    for(size_t j = 0 ; j < nthreads ; j++) {
+        char const * q = buf + bounds[j];
+        char const * const e = buf + bounds[j+1];
+        auto * out = flat_data.data() + counts[j];
+        for( ; q < e ; ) {
+            p_r_values_t p = 0;
+            p_r_values_t r = 0;
+            auto const a = std::from_chars(q, e, p);
+            if (a.ec != std::errc()) { ok = false; break; }
+            q = a.ptr;
+            for( ; q < e && (*q == ' ' || *q == '\t') ; q++) ;
+            auto const b = std::from_chars(q, e, r);
+            if (b.ec != std::errc()) { ok = false; break; }
+            q = b.ptr;
+            for( ; q < e && *q != '\n' ; q++) ;
+            q++;
+            *out++ = std::array<p_r_values_t, 2> {{ p, r }};
+        }
+        if (out != flat_data.data() + counts[j+1])
+            ok = false;
+    }
+
+    munmap(area, len + offset - mstart);
+
+    if (!ok) {
+        flat_data.clear();
+        return false;
+    }
+
+    above_all = above_bad + flat_data.size();
+
+    std::cout << fmt::format(
+            "# INFO: {} entries parsed from {} by {} threads\n",
+            flat_data.size(), filename, nthreads);
+
+    compute_index_from_p_cache();
+
+    return true;
+}
+
 void renumber_t::compute_index_from_p_cache()
 {
     index_t i = 0;
@@ -1154,10 +1266,28 @@ void renumber_t::read_from_file(std::string const & filename, bool for_dl)
         use_additional_columns_for_dl();
     read_header(is);
     info(std::cout);
-    if (format == format_binary)
+    if (format == format_binary) {
         read_table_binary(is, filename, !is.is_pipe());
-    else
-        read_table(is);
+    } else {
+        /* Get past the comments that sit between the header and the
+         * table itself, so that the offset we compute is the offset of
+         * the first entry. read_table() does the same, and finds
+         * nothing left to skip.
+         */
+        for(std::string t; std::ws(is).peek() == '#' ; getline(is, t) ) ;
+
+        /* The position we are at is only meaningful for a real file,
+         * and that is also the only case where we can mmap.
+         */
+        bool done = false;
+        if (!is.is_pipe()) {
+            auto const pos = is.tellg();
+            if (pos >= 0)
+                done = read_table_parallel(filename, size_t(pos));
+        }
+        if (!done)
+            read_table(is);
+    }
     more_info(std::cout);
     
     /* It's used by inertia_from_p_r */
