@@ -292,15 +292,46 @@ public:
        renumber_table.build();
      */
 
-    struct cooked {
-        std::vector<int> nroots;
+    /* What one thread computes for one interval of primes: the entries
+     * of the table for those primes, and, for each prime that has at
+     * least one ideal above it and in increasing order, the number of
+     * roots on each side. The prime itself needs not be stored, since
+     * it is the first coordinate of the entries.
+     *
+     * The index of the first entry of the fragment in the whole table
+     * is only known once the previous fragments are complete, which is
+     * why anything that needs it (the hook, below) runs in a second
+     * pass.
+     */
+    struct fragment {
         std::vector<std::array<p_r_values_t, 2>> flat;
-        std::string text;
+        std::vector<uint8_t> nroots;    /* nsides per prime */
+        std::string text;               /* only for format_flat */
+        std::string hook_text;
+        index_t base = 0;
+        uint64_t nprimes_seen = 0;
         bool empty() const { return flat.empty(); }
+        void clear() {
+            flat.clear();
+            nroots.clear();
+            text.clear();
+            hook_text.clear();
+            base = 0;
+            nprimes_seen = 0;
+        }
     };
 
     struct hook {
-        virtual void operator()(renumber_t & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) = 0;
+        /* Called from several threads at once, on distinct fragments,
+         * and hence forbidden to touch any shared state: the output
+         * goes to the per-fragment string.
+         */
+        virtual void operator()(renumber_t const & R, p_r_values_t p,
+                index_t idx, uint8_t const * nroots, std::string & out) = 0;
+        /* Called single-threaded, with the fragments in increasing
+         * order of the primes they cover.
+         */
+        virtual void flush(std::string const & out) = 0;
         virtual ~hook() = default;
     };
 
@@ -356,18 +387,13 @@ private:/*{{{ more implementation-level stuff. */
     p_r_values_t compute_vp_from_p (p_r_values_t p) const;
     p_r_values_t compute_p_from_vp (p_r_values_t vp) const;
 
-    /* The "cook" function can be used asynchronously to prepare the
-     * fragments of the renumber table in parallel. use_cooked must use
-     * the same data, but synchronously -- and stores it to the table, of
-     * course. use_cooked_nostore does the same, except that it is made
-     * for the situation where we have no interest in keeping track of
-     * the renumber table itself. The only thing that matters is keeping
-     * track of the above_all index, which is done by the input and
-     * output index_t values.
+    /* Append to the fragment what the table holds for the prime p,
+     * given its roots on each side. Called from several threads at
+     * once, on distinct fragments.
      */
-    cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> &) const;
-    void use_cooked(p_r_values_t p, cooked const & C);
-    index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked const & C);
+    void cook_into(unsigned long p,
+            std::vector<std::vector<unsigned long>> & roots,
+            fragment & F) const;
 
     struct builder; // IWYU pragma: keep
     friend struct builder;

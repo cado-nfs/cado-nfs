@@ -10,7 +10,6 @@
 #include <bit>
 #include <iostream>
 #include <limits>
-#include <list>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -280,21 +279,25 @@ renumber_t::p_r_side renumber_t::compute_p_r_side_from_p_vr (p_r_values_t p, p_r
 
 /* sort in decreasing order. Faster than qsort for ~ < 15 values in r[] */
 
-renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<unsigned long>> & roots) const
+void renumber_t::cook_into(unsigned long p,
+        std::vector<std::vector<unsigned long>> & roots,
+        fragment & F) const
 {
-    cooked C;
-
     size_t total_nroots = 0;
 
-    /* Note that all_roots always a root on the rational side, even
+    /* Note that roots always has a root on the rational side, even
      * though it's only a zero -- the root itself isn't computed.
      */
-    for (int i = 0; i < get_nb_polys() ; i++) {
-        C.nroots.push_back(roots[i].size());
+    for (int i = 0; i < get_nb_polys() ; i++)
         total_nroots += roots[i].size();
-    }
 
-    if (total_nroots == 0) return C;
+    /* primes with no ideal above them leave no trace at all */
+    if (total_nroots == 0) return;
+
+    for (int i = 0; i < get_nb_polys() ; i++) {
+        ASSERT_ALWAYS(roots[i].size() <= UCHAR_MAX);
+        F.nroots.push_back((uint8_t) roots[i].size());
+    }
 
     for (int side = 0 ; side < get_nb_polys(); side++) {
         /* reverse the ordering of the *ROOTS* (not of the sides), because
@@ -302,19 +305,13 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
          */
         for (auto it = roots[side].rbegin() ; it != roots[side].rend() ; ++it) {
             p_r_side const x { (p_r_values_t) p, (p_r_values_t) *it, side };
-            C.flat.emplace_back(
+            F.flat.emplace_back(
                     std::array<p_r_values_t, 2> {{
                     (p_r_values_t) p,
                     compute_vr_from_p_r_side (x)
                     }});
         }
     }
-    C.text.clear();
-    if (format != format_binary) {
-        for(auto x : C.flat)
-            C.text += fmt::format("{} {}\n", x[0], x[1]);
-    }
-    return C;
 }
 
 /* return the number of bad ideals above x (and therefore zero if
@@ -994,33 +991,6 @@ void renumber_t::compute_ramified_primes()
     }
 }
 
-void renumber_t::use_cooked(p_r_values_t p, cooked const & C)
-{
-    if (C.empty()) return;
-    /* In the current format, we have
-     * above_all - above_bad == flat_daat.size().
-     * Note that this used to not be the case with the old formats.
-     */
-    index_t const pos_hard = flat_data.size();
-    above_all = use_cooked_nostore(above_all, p, C);
-    flat_data.append(C.flat.begin(), C.flat.end());
-    if (!(p >> RENUMBER_MAX_LOG_CACHED) && p >= index_from_p_cache.size()) {
-        index_from_p_cache.insert(index_from_p_cache.end(),
-                p - index_from_p_cache.size(),
-                std::numeric_limits<index_t>::max());
-        ASSERT_ALWAYS(index_from_p_cache.size() == p);
-        index_from_p_cache.push_back(pos_hard);
-        above_cache = above_all;
-    }
-}
-index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, cooked const & C)
-{
-    if (C.empty()) return n0;
-    for(auto n : C.nroots) n0 += n;
-    return n0;
-}
-
-
 void renumber_t::read_table(std::istream& is)
 {
     stats_data_t stats;
@@ -1415,37 +1385,34 @@ void renumber_t::builder_declare_usage(cxx_param_list & pl)
 {
     pl.declare_usage("renumber", "output file for renumbering table");
     pl.declare_usage("renumber_format", "format of the renumbering table (\"binary\" or \"flat\")");
+    pl.declare_usage("renumber_rounds", "number of rounds used to build the renumbering table (the table is built by all threads at once, and one round's worth of fragments is held in memory)");
 }
 
 void renumber_t::builder_lookup_parameters(cxx_param_list & pl)
 {
     pl.lookup("renumber");
     pl.lookup("renumber_format");
+    pl.lookup("renumber_rounds");
 }
 
 /* This is the core of the renumber table building routine. Part of this
  * code used to exist in freerel.cpp file.
  */
 struct renumber_t::builder{/*{{{*/
-    struct prime_chunk {/*{{{*/
-        bool preprocess_done = false;
-        std::vector<unsigned long> primes;
-        std::vector<renumber_t::cooked> C;
-        prime_chunk(std::vector<unsigned long> && primes) : primes(primes) {}
-        private:
-        prime_chunk() = default;
-    };/*}}}*/
-
     renumber_t & R;
     std::ostream * os_p;
     renumber_t::hook * hook;
+    unsigned int nrounds;
     stats_data_t stats;
     uint64_t nprimes = 0; // sigh... *must* be ulong for stats().
     index_t R_max_index; // we *MUST* follow it externally, since we're not storing the table in memory.
-    builder(renumber_t & R, std::ostream * os_p, renumber_t::hook * hook)
+
+    builder(renumber_t & R, std::ostream * os_p, renumber_t::hook * hook,
+            unsigned int nrounds)
         : R(R)
         , os_p(os_p)
         , hook(hook)
+        , nrounds(nrounds)
         , R_max_index(R.get_max_index())
     {
         /* will print report at 2^10, 2^11, ... 2^23 computed primes
@@ -1459,26 +1426,41 @@ struct renumber_t::builder{/*{{{*/
     ~builder() {
         stats_print_progress(stats, nprimes, 0, 0, 1);
     }
+    builder(builder const &) = delete;
+    builder(builder &&) = delete;
+    builder& operator=(builder const &) = delete;
+    builder& operator=(builder &&) = delete;
+
     index_t operator()();
-    void preprocess(prime_chunk & P, gmp_randstate_ptr rstate);
-    void postprocess(prime_chunk & P);
+    void produce(fragment & F, unsigned long p0, unsigned long p1,
+            gmp_randstate_ptr rstate) const;
+    void finish(fragment & F) const;
+    void emit(fragment & F);
 };/*}}}*/
 
-void renumber_t::builder::preprocess(prime_chunk & P, gmp_randstate_ptr rstate)/*{{{*/
+/* Compute the part of the table that lies above the primes in [p0, p1).
+ * This is where all the time goes, and the only thing it touches is the
+ * fragment it is given.
+ */
+void renumber_t::builder::produce(fragment & F,
+        unsigned long p0, unsigned long p1,
+        gmp_randstate_ptr rstate) const/*{{{*/
 {
-    ASSERT_ALWAYS(!P.preprocess_done);
-    /* change x (list of input primes) into the list of integers that go
-     * to the renumber table, and then set "done" to true.
-     * This is done asynchronously.
-     */
-    for(auto p : P.primes) {
-        std::vector<std::vector<unsigned long>> all_roots;
-        for (int side = 0; side < R.get_nb_polys(); side++) {
-            std::vector<unsigned long> roots;
+    int const nsides = R.get_nb_polys();
+
+    F.clear();
+
+    std::vector<std::vector<unsigned long>> all_roots(nsides);
+
+    for(unsigned long const p : prime_range(p0, p1)) {
+        F.nprimes_seen++;
+        for (int side = 0; side < nsides; side++) {
+            std::vector<unsigned long> & roots = all_roots[side];
             mpz_poly_srcptr f = R.get_poly(side);
 
+            roots.clear();
+
             if (UNLIKELY(p >> R.get_lpb(side))) {
-                all_roots.emplace_back(roots);
                 continue;
             } else if (f->deg == 1) {
                 roots.assign(1, 0);
@@ -1506,115 +1488,137 @@ void renumber_t::builder::preprocess(prime_chunk & P, gmp_randstate_ptr rstate)/
                     i--;
                 }
             }
-            all_roots.emplace_back(roots);
         }
 
-        /* Data is written in the temp buffer in a way that is not quite
-         * similar to the renumber table, but still close enough.
-         */
-        P.C.emplace_back(R.cook(p, all_roots));
+        R.cook_into(p, all_roots, F);
     }
-#pragma omp atomic write
-    P.preprocess_done = true;
 }/*}}}*/
 
-void renumber_t::builder::postprocess(prime_chunk & P)/*{{{*/
+/* Everything that needs to know where the fragment sits in the whole
+ * table, but is still independent from one fragment to the next.
+ */
+void renumber_t::builder::finish(fragment & F) const/*{{{*/
 {
-    bool preprocess_done;
-#ifdef HAVE_OPENMP
-#pragma omp atomic read
-#endif
-    preprocess_done = P.preprocess_done;
-    ASSERT_ALWAYS(preprocess_done);
-
-    /* put all entries from x into the renumber table, and also print
-     * to freerel_file any free relation encountered. This is done
-     * synchronously.
-     *
-     * (if freerel_file is nullptr, store only into the renumber table)
-     */
-    for(size_t i = 0; i < P.primes.size() ; i++) {
-        p_r_values_t const p = P.primes[i];
-        renumber_t::cooked  const& C = P.C[i];
-
-        if (hook) (*hook)(R, p, R_max_index, C);
-
-        if (os_p) {
-            R_max_index = R.use_cooked_nostore(R_max_index, p, C);
-            if (R.get_format() == format_binary) {
-                os_p->write(
-                        reinterpret_cast<char const *>(C.flat.data()),
-                        std::streamsize(C.flat.size()
-                            * sizeof(decltype(C.flat)::value_type)));
-            } else {
-                (*os_p) << C.text;
-            }
-        } else {
-            ASSERT_ALWAYS(R_max_index == R.get_max_index());
-            R.use_cooked(p, C);
-            R_max_index = R.get_max_index();
+    if (hook) {
+        int const nsides = R.get_nb_polys();
+        index_t idx = F.base;
+        size_t cursor = 0;
+        for(size_t g = 0 ; g < F.nroots.size() ; g += nsides) {
+            /* cook_into() only records primes that have at least one
+             * ideal above them, so this entry does exist, and its first
+             * coordinate is the prime itself.
+             */
+            p_r_values_t const p = F.flat[cursor][0];
+            (*hook)(R, p, idx, &F.nroots[g], F.hook_text);
+            size_t n = 0;
+            for(int side = 0 ; side < nsides ; side++)
+                n += F.nroots[g + side];
+            cursor += n;
+            idx += n;
         }
-
-        nprimes++;
+        ASSERT_ALWAYS(cursor == F.flat.size());
     }
-    /* free memory ! */
-    P.primes.clear();
-    P.C.clear();
+
+    if (os_p && R.get_format() != format_binary) {
+        for(auto x : F.flat)
+            F.text += fmt::format("{} {}\n", x[0], x[1]);
+    }
+}/*}}}*/
+
+/* The only part that is done in sequence. */
+void renumber_t::builder::emit(fragment & F)/*{{{*/
+{
+    if (os_p) {
+        if (R.get_format() == format_binary) {
+            using entry = decltype(F.flat)::value_type;
+            os_p->write(
+                    reinterpret_cast<char const *>(F.flat.data()),
+                    std::streamsize(F.flat.size() * sizeof(entry)));
+        } else {
+            (*os_p) << F.text;
+        }
+    } else {
+        R.flat_data.append(F.flat.begin(), F.flat.end());
+    }
+
+    if (hook)
+        hook->flush(F.hook_text);
+
+    nprimes += F.nprimes_seen;
+
+    F.clear();
+
     progress();
 }/*}}}*/
 
 index_t renumber_t::builder::operator()()/*{{{*/
 {
-    /* Generate the renumbering table. */
+    /* Generate the renumbering table. The prime range is cut into
+     * intervals that hold about the same number of primes, and these
+     * are dealt with in rounds of one interval per thread. Rounds are
+     * what bounds the memory that the fragments take: with the default
+     * of 16 rounds, at most one sixteenth of the table is in flight.
+     */
+    unsigned long const lpbmax = 1UL << R.get_max_lpb();
+    auto const nthreads = size_t(omp_get_max_threads());
 
-    constexpr const unsigned int granularity = 1024;
-
-    std::vector<cxx_gmp_randstate> rstate_per_thread(omp_get_max_threads());
-#pragma omp parallel default(none) shared(rstate_per_thread)
+    size_t nintervals = nthreads * nrounds;
     {
-#pragma omp single
-        {
-            prime_info pi;
-            prime_info_init(pi);
-            std::list<prime_chunk> inflight;
-            unsigned long const lpbmax = 1UL << R.get_max_lpb();
-            unsigned long p = 2;
-            for (; p <= lpbmax || !inflight.empty() ;) {
-                if (p <= lpbmax) {
-                    std::vector<unsigned long> pp;
-                    pp.reserve(granularity);
-                    for (; p <= lpbmax && pp.size() < granularity;) {
-                        pp.push_back(p);
-                        p = getprime_mt(pi); /* get next prime */
-                    }
-                    inflight.emplace_back(std::move(pp));
-                    /* do not use a c++ reference for the omp
-                     * firstprivate construct. It does not do what we
-                     * want. (I saw a _copy_ !)
-                     */
-                    prime_chunk * latest(&inflight.back());
-#pragma omp task firstprivate(latest) default(none) shared(rstate_per_thread)
-                    {
-                        preprocess(*latest, rstate_per_thread[omp_get_thread_num()]);
-                    }
-                } else {
-#pragma omp taskwait
-                }
+        /* Cutting the range in pieces that are too small is pointless,
+         * and the test suite goes as low as lpb=10.
+         */
+        double const np = double(lpbmax) / log(double(lpbmax));
+        auto const most = size_t(std::max(1.0, np / 1024));
+        if (nintervals > most)
+            nintervals = most;
+    }
+    auto const splits = subdivide_primes_interval(2, lpbmax, nintervals);
 
-                for ( ; !inflight.empty() ; ) {
-                    bool ready;
-                    prime_chunk & next(inflight.front());
-#pragma omp atomic read
-                    ready = next.preprocess_done;
-                    if (!ready)
-                        break;
-                    postprocess(next);
-                    inflight.pop_front();
-                }
-            }
-            prime_info_clear(pi);
+    if (!os_p) {
+        /* The number of ideals is close to the number of primes below
+         * the large prime bounds, so this is a good enough guess to
+         * never have to reallocate. Over-reserving costs address space
+         * only.
+         */
+        double guess = 0;
+        for(int side = 0 ; side < R.get_nb_polys() ; side++) {
+            double const x = ldexp(1.0, int(R.get_lpb(side)));
+            guess += x / log(x);
+        }
+        R.flat_data.reserve(size_t(guess * 1.05) + 1024);
+    }
+
+    std::vector<fragment> frags(nthreads);
+    std::vector<cxx_gmp_randstate> rstate_per_thread(nthreads);
+
+    for(size_t i0 = 0 ; i0 < nintervals ; i0 += nthreads) {
+        size_t const n = std::min(nthreads, nintervals - i0);
+
+#pragma omp parallel for schedule(static, 1)
+        for(size_t j = 0 ; j < n ; j++)
+            produce(frags[j], splits[i0 + j], splits[i0 + j + 1],
+                    rstate_per_thread[omp_get_thread_num()]);
+
+        for(size_t j = 0 ; j < n ; j++) {
+            frags[j].base = R_max_index;
+            R_max_index += frags[j].flat.size();
+        }
+
+#pragma omp parallel for schedule(static, 1)
+        for(size_t j = 0 ; j < n ; j++)
+            finish(frags[j]);
+
+        for(size_t j = 0 ; j < n ; j++)
+            emit(frags[j]);
+
+        if (!os_p) {
+            R.above_all = R_max_index;
+            ASSERT_ALWAYS(R.flat_data.size() == R.above_all - R.above_bad);
         }
     }
+
+    if (!os_p)
+        R.compute_index_from_p_cache();
 
     return R_max_index;
 }/*}}}*/
@@ -1629,6 +1633,11 @@ index_t renumber_t::build(cxx_param_list & pl, bool for_dl, hook * f)
 {
     const char * renumberfilename = pl.lookup_old("renumber");
     const char * format_string = pl.lookup_old("renumber_format");
+
+    unsigned int nrounds = 16;
+    pl.parse("renumber_rounds", nrounds);
+    if (!nrounds)
+        throw std::runtime_error("renumber_rounds must be positive");
 
     if (format_string == nullptr) {
         set_format(format_binary);
@@ -1664,7 +1673,7 @@ index_t renumber_t::build(cxx_param_list & pl, bool for_dl, hook * f)
         }
     }
 
-    index_t const ret = builder(*this, out.get(), f)();
+    index_t const ret = builder(*this, out.get(), f, nrounds)();
 
     more_info(std::cout);
 

@@ -24,11 +24,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #include "cado.h" // IWYU pragma: keep
 
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <climits>
 
 #include <algorithm>
+#include <ranges>
+#include <string>
 #include <vector>
 #include <memory>
 #include <utility>
@@ -55,7 +58,9 @@ struct freerel_data_t : public renumber_t::hook {
         return pmin <= p && p <= pmax;
     }
     freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly, std::vector<unsigned int> const & lpb);
-    void operator()(renumber_t & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) override;
+    void operator()(renumber_t const & R, p_r_values_t p, index_t idx,
+            uint8_t const * nroots, std::string & out) override;
+    void flush(std::string const & out) override;
     static void declare_usage(cxx_param_list & pl) {
         pl.declare_usage("out", "output file for free relations");
         pl.declare_usage("pmin", "do not create freerel below this bound");
@@ -83,7 +88,14 @@ freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly,
     }
 }
 
-void freerel_data_t::operator()(renumber_t & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C)
+void freerel_data_t::flush(std::string const & out)
+{
+    sink << out;
+    nfree += static_cast<unsigned long>(std::ranges::count(out, '\n'));
+}
+
+void freerel_data_t::operator()(renumber_t const & R, p_r_values_t p,
+        index_t idx, uint8_t const * nroots, std::string & out)
 {
     std::vector<std::pair<int, index_t>> full_sides;
 
@@ -99,34 +111,32 @@ void freerel_data_t::operator()(renumber_t & R, p_r_values_t p, index_t idx, ren
            number of free relations is t-1 (see Section 4.6 from the PhD
            thesis from Marije Elkenbracht-Huizing, "Factoring integers
            with the Number Field Sieve") */
-        if ((int) C.nroots[side] == f->deg)
+        if ((int) nroots[side] == f->deg)
             full_sides.emplace_back(side, idx);
 
-        idx += C.nroots[side];
+        idx += nroots[side];
     }
 
     if (full_sides.size() > 1) {
         for(size_t i = 1 ; i < full_sides.size() ; i++) {
             /* print a new free relation */
-            sink << fmt::format("{:x},0:", p);
+            out += fmt::format("{:x},0:", p);
             int const side0 = full_sides[i-1].first;
             index_t const i0 = full_sides[i-1].second;
-            unsigned int const n0 = C.nroots[side0];
+            unsigned int const n0 = nroots[side0];
             int const side1 = full_sides[i].first;
             index_t const i1 = full_sides[i].second;
-            unsigned int const n1 = C.nroots[side1];
+            unsigned int const n1 = nroots[side1];
             bool first = true;
-            sink << std::hex;
             for(unsigned int k = 0 ; k < n0 ; k++, first=false) {
-                if (!first) sink << ',';
-                sink << i0 + k;
+                if (!first) out += ',';
+                out += fmt::format("{:x}", i0 + k);
             }
             for(unsigned int k = 0 ; k < n1 ; k++, first=false) {
-                if (!first) sink << ',';
-                sink << i1 + k;
+                if (!first) out += ',';
+                out += fmt::format("{:x}", i1 + k);
             }
-            sink << '\n';
-            nfree++;
+            out += '\n';
         }
     }
 }
