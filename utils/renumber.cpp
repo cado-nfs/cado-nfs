@@ -1203,10 +1203,8 @@ void renumber_t::read_table_binary(std::istream & is,
             flat_data.reserve(nrows);
         } else {
             double guess = 0;
-            for(auto l : lpb) {
-                double const x = ldexp(1.0, int(l));
-                guess += x / log(x);
-            }
+            for(auto l : lpb)
+                guess += nprimes_interval(2, ldexp(1.0, int(l)));
             flat_data.reserve(size_t(guess * 1.05) + 1024);
         }
 
@@ -1723,7 +1721,7 @@ index_t renumber_t::builder::operator()()/*{{{*/
         /* Cutting the range in pieces that are too small is pointless,
          * and the test suite goes as low as lpb=10.
          */
-        double const np = double(lpbmax) / log(double(lpbmax));
+        double const np = nprimes_interval(2, double(lpbmax));
         auto const most = size_t(std::max(1.0, np / 1024));
         if (nintervals > most) {
             nintervals = most;
@@ -1739,10 +1737,8 @@ index_t renumber_t::builder::operator()()/*{{{*/
          * only.
          */
         double guess = 0;
-        for(int side = 0 ; side < R.get_nb_polys() ; side++) {
-            double const x = ldexp(1.0, int(R.get_lpb(side)));
-            guess += x / log(x);
-        }
+        for(int side = 0 ; side < R.get_nb_polys() ; side++)
+            guess += nprimes_interval(2, ldexp(1.0, int(R.get_lpb(side))));
         R.flat_data.reserve(size_t(guess * 1.05) + 1024);
     }
 
