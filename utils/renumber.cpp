@@ -1450,6 +1450,22 @@ void renumber_t::builder::produce(fragment & F,
 
     F.clear();
 
+    {
+        /* One ideal per prime and per side, on average, for the sides
+         * whose large prime bound is not exceeded (Chebotarev). Doing
+         * this keeps the memory that the fragments hold close to the
+         * size of the data they hold.
+         */
+        double ideals = 0;
+        for(int side = 0 ; side < nsides ; side++) {
+            double const b = ldexp(1.0, int(R.get_lpb(side)));
+            if (double(p0) < b)
+                ideals += nprimes_interval(double(p0), std::min(double(p1), b));
+        }
+        F.flat.reserve(size_t(ideals * 1.05) + 64);
+        F.nroots.reserve(size_t(ideals * 1.05) + 64);
+    }
+
     std::vector<std::vector<unsigned long>> all_roots(nsides);
 
     for(unsigned long const p : prime_range(p0, p1)) {
@@ -1562,15 +1578,27 @@ index_t renumber_t::builder::operator()()/*{{{*/
     unsigned long const lpbmax = 1UL << R.get_max_lpb();
     auto const nthreads = size_t(omp_get_max_threads());
 
-    size_t nintervals = nthreads * nrounds;
+    /* Intervals hold the same number of primes, but not the same
+     * amount of work: finding the roots modulo a large prime costs
+     * more than modulo a small one, and within one round the largest
+     * prime is far above the smallest. Cutting each round in more
+     * pieces than there are threads, and handing them out
+     * dynamically, is what evens that out.
+     */
+    constexpr size_t granularity = 8;
+
+    size_t per_round = nthreads * granularity;
+    size_t nintervals = per_round * nrounds;
     {
         /* Cutting the range in pieces that are too small is pointless,
          * and the test suite goes as low as lpb=10.
          */
         double const np = double(lpbmax) / log(double(lpbmax));
         auto const most = size_t(std::max(1.0, np / 1024));
-        if (nintervals > most)
+        if (nintervals > most) {
             nintervals = most;
+            per_round = std::max(size_t(1), nintervals / nrounds);
+        }
     }
     auto const splits = subdivide_primes_interval(2, lpbmax, nintervals);
 
@@ -1588,13 +1616,13 @@ index_t renumber_t::builder::operator()()/*{{{*/
         R.flat_data.reserve(size_t(guess * 1.05) + 1024);
     }
 
-    std::vector<fragment> frags(nthreads);
+    std::vector<fragment> frags(per_round);
     std::vector<cxx_gmp_randstate> rstate_per_thread(nthreads);
 
-    for(size_t i0 = 0 ; i0 < nintervals ; i0 += nthreads) {
-        size_t const n = std::min(nthreads, nintervals - i0);
+    for(size_t i0 = 0 ; i0 < nintervals ; i0 += per_round) {
+        size_t const n = std::min(per_round, nintervals - i0);
 
-#pragma omp parallel for schedule(static, 1)
+#pragma omp parallel for schedule(dynamic, 1)
         for(size_t j = 0 ; j < n ; j++)
             produce(frags[j], splits[i0 + j], splits[i0 + j + 1],
                     rstate_per_thread[omp_get_thread_num()]);
@@ -1604,7 +1632,7 @@ index_t renumber_t::builder::operator()()/*{{{*/
             R_max_index += frags[j].flat.size();
         }
 
-#pragma omp parallel for schedule(static, 1)
+#pragma omp parallel for schedule(dynamic, 1)
         for(size_t j = 0 ; j < n ; j++)
             finish(frags[j]);
 
