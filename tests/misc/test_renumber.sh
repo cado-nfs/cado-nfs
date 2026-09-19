@@ -113,3 +113,34 @@ expect_failure ${wdir}/renumber.lying "but the header ends at offset"
 
 patch_offset 1 ${wdir}/renumber.odd
 expect_failure ${wdir}/renumber.odd "is not a multiple of"
+
+# A table whose entries are not the width this build uses must be read
+# and converted. Rewrite the blob with the other width, and patch the
+# elementsize field of the header to match. (The test tables are small,
+# so their values fit in 32 bits either way.)
+"${python}" - "${wdir}/renumber.bin" "${wdir}/renumber.other" <<-'ENDOFPYTHON'
+	import struct, sys
+	d = open(sys.argv[1], "rb").read()
+	# the placement line is the one that ends where it says the data
+	# begins; the entry width is the field just after the offset
+	pos = 0
+	while True:
+	    end = d.index(b"\n", pos) + 1
+	    if d[pos:pos+16].isdigit() and int(d[pos:pos+16]) == end:
+	        break
+	    pos = end
+	off = int(d[pos:pos+16])
+	w = int(d[pos+17:pos+18])
+	other = 8 if w == 4 else 4
+	blob = d[off:]
+	fmt = "I" if w == 4 else "Q"
+	vals = struct.unpack("<%d%s" % (len(blob) // w, fmt), blob)
+	out = struct.pack("<%d%s" % (len(vals), "I" if other == 4 else "Q"), *vals)
+	head = d[:pos+17] + str(other).encode() + d[pos+18:off]
+	open(sys.argv[2], "wb").write(head + out)
+	ENDOFPYTHON
+${DEBUG_RENUMBER} -poly ${POLY} -renumber ${wdir}/renumber.other -check \
+    > ${wdir}/renumber.other.dump
+grep -q "entries converted from" ${wdir}/renumber.other.dump
+grep -v '^#' ${wdir}/renumber.other.dump > ${wdir}/renumber.other.data
+diff ${wdir}/renumber.bin.data ${wdir}/renumber.other.data

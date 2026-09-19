@@ -362,6 +362,10 @@ private:/*{{{ more implementation-level stuff. */
     bool read_table_parallel(std::string const & filename, size_t offset);
     void read_table_binary(std::istream& is, std::string const & filename,
             bool may_mmap);
+    /* the part of read_table_binary() that deals with a table whose
+     * entries are not the width this binary uses
+     */
+    bool convert_table_binary(std::string const & filename, size_t nrows);
     /* fills index_from_p_cache and above_cache, once flat_data is
      * there. Cheap: it only looks at the primes below 2^20.
      */

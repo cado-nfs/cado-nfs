@@ -1014,6 +1014,50 @@ void renumber_t::read_table(std::istream& is)
     compute_index_from_p_cache();
 }
 
+namespace {
+/* A read-only mapping of a byte range of a file, for the cases where
+ * the typed mmap of mmap_allocator does not apply: we want the bytes,
+ * not entries. The mapping starts at a page boundary at or below the
+ * requested offset; data() points where the caller asked. Failure
+ * leaves the object false, because every caller has something else it
+ * can do.
+ */
+class mapped_range {
+    void * base_ = nullptr;
+    size_t maplen_ = 0;
+    char const * data_ = nullptr;
+    size_t size_ = 0;
+
+public:
+    mapped_range(std::string const & filename, size_t offset, size_t length)
+    {
+        int const fd = open(filename.c_str(), O_RDONLY);
+        if (fd < 0) return;
+        size_t const page_size = size_t(sysconf(_SC_PAGE_SIZE));
+        size_t const start = (offset / page_size) * page_size;
+        maplen_ = length + offset - start;
+        void * const p = mmap(nullptr, maplen_, PROT_READ, MAP_SHARED,
+                fd, off_t(start));
+        close(fd);
+        if (p == MAP_FAILED) {
+            maplen_ = 0;
+            return;
+        }
+        base_ = p;
+        data_ = static_cast<char const *>(p) + (offset - start);
+        size_ = length;
+    }
+    ~mapped_range() { if (base_) munmap(base_, maplen_); }
+    mapped_range(mapped_range const &) = delete;
+    mapped_range(mapped_range &&) = delete;
+    mapped_range& operator=(mapped_range const &) = delete;
+    mapped_range& operator=(mapped_range &&) = delete;
+    explicit operator bool() const { return data_ != nullptr; }
+    char const * data() const { return data_; }
+    size_t size() const { return size_; }
+};
+}
+
 /* Read the text table with all the threads at once. The file is mmapped
  * and cut in as many pieces as there are threads; a first pass counts
  * the entries in each piece, so that the second one can parse straight
@@ -1023,35 +1067,22 @@ void renumber_t::read_table(std::istream& is)
 bool renumber_t::read_table_parallel(std::string const & filename,
         size_t offset)
 {
-    int const fd = open(filename.c_str(), O_RDONLY);
-    if (fd < 0)
-        return false;
-
     struct stat sbuf[1];
-    if (fstat(fd, sbuf) < 0 || size_t(sbuf->st_size) < offset) {
-        close(fd);
+    if (stat(filename.c_str(), sbuf) < 0 || size_t(sbuf->st_size) < offset)
         return false;
-    }
 
     size_t const len = size_t(sbuf->st_size) - offset;
     if (!len) {
-        close(fd);
         above_all = above_bad;
         compute_index_from_p_cache();
         return true;
     }
 
-    /* mmap from a page boundary, since offset need not be one */
-    size_t const page_size = size_t(sysconf(_SC_PAGE_SIZE));
-    size_t const mstart = (offset / page_size) * page_size;
-    void * area = mmap(nullptr, len + offset - mstart, PROT_READ, MAP_SHARED,
-            fd, off_t(mstart));
-    close(fd);
-    if (area == MAP_FAILED)
+    mapped_range const m(filename, offset, len);
+    if (!m)
         return false;
 
-    char const * const buf =
-        static_cast<char const *>(area) + (offset - mstart);
+    char const * const buf = m.data();
 
     auto const nthreads = size_t(omp_get_max_threads());
 
@@ -1102,8 +1133,6 @@ bool renumber_t::read_table_parallel(std::string const & filename,
             ok = false;
     }
 
-    munmap(area, len + offset - mstart);
-
     if (!ok) {
         flat_data.clear();
         return false;
@@ -1139,11 +1168,79 @@ void renumber_t::compute_index_from_p_cache()
     above_cache = above_bad + i;
 }
 
+/* Convert a blob whose entries are not the width we were compiled for.
+ * The file is mapped and the conversion is spread over all threads: the
+ * entries are all the same size, so the place of each output entry in
+ * the input is known and the loop parallelizes as it stands. Returns
+ * false if the file cannot be mapped, and then nothing was written.
+ */
+bool renumber_t::convert_table_binary(std::string const & filename,
+        size_t nrows)
+{
+    using entry = decltype(flat_data)::value_type;
+
+    size_t const row_bytes = 2 * size_t(binary_element_size);
+
+    mapped_range const m(filename, binary_data_offset, nrows * row_bytes);
+    if (!m)
+        return false;
+
+    flat_data.resize_uninitialized(nrows);
+
+    auto const nthreads = size_t(omp_get_max_threads());
+
+    /* narrowing may not be possible; report one of the culprits. Zero
+     * is a legitimate value, so the flag is what says whether we have
+     * one.
+     */
+    std::atomic<bool> overflow { false };
+    std::atomic<uint64_t> culprit { 0 };
+
+    if (binary_element_size == 4) {
+        /* widening: every value fits */
+        auto const * const src = reinterpret_cast<uint32_t const *>(m.data());
+#pragma omp parallel for schedule(static)
+        for(size_t i = 0 ; i < nrows ; i++)
+            flat_data[i] = entry {{ p_r_values_t(src[2 * i]),
+                                    p_r_values_t(src[2 * i + 1]) }};
+    } else {
+        constexpr uint64_t top = std::numeric_limits<p_r_values_t>::max();
+        auto const * const src = reinterpret_cast<uint64_t const *>(m.data());
+#pragma omp parallel for schedule(static)
+        for(size_t i = 0 ; i < nrows ; i++) {
+            uint64_t const p = src[2 * i];
+            uint64_t const r = src[2 * i + 1];
+            if (p > top || r > top) {
+                culprit = p > top ? p : r;
+                overflow = true;
+            }
+            flat_data[i] = entry {{ p_r_values_t(p), p_r_values_t(r) }};
+        }
+    }
+
+    if (overflow) {
+        flat_data.clear();
+        throw prime_is_too_large(culprit);
+    }
+
+    std::cout << fmt::format(
+            "# INFO: {} entries converted from {}-byte entries in {}"
+            " by {} threads\n",
+            nrows, binary_element_size, filename, nthreads);
+
+    return true;
+}
+
 /* Read the binary blob. The fast path, which is the whole point of the
  * format, is the one where the entries have the width that this binary
  * was compiled for, and the file is a real file: then the table is
- * mmapped and nothing is read at all. Otherwise we fall back to reading
- * and converting, which is still vastly cheaper than parsing text.
+ * mmapped and nothing is read at all.
+ *
+ * Failing that, we still read with all threads as long as we can map
+ * the file -- which is the case that matters when a build with 8-byte
+ * p_r_values_t is handed a table written by a 4-byte one, or the other
+ * way round. Only a table that reaches us through a compressor leaves
+ * us no choice but to read it sequentially.
  */
 void renumber_t::read_table_binary(std::istream & is,
         std::string const & filename, bool may_mmap)
@@ -1194,6 +1291,10 @@ void renumber_t::read_table_binary(std::istream & is,
         std::cout << fmt::format(
                 "# INFO: {} entries mmapped from {} at offset {}\n",
                 nrows, filename, binary_data_offset);
+    } else if (have_nrows && nrows && convert_table_binary(filename, nrows)) {
+        /* done: the widths differ, but we could still map the file and
+         * convert it with all threads.
+         */
     } else {
         /* When we can't stat the file (it went through a compressor),
          * we don't know how many entries there are. The number of
