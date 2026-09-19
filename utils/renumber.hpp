@@ -85,6 +85,27 @@ struct renumber_t {
      */
     static constexpr const int format_flat = 20220411;
 
+    /* format_binary is the same table, but the (p, vr) pairs are stored
+     * as a binary blob at a known offset in the file, so that reading
+     * the table is an mmap() and not a parse. The header stays text,
+     * and carries the offset of the blob, the size in bytes of one
+     * p_r_values_t on the machine that wrote it, and the byte order.
+     * See renumber.cpp for the layout.
+     *
+     * The header is the one of format_flat, plus a last line giving
+     * that offset, the entry width, and the byte order. That line is
+     * padded with spaces so that it ends where the data begins, which
+     * is how a reader that cannot seek gets there.
+     *
+     * The offset is a fixed multiple of 4096. That is a property of the
+     * format, not of the page size of either machine: mmap() wants a
+     * page-aligned offset, but mmapped_file::mapping obtains one by
+     * rounding down at run time, so a table written where pages are 4kB
+     * reads fine where they are 16kB, and conversely. What the offset
+     * does have to respect is the alignment of the entries.
+     */
+    static constexpr const int format_binary = 20250919;
+
 private: /*{{{ internal data fields*/
 
     int format = format_flat;
@@ -96,10 +117,17 @@ private: /*{{{ internal data fields*/
 
     cxx_cado_poly cpoly;
 
-    /* Only for format_flat. This is an mmappable_vector because we
-     * want to be able to map it straight from the file.
+    /* This is an mmappable_vector because we want to be able to map it
+     * straight from the file when the format allows it.
      */
     mmappable_vector<std::array<p_r_values_t, 2>> flat_data;
+
+    /* Only meaningful for format_binary, and only once the header has
+     * been read: where the blob starts in the file, and how wide its
+     * entries are.
+     */
+    size_t binary_data_offset = 0;
+    unsigned int binary_element_size = 0;
 
     std::vector<unsigned int> lpb;
     std::vector<index_t> index_from_p_cache;
@@ -296,6 +324,16 @@ private:/*{{{ more implementation-level stuff. */
     /* there's no write_table, because writing the table is done by
      * the build() function (called from freerel) */
     void read_table(std::istream& is);
+    void read_table_binary(std::istream& is, std::string const & filename,
+            bool may_mmap);
+    /* fills index_from_p_cache and above_cache, once flat_data is
+     * there. Cheap: it only looks at the primes below 2^20.
+     */
+    void compute_index_from_p_cache();
+    /* header (+ bad ideals) as a string, padded so that the binary blob
+     * that follows starts on a page boundary
+     */
+    std::string header_string_with_padding() const;
     void compute_bad_ideals();
     void compute_bad_ideals_from_dot_badideals_hint(std::istream&, unsigned int = UINT_MAX);
     void compute_ramified_primes();

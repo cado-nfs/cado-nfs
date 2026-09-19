@@ -3,9 +3,11 @@
 #include <cstdint>
 #include <cstdio>
 #include <climits>
+#include <cmath>
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <iostream>
 #include <limits>
 #include <list>
@@ -17,12 +19,15 @@
 #include <utility>
 #include <vector>
 
+#include <sys/stat.h>
+
 #include <gmp.h>
 #include "fmt/format.h"
 
 #include "badideals.hpp"
 #include "cxx_mpz.hpp"
 #include "misc.h"
+#include "mmap_allocator.hpp"
 #include "getprime.h"
 #include "gmp_aux.h"
 #include "fstream_maybe_compressed.hpp"
@@ -305,8 +310,10 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
         }
     }
     C.text.clear();
-    for(auto x : C.flat)
-        C.text += fmt::format("{} {}\n", x[0], x[1]);
+    if (format != format_binary) {
+        for(auto x : C.flat)
+            C.text += fmt::format("{} {}\n", x[0], x[1]);
+    }
     return C;
 }
 
@@ -665,7 +672,7 @@ void renumber_t::set_format(int f)
 {
     ASSERT_ALWAYS (above_all == above_bad);
     ASSERT_ALWAYS (above_cache == above_bad);
-    ASSERT_ALWAYS(f == format_flat);
+    ASSERT_ALWAYS(f == format_flat || f == format_binary);
     format = f;
 }
 
@@ -680,13 +687,14 @@ void renumber_t::read_header(std::istream& is)
     getline(is, s);
     std::istringstream iss(s);
     int f = 0;
-    if (iss >> f && (f == format_flat)) {
+    if (iss >> f && (f == format_flat || f == format_binary)) {
         format = f;
     } else {
         throw cado::error(
-                        "Renumber format error. Got {}, expected {} instead. You must regenerate the renumber table with the freerel tool.",
-                    f, format_flat);
+                        "Renumber format error. Got {}, expected {} or {} instead. You must regenerate the renumber table with the freerel tool.",
+                    f, format_flat, format_binary);
     }
+
 
     ASSERT_ALWAYS(above_all == above_add);
     {
@@ -695,6 +703,48 @@ void renumber_t::read_header(std::istream& is)
         for(auto & x : lpb) is >> x;
         if (!is) throw parse_error("header");
         read_bad_ideals(is);
+    }
+
+    if (format == format_binary) {
+        /* The header ends with one more line, which says where the data
+         * begins. Consuming it to its end -- it is padded with spaces --
+         * leaves us exactly on the data, which is the only way there
+         * for a reader that cannot seek.
+         */
+        for(std::string t; std::ws(is).peek() == '#' ; getline(is, t) ) ;
+        size_t off = 0;
+        unsigned int es = 0;
+        char bo = 0;
+        is >> off >> es >> bo;
+        if (!is)
+            throw parse_error("header, binary data placement");
+        if (es != 4 && es != 8)
+            throw corrupted_table(fmt::format(
+                        "binary renumber table with {}-byte entries", es));
+        char const native =
+            std::endian::native == std::endian::little ? 'L' : 'B';
+        if (bo != native)
+            throw corrupted_table(fmt::format(
+                        "binary renumber table was written on a {}-endian "
+                        "machine, this one is {}-endian",
+                        bo == 'L' ? "little" : "big",
+                        native == 'L' ? "little" : "big"));
+        /* We write that offset as a multiple of 4096, so this can only
+         * be a corrupt or foreign file. Reading it would mean a
+         * misaligned pointer, which is not something to do quietly.
+         */
+        constexpr size_t a = alignof(decltype(flat_data)::value_type);
+        if (off % a)
+            throw corrupted_table(fmt::format(
+                        "binary renumber table announces its data at offset"
+                        " {}, which is not a multiple of {}", off, a));
+        binary_data_offset = off;
+        binary_element_size = es;
+
+        std::string padding;
+        getline(is, padding);
+        if (!is)
+            throw parse_error("header, binary data placement");
     }
     is.flags(ff);
 
@@ -803,6 +853,56 @@ void renumber_t::write_bad_ideals(std::ostream& os) const
     }
     os.flags(ff);
     os << "# renumber table for all indices above " << above_bad << ":\n";
+}
+
+/* The binary blob begins at a well-defined offset in the file, so that
+ * it can be mmapped. Getting there means padding the header, and the
+ * padding is written as one last comment line, so that a reader that
+ * cannot seek (the file went through a compressor) reaches the blob by
+ * reading lines until it has read that one.
+ */
+std::string renumber_t::header_string_with_padding() const
+{
+    ASSERT_ALWAYS(format == format_binary);
+
+    /* A fixed number, not this machine's page size: the file must not
+     * depend on where it was written. Readers align down to their own
+     * page size anyway. All it really has to be is a multiple of the
+     * alignment of an entry, which it amply is -- but a change to the
+     * entry type should not get there unnoticed.
+     */
+    constexpr size_t blob_alignment = 4096;
+    static_assert(
+            blob_alignment % alignof(decltype(flat_data)::value_type) == 0,
+            "the renumber table entries want an alignment that the "
+            "binary format does not provide");
+
+    std::ostringstream os;
+    write_header(os);
+    write_bad_ideals(os);
+    std::string s = os.str();
+
+    /* The last line of the header says where the data begins, and is
+     * padded with spaces so that it ends exactly there. That is what
+     * lets a reader that cannot seek land on the data: it reads that
+     * line to its end, and it is there. The offset is written with a
+     * fixed width, so the length of the line does not depend on it and
+     * we can compute the one from the other.
+     */
+    auto placement = [this](size_t off) {
+        return fmt::format("{:016d} {} {}", off, sizeof(p_r_values_t),
+                std::endian::native == std::endian::little ? 'L' : 'B');
+    };
+
+    size_t const off = ((s.size() + placement(0).size() + 1
+                + blob_alignment - 1) / blob_alignment) * blob_alignment;
+
+    s += placement(off);
+    s.append(off - s.size() - 1, ' ');
+    s += '\n';
+    ASSERT_ALWAYS(s.size() == off);
+
+    return s;
 }
 
 std::vector<int> renumber_t::get_sides_of_additional_columns() const
@@ -934,23 +1034,145 @@ void renumber_t::read_table(std::istream& is)
     }
     stats_print_progress(stats, nprimes, 0, 0, 1);
 
-    {
-        index_t i = 0;
-        for( ; i < flat_data.size() ; i++)  {
-            auto pvr = flat_data[i];
-            p_r_values_t const p = pvr[0];
-            if (p >> RENUMBER_MAX_LOG_CACHED)
-                break;
-            if (p < index_from_p_cache.size())
-                continue;
-            index_from_p_cache.insert(index_from_p_cache.end(),
-                    p - index_from_p_cache.size(),
-                    std::numeric_limits<index_t>::max());
-            ASSERT_ALWAYS(index_from_p_cache.size() == p);
-            index_from_p_cache.push_back(i);
-        }
-        above_cache = above_bad + i;
+    compute_index_from_p_cache();
+}
+
+void renumber_t::compute_index_from_p_cache()
+{
+    index_t i = 0;
+    for( ; i < flat_data.size() ; i++)  {
+        auto pvr = flat_data[i];
+        p_r_values_t const p = pvr[0];
+        if (p >> RENUMBER_MAX_LOG_CACHED)
+            break;
+        if (p < index_from_p_cache.size())
+            continue;
+        index_from_p_cache.insert(index_from_p_cache.end(),
+                p - index_from_p_cache.size(),
+                std::numeric_limits<index_t>::max());
+        ASSERT_ALWAYS(index_from_p_cache.size() == p);
+        index_from_p_cache.push_back(i);
     }
+    above_cache = above_bad + i;
+}
+
+/* Read the binary blob. The fast path, which is the whole point of the
+ * format, is the one where the entries have the width that this binary
+ * was compiled for, and the file is a real file: then the table is
+ * mmapped and nothing is read at all. Otherwise we fall back to reading
+ * and converting, which is still vastly cheaper than parsing text.
+ */
+void renumber_t::read_table_binary(std::istream & is,
+        std::string const & filename, bool may_mmap)
+{
+    using entry = decltype(flat_data)::value_type;
+
+    size_t const row_bytes = 2 * size_t(binary_element_size);
+
+    /* read_header() left us exactly on the data. If the stream can tell
+     * us where that is, check that the header was telling the truth:
+     * the mmap path trusts that offset, so it had better be right.
+     */
+    {
+        auto const pos = is.tellg();
+        if (pos >= 0 && size_t(pos) != binary_data_offset)
+            throw corrupted_table(fmt::format(
+                        "binary renumber table announces its data at offset"
+                        " {}, but the header ends at offset {}",
+                        binary_data_offset, size_t(pos)));
+    }
+
+    size_t nrows = 0;
+    bool have_nrows = false;
+    if (may_mmap) {
+        struct stat sbuf[1];
+        if (stat(filename.c_str(), sbuf) == 0) {
+            size_t const total = size_t(sbuf->st_size);
+            if (total < binary_data_offset
+                    || (total - binary_data_offset) % row_bytes)
+                throw corrupted_table("binary table has a truncated entry");
+            nrows = (total - binary_data_offset) / row_bytes;
+            have_nrows = true;
+        }
+    }
+
+    /* read_header() has checked that binary_data_offset suits the
+     * entries; mmapped_file::mapping takes care of rounding it down to
+     * a page boundary and compensating.
+     */
+    if (nrows && have_nrows && binary_element_size == sizeof(p_r_values_t)) {
+        using namespace mmap_allocator_details;
+        mmapped_file source(filename, READ_ONLY,
+                off_t(binary_data_offset), nrows * row_bytes);
+        decltype(flat_data) y(mmap_allocator<entry>(
+                    source, off_t(binary_data_offset), nrows));
+        y.mmap(nrows);
+        flat_data.swap(y);
+        std::cout << fmt::format(
+                "# INFO: {} entries mmapped from {} at offset {}\n",
+                nrows, filename, binary_data_offset);
+    } else {
+        /* When we can't stat the file (it went through a compressor),
+         * we don't know how many entries there are. The number of
+         * ideals is close to the number of primes below the large prime
+         * bounds, so this is a good enough guess to avoid reallocating.
+         */
+        if (have_nrows) {
+            flat_data.reserve(nrows);
+        } else {
+            double guess = 0;
+            for(auto l : lpb) {
+                double const x = ldexp(1.0, int(l));
+                guess += x / log(x);
+            }
+            flat_data.reserve(size_t(guess * 1.05) + 1024);
+        }
+
+        constexpr size_t batch = 1 << 16;
+        std::vector<char> buf(batch * row_bytes);
+        for(size_t done = 0 ; !have_nrows || done < nrows ; ) {
+            size_t want = batch;
+            if (have_nrows && nrows - done < want)
+                want = nrows - done;
+            is.read(buf.data(), std::streamsize(want * row_bytes));
+            size_t const got = size_t(is.gcount()) / row_bytes;
+            if (size_t(is.gcount()) % row_bytes)
+                throw corrupted_table("binary table has a truncated entry");
+            if (!got) {
+                if (have_nrows)
+                    throw corrupted_table("binary table is too short");
+                break;
+            }
+            if (binary_element_size == sizeof(p_r_values_t)) {
+                auto const * p = reinterpret_cast<entry const *>(buf.data());
+                flat_data.append(p, p + got);
+            } else if (binary_element_size == 4) {
+                auto const * p = reinterpret_cast<uint32_t const *>(buf.data());
+                for(size_t i = 0 ; i < got ; i++)
+                    flat_data.push_back(entry {{
+                            p_r_values_t(p[2*i]), p_r_values_t(p[2*i+1]) }});
+            } else {
+                auto const * p = reinterpret_cast<uint64_t const *>(buf.data());
+                for(size_t i = 0 ; i < got ; i++) {
+                    if (p[2*i] > std::numeric_limits<p_r_values_t>::max()
+                            || p[2*i+1] > std::numeric_limits<p_r_values_t>::max())
+                        throw prime_is_too_large(p[2*i]);
+                    flat_data.push_back(entry {{
+                            p_r_values_t(p[2*i]), p_r_values_t(p[2*i+1]) }});
+                }
+            }
+            done += got;
+        }
+        std::cout << fmt::format(
+                "# INFO: {} entries read from {} ({}-byte entries{})\n",
+                flat_data.size(), filename, binary_element_size,
+                binary_element_size == sizeof(p_r_values_t)
+                ? "" : ", converted");
+    }
+
+    above_all = above_bad + flat_data.size();
+
+    compute_index_from_p_cache();
 }
 
 void renumber_t::read_from_file(std::string const & filename, bool for_dl)
@@ -962,7 +1184,10 @@ void renumber_t::read_from_file(std::string const & filename, bool for_dl)
         use_additional_columns_for_dl();
     read_header(is);
     info(std::cout);
-    read_table(is);
+    if (format == format_binary)
+        read_table_binary(is, filename, !is.is_pipe());
+    else
+        read_table(is);
     more_info(std::cout);
     
     /* It's used by inertia_from_p_r */
@@ -1144,7 +1369,8 @@ void renumber_t::info(std::ostream & os) const
     const char * P = "# INFO: ";
     os << "# Information on renumber table:\n";
 
-    std::string const format_string = "flat";
+    std::string const format_string =
+        format == format_binary ? "binary" : "flat";
 
     os << P << "format = " << format_string << " (" << format << ")\n";
     os << P << "sizeof(p_r_values_t) = " << sizeof(p_r_values_t) << "\n";
@@ -1188,7 +1414,7 @@ void renumber_t::more_info(std::ostream & os) const
 void renumber_t::builder_declare_usage(cxx_param_list & pl)
 {
     pl.declare_usage("renumber", "output file for renumbering table");
-    pl.declare_usage("renumber_format", "format of the renumbering table (\"flat\")");
+    pl.declare_usage("renumber_format", "format of the renumbering table (\"binary\" or \"flat\")");
 }
 
 void renumber_t::builder_lookup_parameters(cxx_param_list & pl)
@@ -1315,7 +1541,14 @@ void renumber_t::builder::postprocess(prime_chunk & P)/*{{{*/
 
         if (os_p) {
             R_max_index = R.use_cooked_nostore(R_max_index, p, C);
-            (*os_p) << C.text;
+            if (R.get_format() == format_binary) {
+                os_p->write(
+                        reinterpret_cast<char const *>(C.flat.data()),
+                        std::streamsize(C.flat.size()
+                            * sizeof(decltype(C.flat)::value_type)));
+            } else {
+                (*os_p) << C.text;
+            }
         } else {
             ASSERT_ALWAYS(R_max_index == R.get_max_index());
             R.use_cooked(p, C);
@@ -1398,9 +1631,11 @@ index_t renumber_t::build(cxx_param_list & pl, bool for_dl, hook * f)
     const char * format_string = pl.lookup_old("renumber_format");
 
     if (format_string == nullptr) {
-        set_format(format_flat);
+        set_format(format_binary);
+    } else if (std::string(format_string) == "binary") {
+        set_format(format_binary);
     } else if (std::string(format_string) == "flat") {
-        format = format_flat;
+        set_format(format_flat);
     } else {
         throw std::runtime_error("cannot use this renumber format");
     }
@@ -1421,8 +1656,12 @@ index_t renumber_t::build(cxx_param_list & pl, bool for_dl, hook * f)
     if (renumberfilename) {
         out.reset(new ofstream_maybe_compressed(renumberfilename));
 
-        write_header(*out);
-        write_bad_ideals(*out);
+        if (format == format_binary) {
+            *out << header_string_with_padding();
+        } else {
+            write_header(*out);
+            write_bad_ideals(*out);
+        }
     }
 
     index_t const ret = builder(*this, out.get(), f)();
