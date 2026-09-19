@@ -43,6 +43,7 @@
 #include "renumber.hpp"
 #include "rootfinder.h"
 #include "stats.h"
+#include "timing.h"
 #include "macros.h"
 #include "typedefs.h"
 
@@ -1264,6 +1265,7 @@ void renumber_t::read_from_file(std::string const & filename, bool for_dl)
         use_additional_columns_for_dl();
     read_header(is);
     info(std::cout);
+    double const tt = wct_seconds();
     if (format == format_binary) {
         read_table_binary(is, filename, !is.is_pipe());
     } else {
@@ -1286,6 +1288,8 @@ void renumber_t::read_from_file(std::string const & filename, bool for_dl)
         if (!done)
             read_table(is);
     }
+    std::cout << fmt::format("# INFO: table loaded in {:.2f}s\n",
+            wct_seconds() - tt);
     more_info(std::cout);
     
     /* It's used by inertia_from_p_r */
