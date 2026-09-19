@@ -43,7 +43,11 @@ ${FREEREL} -poly ${POLY} -lpbs "$LPBS" -renumber ${wdir}/renumber.flat.gz \
 ${FREEREL} -poly ${POLY} -lpbs "$LPBS" -renumber ${wdir}/renumber.flat \
            -renumber_format flat
 
-for f in renumber.bin renumber.gz renumber.flat.gz renumber.flat ; do
+# decompressing a binary table must give back something that can be
+# mmapped: the header is padded in that case too
+gzip -dc ${wdir}/renumber.gz > ${wdir}/renumber.ungz
+
+for f in renumber.bin renumber.gz renumber.flat.gz renumber.flat renumber.ungz ; do
     ${DEBUG_RENUMBER} -poly ${POLY} -renumber ${wdir}/$f -check \
         > ${wdir}/$f.dump
     grep -v '^#' ${wdir}/$f.dump > ${wdir}/$f.data
@@ -52,6 +56,7 @@ done
 # the plain binary file must go through mmap, the plain text file must
 # be parsed by all threads, and the compressed ones can do neither
 grep -q "entries mmapped from" ${wdir}/renumber.bin.dump
+grep -q "entries mmapped from" ${wdir}/renumber.ungz.dump
 grep -q "entries parsed from" ${wdir}/renumber.flat.dump
 ! grep -q "entries mmapped from" ${wdir}/renumber.gz.dump
 ! grep -q "entries parsed from" ${wdir}/renumber.flat.gz.dump
@@ -60,6 +65,8 @@ grep -q "entries parsed from" ${wdir}/renumber.flat.dump
 diff ${wdir}/renumber.bin.data ${wdir}/renumber.gz.data
 diff ${wdir}/renumber.bin.data ${wdir}/renumber.flat.gz.data
 diff ${wdir}/renumber.bin.data ${wdir}/renumber.flat.data
+diff ${wdir}/renumber.bin.data ${wdir}/renumber.ungz.data
+cmp ${wdir}/renumber.bin ${wdir}/renumber.ungz
 
 ${DEBUG_RENUMBER} -poly ${POLY} -renumber ${wdir}/renumber.bin -check -quiet
 
