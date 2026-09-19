@@ -81,6 +81,12 @@ struct prime_range
                 return;
             memcpy(&pi, &o.pi, sizeof(prime_info_s));
             memset(&o.pi, 0, sizeof(prime_info_s));
+            /* the prime we are on is part of our state, too: without
+             * this, a moved-to iterator starts on an indeterminate
+             * value and then skips to the next prime.
+             */
+            last = o.last;
+            o.last = 0;
         }
         const_iterator& operator=(const_iterator const &) = delete;
         const_iterator& operator=(const_iterator &&) = delete;
