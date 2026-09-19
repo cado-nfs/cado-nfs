@@ -18,6 +18,26 @@ A projective ideal above p is represented by (p,p).
 
 The format of the file is described in filter/README.fileformat
 
+Two formats exist. Both begin with the same text header, whose first
+non-comment line is the format number.
+
+ - 20220411 ("flat"): the table follows the header as text, one "p vr"
+   pair per line, in decimal.
+
+ - 20250919 ("binary", the default since then): the header is the one
+   above, followed by one last line giving the offset of the table in
+   the file, the size in bytes of one of the two values of an entry (4
+   or 8, depending on SIZEOF_P_R_VALUES on the machine that wrote the
+   file), and the byte order ('L' or 'B'). That line is padded with
+   spaces so that it ends exactly where the table begins, which is a
+   multiple of 4096; a reader that cannot seek gets to the table by
+   reading that line to its end. The table itself follows as pairs of
+   integers in machine representation.
+
+   A file in this format that is not compressed, and whose entries
+   have the width this binary was compiled for, is mmapped rather than
+   read. Otherwise it is read and converted.
+
 
 2. Given an ideal (p,r) on side s, how do I find its index in the table ?
 =========================================================================
