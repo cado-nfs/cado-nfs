@@ -903,7 +903,7 @@ void renumber_t::use_cooked(p_r_values_t p, cooked const & C)
      */
     index_t const pos_hard = flat_data.size();
     above_all = use_cooked_nostore(above_all, p, C);
-    flat_data.insert(flat_data.end(), C.flat.begin(), C.flat.end());
+    flat_data.append(C.flat.begin(), C.flat.end());
     if (!(p >> RENUMBER_MAX_LOG_CACHED) && p >= index_from_p_cache.size()) {
         index_from_p_cache.insert(index_from_p_cache.end(),
                 p - index_from_p_cache.size(),

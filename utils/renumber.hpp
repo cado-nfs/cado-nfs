@@ -24,6 +24,7 @@
 #include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "macros.h"
+#include "mmappable_vector.hpp"
 #include "mpz_poly.h"
 #include "typedefs.h"
 
@@ -95,8 +96,10 @@ private: /*{{{ internal data fields*/
 
     cxx_cado_poly cpoly;
 
-    /* Only for format_flat. */
-    std::vector<std::array<p_r_values_t, 2>> flat_data;
+    /* Only for format_flat. This is an mmappable_vector because we
+     * want to be able to map it straight from the file.
+     */
+    mmappable_vector<std::array<p_r_values_t, 2>> flat_data;
 
     std::vector<unsigned int> lpb;
     std::vector<index_t> index_from_p_cache;
