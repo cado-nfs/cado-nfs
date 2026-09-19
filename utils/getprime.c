@@ -182,11 +182,23 @@ void prime_info_small_primes_table_expand(prime_info_ptr pi)
 	/* assume those "small" realloc's will not fail in normal usage */
 	ASSERT(pi->primes != NULL && pi->moduli != NULL);
 	for (p = pi->primes[k - 1]; k < pi->nprimes; k++) {
-	    /* find next (odd) prime > p ; trial divide by all smaller
-	     * primes, which is sub-optimal, but shouldn't hurt too much. */
+	    /* find next (odd) prime > p ; trial divide by the smaller
+	     * primes, up to sqrt(p). Dividing by all of them, as we used
+	     * to, makes the cost of building this table quadratic in its
+	     * size, which is felt by prime_info_seek(): seeking to 2^37
+	     * took 0.7 seconds.
+	     */
 	    do {
-		for (p += 2, ok = 1, j = 0; (ok != 0) && (j < k); j++)
-		    ok = p % pi->primes[j];
+		ok = 1;
+		for (p += 2, j = 0; j < k; j++) {
+		    unsigned long const q = pi->primes[j];
+		    if (q * q > (unsigned long) p)
+			break;
+		    if (p % pi->primes[j] == 0) {
+			ok = 0;
+			break;
+		    }
+		}
 	    }
 	    while (ok == 0);
 	    pi->primes[k] = p;
