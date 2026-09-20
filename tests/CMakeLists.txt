@@ -67,8 +67,13 @@ cado_define_test(full_c30
     EXPECT_SHA1 6d5cc85d048b2003fb129bef28e670a5314f433d
         )
 
+# Uncompressed purged and dep files are the only way to exercise the
+# parallel readers in filter/read_purgedfile_in_parallel.cpp and in
+# sqrt/sqrt.cpp, since both fall back to a sequential path whenever the
+# file is not seekable, which a compressed file never is.
 cado_divert_test(full_c30 with_comma
-    APPEND_ARGUMENTS name=c30,funny)
+    APPEND_ARGUMENTS name=c30,funny
+    tasks.filter.purge.gzip=false tasks.sqrt.gzip=false)
 
 cado_divert_test(full_c30 pq2
     ARGUMENTS
