@@ -442,20 +442,37 @@ requires requires { m.from_ab(cxx_mpz(), cxx_mpz()); }
     } else {
         /* We _can_ seek. Good news ! */
         const long endpos = ftell(depfile);
-        /* Find accurate starting positions for everyone */
         unsigned int nthreads = omp_get_max_threads();
         /* cap the number of I/O threads */
         if (nthreads > MAX_IO_THREADS)
             nthreads = MAX_IO_THREADS;
-        fmt::print(stderr, "{}: Doing I/O with {} threads\n", message, nthreads);
         std::vector<long> spos_tab;
-        spos_tab.reserve(nthreads);
-        for(unsigned int i = 0 ; i < nthreads ; i++)
-            spos_tab.push_back((endpos * i) / nthreads);
-        spos_tab.push_back(endpos);
         /* All threads get their private reading head. */
 #pragma omp parallel num_threads(nthreads)
         {
+            /* num_threads() is only an upper bound. When dynamic
+             * adjustment of the number of threads is enabled
+             * (OMP_DYNAMIC=true, which our test suite sets), the runtime
+             * may hand us a smaller team, and libgomp routinely hands us
+             * a single thread. Hence we must find accurate starting
+             * positions for as many threads as we have *for real*.
+             * Cutting the file before the parallel region would leave
+             * the pieces of the threads that we did not get entirely
+             * unread, and we would then silently compute the product
+             * over only part of the (a,b) pairs.
+             */
+#pragma omp single
+            {
+                const unsigned int nt = omp_get_num_threads();
+                fmt::print(stderr, "{}: Doing I/O with {} threads\n", message, nt);
+                spos_tab.reserve(nt + 1);
+                for(unsigned int j = 0 ; j < nt ; j++)
+                    spos_tab.push_back((endpos * j) / nt);
+                spos_tab.push_back(endpos);
+            }
+            /* the omp single construct above ends with an implicit
+             * barrier, so that spos_tab is set and visible to everyone
+             * here */
             const int i = omp_get_thread_num();
             FILE * fi = fopen_maybe_compressed_lock (depname.c_str(), "rb");
             const int rc = fseek(fi, spos_tab[i], SEEK_SET);
