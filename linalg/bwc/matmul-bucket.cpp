@@ -482,19 +482,25 @@ struct matmul_bucket : public matmul_interface {
     matmul_bucket& operator=(matmul_bucket &&) noexcept = default;
 
     private:
-    static unsigned int npack_initial(cxx_param_list & pl) {
+    /* Both of these convert a number of bytes into a number of
+     * elements, so the divisor must be the runtime element stride. Using
+     * sizeof(elt) is wrong for the variable-width layer, whose elt type
+     * is an empty class (sizeof 1) since the data lives elsewhere. */
+    // NOLINTBEGIN(readability-static-accessed-through-instance)
+    static unsigned int npack_initial(Arith * ab, cxx_param_list & pl) {
         unsigned int npack = L1_CACHE_SIZE;
         pl.parse("l1_cache_size", npack);
-        npack /= sizeof(elt);
-        return npack;
+        npack /= ab->elt_stride();
+        return MAX(npack, 1U);
     }
 
-    static size_t scratch1size_initial(cxx_param_list & pl) {
+    static size_t scratch1size_initial(Arith * ab, cxx_param_list & pl) {
         size_t scratch1size = L2_CACHE_SIZE/2;
         pl.parse("l2_cache_size", scratch1size);
-        scratch1size /= sizeof(elt);
-        return scratch1size;
+        scratch1size /= ab->elt_stride();
+        return MAX(scratch1size, size_t(1));
     }
+    // NOLINTEND(readability-static-accessed-through-instance)
 };
 
 template<typename Arith>
@@ -513,8 +519,9 @@ template<typename Arith>
 matmul_bucket<Arith>::matmul_bucket(matmul_public && P, arith_concrete_base * pxx, cxx_param_list & pl, int optimized_direction)
     : matmul_interface(std::move(P))
     , xab((arith_hard *) pxx) // NOLINT(cppcoreguidelines-pro-type-cstyle-cast)
-    , npack(npack_initial(pl))
-    , scratch1size(scratch1size_initial(pl))
+    /* xab is initialized above, so it may be used here */
+    , npack(npack_initial(xab, pl))
+    , scratch1size(scratch1size_initial(xab, pl))
     , scratch2size(scratch1size * HUGE_MPLEX_MAX) // (1 << 24)/sizeof(elt));
 {
     int const suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
@@ -1577,7 +1584,7 @@ void builder<Arith>::vsc_fill_buffers(vsc_slice * V)
 
     verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
             "Total tbuf space %lu (%lu MB)\n",
-            V->tbuf_space, (V->tbuf_space * sizeof(typename Arith::elt)) >> 20);
+            V->tbuf_space, mm->xab->vec_elt_stride(V->tbuf_space) >> 20);
 }
 /*}}}*/
 
@@ -1774,6 +1781,9 @@ void builder<Arith>::do_all_small_slices(uint32_t * p_i0, uint32_t imax, unsigne
     /* npack is a guess for the expected size of small slices ; they are
      * arranged later to all have approximately equal size.
      */
+    /* Whatever the caller says, the small slice format cannot address
+     * more than 2^16 rows (see the assertion in do_small_slice). */
+    if (npack > (1U << 16)) npack = 1U << 16;
     unsigned int s;
     uint32_t const i00 = *p_i0;
     unsigned int const nslices = iceildiv(imax - i00, npack);
