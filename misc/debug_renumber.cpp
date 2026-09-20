@@ -5,6 +5,8 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include <exception>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -159,8 +161,7 @@ static void bench_random_lookups(renumber_t const & tab)
     gmp_randclear(rstate);
 }
 
-// coverity[root_function]
-int main(int argc, char const * argv[])
+static int debug_renumber(int argc, char const * argv[])
 {
     int check = 0;
     int build = 0;
@@ -256,4 +257,22 @@ int main(int argc, char const * argv[])
         bench_random_lookups(tab);
 
     return EXIT_SUCCESS;
+}
+
+/* A corrupt table is reported by an exception. Catching it here is what
+ * makes the complaint land on stderr in a form we control, rather than
+ * as whatever the C++ runtime prints before it aborts -- which differs
+ * between libstdc++ and libc++, and can be nothing at all.
+ */
+// coverity[root_function]
+int main(int argc, char const * argv[])
+{
+    try {
+        return debug_renumber(argc, argv);
+    } catch (std::exception const & e) {
+        /* so that the complaint comes after what we printed so far */
+        std::cout.flush();
+        fmt::print(stderr, "Error: {}\n", e.what());
+        return EXIT_FAILURE;
+    }
 }
