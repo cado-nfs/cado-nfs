@@ -705,13 +705,18 @@ set(test_spmv_prime_p3_alltests YES)
 
 macro(create_test_spmv test_spmv_base)
     if(HAVE_PERL_DIGEST_MD5)
-        if (test_spmv_base MATCHES "^prime")
-            set(deps bwc_matmul_gf2)
-        else()
+        # A macro argument is not a variable, so a bare test_spmv_base in
+        # if() compares the literal string and never matches.
+        if ("${test_spmv_base}" MATCHES "^prime")
             set(deps bwc_matmul_gfp)
+        else()
+            set(deps bwc_matmul_gf2)
         endif()
+        # The test_spmv_*_alltests variables spell the base with
+        # underscores, the bases we are called with have a dash.
+        string(MAKE_C_IDENTIFIER "${test_spmv_base}" test_spmv_base_id)
         set(mpiconfs)
-        if(${test_spmv_${test_spmv_base}_alltests})
+        if(${test_spmv_${test_spmv_base_id}_alltests})
             set(mpiconfs mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
         endif()
         if (NOT HAVE_MPI OR CMAKE_VERSION VERSION_LESS 3.9)
@@ -746,7 +751,7 @@ macro(create_test_spmv test_spmv_base)
 
 
             cado_divert_test(test_spmv_${test_spmv_base}${suffix} 11 APPEND_ARGUMENTS thr=1x1)
-            if(${test_spmv_${test_spmv_base}_alltests})
+            if(${test_spmv_${test_spmv_base_id}_alltests})
                 if(DEFINED ENV{CHECKS_EXPENSIVE})
                     cado_divert_test(test_spmv_${test_spmv_base}${suffix}
                         12
