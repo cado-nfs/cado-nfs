@@ -367,9 +367,9 @@ static int gst(int argc, char const * argv[])
                 // Check parameters
 
                 if (lim0 == 0 || lpb0 == -1 || mfb0 == -1 || lim1 == 0 ||
-                    lpb1 == -1 || mfb1 == -1 || ncurves)
+                    lpb1 == -1 || mfb1 == -1 || ncurves == -1)
                     pl.fail("Error: parameters -lim0 -lpb0 -mfb0"
-                            " -lim1 -lpb1 -mfb1 are mandatories\n");
+                            " -lim1 -lpb1 -mfb1 -ncurves are mandatories\n");
                 /*
                   computes the matrix of strategies where for each couple
                   (r0, r1) we will optain the best strategies to find a
