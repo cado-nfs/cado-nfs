@@ -11,6 +11,7 @@
 #include <string>
 #include <type_traits>
 
+#include "macros.h"
 #include "mmap_allocator.hpp"
 
 /* see bdfb2543f for a version that plays ugly tricks with the
@@ -178,6 +179,39 @@ class mmappable_vector : public A
        void shrink_to_fit() {}
        */
 
+    /* Does our storage come from a mapping, or is it plain memory ?
+     * Only our own allocator can answer; any other one is plain memory.
+     */
+    bool has_mapping() const
+    {
+        if constexpr (requires (A const & a) { a.has_defined_mapping(); })
+            return A::has_defined_mapping();
+        else
+            return false;
+    }
+
+    /* Set the size to n and leave the new elements uninitialized. This
+     * only makes sense for trivially constructible types, which are the
+     * only ones this container accepts anyway. Nothing is ever written,
+     * which is what makes this the right tool in both modes:
+     *
+     *  - over a mapping, the elements are whatever the file holds, and
+     *    the file is not touched. This is what mmap() below does.
+     *
+     *  - over plain memory, we get n elements with indeterminate
+     *    values, and the pages are only committed when they are
+     *    written to. This is the way to hand out write pointers into a
+     *    large buffer without first paying for a pass over all of it.
+     *
+     * Note that n must fit in the mapping, if there is one: growing
+     * beyond it is caught by the allocator.
+     */
+    void resize_uninitialized(size_type n)
+    {
+        reserve(n);
+        _finish = _start + n;
+    }
+
     void reserve(size_type n)
     {
         if (n > capacity()) {
@@ -224,10 +258,34 @@ class mmappable_vector : public A
     /* Unimplemented modifiers:
        assign
        pop_back
-       insert
        erase
        emplace
        */
+
+    /* This is the only form of insert() that we provide.
+     *
+     * Like push_back(), and unlike resize_uninitialized(), this writes:
+     * over a mapping it would fault on a read-only one, and modify the
+     * file on a READ_WRITE_SHARED one. Nothing in cado-nfs appends to a
+     * mapped vector -- a mapped table is read-only by construction --
+     * so we would rather say so than let it happen.
+     */
+    template<typename Iter>
+    void append(Iter first, Iter last)
+    requires std::is_convertible_v<typename std::iterator_traits<Iter>::value_type, value_type>
+    {
+        ASSERT_ALWAYS(!has_mapping());
+        using cat = typename std::iterator_traits<Iter>::iterator_category;
+        if constexpr (std::is_base_of_v<std::forward_iterator_tag, cat>) {
+            auto const n = size_type(std::distance(first, last));
+            if (size() + n > capacity())
+                reserve(std::max(size() + n, 1 + 2 * capacity()));
+            _finish = std::copy(first, last, _finish);
+        } else {
+            for( ; first != last ; ++first)
+                push_back(*first);
+        }
+    }
 
     void push_back(value_type const& x)
     {
@@ -262,8 +320,7 @@ class mmappable_vector : public A
      */
     void mmap(size_t n)
     {
-        reserve(n);
-        _finish = _start + n;
+        resize_uninitialized(n);
     }
     void munmap()
     {

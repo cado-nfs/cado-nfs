@@ -24,6 +24,7 @@
 #include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "macros.h"
+#include "mmappable_vector.hpp"
 #include "mpz_poly.h"
 #include "typedefs.h"
 
@@ -84,6 +85,27 @@ struct renumber_t {
      */
     static constexpr const int format_flat = 20220411;
 
+    /* format_binary is the same table, but the (p, vr) pairs are stored
+     * as a binary blob at a known offset in the file, so that reading
+     * the table is an mmap() and not a parse. The header stays text,
+     * and carries the offset of the blob, the size in bytes of one
+     * p_r_values_t on the machine that wrote it, and the byte order.
+     * See renumber.cpp for the layout.
+     *
+     * The header is the one of format_flat, plus a last line giving
+     * that offset, the entry width, and the byte order. That line is
+     * padded with spaces so that it ends where the data begins, which
+     * is how a reader that cannot seek gets there.
+     *
+     * The offset is a fixed multiple of 4096. That is a property of the
+     * format, not of the page size of either machine: mmap() wants a
+     * page-aligned offset, but mmapped_file::mapping obtains one by
+     * rounding down at run time, so a table written where pages are 4kB
+     * reads fine where they are 16kB, and conversely. What the offset
+     * does have to respect is the alignment of the entries.
+     */
+    static constexpr const int format_binary = 20250919;
+
 private: /*{{{ internal data fields*/
 
     int format = format_flat;
@@ -95,8 +117,17 @@ private: /*{{{ internal data fields*/
 
     cxx_cado_poly cpoly;
 
-    /* Only for format_flat. */
-    std::vector<std::array<p_r_values_t, 2>> flat_data;
+    /* This is an mmappable_vector because we want to be able to map it
+     * straight from the file when the format allows it.
+     */
+    mmappable_vector<std::array<p_r_values_t, 2>> flat_data;
+
+    /* Only meaningful for format_binary, and only once the header has
+     * been read: where the blob starts in the file, and how wide its
+     * entries are.
+     */
+    size_t binary_data_offset = 0;
+    unsigned int binary_element_size = 0;
 
     std::vector<unsigned int> lpb;
     std::vector<index_t> index_from_p_cache;
@@ -261,15 +292,46 @@ public:
        renumber_table.build();
      */
 
-    struct cooked {
-        std::vector<int> nroots;
+    /* What one thread computes for one interval of primes: the entries
+     * of the table for those primes, and, for each prime that has at
+     * least one ideal above it and in increasing order, the number of
+     * roots on each side. The prime itself needs not be stored, since
+     * it is the first coordinate of the entries.
+     *
+     * The index of the first entry of the fragment in the whole table
+     * is only known once the previous fragments are complete, which is
+     * why anything that needs it (the hook, below) runs in a second
+     * pass.
+     */
+    struct fragment {
         std::vector<std::array<p_r_values_t, 2>> flat;
-        std::string text;
+        std::vector<uint8_t> nroots;    /* nsides per prime */
+        std::string text;               /* only for format_flat */
+        std::string hook_text;
+        index_t base = 0;
+        uint64_t nprimes_seen = 0;
         bool empty() const { return flat.empty(); }
+        void clear() {
+            flat.clear();
+            nroots.clear();
+            text.clear();
+            hook_text.clear();
+            base = 0;
+            nprimes_seen = 0;
+        }
     };
 
     struct hook {
-        virtual void operator()(renumber_t & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) = 0;
+        /* Called from several threads at once, on distinct fragments,
+         * and hence forbidden to touch any shared state: the output
+         * goes to the per-fragment string.
+         */
+        virtual void operator()(renumber_t const & R, p_r_values_t p,
+                index_t idx, uint8_t const * nroots, std::string & out) = 0;
+        /* Called single-threaded, with the fragments in increasing
+         * order of the primes they cover.
+         */
+        virtual void flush(std::string const & out) = 0;
         virtual ~hook() = default;
     };
 
@@ -293,6 +355,25 @@ private:/*{{{ more implementation-level stuff. */
     /* there's no write_table, because writing the table is done by
      * the build() function (called from freerel) */
     void read_table(std::istream& is);
+    /* Same as read_table(), but for a file that we can mmap: the parse
+     * is then done by all threads at once. Returns false if the file
+     * cannot be dealt with this way, and nothing was read.
+     */
+    bool read_table_parallel(std::string const & filename, size_t offset);
+    void read_table_binary(std::istream& is, std::string const & filename,
+            bool may_mmap);
+    /* the part of read_table_binary() that deals with a table whose
+     * entries are not the width this binary uses
+     */
+    bool convert_table_binary(std::string const & filename, size_t nrows);
+    /* fills index_from_p_cache and above_cache, once flat_data is
+     * there. Cheap: it only looks at the primes below 2^20.
+     */
+    void compute_index_from_p_cache();
+    /* header (+ bad ideals) as a string, padded so that the binary blob
+     * that follows starts on a page boundary
+     */
+    std::string header_string_with_padding() const;
     void compute_bad_ideals();
     void compute_bad_ideals_from_dot_badideals_hint(std::istream&, unsigned int = UINT_MAX);
     void compute_ramified_primes();
@@ -315,18 +396,13 @@ private:/*{{{ more implementation-level stuff. */
     p_r_values_t compute_vp_from_p (p_r_values_t p) const;
     p_r_values_t compute_p_from_vp (p_r_values_t vp) const;
 
-    /* The "cook" function can be used asynchronously to prepare the
-     * fragments of the renumber table in parallel. use_cooked must use
-     * the same data, but synchronously -- and stores it to the table, of
-     * course. use_cooked_nostore does the same, except that it is made
-     * for the situation where we have no interest in keeping track of
-     * the renumber table itself. The only thing that matters is keeping
-     * track of the above_all index, which is done by the input and
-     * output index_t values.
+    /* Append to the fragment what the table holds for the prime p,
+     * given its roots on each side. Called from several threads at
+     * once, on distinct fragments.
      */
-    cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> &) const;
-    void use_cooked(p_r_values_t p, cooked const & C);
-    index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked const & C);
+    void cook_into(unsigned long p,
+            std::vector<std::vector<unsigned long>> & roots,
+            fragment & F) const;
 
     struct builder; // IWYU pragma: keep
     friend struct builder;

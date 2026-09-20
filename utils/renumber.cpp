@@ -3,12 +3,16 @@
 #include <cstdint>
 #include <cstdio>
 #include <climits>
+#include <cmath>
+
+#include <charconv>
 
 #include <algorithm>
 #include <array>
+#include <atomic>
+#include <bit>
 #include <iostream>
 #include <limits>
-#include <list>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -17,12 +21,18 @@
 #include <utility>
 #include <vector>
 
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <gmp.h>
 #include "fmt/format.h"
 
 #include "badideals.hpp"
 #include "cxx_mpz.hpp"
 #include "misc.h"
+#include "mmap_allocator.hpp"
 #include "getprime.h"
 #include "gmp_aux.h"
 #include "fstream_maybe_compressed.hpp"
@@ -33,6 +43,7 @@
 #include "renumber.hpp"
 #include "rootfinder.h"
 #include "stats.h"
+#include "timing.h"
 #include "macros.h"
 #include "typedefs.h"
 
@@ -275,21 +286,25 @@ renumber_t::p_r_side renumber_t::compute_p_r_side_from_p_vr (p_r_values_t p, p_r
 
 /* sort in decreasing order. Faster than qsort for ~ < 15 values in r[] */
 
-renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<unsigned long>> & roots) const
+void renumber_t::cook_into(unsigned long p,
+        std::vector<std::vector<unsigned long>> & roots,
+        fragment & F) const
 {
-    cooked C;
-
     size_t total_nroots = 0;
 
-    /* Note that all_roots always a root on the rational side, even
+    /* Note that roots always has a root on the rational side, even
      * though it's only a zero -- the root itself isn't computed.
      */
-    for (int i = 0; i < get_nb_polys() ; i++) {
-        C.nroots.push_back(roots[i].size());
+    for (int i = 0; i < get_nb_polys() ; i++)
         total_nroots += roots[i].size();
-    }
 
-    if (total_nroots == 0) return C;
+    /* primes with no ideal above them leave no trace at all */
+    if (total_nroots == 0) return;
+
+    for (int i = 0; i < get_nb_polys() ; i++) {
+        ASSERT_ALWAYS(roots[i].size() <= UCHAR_MAX);
+        F.nroots.push_back((uint8_t) roots[i].size());
+    }
 
     for (int side = 0 ; side < get_nb_polys(); side++) {
         /* reverse the ordering of the *ROOTS* (not of the sides), because
@@ -297,17 +312,13 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
          */
         for (auto it = roots[side].rbegin() ; it != roots[side].rend() ; ++it) {
             p_r_side const x { (p_r_values_t) p, (p_r_values_t) *it, side };
-            C.flat.emplace_back(
+            F.flat.emplace_back(
                     std::array<p_r_values_t, 2> {{
                     (p_r_values_t) p,
                     compute_vr_from_p_r_side (x)
                     }});
         }
     }
-    C.text.clear();
-    for(auto x : C.flat)
-        C.text += fmt::format("{} {}\n", x[0], x[1]);
-    return C;
 }
 
 /* return the number of bad ideals above x (and therefore zero if
@@ -665,7 +676,7 @@ void renumber_t::set_format(int f)
 {
     ASSERT_ALWAYS (above_all == above_bad);
     ASSERT_ALWAYS (above_cache == above_bad);
-    ASSERT_ALWAYS(f == format_flat);
+    ASSERT_ALWAYS(f == format_flat || f == format_binary);
     format = f;
 }
 
@@ -680,13 +691,14 @@ void renumber_t::read_header(std::istream& is)
     getline(is, s);
     std::istringstream iss(s);
     int f = 0;
-    if (iss >> f && (f == format_flat)) {
+    if (iss >> f && (f == format_flat || f == format_binary)) {
         format = f;
     } else {
         throw cado::error(
-                        "Renumber format error. Got {}, expected {} instead. You must regenerate the renumber table with the freerel tool.",
-                    f, format_flat);
+                        "Renumber format error. Got {}, expected {} or {} instead. You must regenerate the renumber table with the freerel tool.",
+                    f, format_flat, format_binary);
     }
+
 
     ASSERT_ALWAYS(above_all == above_add);
     {
@@ -695,6 +707,48 @@ void renumber_t::read_header(std::istream& is)
         for(auto & x : lpb) is >> x;
         if (!is) throw parse_error("header");
         read_bad_ideals(is);
+    }
+
+    if (format == format_binary) {
+        /* The header ends with one more line, which says where the data
+         * begins. Consuming it to its end -- it is padded with spaces --
+         * leaves us exactly on the data, which is the only way there
+         * for a reader that cannot seek.
+         */
+        for(std::string t; std::ws(is).peek() == '#' ; getline(is, t) ) ;
+        size_t off = 0;
+        unsigned int es = 0;
+        char bo = 0;
+        is >> off >> es >> bo;
+        if (!is)
+            throw parse_error("header, binary data placement");
+        if (es != 4 && es != 8)
+            throw corrupted_table(fmt::format(
+                        "binary renumber table with {}-byte entries", es));
+        char const native =
+            std::endian::native == std::endian::little ? 'L' : 'B';
+        if (bo != native)
+            throw corrupted_table(fmt::format(
+                        "binary renumber table was written on a {}-endian "
+                        "machine, this one is {}-endian",
+                        bo == 'L' ? "little" : "big",
+                        native == 'L' ? "little" : "big"));
+        /* We write that offset as a multiple of 4096, so this can only
+         * be a corrupt or foreign file. Reading it would mean a
+         * misaligned pointer, which is not something to do quietly.
+         */
+        constexpr size_t a = alignof(decltype(flat_data)::value_type);
+        if (off % a)
+            throw corrupted_table(fmt::format(
+                        "binary renumber table announces its data at offset"
+                        " {}, which is not a multiple of {}", off, a));
+        binary_data_offset = off;
+        binary_element_size = es;
+
+        std::string padding;
+        getline(is, padding);
+        if (!is)
+            throw parse_error("header, binary data placement");
     }
     is.flags(ff);
 
@@ -805,6 +859,56 @@ void renumber_t::write_bad_ideals(std::ostream& os) const
     os << "# renumber table for all indices above " << above_bad << ":\n";
 }
 
+/* The binary blob begins at a well-defined offset in the file, so that
+ * it can be mmapped. Getting there means padding the header, and the
+ * padding is written as one last comment line, so that a reader that
+ * cannot seek (the file went through a compressor) reaches the blob by
+ * reading lines until it has read that one.
+ */
+std::string renumber_t::header_string_with_padding() const
+{
+    ASSERT_ALWAYS(format == format_binary);
+
+    /* A fixed number, not this machine's page size: the file must not
+     * depend on where it was written. Readers align down to their own
+     * page size anyway. All it really has to be is a multiple of the
+     * alignment of an entry, which it amply is -- but a change to the
+     * entry type should not get there unnoticed.
+     */
+    constexpr size_t blob_alignment = 4096;
+    static_assert(
+            blob_alignment % alignof(decltype(flat_data)::value_type) == 0,
+            "the renumber table entries want an alignment that the "
+            "binary format does not provide");
+
+    std::ostringstream os;
+    write_header(os);
+    write_bad_ideals(os);
+    std::string s = os.str();
+
+    /* The last line of the header says where the data begins, and is
+     * padded with spaces so that it ends exactly there. That is what
+     * lets a reader that cannot seek land on the data: it reads that
+     * line to its end, and it is there. The offset is written with a
+     * fixed width, so the length of the line does not depend on it and
+     * we can compute the one from the other.
+     */
+    auto placement = [this](size_t off) {
+        return fmt::format("{:016d} {} {}", off, sizeof(p_r_values_t),
+                std::endian::native == std::endian::little ? 'L' : 'B');
+    };
+
+    size_t const off = ((s.size() + placement(0).size() + 1
+                + blob_alignment - 1) / blob_alignment) * blob_alignment;
+
+    s += placement(off);
+    s.append(off - s.size() - 1, ' ');
+    s += '\n';
+    ASSERT_ALWAYS(s.size() == off);
+
+    return s;
+}
+
 std::vector<int> renumber_t::get_sides_of_additional_columns() const
 {
     std::vector<int> res;
@@ -894,33 +998,6 @@ void renumber_t::compute_ramified_primes()
     }
 }
 
-void renumber_t::use_cooked(p_r_values_t p, cooked const & C)
-{
-    if (C.empty()) return;
-    /* In the current format, we have
-     * above_all - above_bad == flat_daat.size().
-     * Note that this used to not be the case with the old formats.
-     */
-    index_t const pos_hard = flat_data.size();
-    above_all = use_cooked_nostore(above_all, p, C);
-    flat_data.insert(flat_data.end(), C.flat.begin(), C.flat.end());
-    if (!(p >> RENUMBER_MAX_LOG_CACHED) && p >= index_from_p_cache.size()) {
-        index_from_p_cache.insert(index_from_p_cache.end(),
-                p - index_from_p_cache.size(),
-                std::numeric_limits<index_t>::max());
-        ASSERT_ALWAYS(index_from_p_cache.size() == p);
-        index_from_p_cache.push_back(pos_hard);
-        above_cache = above_all;
-    }
-}
-index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, cooked const & C)
-{
-    if (C.empty()) return n0;
-    for(auto n : C.nroots) n0 += n;
-    return n0;
-}
-
-
 void renumber_t::read_table(std::istream& is)
 {
     stats_data_t stats;
@@ -934,23 +1011,350 @@ void renumber_t::read_table(std::istream& is)
     }
     stats_print_progress(stats, nprimes, 0, 0, 1);
 
+    compute_index_from_p_cache();
+}
+
+namespace {
+/* A read-only mapping of a byte range of a file, for the cases where
+ * the typed mmap of mmap_allocator does not apply: we want the bytes,
+ * not entries. The mapping starts at a page boundary at or below the
+ * requested offset; data() points where the caller asked. Failure
+ * leaves the object false, because every caller has something else it
+ * can do.
+ */
+class mapped_range {
+    void * base_ = nullptr;
+    size_t maplen_ = 0;
+    char const * data_ = nullptr;
+    size_t size_ = 0;
+
+public:
+    mapped_range(std::string const & filename, size_t offset, size_t length)
     {
-        index_t i = 0;
-        for( ; i < flat_data.size() ; i++)  {
-            auto pvr = flat_data[i];
-            p_r_values_t const p = pvr[0];
-            if (p >> RENUMBER_MAX_LOG_CACHED)
-                break;
-            if (p < index_from_p_cache.size())
-                continue;
-            index_from_p_cache.insert(index_from_p_cache.end(),
-                    p - index_from_p_cache.size(),
-                    std::numeric_limits<index_t>::max());
-            ASSERT_ALWAYS(index_from_p_cache.size() == p);
-            index_from_p_cache.push_back(i);
+        int const fd = open(filename.c_str(), O_RDONLY);
+        if (fd < 0) return;
+        size_t const page_size = size_t(sysconf(_SC_PAGE_SIZE));
+        size_t const start = (offset / page_size) * page_size;
+        maplen_ = length + offset - start;
+        void * const p = mmap(nullptr, maplen_, PROT_READ, MAP_SHARED,
+                fd, off_t(start));
+        close(fd);
+        if (p == MAP_FAILED) {
+            maplen_ = 0;
+            return;
         }
-        above_cache = above_bad + i;
+        base_ = p;
+        data_ = static_cast<char const *>(p) + (offset - start);
+        size_ = length;
     }
+    ~mapped_range() { if (base_) munmap(base_, maplen_); }
+    mapped_range(mapped_range const &) = delete;
+    mapped_range(mapped_range &&) = delete;
+    mapped_range& operator=(mapped_range const &) = delete;
+    mapped_range& operator=(mapped_range &&) = delete;
+    explicit operator bool() const { return data_ != nullptr; }
+    char const * data() const { return data_; }
+    size_t size() const { return size_; }
+};
+}
+
+/* Read the text table with all the threads at once. The file is mmapped
+ * and cut in as many pieces as there are threads; a first pass counts
+ * the entries in each piece, so that the second one can parse straight
+ * into the right place in the table. std::istream::operator>> is about
+ * four times slower than this on one thread alone.
+ */
+bool renumber_t::read_table_parallel(std::string const & filename,
+        size_t offset)
+{
+    struct stat sbuf[1];
+    if (stat(filename.c_str(), sbuf) < 0 || size_t(sbuf->st_size) < offset)
+        return false;
+
+    size_t const len = size_t(sbuf->st_size) - offset;
+    if (!len) {
+        above_all = above_bad;
+        compute_index_from_p_cache();
+        return true;
+    }
+
+    mapped_range const m(filename, offset, len);
+    if (!m)
+        return false;
+
+    char const * const buf = m.data();
+
+    auto const nthreads = size_t(omp_get_max_threads());
+
+    /* cut on line boundaries */
+    std::vector<size_t> bounds(nthreads + 1, len);
+    std::vector<size_t> counts(nthreads + 1, 0);
+    bounds[0] = 0;
+    for(size_t j = 1 ; j < nthreads ; j++) {
+        size_t b = len * j / nthreads;
+        for( ; b < len && buf[b-1] != '\n' ; b++) ;
+        bounds[j] = std::max(b, bounds[j-1]);
+    }
+
+#pragma omp parallel for schedule(static, 1)
+    for(size_t j = 0 ; j < nthreads ; j++) {
+        size_t n = 0;
+        for(size_t i = bounds[j] ; i < bounds[j+1] ; i++)
+            n += buf[i] == '\n';
+        counts[j+1] = n;
+    }
+    for(size_t j = 0 ; j < nthreads ; j++)
+        counts[j+1] += counts[j];
+
+    flat_data.resize_uninitialized(counts[nthreads]);
+
+    /* several threads may want to set this */
+    std::atomic<bool> ok { true };
+#pragma omp parallel for schedule(static, 1)
+    for(size_t j = 0 ; j < nthreads ; j++) {
+        char const * q = buf + bounds[j];
+        char const * const e = buf + bounds[j+1];
+        auto * out = flat_data.data() + counts[j];
+        for( ; q < e ; ) {
+            p_r_values_t p = 0;
+            p_r_values_t r = 0;
+            auto const a = std::from_chars(q, e, p);
+            if (a.ec != std::errc()) { ok = false; break; }
+            q = a.ptr;
+            for( ; q < e && (*q == ' ' || *q == '\t') ; q++) ;
+            auto const b = std::from_chars(q, e, r);
+            if (b.ec != std::errc()) { ok = false; break; }
+            q = b.ptr;
+            for( ; q < e && *q != '\n' ; q++) ;
+            q++;
+            *out++ = std::array<p_r_values_t, 2> {{ p, r }};
+        }
+        if (out != flat_data.data() + counts[j+1])
+            ok = false;
+    }
+
+    if (!ok) {
+        flat_data.clear();
+        return false;
+    }
+
+    above_all = above_bad + flat_data.size();
+
+    std::cout << fmt::format(
+            "# INFO: {} entries parsed from {} by {} threads\n",
+            flat_data.size(), filename, nthreads);
+
+    compute_index_from_p_cache();
+
+    return true;
+}
+
+void renumber_t::compute_index_from_p_cache()
+{
+    index_t i = 0;
+    for( ; i < flat_data.size() ; i++)  {
+        auto pvr = flat_data[i];
+        p_r_values_t const p = pvr[0];
+        if (p >> RENUMBER_MAX_LOG_CACHED)
+            break;
+        if (p < index_from_p_cache.size())
+            continue;
+        index_from_p_cache.insert(index_from_p_cache.end(),
+                p - index_from_p_cache.size(),
+                std::numeric_limits<index_t>::max());
+        ASSERT_ALWAYS(index_from_p_cache.size() == p);
+        index_from_p_cache.push_back(i);
+    }
+    above_cache = above_bad + i;
+}
+
+/* Convert a blob whose entries are not the width we were compiled for.
+ * The file is mapped and the conversion is spread over all threads: the
+ * entries are all the same size, so the place of each output entry in
+ * the input is known and the loop parallelizes as it stands. Returns
+ * false if the file cannot be mapped, and then nothing was written.
+ */
+bool renumber_t::convert_table_binary(std::string const & filename,
+        size_t nrows)
+{
+    using entry = decltype(flat_data)::value_type;
+
+    size_t const row_bytes = 2 * size_t(binary_element_size);
+
+    mapped_range const m(filename, binary_data_offset, nrows * row_bytes);
+    if (!m)
+        return false;
+
+    flat_data.resize_uninitialized(nrows);
+
+    auto const nthreads = size_t(omp_get_max_threads());
+
+    /* narrowing may not be possible; report one of the culprits. Zero
+     * is a legitimate value, so the flag is what says whether we have
+     * one.
+     */
+    std::atomic<bool> overflow { false };
+    std::atomic<uint64_t> culprit { 0 };
+
+    if (binary_element_size == 4) {
+        /* widening: every value fits */
+        auto const * const src = reinterpret_cast<uint32_t const *>(m.data());
+#pragma omp parallel for schedule(static)
+        for(size_t i = 0 ; i < nrows ; i++)
+            flat_data[i] = entry {{ p_r_values_t(src[2 * i]),
+                                    p_r_values_t(src[2 * i + 1]) }};
+    } else {
+        constexpr uint64_t top = std::numeric_limits<p_r_values_t>::max();
+        auto const * const src = reinterpret_cast<uint64_t const *>(m.data());
+#pragma omp parallel for schedule(static)
+        for(size_t i = 0 ; i < nrows ; i++) {
+            uint64_t const p = src[2 * i];
+            uint64_t const r = src[2 * i + 1];
+            if (p > top || r > top) {
+                culprit = p > top ? p : r;
+                overflow = true;
+            }
+            flat_data[i] = entry {{ p_r_values_t(p), p_r_values_t(r) }};
+        }
+    }
+
+    if (overflow) {
+        flat_data.clear();
+        throw prime_is_too_large(culprit);
+    }
+
+    std::cout << fmt::format(
+            "# INFO: {} entries converted from {}-byte entries in {}"
+            " by {} threads\n",
+            nrows, binary_element_size, filename, nthreads);
+
+    return true;
+}
+
+/* Read the binary blob. The fast path, which is the whole point of the
+ * format, is the one where the entries have the width that this binary
+ * was compiled for, and the file is a real file: then the table is
+ * mmapped and nothing is read at all.
+ *
+ * Failing that, we still read with all threads as long as we can map
+ * the file -- which is the case that matters when a build with 8-byte
+ * p_r_values_t is handed a table written by a 4-byte one, or the other
+ * way round. Only a table that reaches us through a compressor leaves
+ * us no choice but to read it sequentially.
+ */
+void renumber_t::read_table_binary(std::istream & is,
+        std::string const & filename, bool may_mmap)
+{
+    using entry = decltype(flat_data)::value_type;
+
+    size_t const row_bytes = 2 * size_t(binary_element_size);
+
+    /* read_header() left us exactly on the data. If the stream can tell
+     * us where that is, check that the header was telling the truth:
+     * the mmap path trusts that offset, so it had better be right.
+     */
+    {
+        auto const pos = is.tellg();
+        if (pos >= 0 && size_t(pos) != binary_data_offset)
+            throw corrupted_table(fmt::format(
+                        "binary renumber table announces its data at offset"
+                        " {}, but the header ends at offset {}",
+                        binary_data_offset, size_t(pos)));
+    }
+
+    size_t nrows = 0;
+    bool have_nrows = false;
+    if (may_mmap) {
+        struct stat sbuf[1];
+        if (stat(filename.c_str(), sbuf) == 0) {
+            size_t const total = size_t(sbuf->st_size);
+            if (total < binary_data_offset
+                    || (total - binary_data_offset) % row_bytes)
+                throw corrupted_table("binary table has a truncated entry");
+            nrows = (total - binary_data_offset) / row_bytes;
+            have_nrows = true;
+        }
+    }
+
+    /* read_header() has checked that binary_data_offset suits the
+     * entries; mmapped_file::mapping takes care of rounding it down to
+     * a page boundary and compensating.
+     */
+    if (nrows && have_nrows && binary_element_size == sizeof(p_r_values_t)) {
+        using namespace mmap_allocator_details;
+        mmapped_file source(filename, READ_ONLY,
+                off_t(binary_data_offset), nrows * row_bytes);
+        decltype(flat_data) y(mmap_allocator<entry>(
+                    source, off_t(binary_data_offset), nrows));
+        y.mmap(nrows);
+        flat_data.swap(y);
+        std::cout << fmt::format(
+                "# INFO: {} entries mmapped from {} at offset {}\n",
+                nrows, filename, binary_data_offset);
+    } else if (have_nrows && nrows && convert_table_binary(filename, nrows)) {
+        /* done: the widths differ, but we could still map the file and
+         * convert it with all threads.
+         */
+    } else {
+        /* When we can't stat the file (it went through a compressor),
+         * we don't know how many entries there are. The number of
+         * ideals is close to the number of primes below the large prime
+         * bounds, so this is a good enough guess to avoid reallocating.
+         */
+        if (have_nrows) {
+            flat_data.reserve(nrows);
+        } else {
+            double guess = 0;
+            for(auto l : lpb)
+                guess += nprimes_interval(2, ldexp(1.0, int(l)));
+            flat_data.reserve(size_t(guess * 1.05) + 1024);
+        }
+
+        constexpr size_t batch = 1 << 16;
+        std::vector<char> buf(batch * row_bytes);
+        for(size_t done = 0 ; !have_nrows || done < nrows ; ) {
+            size_t want = batch;
+            if (have_nrows && nrows - done < want)
+                want = nrows - done;
+            is.read(buf.data(), std::streamsize(want * row_bytes));
+            size_t const got = size_t(is.gcount()) / row_bytes;
+            if (size_t(is.gcount()) % row_bytes)
+                throw corrupted_table("binary table has a truncated entry");
+            if (!got) {
+                if (have_nrows)
+                    throw corrupted_table("binary table is too short");
+                break;
+            }
+            if (binary_element_size == sizeof(p_r_values_t)) {
+                auto const * p = reinterpret_cast<entry const *>(buf.data());
+                flat_data.append(p, p + got);
+            } else if (binary_element_size == 4) {
+                auto const * p = reinterpret_cast<uint32_t const *>(buf.data());
+                for(size_t i = 0 ; i < got ; i++)
+                    flat_data.push_back(entry {{
+                            p_r_values_t(p[2*i]), p_r_values_t(p[2*i+1]) }});
+            } else {
+                auto const * p = reinterpret_cast<uint64_t const *>(buf.data());
+                for(size_t i = 0 ; i < got ; i++) {
+                    if (p[2*i] > std::numeric_limits<p_r_values_t>::max()
+                            || p[2*i+1] > std::numeric_limits<p_r_values_t>::max())
+                        throw prime_is_too_large(p[2*i]);
+                    flat_data.push_back(entry {{
+                            p_r_values_t(p[2*i]), p_r_values_t(p[2*i+1]) }});
+                }
+            }
+            done += got;
+        }
+        std::cout << fmt::format(
+                "# INFO: {} entries read from {} ({}-byte entries{})\n",
+                flat_data.size(), filename, binary_element_size,
+                binary_element_size == sizeof(p_r_values_t)
+                ? "" : ", converted");
+    }
+
+    above_all = above_bad + flat_data.size();
+
+    compute_index_from_p_cache();
 }
 
 void renumber_t::read_from_file(std::string const & filename, bool for_dl)
@@ -962,7 +1366,31 @@ void renumber_t::read_from_file(std::string const & filename, bool for_dl)
         use_additional_columns_for_dl();
     read_header(is);
     info(std::cout);
-    read_table(is);
+    double const tt = wct_seconds();
+    if (format == format_binary) {
+        read_table_binary(is, filename, !is.is_pipe());
+    } else {
+        /* Get past the comments that sit between the header and the
+         * table itself, so that the offset we compute is the offset of
+         * the first entry. read_table() does the same, and finds
+         * nothing left to skip.
+         */
+        for(std::string t; std::ws(is).peek() == '#' ; getline(is, t) ) ;
+
+        /* The position we are at is only meaningful for a real file,
+         * and that is also the only case where we can mmap.
+         */
+        bool done = false;
+        if (!is.is_pipe()) {
+            auto const pos = is.tellg();
+            if (pos >= 0)
+                done = read_table_parallel(filename, size_t(pos));
+        }
+        if (!done)
+            read_table(is);
+    }
+    std::cout << fmt::format("# INFO: table loaded in {:.2f}s\n",
+            wct_seconds() - tt);
     more_info(std::cout);
     
     /* It's used by inertia_from_p_r */
@@ -1144,7 +1572,8 @@ void renumber_t::info(std::ostream & os) const
     const char * P = "# INFO: ";
     os << "# Information on renumber table:\n";
 
-    std::string const format_string = "flat";
+    std::string const format_string =
+        format == format_binary ? "binary" : "flat";
 
     os << P << "format = " << format_string << " (" << format << ")\n";
     os << P << "sizeof(p_r_values_t) = " << sizeof(p_r_values_t) << "\n";
@@ -1188,38 +1617,35 @@ void renumber_t::more_info(std::ostream & os) const
 void renumber_t::builder_declare_usage(cxx_param_list & pl)
 {
     pl.declare_usage("renumber", "output file for renumbering table");
-    pl.declare_usage("renumber_format", "format of the renumbering table (\"flat\")");
+    pl.declare_usage("renumber_format", "format of the renumbering table (\"binary\" or \"flat\")");
+    pl.declare_usage("renumber_rounds", "number of rounds used to build the renumbering table (the table is built by all threads at once, and one round's worth of fragments is held in memory)");
 }
 
 void renumber_t::builder_lookup_parameters(cxx_param_list & pl)
 {
     pl.lookup("renumber");
     pl.lookup("renumber_format");
+    pl.lookup("renumber_rounds");
 }
 
 /* This is the core of the renumber table building routine. Part of this
  * code used to exist in freerel.cpp file.
  */
 struct renumber_t::builder{/*{{{*/
-    struct prime_chunk {/*{{{*/
-        bool preprocess_done = false;
-        std::vector<unsigned long> primes;
-        std::vector<renumber_t::cooked> C;
-        prime_chunk(std::vector<unsigned long> && primes) : primes(primes) {}
-        private:
-        prime_chunk() = default;
-    };/*}}}*/
-
     renumber_t & R;
     std::ostream * os_p;
     renumber_t::hook * hook;
+    unsigned int nrounds;
     stats_data_t stats;
     uint64_t nprimes = 0; // sigh... *must* be ulong for stats().
     index_t R_max_index; // we *MUST* follow it externally, since we're not storing the table in memory.
-    builder(renumber_t & R, std::ostream * os_p, renumber_t::hook * hook)
+
+    builder(renumber_t & R, std::ostream * os_p, renumber_t::hook * hook,
+            unsigned int nrounds)
         : R(R)
         , os_p(os_p)
         , hook(hook)
+        , nrounds(nrounds)
         , R_max_index(R.get_max_index())
     {
         /* will print report at 2^10, 2^11, ... 2^23 computed primes
@@ -1233,26 +1659,57 @@ struct renumber_t::builder{/*{{{*/
     ~builder() {
         stats_print_progress(stats, nprimes, 0, 0, 1);
     }
+    builder(builder const &) = delete;
+    builder(builder &&) = delete;
+    builder& operator=(builder const &) = delete;
+    builder& operator=(builder &&) = delete;
+
     index_t operator()();
-    void preprocess(prime_chunk & P, gmp_randstate_ptr rstate);
-    void postprocess(prime_chunk & P);
+    void produce(fragment & F, unsigned long p0, unsigned long p1,
+            gmp_randstate_ptr rstate) const;
+    void finish(fragment & F) const;
+    void emit(fragment & F);
 };/*}}}*/
 
-void renumber_t::builder::preprocess(prime_chunk & P, gmp_randstate_ptr rstate)/*{{{*/
+/* Compute the part of the table that lies above the primes in [p0, p1).
+ * This is where all the time goes, and the only thing it touches is the
+ * fragment it is given.
+ */
+void renumber_t::builder::produce(fragment & F,
+        unsigned long p0, unsigned long p1,
+        gmp_randstate_ptr rstate) const/*{{{*/
 {
-    ASSERT_ALWAYS(!P.preprocess_done);
-    /* change x (list of input primes) into the list of integers that go
-     * to the renumber table, and then set "done" to true.
-     * This is done asynchronously.
-     */
-    for(auto p : P.primes) {
-        std::vector<std::vector<unsigned long>> all_roots;
-        for (int side = 0; side < R.get_nb_polys(); side++) {
-            std::vector<unsigned long> roots;
+    int const nsides = R.get_nb_polys();
+
+    F.clear();
+
+    {
+        /* One ideal per prime and per side, on average, for the sides
+         * whose large prime bound is not exceeded (Chebotarev). Doing
+         * this keeps the memory that the fragments hold close to the
+         * size of the data they hold.
+         */
+        double ideals = 0;
+        for(int side = 0 ; side < nsides ; side++) {
+            double const b = ldexp(1.0, int(R.get_lpb(side)));
+            if (double(p0) < b)
+                ideals += nprimes_interval(double(p0), std::min(double(p1), b));
+        }
+        F.flat.reserve(size_t(ideals * 1.05) + 64);
+        F.nroots.reserve(size_t(ideals * 1.05) + 64);
+    }
+
+    std::vector<std::vector<unsigned long>> all_roots(nsides);
+
+    for(unsigned long const p : prime_range(p0, p1)) {
+        F.nprimes_seen++;
+        for (int side = 0; side < nsides; side++) {
+            std::vector<unsigned long> & roots = all_roots[side];
             mpz_poly_srcptr f = R.get_poly(side);
 
+            roots.clear();
+
             if (UNLIKELY(p >> R.get_lpb(side))) {
-                all_roots.emplace_back(roots);
                 continue;
             } else if (f->deg == 1) {
                 roots.assign(1, 0);
@@ -1280,108 +1737,147 @@ void renumber_t::builder::preprocess(prime_chunk & P, gmp_randstate_ptr rstate)/
                     i--;
                 }
             }
-            all_roots.emplace_back(roots);
         }
 
-        /* Data is written in the temp buffer in a way that is not quite
-         * similar to the renumber table, but still close enough.
-         */
-        P.C.emplace_back(R.cook(p, all_roots));
+        R.cook_into(p, all_roots, F);
     }
-#pragma omp atomic write
-    P.preprocess_done = true;
 }/*}}}*/
 
-void renumber_t::builder::postprocess(prime_chunk & P)/*{{{*/
+/* Everything that needs to know where the fragment sits in the whole
+ * table, but is still independent from one fragment to the next.
+ */
+void renumber_t::builder::finish(fragment & F) const/*{{{*/
 {
-    bool preprocess_done;
-#ifdef HAVE_OPENMP
-#pragma omp atomic read
-#endif
-    preprocess_done = P.preprocess_done;
-    ASSERT_ALWAYS(preprocess_done);
-
-    /* put all entries from x into the renumber table, and also print
-     * to freerel_file any free relation encountered. This is done
-     * synchronously.
-     *
-     * (if freerel_file is nullptr, store only into the renumber table)
-     */
-    for(size_t i = 0; i < P.primes.size() ; i++) {
-        p_r_values_t const p = P.primes[i];
-        renumber_t::cooked  const& C = P.C[i];
-
-        if (hook) (*hook)(R, p, R_max_index, C);
-
-        if (os_p) {
-            R_max_index = R.use_cooked_nostore(R_max_index, p, C);
-            (*os_p) << C.text;
-        } else {
-            ASSERT_ALWAYS(R_max_index == R.get_max_index());
-            R.use_cooked(p, C);
-            R_max_index = R.get_max_index();
+    if (hook) {
+        int const nsides = R.get_nb_polys();
+        index_t idx = F.base;
+        size_t cursor = 0;
+        for(size_t g = 0 ; g < F.nroots.size() ; g += nsides) {
+            /* cook_into() only records primes that have at least one
+             * ideal above them, so this entry does exist, and its first
+             * coordinate is the prime itself.
+             */
+            p_r_values_t const p = F.flat[cursor][0];
+            (*hook)(R, p, idx, &F.nroots[g], F.hook_text);
+            size_t n = 0;
+            for(int side = 0 ; side < nsides ; side++)
+                n += F.nroots[g + side];
+            cursor += n;
+            idx += n;
         }
-
-        nprimes++;
+        ASSERT_ALWAYS(cursor == F.flat.size());
     }
-    /* free memory ! */
-    P.primes.clear();
-    P.C.clear();
+
+    if (os_p && R.get_format() != format_binary) {
+        for(auto x : F.flat)
+            F.text += fmt::format("{} {}\n", x[0], x[1]);
+    }
+}/*}}}*/
+
+/* The only part that is done in sequence. */
+void renumber_t::builder::emit(fragment & F)/*{{{*/
+{
+    if (os_p) {
+        if (R.get_format() == format_binary) {
+            using entry = decltype(F.flat)::value_type;
+            os_p->write(
+                    reinterpret_cast<char const *>(F.flat.data()),
+                    std::streamsize(F.flat.size() * sizeof(entry)));
+        } else {
+            (*os_p) << F.text;
+        }
+    } else {
+        R.flat_data.append(F.flat.begin(), F.flat.end());
+    }
+
+    if (hook)
+        hook->flush(F.hook_text);
+
+    nprimes += F.nprimes_seen;
+
+    F.clear();
+
     progress();
 }/*}}}*/
 
 index_t renumber_t::builder::operator()()/*{{{*/
 {
-    /* Generate the renumbering table. */
+    /* Generate the renumbering table. The prime range is cut into
+     * intervals that hold about the same number of primes, and these
+     * are dealt with in rounds of one interval per thread. Rounds are
+     * what bounds the memory that the fragments take: with the default
+     * of 16 rounds, at most one sixteenth of the table is in flight.
+     */
+    unsigned long const lpbmax = 1UL << R.get_max_lpb();
+    auto const nthreads = size_t(omp_get_max_threads());
 
-    constexpr const unsigned int granularity = 1024;
+    /* Intervals hold the same number of primes, but not the same
+     * amount of work: finding the roots modulo a large prime costs
+     * more than modulo a small one, and within one round the largest
+     * prime is far above the smallest. Cutting each round in more
+     * pieces than there are threads, and handing them out
+     * dynamically, is what evens that out.
+     */
+    constexpr size_t granularity = 8;
 
-    std::vector<cxx_gmp_randstate> rstate_per_thread(omp_get_max_threads());
-#pragma omp parallel default(none) shared(rstate_per_thread)
+    size_t per_round = nthreads * granularity;
+    size_t nintervals = per_round * nrounds;
     {
-#pragma omp single
-        {
-            prime_info pi;
-            prime_info_init(pi);
-            std::list<prime_chunk> inflight;
-            unsigned long const lpbmax = 1UL << R.get_max_lpb();
-            unsigned long p = 2;
-            for (; p <= lpbmax || !inflight.empty() ;) {
-                if (p <= lpbmax) {
-                    std::vector<unsigned long> pp;
-                    pp.reserve(granularity);
-                    for (; p <= lpbmax && pp.size() < granularity;) {
-                        pp.push_back(p);
-                        p = getprime_mt(pi); /* get next prime */
-                    }
-                    inflight.emplace_back(std::move(pp));
-                    /* do not use a c++ reference for the omp
-                     * firstprivate construct. It does not do what we
-                     * want. (I saw a _copy_ !)
-                     */
-                    prime_chunk * latest(&inflight.back());
-#pragma omp task firstprivate(latest) default(none) shared(rstate_per_thread)
-                    {
-                        preprocess(*latest, rstate_per_thread[omp_get_thread_num()]);
-                    }
-                } else {
-#pragma omp taskwait
-                }
-
-                for ( ; !inflight.empty() ; ) {
-                    bool ready;
-                    prime_chunk & next(inflight.front());
-#pragma omp atomic read
-                    ready = next.preprocess_done;
-                    if (!ready)
-                        break;
-                    postprocess(next);
-                    inflight.pop_front();
-                }
-            }
-            prime_info_clear(pi);
+        /* Cutting the range in pieces that are too small is pointless,
+         * and the test suite goes as low as lpb=10.
+         */
+        double const np = nprimes_interval(2, double(lpbmax));
+        auto const most = size_t(std::max(1.0, np / 1024));
+        if (nintervals > most) {
+            nintervals = most;
+            per_round = std::max(size_t(1), nintervals / nrounds);
         }
     }
+    auto const splits = subdivide_primes_interval(2, lpbmax, nintervals);
+
+    if (!os_p) {
+        /* The number of ideals is close to the number of primes below
+         * the large prime bounds, so this is a good enough guess to
+         * never have to reallocate. Over-reserving costs address space
+         * only.
+         */
+        double guess = 0;
+        for(int side = 0 ; side < R.get_nb_polys() ; side++)
+            guess += nprimes_interval(2, ldexp(1.0, int(R.get_lpb(side))));
+        R.flat_data.reserve(size_t(guess * 1.05) + 1024);
+    }
+
+    std::vector<fragment> frags(per_round);
+    std::vector<cxx_gmp_randstate> rstate_per_thread(nthreads);
+
+    for(size_t i0 = 0 ; i0 < nintervals ; i0 += per_round) {
+        size_t const n = std::min(per_round, nintervals - i0);
+
+#pragma omp parallel for schedule(dynamic, 1)
+        for(size_t j = 0 ; j < n ; j++)
+            produce(frags[j], splits[i0 + j], splits[i0 + j + 1],
+                    rstate_per_thread[omp_get_thread_num()]);
+
+        for(size_t j = 0 ; j < n ; j++) {
+            frags[j].base = R_max_index;
+            R_max_index += frags[j].flat.size();
+        }
+
+#pragma omp parallel for schedule(dynamic, 1)
+        for(size_t j = 0 ; j < n ; j++)
+            finish(frags[j]);
+
+        for(size_t j = 0 ; j < n ; j++)
+            emit(frags[j]);
+
+        if (!os_p) {
+            R.above_all = R_max_index;
+            ASSERT_ALWAYS(R.flat_data.size() == R.above_all - R.above_bad);
+        }
+    }
+
+    if (!os_p)
+        R.compute_index_from_p_cache();
 
     return R_max_index;
 }/*}}}*/
@@ -1397,10 +1893,17 @@ index_t renumber_t::build(cxx_param_list & pl, bool for_dl, hook * f)
     const char * renumberfilename = pl.lookup_old("renumber");
     const char * format_string = pl.lookup_old("renumber_format");
 
+    unsigned int nrounds = 16;
+    pl.parse("renumber_rounds", nrounds);
+    if (!nrounds)
+        throw std::runtime_error("renumber_rounds must be positive");
+
     if (format_string == nullptr) {
-        set_format(format_flat);
+        set_format(format_binary);
+    } else if (std::string(format_string) == "binary") {
+        set_format(format_binary);
     } else if (std::string(format_string) == "flat") {
-        format = format_flat;
+        set_format(format_flat);
     } else {
         throw std::runtime_error("cannot use this renumber format");
     }
@@ -1421,11 +1924,15 @@ index_t renumber_t::build(cxx_param_list & pl, bool for_dl, hook * f)
     if (renumberfilename) {
         out.reset(new ofstream_maybe_compressed(renumberfilename));
 
-        write_header(*out);
-        write_bad_ideals(*out);
+        if (format == format_binary) {
+            *out << header_string_with_padding();
+        } else {
+            write_header(*out);
+            write_bad_ideals(*out);
+        }
     }
 
-    index_t const ret = builder(*this, out.get(), f)();
+    index_t const ret = builder(*this, out.get(), f, nrounds)();
 
     more_info(std::cout);
 

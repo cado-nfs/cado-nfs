@@ -1,6 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <cerrno>
 #include <cstdio>
+#include <cstring>      // strerror
 
 #include <string>       // std::string
 #include <exception>    // std::terminate
@@ -70,6 +72,16 @@ namespace mmap_allocator_details {
         offset_mapped = ALIGN_TO_PAGE(offset);
         length_mapped = UPPER_ALIGN_TO_PAGE(length + offset - offset_mapped);
         area = mmap(nullptr, length_mapped, prot, mmap_mode, fd, offset_mapped);
+        if (area == MAP_FAILED) {
+            /* We must close the fd ourselves: the object is not
+             * constructed, so the destructor will not run.
+             */
+            int const e = errno;
+            close(fd);
+            throw mmap_allocator_exception(
+                    std::string("mmap() failed on ") + filename + ": "
+                    + strerror(e));
+        }
     }
 
     mmapped_file::mapping::~mapping() {

@@ -292,9 +292,77 @@ struct testcase {
         }
     }
 
+    /* append() and resize_uninitialized() have nothing to do with
+     * mmap, but they're the two things renumber_t leans on.
+     */
+    static void test_append_and_resize()
+    {
+        std::vector<uint32_t> const src { 4, 5, 6, 7 };
+
+        mmappable_vector<uint32_t> v;
+        v.push_back(3);
+        v.append(src.begin(), src.end());
+        v.append(src.begin(), src.begin());
+        ASSERT_ALWAYS(v.size() == 5);
+        for (uint32_t j = 0; j < 5; j++)
+            ASSERT_ALWAYS(v[j] == 3 + j);
+
+        /* appending a lot must not lose anything */
+        for (int i = 0; i < 100; i++)
+            v.append(src.begin(), src.end());
+        ASSERT_ALWAYS(v.size() == 405);
+        ASSERT_ALWAYS(v[404] == 7);
+
+        ASSERT_ALWAYS(!v.has_mapping());
+
+        mmappable_vector<uint32_t> w;
+        w.resize_uninitialized(1000);
+        ASSERT_ALWAYS(w.size() == 1000);
+        ASSERT_ALWAYS(w.capacity() >= 1000);
+        for (uint32_t j = 0; j < 1000; j++)
+            w[j] = j;
+        /* shrinking back keeps the storage, and the data below the new
+         * size, which is what the renumber table builder relies on */
+        uint32_t const * const data = w.data();
+        w.resize_uninitialized(500);
+        ASSERT_ALWAYS(w.size() == 500);
+        ASSERT_ALWAYS(w.data() == data);
+        ASSERT_ALWAYS(w[499] == 499);
+    }
+
+    /* resize_uninitialized() is how one puts a mapping in place, but
+     * append() writes, and writing through a mapping is never what we
+     * mean here.
+     */
+    void test_append_on_mapping() const
+    {
+        fprintf(stderr, "Testing append() on a mapping\n");
+        mmappable_vector<uint32_t> v(
+            mmap_allocator<uint32_t>(TESTFILE.c_str(), READ_ONLY, 0, 1024));
+        v.resize_uninitialized(1024);
+        ASSERT_ALWAYS(v.has_mapping());
+        ASSERT_ALWAYS(v.size() == 1024);
+        for (uint32_t j = 0; j < 1024; j++)
+            ASSERT_ALWAYS(v[j] == j);
+
+        std::vector<uint32_t> const src { 1, 2, 3 };
+        bool caught = false;
+        try {
+            v.append(src.begin(), src.end());
+        } catch (std::runtime_error const & e) {
+            caught = true;
+            fprintf(stderr, "Exception message (expected): %s\n", e.what());
+        }
+        ASSERT_ALWAYS(caught);
+        /* and the file was left alone */
+        test_test_file(1024, TESTFILE, false);
+    }
+
     void test_all() const
     {
+        test_append_and_resize();
         test_mmap();
+        test_append_on_mapping();
         test_conversion();
         test_cache_bug();
 
