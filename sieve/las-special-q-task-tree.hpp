@@ -91,6 +91,12 @@ struct special_q_task_tree : public special_q_task {
     }
     void update_child_status(special_q_task_tree *, status_code, status_code);
     void update_status(status_code before, status_code after) override {
+        // Wipe the slate clean when rescheduling a task
+        if (after == PENDING) {
+            contender = descent_candidate_relation();
+            alternatives.clear();
+        }
+
         if (parent) {
             parent->update_child_status(this, before, after);
         } else {

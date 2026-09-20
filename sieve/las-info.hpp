@@ -159,7 +159,24 @@ struct las_info : public las_parallel_desc, private NonCopyable {
 
     std::vector<unsigned long> dupqmin;   /* smallest q sieved, for dupsup */
     std::vector<unsigned long> dupqmax;   /* largest q sieved, for dupsup */
- 
+
+    /* bucket_batch_size:
+     *
+     * Specifies the target number of level-1 bucket regions to allocate slots for
+     * and process concurrently during the downsorting and sieving phases.
+     *
+     * This has to be a power of two. It's naturally multiplied by the
+     * natural number of level-1 regions contained within a single
+     * higher-level bucket. The default is 1.  Setting a larger value
+     * enables multi-bucket concurrency across higher levels of the
+     * downsort tree.
+     */
+    int bucket_batch_size = 1;
+
+    /* nr_workspaces: number of bucket arrays per reservation array. 0
+     * means "derive it from the number of threads". */
+    int nr_workspaces = 0;
+
     // ----- stuff roughly related to the descent
     /* This is an opaque pointer to C++ code. */
     void * descent_helper;
@@ -173,7 +190,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
 
     relation_cache rel_cache;
     void reproduce_relations_from_cache(special_q const & doing);
-    
+   
     // ----- batch mode
     int batch; /* batch mode for cofactorization */
     /* how many survivors we are willing to submit to a single

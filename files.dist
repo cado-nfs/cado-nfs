@@ -1052,6 +1052,8 @@ sieve/las-divide-primes.cpp
 sieve/las-divide-primes.hpp
 sieve/las-dlog-base.cpp
 sieve/las-dlog-base.hpp
+sieve/las-downsort.cpp
+sieve/las-downsort.hpp
 sieve/las-dumpfile.cpp
 sieve/las-dumpfile.hpp
 sieve/las-duplicate.cpp

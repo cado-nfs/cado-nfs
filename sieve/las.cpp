@@ -28,8 +28,6 @@
 #include <utility>
 #include <vector>
 
-#include <dirent.h>
-
 #include <gmp.h>
 #include "fmt/base.h"
 #include "fmt/format.h"
@@ -51,6 +49,7 @@
 #include "las-config.hpp"
 #include "las-divide-primes.hpp"
 #include "las-dlog-base.hpp"
+#include "las-downsort.hpp"
 #include "las-duplicate.hpp"
 #include "las-fill-in-buckets.hpp"
 #include "las-globals.hpp"
@@ -61,12 +60,10 @@
 #include "las-parallel.hpp"
 #include "las-plattice.hpp"
 #include "las-process-bucket-region.hpp"
-#include "las-qlattice.hpp"
 #include "las-report-stats.hpp"
 #include "las-side-config.hpp"
 #include "las-sieve-shared-data.hpp"
 #include "las-siever-config.hpp"
-#include "las-smallsieve.hpp"
 #include "las-special-q-task-collection.hpp"
 #include "las-special-q-task.hpp"
 #include "las-threads-work-data.hpp"
@@ -101,6 +98,8 @@ static void configure_aliases(cxx_param_list & pl)
 {
     pl.configure_alias("log-bucket-region", "B");
     pl.configure_alias("log-bucket-region-step", "Bi");
+    pl.configure_alias("bucket-batch-size", "bbs");
+    pl.configure_alias("nr-workspaces", "nw");
     las_output::configure_aliases(pl);
     tdict::configure_aliases(pl);
 }
@@ -344,7 +343,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     ASSERT_ALWAYS(1 <= toplevel && toplevel <= MAX_TOPLEVEL);
     */
 
-    int const nba = NUMBER_OF_BAS_FOR_THREADS(nthreads);
+    int const nba = nfs_work::number_of_bas_for_threads(nthreads, las.nr_workspaces);
 
     std::array<double, MAX_TOPLEVEL + 1> ms, ss;
     std::array<round_me, MAX_TOPLEVEL + 1> rs;
@@ -772,7 +771,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
             nfs_work::side_data  const& wss(ws.sides[side]);
             if (wss.no_fb()) continue;
 
-            fill_in_buckets_toplevel_multiplex(ws, aux, Q, pool, side, w);
+            fill_in_buckets_toplevel_entry(ws, aux, Q, pool, side, w);
 
             fill_in_buckets_prepare_plattices(ws, Q, pool, side, precomp_plattices[side]);
 
@@ -814,21 +813,8 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
                                 wss.lognorms.scale);
 
                         wss.ssd->small_sieve_info("small sieve", side);
-                    });
 
-            if (ws.toplevel == 1) {
-                /* when ws.toplevel > 1, this start_many call
-                 * is done several times.
-                 */
-                sss_tg.on_complete([&ws, &Q, side, &pool, &sss_tg]() {
-                        nfs_work::side_data & wss(ws.sides[side]);
-                        wss.ssd->small_sieve_prepare_many_start_positions(
-                                pool, &sss_tg,
-                                0,
-                                std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1]),
-                                ws.conf.logI, Q.sublat);
-                        });
-            }
+                    });
         }
 
         /* Note: we haven't done any downsorting yet ! */
@@ -837,10 +823,9 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
             if (wss.no_fb()) continue;
             auto & sss_tg(sss_tgs[side]);
             sss_tg.wait();
-            if (ws.toplevel == 1)
-                wss.ssd->small_sieve_activate_many_start_positions();
         }
-            
+
+
         pool.drain_queue(thread_pool::QUEUE_GENERIC);
 
         ws.check_buckets_max_full_toplevel(ws.toplevel);
@@ -853,47 +838,10 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
     {
         CHILD_TIMER(timer_special_q, "process_bucket_region outer container");
         TIMER_CATEGORY(timer_special_q, sieving_mixed());
-        if (ws.toplevel == 1) {
-            /* Process bucket regions in parallel */
-            process_many_bucket_regions(ws, wc_p, aux_p, Q, pool, 0, w);
-        } else {
-            // Prepare plattices at internal levels
-
-            // Visit the downsorting tree depth-first.
-            // If toplevel = 1, then this is just processing all bucket
-            // regions.
-            size_t  const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
-            static_assert(MAX_TOPLEVEL == 3);
-            for (int i = 0; i < ws.nb_buckets[ws.toplevel]; i++) {
-                if (ws.task->must_take_decision())
-                    break;
-                /* Dividing by BRS[1] is actually correct if we want to
-                 * fill the first_region0_index parameter. Of course we
-                 * must make sure that for the recursive downsort, this
-                 * doesn't entail an extra multiplication (e.g. by
-                 * BRS[2]/BRS[1]. XXX we must check this!
-                 */
-                switch (ws.toplevel) {
-#if MAX_TOPLEVEL >= 2
-                    case 2:
-                        downsort_tree<1>(ws, wc_p, aux_p, Q, pool,
-                                i, i*BRS[2]/BRS[1],
-                                precomp_plattices, w);
-                        break;
-#endif
-
-#if MAX_TOPLEVEL >= 3
-                    case 3:
-                        downsort_tree<2>(ws, wc_p, aux_p, Q, pool, i,
-                                i*BRS[3]/BRS[1],
-                                precomp_plattices, w);
-                        break;
-#endif
-                    default:
-                        ASSERT_ALWAYS(0);
-                }
-            }
-        }
+        /* if ws.toplevel == 1, this will simplify to calling
+         * process_many_bucket_regions.
+         */
+        downsort_toplevel(ws, wc_p, aux_p, Q, pool, precomp_plattices, w);
     }
 
     BOOKKEEPING_TIMER(timer_special_q);

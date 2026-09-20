@@ -108,7 +108,10 @@ void nfs_work::zeroinit_defaults()
 }
 
 nfs_work::nfs_work(las_info & _las, sieve_method auto tag)
-    : nfs_work(_las, NUMBER_OF_BAS_FOR_THREADS(_las.number_of_threads_per_subjob()), tag)
+    : nfs_work(_las,
+            nfs_work::number_of_bas_for_threads(
+                _las.number_of_threads_per_subjob(), _las.nr_workspaces),
+            tag)
 {
 }
 
@@ -119,7 +122,10 @@ nfs_work::nfs_work(las_info & _las, int nr_workspaces, sieve_method auto tag)
     : las(_las),
     local_memory(_las.local_memory_accessor()),
     nr_workspaces(nr_workspaces),
-    sides {{ {nr_workspaces, tag}, {nr_workspaces, tag} }}
+    sides {{
+        { las.bucket_batch_size, nr_workspaces, tag},
+        { las.bucket_batch_size, nr_workspaces, tag}
+    }}
 {
     zeroinit_defaults();
     // we cannot do this because thread_data has no copy ctor (on
@@ -186,18 +192,32 @@ nfs_work::buckets_max_full() const
     /* find the most full bucket across all buckets in the bucket array */
     double maxfull_ratio = 0;
     int maxfull_side = -1;
+    int maxfull_slot = 0;
     unsigned int maxfull_index = 0;
     size_t maxfull_updates = 0;
     size_t maxfull_room = 0;
     using BA_t = bucket_array_t<LEVEL, HINT>;
+
+    /* With bucket_batch_size > 1 the level-1 reservation arrays are
+     * multiplexed into several "slots" that are filled and processed
+     * concurrently. We must inspect the fill of *every* slot: checking
+     * only slot 0 lets an overflow in a higher slot go unnoticed, and
+     * process_bucket_region() then reads bucket data that was overrun
+     * during fill-in. For LEVEL > 1 there is only ever one slot. */
+    int const nslots = (LEVEL == 1)
+        ? int(sides[0].group.template get_all_slots<LEVEL, HINT>().size())
+        : 1;
+
     for(unsigned int side = 0 ; side < sides.size() ; side++) {
         side_data  const& wss(sides[side]);
-        for (auto const & BA : wss.bucket_arrays<LEVEL, HINT>()) {
+        for (int slot = 0 ; slot < nslots ; slot++)
+        for (auto const & BA : wss.bucket_arrays<LEVEL, HINT>(slot)) {
             unsigned int index;
             const double ratio = BA.max_full(&index);
             if (ratio > maxfull_ratio) {
                 maxfull_ratio = ratio;
                 maxfull_side = side;
+                maxfull_slot = slot;
                 maxfull_index = index;
                 maxfull_updates = BA.nb_of_updates(index);
                 maxfull_room = BA.room_allocated_for_updates(index);
@@ -207,15 +227,16 @@ nfs_work::buckets_max_full() const
     if (maxfull_ratio > 1) {
         int const side = maxfull_side;
         side_data  const& wss(sides[side]);
-        auto const & BAs = wss.bucket_arrays<LEVEL, HINT>();
+        auto const & BAs = wss.bucket_arrays<LEVEL, HINT>(maxfull_slot);
         std::ostringstream os;
-        os << "bucket " << maxfull_index << " on side " << maxfull_side << ":";
+        os << "bucket " << maxfull_index << " on side " << maxfull_side
+           << " (slot " << maxfull_slot << "):";
         size_t m = 0;
-        for (auto const & BA : wss.bucket_arrays<LEVEL, HINT>()) {
+        for (auto const & BA : BAs) {
             if (BA.nb_of_updates(maxfull_index) >= m)
                 m = BA.nb_of_updates(maxfull_index);
         }
-        for (auto const & BA : wss.bucket_arrays<LEVEL, HINT>()) {
+        for (auto const & BA : BAs) {
             size_t const z = BA.nb_of_updates(maxfull_index);
             os << " " << z;
             if (z == m) os << "*";
@@ -328,7 +349,7 @@ void nfs_work::compute_toplevel_and_buckets()
     ASSERT_ALWAYS(toplevel >= 1 && toplevel <= MAX_TOPLEVEL);
 
     /* update number of buckets at toplevel */
-    size_t  const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
+    size_t const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
 
     std::fill_n(nb_buckets, FB_MAX_PARTS, 0);
 

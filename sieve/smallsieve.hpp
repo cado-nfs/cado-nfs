@@ -15,16 +15,6 @@
 #define SSP_PROJ            (1u<<1)
 #define SSP_PATTERN_SIEVED  (1u<<2)
 
-/* Do not compute start positions for more than this number of bucket
- * regions in advance. This defines the frequency of a synchronization
- * point, so it should not be too small. Typically one set of start
- * positions for one bucket region costs about 25k.
- *
- * This is capped to nb_buckets
- */
-#define SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE 1024
-
-
 class small_sieve_data {
 public:
     virtual void small_sieve_init(

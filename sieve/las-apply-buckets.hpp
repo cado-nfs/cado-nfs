@@ -13,7 +13,7 @@
 #include "las-where-am-i.hpp" // for where_am_I, WHERE_AM_I_UPDATE
 #include "macros.h"
 
-/* {{{ apply_buckets */
+/* apply_buckets */
 template <typename HINT>
 #ifndef TRACE_K
 /* backtrace display can't work for static symbols (see backtrace_symbols) */
@@ -82,10 +82,10 @@ template <typename HINT>
 /* backtrace display can't work for static symbols (see backtrace_symbols) */
 NOPROFILE_STATIC
 #endif
-    void
-    apply_one_bucket(unsigned char * S, bucket_array_t<1, HINT> const & BA,
-                     const int i, fb_factorbase::slicing const & fbs,
-                     where_am_I & w)
+void
+apply_one_bucket(unsigned char * S, bucket_array_t<1, HINT> const & BA,
+                 const int i, fb_factorbase::slicing const & fbs,
+                 where_am_I & w)
 {
     WHERE_AM_I_UPDATE(w, p, 0);
 
@@ -213,7 +213,7 @@ void apply_one_bucket<longhint_t>(unsigned char * S,
     ASSERT(BA.get_nr_slices() == 1);
     ASSERT(BA.get_slice_index(0) == 0); // std::numeric_limits<slice_index_t>::max());
     for (auto const & it: BA.slice_range(i, 0)) {
-        slice_index_t slice_index = it.slice_index;
+        const slice_index_t slice_index = it.slice_index;
         auto const * fb_slice = fbs.get(slice_index, 2);
         ASSERT_ALWAYS(fb_slice != nullptr);
         unsigned char const logp = fb_slice->get_logp();
@@ -238,6 +238,6 @@ void apply_one_bucket<logphint_t>(unsigned char * S,
     }
     apply_row_updates_for_one_bucket<1, logphint_t>(S, BA, i, fbs, w);
 }
-/* }}} */
+/*  */
 
 #endif /* CADO_LAS_APPLY_BUCKETS_HPP */

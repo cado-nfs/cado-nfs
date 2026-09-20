@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+#include "bucket-push-update.hpp"       // IWYU pragma: keep
 #include "threadpool.hpp"
 #include "las-threads-work-data.hpp"
 #include "las-qlattice.hpp"

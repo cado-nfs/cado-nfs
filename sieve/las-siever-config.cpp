@@ -139,13 +139,14 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
     pl.parse("sublat", sc.sublat_bound);
 
     /* Parse optional siever configuration parameters */
-    pl.parse("tdthresh", (sc.td_thresh));
-    pl.parse("skipped", (sc.skipped));
+    pl.parse("tdthresh", sc.td_thresh);
+    pl.parse("skipped", sc.skipped);
 
-    if (pl.parse("unsievethresh", (sc.unsieve_thresh))) {
+    if (pl.parse("unsievethresh", sc.unsieve_thresh)) {
         verbose_fmt_print(0, 1, "# Un-sieving primes > {}\n",
                 sc.unsieve_thresh);
     }
+
 
     // XXX note that when the sieving range size varies with the
     // special-q, we need to accept that the bucket threshold varies,
@@ -195,10 +196,6 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
  * our mind on using.
  *
  * XXX NOTE XXX : the scale field is set to 0 by this function.
- *
- * XXX NOTE XXX : the nr_workspaces field is set to 0 by this function,
- * because the caller is expected to set that instead.
- *
  *
  */
 fb_factorbase::key_type siever_config::instantiate_thresholds(int side) const

@@ -147,6 +147,12 @@ struct process_bucket_region_run {/*{{{*/
     nfs_work::thread_data & tws;
     timetree_t & timer;
 
+    /* When several sets of level-1 buckets are processed concurrently in
+     * a single batch as per bucket_batch_size, this indicates which of
+     * the level-1 bucket arrays we use.
+     */
+    int slot;
+
     /* These two indices are set from within process_many_bucket_regions,
      * prior to spawning all threads.
      *
@@ -207,6 +213,7 @@ struct process_bucket_region_run {/*{{{*/
         std::shared_ptr<nfs_aux> aux_p,
         ALGO::special_q_data const & Q,
         where_am_I const & w_in,
+        int slot,
         int first_region0_index,
         int already_done,
         int bucket_relative_index,
@@ -237,6 +244,7 @@ process_bucket_region_run::process_bucket_region_run(
     std::shared_ptr<nfs_aux> aux_p,
     ALGO::special_q_data const & Q,
     where_am_I const & w_in,
+    int slot,
     int first_region0_index,
     int already_done,
     int bucket_relative_index,
@@ -250,6 +258,7 @@ process_bucket_region_run::process_bucket_region_run(
   , taux(this->aux_p->th[worker->rank()])
   , tws(ws.th[worker->rank()])
   , timer(timer)
+  , slot(slot)
   , first_region0_index(first_region0_index)
   , already_done(already_done)
   , bucket_relative_index(bucket_relative_index)
@@ -285,6 +294,7 @@ static void process_one_bucket_region(
         std::shared_ptr<nfs_aux> aux_p,
         ALGO::special_q_data const & Q,
         where_am_I w,
+        int slot,
         int first_region0_index,
         int already_done,
         int i)
@@ -292,7 +302,7 @@ static void process_one_bucket_region(
     timetree_t & timer(aux_p->get_timer(worker));
     ENTER_THREAD_TIMER(timer);
     process_bucket_region_run(ws, std::move(wc_p), std::move(aux_p), Q, w,
-                              first_region0_index, already_done, i, timer, worker)();
+                              slot, first_region0_index, already_done, i, timer, worker)();
 }
 
 /* process_bucket_region, split into pieces. */
@@ -319,12 +329,12 @@ template<bool with_hints> void process_bucket_region_run::apply_buckets_inner(in
     using my_longhint_t = hints_proxy<with_hints>::l;
     using my_shorthint_t = hints_proxy<with_hints>::s;
     {
-        auto const & BA_ins = wss.bucket_arrays<1, my_shorthint_t>();
-        verbose_fmt_print(0, 3,
+        auto const & BA_ins = wss.bucket_arrays<1, my_shorthint_t>(slot);
+        verbose_fmt_print(0, 4,
                 "# apply 1s buckets ({} groups of {} buckets, taking bucket {}/{})"
                 " to region {}\n",
                 BA_ins.size(), BA_ins[0].n_bucket,
-                already_done + bucket_relative_index,
+                ((first_region0_index + already_done + bucket_relative_index) % ws.nb_buckets[1]),
                 BA_ins[0].n_bucket,
                 first_region0_index + already_done + bucket_relative_index);
 
@@ -334,24 +344,24 @@ template<bool with_hints> void process_bucket_region_run::apply_buckets_inner(in
         /* The function below, when instantiated with shorthint buckets,
          * will fetch primes from fb part 1 only */
         for (auto const & BA_in : BA_ins)
-            apply_one_bucket(SS, BA_in, already_done + bucket_relative_index, *wss.fbs, w);
+            apply_one_bucket(SS, BA_in, ((first_region0_index + already_done + bucket_relative_index) % ws.nb_buckets[1]), *wss.fbs, w);
     }
 
     /* Apply downsorted buckets, if necessary. */
-    if (ws.toplevel > 1) {
-        auto const & BA_ins = wss.bucket_arrays<1, my_longhint_t>();
-        verbose_fmt_print(0, 3,
+    if (wss.fbs->get_toplevel() > 1) {
+        auto const & BA_ins = wss.bucket_arrays<1, my_longhint_t>(slot);
+        verbose_fmt_print(0, 4,
                 "# apply 1l buckets ({} groups of {} buckets)"
                 " to region {}\n",
                 BA_ins.size(), BA_ins[0].n_bucket,
-                already_done + bucket_relative_index);
+                ((first_region0_index + already_done + bucket_relative_index) % ws.nb_buckets[1]));
         CHILD_TIMER(timer, "apply downsorted buckets");
         TIMER_CATEGORY(timer, sieving(side));
 
         /* The function below, when instantiated with longhint buckets,
          * will fetch primes from fb parts 2 and (if applicable) above. */
         for (auto const & BA_in : BA_ins)
-            apply_one_bucket(SS, BA_in, already_done + bucket_relative_index, *wss.fbs, w);
+            apply_one_bucket(SS, BA_in, ((first_region0_index + already_done + bucket_relative_index) % ws.nb_buckets[1]), *wss.fbs, w);
     }
 }/*}}}*/
 void process_bucket_region_run::apply_buckets(int side)/*{{{*/
@@ -536,18 +546,18 @@ void process_bucket_region_run::purge_buckets(int side, survivors_t const & surv
 
     unsigned char * Sx = S[0] ? S[0] : S[1];
 
-    for (auto const & BA : wss.bucket_arrays<1, shorthint_t>()) {
+    for (auto const & BA : wss.bucket_arrays<1, shorthint_t>(slot)) {
 #ifdef HAVE_SSE2
         if (tws.ws.las.use_smallset_purge)
-            sides[side].purged.purge(BA, already_done + bucket_relative_index, Sx, survivors);
+            sides[side].purged.purge(BA, ((first_region0_index + already_done + bucket_relative_index) % ws.nb_buckets[1]), Sx, survivors);
         else
 #endif
-            sides[side].purged.purge(BA, already_done + bucket_relative_index, Sx);
+            sides[side].purged.purge(BA, ((first_region0_index + already_done + bucket_relative_index) % ws.nb_buckets[1]), Sx);
     }
 
     /* Add entries coming from downsorting, if any */
-    for (auto const & BAd : wss.bucket_arrays<1, longhint_t>()) {
-        sides[side].purged.purge(BAd, already_done + bucket_relative_index, Sx);
+    for (auto const & BAd : wss.bucket_arrays<1, longhint_t>(slot)) {
+        sides[side].purged.purge(BAd, ((first_region0_index + already_done + bucket_relative_index) % ws.nb_buckets[1]), Sx);
     }
 
     /* Sort the entries to avoid O(n^2) complexity when looking for
@@ -983,6 +993,7 @@ void process_many_bucket_regions(
         ALGO::special_q_data const & Q,
         thread_pool & pool,
         int first_region0_index,
+        int bucket_batch_size,
         where_am_I & w)/*{{{*/
 {
     /* first_region0_index is always 0 when toplevel == 1, but the
@@ -999,50 +1010,76 @@ void process_many_bucket_regions(
     else
         first_skipped_br >>= LOG_BUCKET_REGION - ws.conf.logI;
 
-    size_t const small_sieve_regions_ready = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1]);
+    /* if ws.toplevel == 1, then ws.nb_buckets[1] might be big. In that
+     * case, the number of regions for which we have computed the start
+     * positions is insufficient, and we have to do the loop below
+     * several times.
+     *
+     * if ws.toplevel > 1, the loop is done only once.
+     */
 
-    for(int done = 0, ready = small_sieve_regions_ready ; done < ws.nb_buckets[1] ; ) {
+    int const regions_ready = bucket_batch_size << LOG_BUCKET_REGION_step;
+    int const regions_to_process = std::max(regions_ready, ws.nb_buckets[1]);
 
+    task_group tg;
+
+    for(int done = 0, ready = regions_ready ; done < regions_to_process ; ) {
         for(int i = 0 ; i < ready ; i++) {
             if (first_region0_index + done + i >= first_skipped_br) {
                 /* Hmm, then we should also make sure that we truncated
                  * fill_in_buckets, right ? */
                 break;
             }
-            pool.add_task(thread_pool::QUEUE_GENERIC, 0.0,
+            const int slot = i >> LOG_BUCKET_REGION_step;
+            ASSERT_ALWAYS(slot < ws.las.bucket_batch_size);
+            pool.add_task(tg,
                     process_one_bucket_region,
                     std::ref(ws), wc_p, aux_p, std::cref(Q), w,
-                    first_region0_index, done, i);
+                    slot, first_region0_index, done, i);
         }
 
         /* it's only really done when we do
-         * drain_queue(thread_pool::QUEUE_GENERIC), of course */
+         * drain_queue(thread_pool::QUEUE_GENERIC), or wait on the
+         * completion of tg.
+         */
         done += ready;
 
-        if (done < ws.nb_buckets[1]) {
-            /* We need to compute more init positions */
-            int const more = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1] - done);
+        if (done < regions_to_process) {
+            /* As explained above, ws.toplevel > 1 cannot reach here.
+             * Preparing the small sieve for another turn is (currently)
+             * done for the next round within downsort_object::sss.
+             */
+            ASSERT_ALWAYS(ws.toplevel == 1);
+
+            /* We need to compute more init positions. Compute them in a
+             * staging area. Once both that and the other pbr calls are
+             * done, swap the buffers and proceed.
+             */
 
             for(auto & wss : ws.sides) {
                 if (wss.no_fb()) continue;
 
+                const int nslots = reservation_group::nslots<1>(bucket_batch_size);
+                ASSERT_ALWAYS(nslots == 1);
+                int advance = bucket_batch_size << LOG_BUCKET_REGION_step;
+                const int cap = nslots * ws.nb_buckets[1];
+                advance = std::min(advance, cap - (first_region0_index + done));
                 wss.ssd->small_sieve_prepare_many_start_positions(
-                        pool, nullptr,
+                        pool, &tg,
                         first_region0_index + done,
-                        more,
+                        advance,
                         ws.conf.logI, Q.sublat);
             }
 
-            pool.drain_queue(thread_pool::QUEUE_GENERIC);
-
-            ready = more;
-
-            /* Now these new start positions are ready to be used */
-            for(auto & wss : ws.sides) {
-                if (wss.no_fb()) continue;
-                wss.ssd->small_sieve_activate_many_start_positions();
-            }
+            tg.on_complete([&]() {
+                /* Now these new start positions are ready to be used */
+                for(auto & wss : ws.sides) {
+                    if (wss.no_fb()) continue;
+                    wss.ssd->small_sieve_activate_many_start_positions();
+                }
+            });
         }
+        tg.wait();
     }
 }/*}}}*/
 

@@ -211,6 +211,20 @@ cado_divert_test(F9_sieve 2_levels APPEND_ARGUMENTS bkthresh1=600000)
 cado_divert_test(F9_sieve 3_levels APPEND_ARGUMENTS
     bkthresh1=600000 bkthresh2=1100000 -Bi 5)
 
+# Same as 3_levels, but with a smaller bucket-region step so that the
+# top (level-3) region count is > 1 (2, here). This exercises the
+# downsort-tree recursion for a non-first top-level bucket, which the
+# -Bi 5 variants above never do (they have a single level-3 bucket).
+cado_divert_test(F9_sieve 3_levels_multibucket APPEND_ARGUMENTS
+    bkthresh1=600000 bkthresh2=1100000 -Bi 3)
+
+# These test elide the top-level FIB on one of the two sides. The way
+# it's dealt with is currently suboptimal, but we must make sure that it
+# remains functional.
+cado_divert_test(F9_sieve 2_levels_border APPEND_ARGUMENTS bkthresh1=1200000)
+cado_divert_test(F9_sieve 3_levels_border APPEND_ARGUMENTS
+    bkthresh1=600000 bkthresh2=1200000 -Bi 5)
+
 if(HAVE_SSE2)
     cado_divert_test(F9_sieve smallset_purge
         APPEND_ARGUMENTS -smallset-purge)

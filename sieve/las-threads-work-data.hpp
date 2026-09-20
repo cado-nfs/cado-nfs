@@ -2,6 +2,7 @@
 #define CADO_LAS_THREADS_WORK_DATA_HPP
 
 #include <cstdint>
+#include <cstddef>
 
 #include <array>
 #include <vector>
@@ -17,13 +18,13 @@
 #include "las-norms.hpp"
 #include "las-plattice.hpp"
 #include "las-siever-config.hpp"
-#include "las-smallsieve.hpp"
 #include "las-threads.hpp"
 #include "special-q.hpp"
 #include "las-special-q-task.hpp"
 #include "lock_guarded_container.hpp"
 #include "multityped_array.hpp"
-#include "siqs-smallsieve.hpp"
+#include "smallsieve.hpp"
+#include "sieve-methods.hpp"
 
 class las_memory_accessor; // IWYU pragma: keep
 class nfs_aux; // IWYU pragma: keep
@@ -33,8 +34,6 @@ struct las_info; // IWYU pragma: keep
 struct trialdiv_data; // IWYU pragma: keep
 struct unsieve_data; // IWYU pragma: keep
 template <int LEVEL, hint_type HINT> class bucket_array_t; // IWYU pragma: keep
-
-#define NUMBER_OF_BAS_FOR_THREADS(n)    ((n) == 1 ? 1 : ((n) + 2))
 
 /*
  * This structure holds the key algorithmic data that is used in las. It
@@ -51,10 +50,9 @@ template <int LEVEL, hint_type HINT> class bucket_array_t; // IWYU pragma: keep
  *  - Allocated space for one structure may be reused for another
  *    special-q.
  *
- * We have here nb_threads threads that will work with nb_threads+1 (or 1
- * if nb_threads==1 anyway) reservation_arrays in each data member of the
- * two reservation_groups in the groups[] data member. This +1 is here to
- * allow work to spread somewhat more evenly.
+ * We have here nb_threads threads that will work with nr_workspaces ==
+ * number_of_bas_for_threads(nb_threads) reservation_arrays in each data
+ * member of the two reservation_groups in the groups[] data member.
  *
  * Thread-private memory areas such as bucket regions are allocated in
  * the thread_data fields.
@@ -63,11 +61,24 @@ class nfs_work {
     public:
     las_info const & las;
     las_memory_accessor & local_memory;
-    private:
 
+    /* Fill-in reserves one bucket array per concurrent writer, so one per
+     * thread avoids blocking in reservation_array::inner_reserve(). But
+     * every bucket region afterwards iterates over *all* of them, in
+     * apply_one_bucket() and purge_buckets(), so the per-region cost
+     * carries a term proportional to their number. Scaling the count with
+     * the thread count optimises the fill side at the expense of the
+     * merge side; -nr-workspaces (-nw) overrides it. */
+    static int number_of_bas_for_threads(int n, int requested = 0) {
+        if (requested > 0)
+            return requested;
+        /* This +2 is here to allow work to spread somewhat more evenly.
+         * */
+        return n == 1 ? 1 : (n + 2);
+    }
+
+    /* This field should actually be a const member of reservation_group */
     const int nr_workspaces;
-
-    public:
 
     bkmult_specifier bk_multiplier;
 
@@ -138,7 +149,7 @@ class nfs_work {
 
         bool no_fb() const { return fbs == nullptr; }
 
-        trialdiv_data const * td;
+        trialdiv_data const * td = nullptr;
 
         /* precomp_plattice_dense: caching of the FK-basis in sublat mode.
          * (for the toplevel only). This is not the same as the
@@ -165,32 +176,44 @@ class nfs_work {
          * unfortunately.
          */
         template<sieve_method Algo>
-        side_data(int nr_arrays, Algo)
-            : group(nr_arrays)
-            , ssd(new Algo::smallsieve())
+        side_data(int multiplex, int nr_workspaces, Algo)
+            : group(multiplex, nr_workspaces)
+            , ssd(std::make_unique<typename Algo::smallsieve>())
         {
         }
 
-        template <int LEVEL, hint_type HINT> void reset_all_pointers()
+        template <int LEVEL, hint_type HINT>
+        void reset_all_pointers(int slot = 0)
         {
-            group.get<LEVEL, HINT>().reset_all_pointers();
+            if constexpr (LEVEL == 1)
+                group.get<LEVEL, HINT>(slot).reset_all_pointers();
+            else
+                group.get<LEVEL, HINT>().reset_all_pointers();
         }
         template <int LEVEL, hint_type HINT>
             requires (!HINT::is_long_v)
-            auto
-            reserve_BA() {
-                return group.get<LEVEL, HINT>().reserve();
+            auto reserve_BA(int slot = 0) {
+                if constexpr (LEVEL == 1)
+                    return group.get<LEVEL, HINT>(slot).reserve();
+                else
+                    return group.get<LEVEL, HINT>().reserve();
             }
         template <int LEVEL, hint_type HINT>
             requires HINT::is_long_v
             bucket_array_t<LEVEL, HINT> &
-            acquire_BA(size_t rank) {
-                return group.get<LEVEL, HINT>().acquire(rank);
+            acquire_BA(size_t rank, int slot = 0) {
+                if constexpr (LEVEL == 1)
+                    return group.get<LEVEL, HINT>(slot).acquire(rank);
+                else
+                    return group.get<LEVEL, HINT>().acquire(rank);
             }
 
         template <int LEVEL, hint_type HINT>
-            size_t rank_BA(bucket_array_t<LEVEL, HINT> const & BA) {
-                return group.get<LEVEL, HINT>().rank(BA);
+            size_t rank_BA(bucket_array_t<LEVEL, HINT> const & BA, int slot = 0) {
+                if constexpr (LEVEL == 1)
+                    return group.get<LEVEL, HINT>(slot).rank(BA);
+                else
+                    return group.get<LEVEL, HINT>().rank(BA);
             }
 
         /*
@@ -202,8 +225,11 @@ class nfs_work {
 
         template <int LEVEL, hint_type HINT>
             std::vector<bucket_array_t<LEVEL, HINT>> const &
-            bucket_arrays() const {
-                return group.get<LEVEL, HINT>().bucket_arrays();
+            bucket_arrays(int slot = 0) const {
+                if constexpr (LEVEL == 1)
+                    return group.get<LEVEL, HINT>(slot).bucket_arrays();
+                else
+                    return group.get<LEVEL, HINT>().bucket_arrays();
             }
 
         dumpfile_t dumpfile;

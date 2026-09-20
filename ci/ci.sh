@@ -16,6 +16,12 @@ if is_debian || is_ubuntu || is_fedora ; then
     # see also special case for "merge coverage tests" further down
 fi
 
+if is_freebsd ; then
+    # need to debug something.
+    set -x
+    ps xwwau | grep pkg
+fi
+
 case "$JOB_NAME" in
     *"under valgrind"*)
         valgrind=1

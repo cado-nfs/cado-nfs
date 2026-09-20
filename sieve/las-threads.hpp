@@ -3,15 +3,17 @@
 
 #include <cstddef>
 
-#include <condition_variable>
+#include <algorithm>
 #include <array>
-#include <vector>
-#include <queue>
-#include <utility>
+#include <condition_variable>
 #include <mutex>
+#include <queue>
 #include <tuple>
+#include <utility>
+#include <vector>
 
 #include "bucket.hpp"
+#include "fb.hpp"
 #include "las-bkmult.hpp"
 #include "las-config.hpp"
 #include "threadpool.hpp"
@@ -206,7 +208,8 @@ class reservation_group {
     friend class nfs_work;
     private:
     template <int LEVEL, typename HINT>
-    using target_array_t = reservation_array<bucket_array_t<LEVEL, HINT>>;
+    using target_array_t =
+        std::vector<reservation_array<bucket_array_t<LEVEL, HINT>>>;
 
     static_assert(MAX_TOPLEVEL <= 3);
 
@@ -229,20 +232,97 @@ class reservation_group {
 
     RAs_t RAs;
 
+    public:
+
+    /* the bucket_batch_size argument indicates how many level-1
+     * reservation arrays are to be considered simultaneously during
+     * downsorting.
+     *
+     * It is 1 by default, so that by
+     * we simultaneously process as many level-1 regions as we can find inside a
+     * level-2 region.
+     * When bucket_batch_size is increased to 2 or more (it has to be a
+     * power of two), several level-1 reservation_arrays are stored in the
+     * reservation_group, and several level-2 buckets are processed
+     * simultaneously during downsorting in order to fill them.
+     *
+     * This might even trickle to higher levels if
+     * bucket_batch_size exceeds (1 << LOG_BUCKET_REGION_step). In that
+     * case, we would downsort several level-3 buckets simultanously in
+     * order to fill several level-2 reservation_arrays.
+     *
+     * nslots(LEVEL, bucket_batch_size) is the number of reservation
+     * arrays at a given level.
+     */
+    static int nslots(int level, int bucket_batch_size) {
+        ASSERT_ALWAYS(!(bucket_batch_size & (bucket_batch_size - 1)));
+        ASSERT_ALWAYS(level > 0);
+        int b = bucket_batch_size;
+        for(int i = 1 ; i < level ; i++)
+            b = iceildiv(b, 1 << LOG_BUCKET_REGION_step);
+        return b;
+    }
+    template<std::size_t LEVEL>
+    static int nslots(int bucket_batch_size) {
+        return nslots(LEVEL, bucket_batch_size);
+    }
+    private:
+    template <typename Vector_t>
+    static auto make_vector(int bucket_batch_size, int nr_workspaces) {
+        Vector_t vec;
+        static constexpr int LEVEL = Vector_t::value_type::level;
+        const int count = nslots<LEVEL>(bucket_batch_size);
+        vec.reserve(count);
+        for (int i = 0; i < count; ++i) {
+            vec.emplace_back(nr_workspaces);
+        }
+        return vec;
+    }
+
     template <std::size_t... Is>
-        reservation_group(int nr_bucket_arrays, std::index_sequence<Is...>)
-            : RAs(((void)Is, nr_bucket_arrays)...) {}
+    reservation_group(int bucket_batch_size, int nr_workspaces, std::index_sequence<Is...>)
+        : RAs(make_vector<std::tuple_element_t<Is, RAs_t>>(bucket_batch_size, nr_workspaces)...) {}
 
 public:
     template <int LEVEL, typename HINT>
-        [[nodiscard]] auto& get() {
-            return std::get<target_array_t<LEVEL, HINT>>(RAs);
-        }
+    [[nodiscard]] auto& get_all_slots() {
+        return std::get<target_array_t<LEVEL, HINT>>(RAs);
+    }
 
     template <int LEVEL, typename HINT>
-        [[nodiscard]] auto const& get() const {
-            return std::get<target_array_t<LEVEL, HINT>>(RAs);
-        }
+    [[nodiscard]] auto const& get_all_slots() const {
+        return std::get<target_array_t<LEVEL, HINT>>(RAs);
+    }
+
+    template <int LEVEL, typename HINT>
+        requires (LEVEL>1)
+    [[nodiscard]] auto& get() {
+        return std::get<target_array_t<LEVEL, HINT>>(RAs)[0];
+    }
+
+    template <int LEVEL, typename HINT>
+        requires (LEVEL>1)
+    [[nodiscard]] auto const& get() const {
+        return std::get<target_array_t<LEVEL, HINT>>(RAs)[0];
+    }
+
+    /* we expect that only level-1 buckets will effectively be
+     * multiplexed. So it only makes sense to accept an extra slot
+     * argument for those.
+     *
+     * For the moment, we'll take a default parameter.
+     */
+    template <int LEVEL, typename HINT>
+        requires (LEVEL==1)
+    [[nodiscard]] auto& get(int slot) {
+        return std::get<target_array_t<LEVEL, HINT>>(RAs)[slot];
+    }
+
+    template <int LEVEL, typename HINT>
+        requires (LEVEL==1)
+    [[nodiscard]] auto const& get(int slot) const {
+        return std::get<target_array_t<LEVEL, HINT>>(RAs)[slot];
+    }
 
 public:
     /* Reserve the required number of bucket arrays. For shorthint BAs, we
@@ -252,12 +332,17 @@ public:
      * different, hence we specify directly here the number of threads that
      * will fill these bucket arrays by downsosrting. Older code had that
      * downsorting single-threaded.
+     *
+     * Note that a reservation group is technically a tuple of _vectors_
+     * of reservation arrays, which in turn are vectors of bucket arrays
+     * because of multiplexing.
      */
 
     /* call the private ctor to initialize all RA members */
-    explicit reservation_group(int nr_bucket_arrays)
+    explicit reservation_group(int bucket_batch_size, int nr_workspaces)
         : reservation_group(
-              nr_bucket_arrays,
+              bucket_batch_size,
+              nr_workspaces,
               std::make_index_sequence<std::tuple_size_v<RAs_t>>{}
     ) {}
 
@@ -273,8 +358,8 @@ public:
     void slice_statistics(int side, int level, fb_factorbase::slicing const & fbs) const {
         switch(level) {
             case 1:
-                get<1, shorthint_t>().slice_statistics(side, fbs);
-                get<1, longhint_t>().slice_statistics(side, fbs);
+                get<1, shorthint_t>(0).slice_statistics(side, fbs);
+                get<1, longhint_t>(0).slice_statistics(side, fbs);
                 break;
             case 2:
                 get<2, shorthint_t>().slice_statistics(side, fbs);

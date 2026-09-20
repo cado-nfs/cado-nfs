@@ -25,6 +25,7 @@ void process_many_bucket_regions(
         ALGO::special_q_data const & Q,
         thread_pool & pool,
         int first_region0_index,
+        int bucket_batch_size,
         where_am_I & w);
 
 #endif	/* CADO_LAS_PROCESS_BUCKET_REGION_HPP */

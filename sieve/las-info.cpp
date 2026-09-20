@@ -61,6 +61,9 @@ void las_info::configure(cxx_param_list & pl)
     pl.declare_usage("dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
     pl.configure_switch("-dup");
 
+    pl.declare_usage("nr-workspaces", "Number of bucket arrays per reservation array (default: one per thread, plus two)");
+
+    pl.declare_usage("bucket-batch-size", "Number of level-1 bucket regions to downsort/process simultaneously");
 
     pl.declare_usage("smallset-purge", "use experimental 'smallset' code in purge_buckets");
     pl.configure_switch("-smallset-purge");
@@ -165,6 +168,22 @@ las_info::las_info(cxx_param_list & pl, Algo)
     }
 
     /* }}} */
+
+    if (pl.parse("nr-workspaces", nr_workspaces)) {
+        if (nr_workspaces <= 0)
+            pl.fail("nr-workspaces must be positive");
+        verbose_fmt_print(0, 1,
+                "# Using {} bucket arrays per reservation array\n",
+                nr_workspaces);
+    }
+
+    if (pl.parse("bucket_batch_size", bucket_batch_size)) {
+        if (bucket_batch_size <= 0 || (bucket_batch_size & (bucket_batch_size - 1)))
+            pl.fail("bucket_batch_size must be a power of two");
+        verbose_fmt_print(0, 1,
+                "# Processing batches of {} sets of level-1 bucket regions simultaneously\n",
+                bucket_batch_size);
+    }
 
     // ----- batch mode {{{
     batch = pl.parse<bool>("-batch");
