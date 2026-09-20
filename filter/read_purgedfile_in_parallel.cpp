@@ -18,19 +18,24 @@
 
 #include "utils_cxx.hpp"
 
-uint64_t * rows_per_thread;
-off_t * spos_tab;
-size_t global_bytes = 0;
-size_t global_next_report = 1024;
-double tt0;
-size_t global_nrows = 0;
-size_t global_nthreads;
+static uint64_t * rows_per_thread;
+static off_t * spos_tab;
+static size_t global_bytes;
+static size_t global_next_report;
+static double tt0;
+static size_t global_nrows;
+static size_t global_nthreads;
 
-void global_init(int nthreads, off_t endpos)
+static void global_init(int nthreads, off_t endpos)
 {
     global_nthreads = nthreads;
     rows_per_thread = (uint64_t *) malloc(nthreads * sizeof(uint64_t));
     tt0 = wct_seconds();
+    /* these are accumulators, and this function may conceivably be
+     * called more than once in the same process */
+    global_nrows = 0;
+    global_bytes = 0;
+    global_next_report = 1024;
     spos_tab = (off_t *) malloc((nthreads + 1) * sizeof(off_t));
 
     for (int i = 0; i < nthreads; i++)
@@ -38,13 +43,13 @@ void global_init(int nthreads, off_t endpos)
     spos_tab[nthreads] = endpos;
 }
 
-void global_clear()
+static void global_clear()
 {
     free(rows_per_thread);
     free(spos_tab);
 }
 
-void global_print_report() {
+static void global_print_report() {
     double dt = wct_seconds() - tt0;
     printf
         ("# Read %zu relations in %.1fs -- %.1f MB/s -- %.1f rels/s\n",
@@ -114,20 +119,20 @@ typedef struct vector_of_typerow_pointer_s vector_of_typerow_pointer[1];
 typedef struct vector_of_typerow_pointer_s * vector_of_typerow_pointer_ptr;
 typedef const struct vector_of_typerow_pointer_s * vector_of_typerow_pointer_srcptr;
 
-void vector_of_typerow_pointer_init(vector_of_typerow_pointer_ptr V)
+static void vector_of_typerow_pointer_init(vector_of_typerow_pointer_ptr V)
 {
     V->x = NULL;
     V->size = V->alloc = 0;
 }
 
-void vector_of_typerow_pointer_clear(vector_of_typerow_pointer_ptr V)
+static void vector_of_typerow_pointer_clear(vector_of_typerow_pointer_ptr V)
 {
     free(V->x);
     V->x = NULL;
     V->size = V->alloc = 0;
 }
 
-void vector_of_typerow_pointer_push_back(vector_of_typerow_pointer_ptr V, typerow_t * p)
+static void vector_of_typerow_pointer_push_back(vector_of_typerow_pointer_ptr V, typerow_t * p)
 {
     if (V->size >= V->alloc) {
         size_t newalloc = MAX(V->size * 2, 16);
@@ -147,25 +152,25 @@ typedef struct vector_of_typerow_s vector_of_typerow[1];
 typedef struct vector_of_typerow_s * vector_of_typerow_ptr;
 typedef const struct vector_of_typerow_s * vector_of_typerow_srcptr;
 
-void vector_of_typerow_init(vector_of_typerow_ptr V)
+static void vector_of_typerow_init(vector_of_typerow_ptr V)
 {
     V->x = NULL;
     V->size = V->alloc = 0;
 }
 
-void vector_of_typerow_clear(vector_of_typerow_ptr V)
+static void vector_of_typerow_clear(vector_of_typerow_ptr V)
 {
     free(V->x);
     V->x = NULL;
     V->size = V->alloc = 0;
 }
 
-void vector_of_typerow_empty(vector_of_typerow_ptr V)
+static void vector_of_typerow_empty(vector_of_typerow_ptr V)
 {
     V->size = 0;
 }
 
-void vector_of_typerow_push_back(vector_of_typerow_ptr V, const typerow_t * p)
+static void vector_of_typerow_push_back(vector_of_typerow_ptr V, const typerow_t * p)
 {
     if (V->size >= V->alloc) {
         size_t newalloc = MAX(V->size * 2, 16);
@@ -175,7 +180,7 @@ void vector_of_typerow_push_back(vector_of_typerow_ptr V, const typerow_t * p)
     memcpy(V->x + V->size++, p, sizeof(typerow_t));
 }
 
-void read_local_rows(vector_of_typerow_pointer_ptr V, FILE * fi, off_t bytes_to_read, uint64_t skip)
+static void read_local_rows(vector_of_typerow_pointer_ptr V, FILE * fi, off_t bytes_to_read, uint64_t skip)
 {
     size_t local_next_report = 256;
     size_t local_nrows_at_last_report = 0;
@@ -294,21 +299,34 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
         fclose(f);
     }
 
-    /* Find accurate starting positions for everyone */
     unsigned int nthreads = omp_get_max_threads();
 
     /* cap the number of I/O threads */
     if (nthreads > MAX_IO_THREADS)
 	nthreads = MAX_IO_THREADS;
 
-    fprintf(stderr, "# %s: Doing I/O with %u threads\n", filename,
-		 nthreads);
-
-    global_init(nthreads, endpos);
-
     /* All threads get their private reading head. */
 #pragma omp parallel num_threads(nthreads)
     {
+        /* num_threads() is only an upper bound. When dynamic adjustment
+         * of the number of threads is enabled (OMP_DYNAMIC=true, which
+         * our test suite sets), the runtime may hand us a smaller team,
+         * and libgomp routinely hands us a single thread. We must
+         * therefore cut the file in as many pieces as we have threads
+         * *for real*. Deciding on the cut before the parallel region
+         * would leave the pieces of the threads that we did not get
+         * entirely unread, and merge would then see only part of the
+         * rows.
+         */
+#pragma omp single
+        {
+            fprintf(stderr, "# %s: Doing I/O with %d threads\n", filename,
+                    omp_get_num_threads());
+            global_init(omp_get_num_threads(), endpos);
+        }
+        /* the omp single construct above ends with an implicit barrier,
+         * so that spos_tab[] is set and visible to everyone here */
+
         int i = omp_get_thread_num();
         FILE * fi;
         char buffer[1 << 16];
