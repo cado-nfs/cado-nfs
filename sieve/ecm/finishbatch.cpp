@@ -25,6 +25,8 @@
 #include "params.hpp"
 #include "relation.hpp"
 #include "verbose.hpp"
+#include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 static void declare_usage(cxx_param_list & pl)
 {
@@ -41,8 +43,15 @@ static void declare_usage(cxx_param_list & pl)
 }
 
 // coverity[root_function]
+static int main_ (int argc, char const *argv[]);
+
 int
 main (int argc, char const *argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_ (int argc, char const *argv[])
 {
   cxx_param_list pl;
   cxx_cado_poly cpoly;
@@ -141,8 +150,7 @@ main (int argc, char const *argv[])
       for(int side = 0 ; side < nsides ; side++)
           ss >> norms[side];
       if (!ss) {
-          fprintf(stderr, "parse error at line %d in cofactor input file\n", lnum);
-          exit(EXIT_FAILURE);
+          throw cado::error("parse error at line {} in cofactor input file", lnum);
       }
       for_this_q.emplace_back(a, b, norms);
   }

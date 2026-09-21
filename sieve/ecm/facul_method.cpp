@@ -10,6 +10,7 @@
 #include "macros.h"     // for ASSERT_ALWAYS, ASSERT, MAYBE_UNUSED
 #include "pm1.h"        // for pm1_plan_t, pm1_clear_plan, pm1_make_plan
 #include "pp1.h"        // for pp1_plan_t, pp1_clear_plan, pp1_make_plan
+#include "utils_cxx.hpp"
 
 facul_method::~facul_method()
 {
@@ -47,10 +48,8 @@ facul_method::facul_method(parameters const & p, const int verbose)
         case EC_METHOD:
             plan = malloc (sizeof (ecm_plan_t));
             if (!ec_parameter_is_valid (p.parameterization, p.parameter)) {
-                fprintf (stderr,
-                        "Parameter %lu is not valid with parametrization %d\n",
-                        p. parameter, p.parameterization);
-                exit (EXIT_FAILURE);
+                throw cado::error("Parameter {} is not valid with parametrization {}",
+                        p.parameter, int(p.parameterization));
             }
 
             ecm_make_plan ((ecm_plan_t *) plan, B1, B2, p.parameterization, p.parameter, p.extra_primes, verbose);

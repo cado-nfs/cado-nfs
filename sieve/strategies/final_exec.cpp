@@ -8,6 +8,8 @@
 #include "strategy.hpp"
 #include "tab_strategy.hpp"
 #include "macros.h"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 /************************************************************************/
 /*             USAGE                                                    */
@@ -38,7 +40,14 @@ static void declare_usage(cxx_param_list & pl)
 /*             MAIN                                                     */
 /************************************************************************/
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
     declare_usage(pl);
@@ -89,8 +98,7 @@ int main(int argc, char const * argv[])
     DIE_ERRNO_DIAG(!file_C, "fopen(%s)", pathname_C);
     unsigned long **matrix_C = extract_matrix_C(file_C, mfb0 + 1, mfb1 + 1);
     if (matrix_C == NULL) {
-	fprintf(stderr, "Error while reading file %s\n", pathname_C);
-	exit(EXIT_FAILURE);
+	throw cado::error("Error while reading file {}", pathname_C);
     }
     fclose(file_C);
 
@@ -104,9 +112,7 @@ int main(int argc, char const * argv[])
     int err = fprint_final_strategy(file_output, matrix_strat_res,
 				    mfb0 + 1, mfb1 + 1);
     if (err == -1) {
-	fprintf(stderr, "Error when i want to write in '%s'\n",
-		pathname_output);
-	exit(EXIT_FAILURE);
+	throw cado::error("Error when i want to write in '{}'", pathname_output);
     }
     fclose(file_output);
 

@@ -19,6 +19,7 @@
 #include "sieve-methods.hpp"
 #include "verbose.hpp"
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 static constexpr bool reprint_special_q_at_each_rel = false;
 
@@ -74,8 +75,15 @@ static void declare_usage(cxx_param_list & pl)
 }
 
 // coverity[root_function]
+static int main_ (int argc, char const * argv[]);
+
 int
 main (int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_ (int argc, char const * argv[])
 {
     cxx_param_list pl;
     declare_usage(pl);
@@ -109,8 +117,7 @@ main (int argc, char const * argv[])
     FILE * output = stdout;
     if (outputname) {
 	if (!(output = fopen_maybe_compressed(outputname, "w"))) {
-	    fprintf(stderr, "Could not open %s for writing\n", outputname);
-	    exit(EXIT_FAILURE);
+	    throw cado::error("Could not open {} for writing", outputname);
 	}
     }
 

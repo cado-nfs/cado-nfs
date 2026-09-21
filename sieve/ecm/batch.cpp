@@ -1193,8 +1193,7 @@ output_batch (FILE *fp, unsigned long B, unsigned long L,
   ret = mpz_out_raw (fp, P);
   if (ret == 0)
     {
-      fprintf (stderr, "Error while writing batch product to %s\n", f);
-      exit (1);
+      throw cado::error("Error while writing batch product to {}", f);
     }
 }
 

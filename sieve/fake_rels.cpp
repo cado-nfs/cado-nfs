@@ -36,6 +36,7 @@
 #include "typedefs.h"
 #include "verbose.hpp"
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 static int verbose = 0; /* verbosity level */
 
@@ -275,10 +276,8 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
         std::ranges::sort(S.second);
 
     if (nbegin == 0) {
-        fmt::print(stderr, "# The sample file {} was apparently"
-                " created without -v, but -v is mandatory"
-                " for fake_rels\n", filename);
-        exit(EXIT_FAILURE);
+        throw cado::error("# The sample file {} was apparently created without -v, but -v is mandatory for fake_rels",
+                filename);
     }
 
     size_t nq = 0;
@@ -494,8 +493,15 @@ static void declare_usage(cxx_param_list & pl)
     verbose_decl_usage(pl);
 }
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
     cxx_cado_poly cpoly;
@@ -528,18 +534,14 @@ int main(int argc, char const * argv[])
             continue;
         }
 
-        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        pl.print_usage(stderr);
-        exit (EXIT_FAILURE);
+        pl.fail("Unhandled parameter {}", argv[0]);
     }
     verbose_interpret_parameters(pl);
     pl.print_command_line(stdout);
 
     const char * filename = pl.lookup_old("poly");
     if (!filename) {
-        fmt::print(stderr, "Error: parameter -poly is mandatory\n");
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("Error: parameter -poly is mandatory");
     }
 
     pl.parse_mandatory("lpb0", lpb[0]);
@@ -549,9 +551,7 @@ int main(int argc, char const * argv[])
 
     pl.parse("shrink-factor", shrink_factor);
     if (shrink_factor < 1) {
-        fmt::print(stderr, "Error: shrink factor must be an integer >= 1\n");
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("Error: shrink factor must be an integer >= 1");
     }
 
     pl.parse("t", mt);
@@ -563,22 +563,17 @@ int main(int argc, char const * argv[])
 
     if (!cpoly.read(filename))
     {
-        fmt::print (stderr, "Error reading polynomial file {}\n", filename);
-        exit (EXIT_FAILURE);
+        throw cado::error("Error reading polynomial file {}", filename);
     }
 
     pl.parse("sqside", sqside);
     if (sqside == -1 || sqside > 2) {
-        fmt::print(stderr, "Error: sqside must be 0 or 1\n");
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("Error: sqside must be 0 or 1");
     }
 
     const char * renumberfile = pl.lookup_old("renumber");
     if (!renumberfile) {
-        fmt::print(stderr, "Error: parameter -renumber is mandatory\n");
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("Error: parameter -renumber is mandatory");
     }
     fmt::print ("# Start reading renumber table\n");
     fflush (stdout);
@@ -589,17 +584,15 @@ int main(int argc, char const * argv[])
 
     for (int side = 0; side < ren_table.get_nb_polys(); ++side) {
         if (ren_table.get_lpb(side) != (unsigned long)lpb[side]) {
-            fmt::print(stderr, "Error: on side {}, lpb on the command-line is different from the one in the renumber file\n", side);
-            exit(EXIT_FAILURE);
+            pl.fail("Error: on side {}, lpb on the command-line is different from the one in the renumber file",
+                    side);
         }
     }
 
     // read sample file
     const char * samplefile = pl.lookup_old("sample");
     if (!samplefile) {
-        fmt::print(stderr, "Error: parameter -sample is mandatory\n");
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("Error: parameter -sample is mandatory");
     }
 
     fmt::print ("# Start reading sample file\n");

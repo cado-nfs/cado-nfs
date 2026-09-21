@@ -64,8 +64,7 @@ std::string relation_cache::find_filepath(cxx_mpz const & q0) const/*{{{*/
         mpz_fdiv_q_ui(q, q, splits[i]);
     }
     if (mpz_cmp_ui(q, 0) != 0) {
-        fmt::print(stderr, "# q is too large for relation cache\n", q0);
-        exit(EXIT_FAILURE);
+        throw cado::error("# q is too large for relation cache", q0);
     }
 
     std::string d = path() + subdir_name(split_q);
@@ -85,8 +84,8 @@ std::string relation_cache::find_filepath(cxx_mpz const & q0) const/*{{{*/
 
     if (filepath.empty()) {
         searched.push_back(d);
-        fmt::print(stderr, "# no file found in relation cache for q={} (searched directories: {})\n", q, join(searched, " "));
-        exit(EXIT_FAILURE);
+        throw cado::error("# no file found in relation cache for q={} (searched directories: {})",
+                q, join(searched, " "));
     }
 
     return filepath;
@@ -110,7 +109,6 @@ relation_cache::relation_cache(cxx_param_list & pl)
         for(long s : dirinfo["splits"])
             splits.push_back(s);
     } catch (std::exception const & e) {
-        fmt::print(stderr, "# Cannot read relation cache, or dirinfo.json in relation cache\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("# Cannot read relation cache, or dirinfo.json in relation cache");
     }
 }

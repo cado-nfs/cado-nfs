@@ -22,6 +22,7 @@
 #include "macros.h"
 #include "params.hpp"
 #include "relation_cache.hpp"
+#include "utils_cxx.hpp"
 
 /* las_info stuff */
 
@@ -157,8 +158,7 @@ las_info::las_info(cxx_param_list & pl, Algo)
         if (pl.parse_per_side("dup-qmin", v, nsides, ULONG_MAX)) {
             dupqmin = v;
         } else {
-            fprintf(stderr, "Error: -dup-qmin is mandatory with -dup\n");
-            exit(EXIT_FAILURE);
+            pl.fail("Error: -dup-qmin is mandatory with -dup");
         }
         if (pl.parse_per_side("dup-qmax", v, nsides, ULONG_MAX)) {
             dupqmax = v;

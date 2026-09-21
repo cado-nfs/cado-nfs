@@ -20,6 +20,7 @@
 #include "macros.h"
 #include "verbose.hpp"
 #include "params.hpp"
+#include "utils_cxx.hpp"
 
 
 /* {{{ las_verbose things */
@@ -72,8 +73,7 @@ las_output::las_output(cxx_param_list & pl)
     if (tmp) {
         output = fopen_maybe_compressed(tmp, "w");
 	if (!output) {
-	    fprintf(stderr, "Could not open %s for writing\n", tmp);
-	    exit(EXIT_FAILURE);
+	    throw cado::error("Could not open {} for writing", tmp);
 	}
         outputname = std::string(tmp);
     }

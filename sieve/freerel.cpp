@@ -48,6 +48,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "renumber.hpp"
 #include "typedefs.h"
 #include "verbose.hpp"
+#include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 struct freerel_data_t : public renumber_t::hook {
     ofstream_maybe_compressed sink;
@@ -158,8 +160,15 @@ declare_usage(cxx_param_list & pl)
 }
 
 // coverity[root_function]
+static int main_(int argc, char const * argv[]);
+
 int
 main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
     cxx_cado_poly cpoly;
@@ -257,9 +266,8 @@ main(int argc, char const * argv[])
 
     /* produce an error when index_t is too small to represent all ideals */
     if ((SIZEOF_INDEX < 8) && renumber_table.size() >> (8 * SIZEOF_INDEX)) {
-        fmt::print(stderr, "Error, please increase SIZEOF_INDEX\n");
-        fmt::print(stderr, "(see local.sh.example)\n");
-        exit(1);
+        throw cado::error("Error, please increase SIZEOF_INDEX"
+                " (see local.sh.example)");
     }
 
     return 0;

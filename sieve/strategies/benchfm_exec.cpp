@@ -8,6 +8,8 @@
 #include "tab_fm.hpp"
 #include "generate_factoring_method.hpp"
 #include "params.hpp"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 static void declare_usage(cxx_param_list & pl)
 {
@@ -32,8 +34,15 @@ static void declare_usage(cxx_param_list & pl)
 /*                      MAIN */
 /************************************************************************/
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     int nb_test = 0;
     cxx_param_list pl;
@@ -66,8 +75,7 @@ int main(int argc, char const * argv[])
     FILE *file_in = fopen(pathname_in, "r");
     tabular_fm_t *c = tabular_fm_fscan(file_in);
     if (c == NULL) {
-	fprintf(stderr, "impossible to read %s\n", pathname_in);
-	exit(EXIT_FAILURE);
+	throw cado::error("impossible to read {}", pathname_in);
     }
     fclose(file_in);
 
@@ -90,8 +98,7 @@ int main(int argc, char const * argv[])
     FILE *file_out = fopen(pathname_out, "w");
     int const err = tabular_fm_fprint(file_out, c);
     if (err < 0) {
-	fprintf(stderr, "error:: try to write in the file %s.\n", pathname_out);
-	exit(EXIT_FAILURE);
+	throw cado::error("error:: try to write in the file {}.", pathname_out);
     }
     fclose(file_out);
 

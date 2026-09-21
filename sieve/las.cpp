@@ -84,6 +84,7 @@
 #include "threadpool.hpp"
 #include "timing.h"
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 #include "verbose.hpp"
 
 #ifdef SIQS_SIEVE
@@ -683,12 +684,10 @@ static void check_whether_q_above_large_prime_bound(siever_config const & conf, 
                     (int) mpz_sizeinbase(doing.p, 2),
                     doing.side,
                     conf.sides[doing.side].lpb);
-            fmt::print(stderr, "       You can disable this check with "
-                    "the -allow-largesq argument,\n");
-            fmt::print(stderr, "       It is for instance useful for the "
-                    "descent.\n");
-            fmt::print(stderr, "       Use tasks.sieve.allow_largesq=true.\n");
-            exit(EXIT_FAILURE);
+            throw cado::error("       You can disable this check with"
+                    " the -allow-largesq argument,\n"
+                    "       It is for instance useful for the descent.\n"
+                    "       Use tasks.sieve.allow_largesq=true.");
         }
     } else for (auto const & f: doing.prime_factors) {
         if ((unsigned int) nbits(f) > conf.sides[doing.side].lpb) {
@@ -699,12 +698,10 @@ static void check_whether_q_above_large_prime_bound(siever_config const & conf, 
                     f, nbits(f),
                     doing.side,
                     conf.sides[doing.side].lpb);
-            fmt::print(stderr, "       You can disable this check with "
-                    "the -allow-largesq argument,\n");
-            fmt::print(stderr, "       It is for instance useful for the "
-                    "descent.\n");
-            fmt::print(stderr, "       Use tasks.sieve.allow_largesq=true.\n");
-            exit(EXIT_FAILURE);
+            throw cado::error("       You can disable this check with"
+                    " the -allow-largesq argument,\n"
+                    "       It is for instance useful for the descent.\n"
+                    "       Use tasks.sieve.allow_largesq=true.");
         }
     }
 }
@@ -1363,8 +1360,7 @@ static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
             std::istringstream is(line);
             relation rel;
             if (!(is >> rel)) {
-                fmt::print(stderr, "# parse error in relation\n");
-                exit(EXIT_FAILURE);
+                throw cado::error("# parse error in relation");
             }
             if (!sq_finds_relation(las, doing, conf, Q, J, rel))
                 continue;
@@ -1395,8 +1391,15 @@ static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
 
 }/*}}}*/
 
+static int las_main (int argc0, char const * argv0[]);
+
 // coverity[root_function]
-int main (int argc0, char const * argv0[])/*{{{*/
+int main (int argc0, char const * argv0[])
+{
+    return cado::main_wrapper(las_main, argc0, argv0);
+}
+
+static int las_main (int argc0, char const * argv0[])/*{{{*/
 {
     double t0, wct;
     int argc = argc0;
@@ -1422,9 +1425,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
             argv++,argc--;
             continue;
         }
-        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("Unhandled parameter {}", argv[0]);
     }
 
     pl.parse("-allow-largesq", allow_largesq);

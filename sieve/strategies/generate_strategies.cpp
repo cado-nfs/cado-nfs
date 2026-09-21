@@ -485,8 +485,7 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
             auto filename = fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim0, r0);
             std::ifstream is(filename);
             if (!(is >> tab_decomp)) {
-                fmt::print(stderr, "Cannot read {}\n", filename);
-		exit(EXIT_FAILURE);
+		throw cado::error("Cannot read {}", filename);
 	    }
 	}
 	data_rat[r0] =
@@ -505,8 +504,7 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
             auto filename = fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim1, r1);
             std::ifstream is(filename);
             if (!(is >> tab_decomp)) {
-                fmt::print(stderr, "Cannot read {}\n", filename);
-		exit(EXIT_FAILURE);
+		throw cado::error("Cannot read {}", filename);
 	    }
 	}
 
