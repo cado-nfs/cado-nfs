@@ -73,6 +73,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "verbose.hpp"
 
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 #ifdef DEBUG
 static void
@@ -309,8 +310,7 @@ check_matrix (filter_matrix_t *mat)
            entry (k,e), thus successive values of k cannot be equal here */
         if (matCell (mat, i, j) >= matCell (mat, i, j+1))
           {
-            fprintf (stderr, "Error, the rows of the purged file should be sorted by increasing index\n");
-            exit (EXIT_FAILURE);
+            throw cado::error("Error, the rows of the purged file should be sorted by increasing index");
           }
     }
 }
@@ -727,8 +727,7 @@ check_exponent (int64_t e)
 {
   if (!(INT32_MIN_64 <= e && e <= INT32_MAX_64))
     {
-      fprintf (stderr, "Error, too large exponent during merge, please reduce -target_density\n");
-      exit (1);
+      throw cado::error("Error, too large exponent during merge, please reduce -target_density");
     }
 }
 #endif
@@ -1449,18 +1448,25 @@ void sanity_check_matrix_sizes(filter_matrix_t * mat MAYBE_UNUSED)
 #if (SIZEOF_INDEX == 4)
     if (mat->nrows >> 32)
     {
-        fprintf (stderr, "Error, nrows = %" PRIu64 " larger than 2^32, please recompile with -DSIZEOF_INDEX=8\n", mat->nrows);
-        exit (EXIT_FAILURE);
+        throw cado::error("Error, nrows = {} larger than 2^32,"
+                " please recompile with -DSIZEOF_INDEX=8", mat->nrows);
     }
     if (mat->ncols >> 32)
     {
-        fprintf (stderr, "Error, ncols = %" PRIu64 " larger than 2^32, please recompile with -DSIZEOF_INDEX=8\n", mat->ncols);
-        exit (EXIT_FAILURE);
+        throw cado::error("Error, ncols = {} larger than 2^32,"
+                " please recompile with -DSIZEOF_INDEX=8", mat->ncols);
     }
 #endif
 }
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     const char *argv0 = argv[0];
 
@@ -1686,9 +1692,9 @@ int main(int argc, char const * argv[])
 
         if (nmerges == 0 && n_possible_merges > 0)
           {
-            fprintf (stderr, "Error, no merge done while n_possible_merges > 0\n");
-            fprintf (stderr, "Please check the entries in your purged file are sorted\n");
-            exit(EXIT_FAILURE);         // NOLINT(concurreny-mt-unsafe)
+            throw cado::error("Error, no merge done while"
+                    " n_possible_merges > 0\nPlease check the entries in"
+                    " your purged file are sorted");
           }
 
         /* settings for next pass */

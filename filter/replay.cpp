@@ -50,6 +50,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "runtime_numeric_cast.hpp"
 
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 #define DEBUG 0
 
@@ -339,9 +340,7 @@ renumber (index_t small_ncols, index_t *colweight, index_t ncols,
     FILE *renumberfile = fopen_maybe_compressed (idealsfilename, "w");
     if (renumberfile == NULL)
     {
-      fprintf (stderr, "Error while opening file to save permutation of"
-                       "ideals\n");
-      exit(EXIT_FAILURE);
+      throw cado::error("Error while opening file to save permutation ofideals");
     }
 #endif
 
@@ -568,14 +567,13 @@ struct replay_read_data {
         purgedfile_read_firstline (purgedname().c_str(), &nr, &nc);
         if (nr>= UINT32_MAX)
         {
-            fprintf (stderr, "Error, cannot handle 2^32 rows or more after purge\n");
-            fprintf (stderr, "change ind_row from uint32_t to uint64_t in sparse.h\n");
-            exit (EXIT_FAILURE);
+            throw cado::error("Error, cannot handle 2^32 rows or more after"
+                    " purge\nchange ind_row from uint32_t to uint64_t in"
+                    " sparse.h");
         }
 #if SIZEOF_INDEX == 4
         if (nc>= UINT32_MAX) {
-            fprintf(stderr, "You must recompile with -DSIZEOF_INDEX=8\n");
-            exit(EXIT_FAILURE);
+            throw cado::error("You must recompile with -DSIZEOF_INDEX=8");
         }
 #endif
         nrows = nr;
@@ -845,13 +843,11 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
       /* generate the <dat_file_name>.cyc file in "indexname" */
       if (skip != 0)
         {
-          fprintf (stderr, "Error, skip should be 0 with --for_msieve\n");
-          exit (1);
+          throw cado::error("Error, skip should be 0 with --for_msieve");
         }
       if (bin != 0)
         {
-          fprintf (stderr, "Error, --binary incompatible with --for_msieve\n");
-          exit (1);
+          throw cado::error("Error, --binary incompatible with --for_msieve");
         }
       generate_cyc (sparsename, newrows, small_nrows);
     }
@@ -898,7 +894,14 @@ static void declare_usage(cxx_param_list & pl)
 // M_purged that were added together to form this new row in M_small.
 // TODO: replace this index by the index to rels directly to skip one
 // indirection???
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     const char * argv0 = argv[0];
     uint64_t Nmax = 0;

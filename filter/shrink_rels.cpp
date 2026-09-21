@@ -24,6 +24,7 @@
 #include "fstream_maybe_compressed.hpp"
 #include "utils_cxx.hpp"
 #include "typedefs.h"
+#include "cado_main.hpp"
 
 /*
  * The goal of this binary is to read relations that come out of
@@ -105,8 +106,15 @@ static void declare_usage(cxx_param_list & pl)
 }
 
 // coverity[root_function]
+static int main_ (int argc, char const *argv[]);
+
 int
 main (int argc, char const *argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_ (int argc, char const *argv[])
 {
     cxx_param_list pl;
 

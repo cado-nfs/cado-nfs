@@ -38,6 +38,7 @@
 #include "verbose.hpp"
 #include "utils_cxx.hpp"
 #include "fstream_maybe_compressed.hpp"
+#include "cado_main.hpp"
 
 #define DEBUG 0
 
@@ -1477,8 +1478,15 @@ struct reconstructlog_process { /* {{{ */
     }
 }; /* }}} */
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

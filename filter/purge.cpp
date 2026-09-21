@@ -90,6 +90,7 @@
 #include "typedefs.h"
 #include "utils_cxx.hpp"
 #include "verbose.hpp"
+#include "cado_main.hpp"
 
 // #define TRACE_J 0x5b841 /* trace column J */
 
@@ -416,7 +417,14 @@ struct purge_process : purge_output_specification {
 
 /*************************** main ********************************************/
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

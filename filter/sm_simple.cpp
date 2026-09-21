@@ -21,6 +21,8 @@
 #include "sm_utils.hpp"
 #include "timing.h"
 #include "verbose.hpp"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 static void my_sm(char const * outfile, char const * infile,
                   std::vector<sm_side_info> const & sm_info, int nb_polys)
@@ -28,15 +30,13 @@ static void my_sm(char const * outfile, char const * infile,
     FILE * in;
     in = fopen(infile, "r");
     if (in == NULL) {
-        fprintf(stderr, "Error: could not open %s for reading\n", infile);
-        exit(EXIT_FAILURE);
+        throw cado::error("Error: could not open {} for reading", infile);
     }
     FILE * out = stdout;
     if (outfile != NULL) {
         out = fopen(outfile, "w");
         if (out == NULL) {
-            fprintf(stderr, "Error: could not open %s for writing\n", outfile);
-            exit(EXIT_FAILURE);
+            throw cado::error("Error: could not open {} for writing", outfile);
         }
     }
 
@@ -105,8 +105,15 @@ static void declare_usage(cxx_param_list& pl)
 
 /* -------------------------------------------------------------------------- */
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     char const * polyfile = NULL;
     char const * infile = NULL;
