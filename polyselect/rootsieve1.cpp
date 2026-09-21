@@ -60,31 +60,16 @@
 /* The algorithm is very sensitive to GUARD_ALPHA: with GUARD_ALPHA=1.0,
    almost 87% of the time is spent checking potential records.
    With GUARD_ALPHA=0.5, only about 20% of the time is spent for that. */
-#define GUARD_ALPHA 0.5
+constexpr double GUARD_ALPHA = 0.5;
 
-/* global variables */
-int verbose = 0;                /* verbosity level */
-std::unique_ptr<long[]> Primes; /* primes less than B */
-long nprimes;
-std::unique_ptr<long[]> Q;      /* largest p^k < B */
-long bestu = 0, bestv = 0;      /* current best rotation */
-cxx_mpz bestw;                  /* current best rotation in w */
-double best_alpha = DBL_MAX;    /* alpha of best rotation */
-double best_E = 0;              /* E of best rotation (with -E) */
-double tot_pols = 0;            /* number of sieved polynomial */
-long u0 = 0, v0 = 0, w0 = 0;    /* initial translation */
-int optimizeE = 0;              /* if not zero, optimize E instead of alpha */
-double guard_alpha = 0.0;       /* guard when -E */
-long mod = 0;                   /* consider congruence class of u,v,w % mod, 0 = undef */
-double tot_alpha = 0;           /* sum of alpha's */
-int keep = 10;                  /* number of best congruences kept */
-double effort = DBL_MAX;        /* total effort */
+/* number of (v,w) pairs tried per congruence in average_alpha() */
+constexpr long TRIES = 10;
 
-typedef struct sieve_data {
-  uint16_t q;
-  uint16_t s;
-  float nu;
-} sieve_data;
+/* number of samples used to estimate the rootsieve area */
+constexpr long SAMPLE = 100;
+
+/* length of the sieve array */
+constexpr long LEN = 1 << 14;
 
 static void
 declare_usage (cxx_param_list & pl)
@@ -119,38 +104,6 @@ get_mod (long x, long m)
   return (x >= 0) ? x : x + m;
 }
 
-static unsigned long
-initPrimes (unsigned long B)
-{
-  unsigned long nprimes = 0, p, q, l;
-
-  /* Count first, so that the array comes out at exactly the right size
-   * and needs no shrinking afterwards. B is at most 65536 here, so the
-   * extra primality sweep costs nothing worth measuring. */
-  for (p = 2; p < B; p += 1 + (p > 2))
-    if (ulong_isprime (p))
-      nprimes++;
-
-  Primes = std::make_unique<long[]>(nprimes);
-  {
-    unsigned long k = 0;
-    for (p = 2; p < B; p += 1 + (p > 2))
-      if (ulong_isprime (p))
-        Primes[k++] = p;
-    ASSERT_ALWAYS(k == nprimes);
-  }
-
-  /* compute prime powers */
-  Q = std::make_unique<long[]>(nprimes);
-  for (l = 0; l < nprimes; l++)
-    {
-      p = Primes[l];
-      for (q = p; q * p < B; q *= p);
-      Q[l] = q;
-    }
-
-  return nprimes;
-}
 
 /* Put in roots[0], roots[1], ... the roots of f + g * w = 0 mod q,
    and return the number of roots.
@@ -182,8 +135,6 @@ get_roots (unsigned long *roots, unsigned long f, unsigned long g,
     }
   return nroots;
 }
-
-#define TRIES 10
 
 /* Return the average value of alpha in the congruence (v,w) = (modv,modw) % mod.
    Assume q is a prime power. */
@@ -251,20 +202,88 @@ crt (long a, long b, long p, long q, long invp)
   return a + t * p;
 }
 
-typedef struct
-{
+struct congruence {
   long vmod, wmod;
   double alpha;
-} congruence;
+};
+
+/* sieve_q contains the largest p^k < B for each prime p, it thus fits in
+   an uint16_t if B does; sieve_s contains the first index i multiple of q
+   where the contribution sieve_nu should be added, it is thus smaller
+   than q and thus fits too. */
+struct sieve_data {
+  uint16_t q;
+  uint16_t s;
+  float nu;
+};
+
+/* The root sieve: the parameters it was given, the tables it precomputes
+   from them, and the record it keeps while it runs. Only the record is
+   written to during the sieve, and only under omp critical. */
+struct rootsieve {
+  cxx_cado_poly poly;          /* rotated in place as u varies */
+  int verbose = 0;             /* verbosity level */
+  int optimizeE = 0;           /* if not zero, optimize E instead of alpha */
+  int keep = 10;               /* number of best congruences kept */
+  long B = ALPHA_BOUND;        /* alpha is computed with the primes < B */
+  long mod = 0;                /* congruence class of u,v,w % mod, 0 = undef */
+  double effort = DBL_MAX;     /* total effort */
+  double guard_alpha = 0.0;    /* guard when -E */
+  double maxlognorm = 0;       /* largest lognorm we accept */
+  double Bf = 0, Bg = 0;       /* smoothness bounds, for Murphy-E */
+  double area = 0;             /* sieving area, for Murphy-E */
+  long u0 = 0, v0 = 0, w0 = 0; /* translation performed by -sopt */
+
+  std::vector<long> primes;        /* the primes less than B */
+  std::vector<long> prime_powers;  /* for each, its largest power < B */
+  cxx_gmp_randstate rstate;
+
+  /* best rotation seen so far, and the running totals */
+  long bestu = 0, bestv = 0;
+  cxx_mpz bestw;
+  double best_alpha = DBL_MAX;
+  double best_E = 0;
+  double tot_pols = 0;         /* number of sieved polynomials */
+  double tot_alpha = 0;        /* sum of alpha's */
+
+  void init_primes ();
+  void insert_congruence (std::vector<congruence> & c, double alpha, long v,
+                          long w, long vmin, long vmax, long modulus) const;
+  std::vector<congruence> best_congruences (long vmin, long vmax, long u);
+  void rotate_v (long v, long u, long modw);
+  void rotate (long u);
+  void print_transformation (cxx_cado_poly const & cpoly);
+  double rotate_area (long umin, long umax) const;
+  long best_mod (double sieving_area);
+};
+
+/* fill primes[] with the primes less than B, and prime_powers[] with the
+   largest power of each that is still less than B */
+void
+rootsieve::init_primes ()
+{
+  for (unsigned long p = 2; p < (unsigned long) B; p += 1 + (p > 2))
+    if (ulong_isprime (p))
+      primes.push_back (p);
+
+  prime_powers.reserve (primes.size ());
+  for (long p : primes)
+    {
+      long q;
+      for (q = p; q * p < B; q *= p);
+      prime_powers.push_back (q);
+    }
+}
 
 /* Insert alpha into c, which holds at most keep entries sorted by
    increasing alpha. */
-static void
-insert_congruence (std::vector<congruence> & c, int keep, double alpha,
-                   long v, long w, long vmin, long vmax, long mod)
+void
+rootsieve::insert_congruence (std::vector<congruence> & c, double alpha,
+                              long v, long w, long vmin, long vmax,
+                              long modulus) const
 {
   /* check if this congruence has at least one representative in [vmin,vmax] */
-  long t = get_mod (v - vmin, mod);
+  long t = get_mod (v - vmin, modulus);
   if (vmin + t > vmax)
     return; /* no representative in [vmin,vmax] */
 
@@ -288,11 +307,9 @@ insert_congruence (std::vector<congruence> & c, int keep, double alpha,
 }
 
 /* Return the (at most keep) best congruences (v,w) mod 'mod'. */
-static std::vector<congruence>
-best_congruences (cxx_cado_poly const & poly0, long mod, int keep, long vmin,
-                  long vmax, long u, gmp_randstate_ptr rstate)
+std::vector<congruence>
+rootsieve::best_congruences (long vmin, long vmax, long u)
 {
-  cxx_cado_poly poly;
   long q, Q = 1;
 
   if (mod == 1)
@@ -314,9 +331,6 @@ best_congruences (cxx_cado_poly const & poly0, long mod, int keep, long vmin,
         }
     }
 
-  /* make a local copy of the original polynomial */
-  poly = poly0;
-
   std::vector<congruence> c, d, e;
 
   for (size_t i = 0; i < factors.size (); i++)
@@ -328,7 +342,7 @@ best_congruences (cxx_cado_poly const & poly0, long mod, int keep, long vmin,
           for (long w = 0; w < q; w++)
             {
               double alpha = average_alpha (poly, v, w, q, rstate);
-              insert_congruence (d, keep, alpha, v, w, vmin, vmax, q);
+              insert_congruence (d, alpha, v, w, vmin, vmax, q);
             }
         }
       if (i == 0)
@@ -348,7 +362,7 @@ best_congruences (cxx_cado_poly const & poly0, long mod, int keep, long vmin,
                   break;
                 long v = crt (ci.vmod, di.vmod, Q, q, inv);
                 long w = crt (ci.wmod, di.wmod, Q, q, inv);
-                insert_congruence (e, keep, alpha, v, w, vmin, vmax, Q * q);
+                insert_congruence (e, alpha, v, w, vmin, vmax, Q * q);
               }
           c = e;
         }
@@ -383,27 +397,25 @@ best_congruences (cxx_cado_poly const & poly0, long mod, int keep, long vmin,
 }
 
 /* rotation for a fixed value of v */
-static void
-rotate_v (cxx_cado_poly const & poly0, long v, long B,
-          double maxlognorm, double Bf, double Bg, double area, long u,
-          long modw)
+void
+rootsieve::rotate_v (long v, long u, long modw)
 {
   long w, wmin, wmax;
-  cxx_cado_poly poly;
-  long l;
+  cxx_cado_poly cpoly;
+  size_t l;
   cxx_mpz wminz, wmaxz;
   double tot_pols_local = 0;
   double tot_alpha_local = 0;
 
   /* first make a local copy of the original polynomial */
-  poly = poly0;
+  cpoly = poly;
 
   /* compute f + (v*x)*g */
-  rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], 0, v, 1);
+  rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, v, 1);
 
   rotation_space r;
-  expected_growth (&r, poly[ALG_SIDE], poly[RAT_SIDE], 0,
-                   maxlognorm, poly.skew);
+  expected_growth (&r, cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0,
+                   maxlognorm, cpoly.skew);
   mpz_set_d (wminz, r.kmin);
   mpz_set_d (wmaxz, r.kmax);
 
@@ -426,8 +438,8 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
       /* if mod != 1, we have f + (k*mod+modw)*g = (f+modw*g) + k*(mod*g) */
       if (mod > 1)
       {
-          rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], 0, modw, 0); /* f <- f+modw*g */
-          mpz_poly_mul_si (poly[RAT_SIDE], poly[RAT_SIDE], mod);
+          rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, modw, 0); /* f <- f+modw*g */
+          mpz_poly_mul_si (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
           /* wmin -> (wmin - modw) / mod */
           mpz_sub_ui (wminz, wminz, modw);
           ASSERT_ALWAYS(mpz_divisible_ui_p (wminz, mod));
@@ -441,11 +453,11 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
          sum of largest prime powers sum(p^floor(log(B-1)/log(p)), p < B) */
       double expected = 0.0;
       unsigned long sum_of_prime_powers = 0;
-      for (l = 0; l < nprimes; l++)
+      for (l = 0; l < primes.size (); l++)
       {
-          long p = Primes[l];
+          long p = primes[l];
           expected += log ((double) p) / (double) (p - 1);
-          sum_of_prime_powers += Q[l];
+          sum_of_prime_powers += prime_powers[l];
       }
 
       ASSERT_ALWAYS (mpz_fits_slong_p (wmaxz));
@@ -459,34 +471,30 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
       double nu;
       std::vector<float> L (B);
 
-      /* sieve data: sieve_q contains the largest p^k < B for each prime p,
-         it thus fits in an uint16_t if B does;
-         sieve_s contains the first index i multiple of q where the contribution
-         sieve_nu should be added, it is thus smaller than q and thus fits too. */
       std::vector<sieve_data> sieve_d;
       sieve_d.reserve (sum_of_prime_powers);
-      for (l = 0; l < nprimes; l++)
+      for (l = 0; l < primes.size (); l++)
       {
-          long p = Primes[l], s, t, q;
+          long p = primes[l], s, t, q;
           double logp = log ((double) p);
           std::fill (L.begin (), L.end (), 0);
-          for (q = p; q <= Q[l]; q *= p)
+          for (q = p; q <= prime_powers[l]; q *= p)
           {
               /* the contribution is log(p)/p^(k-1)/(p+1) when the exponent k
                  is not the largest one, and log(p)/p^(k-1)/(p+1)*p/(p-1) for the
                  largest exponent k */
               nu = logp / (double) q * (double) p / (double) (p + 1);
 #ifndef ORIGINAL
-              if (q == Q[l])
+              if (q == prime_powers[l])
                   nu *= (double) p / (double) (p - 1);
 #endif
               for (long x = 0; x < q; x++)
               {
                   /* compute f(x) and g(x) mod p^k, where q = p^k */
                   unsigned long fx, gx;
-                  mpz_poly_eval_ui (ump, poly[ALG_SIDE], x);
+                  mpz_poly_eval_ui (ump, cpoly[ALG_SIDE], x);
                   fx = mpz_fdiv_ui (ump, q);
-                  mpz_poly_eval_ui (ump, poly[RAT_SIDE], x);
+                  mpz_poly_eval_ui (ump, cpoly[RAT_SIDE], x);
                   gx = mpz_fdiv_ui (ump, q);
                   /* search roots w of fx + w*gx = 0 mod q */
                   unsigned long nroots = get_roots (roots.data (), fx, gx, q);
@@ -494,14 +502,14 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
                   {
                       long w = roots[i];
                       /* update for w+t*q */
-                      for (t = 0; t < Q[l] / q; t++)
+                      for (t = 0; t < prime_powers[l] / q; t++)
                           L[w + t * q] += nu;
                   }
               }
           }
 
           /* prepare data for the sieve */
-          q = Q[l];
+          q = prime_powers[l];
           for (w = 0; w < q; w++)
           {
               nu = L[w];
@@ -519,8 +527,6 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
       }
 
       ASSERT_ALWAYS(sieve_d.size () <= sum_of_prime_powers);
-
-#define LEN (1<<14) /* length of the sieve array */
 
       std::vector<float> A (LEN);
 
@@ -569,40 +575,40 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
               if (u == -u0 && v == -v0 && mod * (wcur + j) + modw == -w0)
               {
                   w = wcur + j; /* local value of w, the global one is mod * w + modw */
-                  rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], 0, w, 0);
-                  double skew = poly.skew; /* save skewness */
-                  poly.skew = L2_skewness (poly[ALG_SIDE]);
-                  double lognorm = L2_lognorm (poly[ALG_SIDE], poly.skew);
+                  rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, w, 0);
+                  double skew = cpoly.skew; /* save skewness */
+                  cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
+                  double lognorm = L2_lognorm (cpoly[ALG_SIDE], cpoly.skew);
                   /* to compute E, we need to divide g by mod */
-                  mpz_poly_divexact_ui (poly[RAT_SIDE], poly[RAT_SIDE], mod);
-                  double E = MurphyE (poly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
+                  mpz_poly_divexact_ui (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
+                  double E = MurphyE (cpoly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
                   /* restore g */
-                  mpz_poly_mul_si (poly[RAT_SIDE], poly[RAT_SIDE], mod);
+                  mpz_poly_mul_si (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
                   /* this can only occur for one thread, thus no need to put
 #pragma omp critical */
                   printf ("u=%ld v=%ld w=%ld lognorm=%.2f est_alpha_aff=%.2f E=%.2e [original]\n",
                           u, v, mod * w + modw, lognorm, (double) A[j], E);
                   fflush (stdout);
                   /* restore the original polynomial (w=0) and skewness */
-                  poly.skew = skew;
-                  rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], w, 0, 0);
+                  cpoly.skew = skew;
+                  rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], w, 0, 0);
               }
               if (A[j] < best_alpha + guard_alpha)
               {
                   w = wcur + j;
                   /* compute E */
-                  rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], 0, w, 0);
-                  double skew = poly.skew; /* save skewness */
-                  poly.skew = L2_skewness (poly[ALG_SIDE]);
-                  double lognorm = L2_lognorm (poly[ALG_SIDE], poly.skew);
+                  rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, w, 0);
+                  double skew = cpoly.skew; /* save skewness */
+                  cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
+                  double lognorm = L2_lognorm (cpoly[ALG_SIDE], cpoly.skew);
                   /* to compute E, we need to divide g by mod */
-                  mpz_poly_divexact_ui (poly[RAT_SIDE], poly[RAT_SIDE], mod);
-                  double E = MurphyE (poly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
+                  mpz_poly_divexact_ui (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
+                  double E = MurphyE (cpoly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
                   /* restore g */
-                  mpz_poly_mul_si (poly[RAT_SIDE], poly[RAT_SIDE], mod);
+                  mpz_poly_mul_si (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
                   /* restore the original polynomial (w=0) and skewness */
-                  poly.skew = skew;
-                  rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], w, 0, 0);
+                  cpoly.skew = skew;
+                  rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], w, 0, 0);
 
                   if (optimizeE == 0 || (optimizeE == 1 && E > best_E))
 #pragma omp critical
@@ -638,14 +644,13 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
   }
 }
 
-static void
-rotate (cxx_cado_poly & cpoly, long B, double maxlognorm, double Bf, double Bg,
-        double area, long u, gmp_randstate_ptr rstate)
+void
+rootsieve::rotate (long u)
 {
   /* determine range [vmin,vmax] */
   rotation_space r;
-  expected_growth (&r, cpoly[ALG_SIDE], cpoly[RAT_SIDE], 1,
-                   maxlognorm, cpoly.skew);
+  expected_growth (&r, poly[ALG_SIDE], poly[RAT_SIDE], 1,
+                   maxlognorm, poly.skew);
   long vmin = (r.kmin < (double) LONG_MIN) ? LONG_MIN : r.kmin;
   long vmax = (r.kmax > (double) LONG_MAX) ? LONG_MAX : r.kmax;
   if (verbose)
@@ -654,7 +659,7 @@ rotate (cxx_cado_poly & cpoly, long B, double maxlognorm, double Bf, double Bg,
       fflush (stdout);
     }
 
-  auto const c = best_congruences (cpoly, mod, keep, vmin, vmax, u, rstate);
+  auto const c = best_congruences (vmin, vmax, u);
   int const n = c.size ();
   ASSERT_ALWAYS (n <= keep);
   printf ("u=%ld: kept %d congruence(s)", u, n);
@@ -679,64 +684,65 @@ rotate (cxx_cado_poly & cpoly, long B, double maxlognorm, double Bf, double Bg,
       vmin1 += t;
       ASSERT_ALWAYS(get_mod (vmin1, mod) == c[i].vmod);
       for (long v = vmin1; v <= vmax; v += mod)
-        rotate_v (cpoly, v, B, maxlognorm, Bf, Bg, area, u, c[i].wmod);
+        rotate_v (v, u, c[i].wmod);
     }
 }
 
-/* don't modify poly, which is the size-optimized polynomial
-   (poly0 is the initial polynomial) */
-static void
-print_transformation (cxx_cado_poly & poly0, cxx_cado_poly const & cpoly)
+/* Recover the transformation that took our own polynomial to cpoly, the
+   size-optimized one, print it, and apply it to ours. cpoly is left
+   alone. */
+void
+rootsieve::print_transformation (cxx_cado_poly const & cpoly)
 {
   cxx_mpz k;
-  int d = poly0[ALG_SIDE]->deg;
+  int d = poly[ALG_SIDE]->deg;
 
   /* first compute the translation k: g(x+k) = g1*x + g1*k + g0 */
-  mpz_sub (k, mpz_poly_coeff_const(cpoly[RAT_SIDE], 0), mpz_poly_coeff_const(poly0[RAT_SIDE], 0));
-  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
-  mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
+  mpz_sub (k, mpz_poly_coeff_const(cpoly[RAT_SIDE], 0), mpz_poly_coeff_const(poly[RAT_SIDE], 0));
+  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly[RAT_SIDE], 1)));
+  mpz_divexact (k, k, mpz_poly_coeff_const(poly[RAT_SIDE], 1));
   fmt::print ("translation {}, ", k);
 
-  mpz_poly_translation(poly0[ALG_SIDE], poly0[ALG_SIDE], k);
-  mpz_poly_translation(poly0[RAT_SIDE], poly0[RAT_SIDE], k);
+  mpz_poly_translation(poly[ALG_SIDE], poly[ALG_SIDE], k);
+  mpz_poly_translation(poly[RAT_SIDE], poly[RAT_SIDE], k);
 
   /* size_optimization might multiply f0 by some integer t */
   ASSERT_ALWAYS(mpz_divisible_p (mpz_poly_coeff_const(cpoly[ALG_SIDE], d),
-				 mpz_poly_coeff_const(poly0[ALG_SIDE], d)));
+				 mpz_poly_coeff_const(poly[ALG_SIDE], d)));
   mpz_divexact (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], d),
-		mpz_poly_coeff_const(poly0[ALG_SIDE], d));
+		mpz_poly_coeff_const(poly[ALG_SIDE], d));
   if (mpz_cmp_ui (k, 1) != 0)
     {
       fmt::print ("multiplier {}, ", k);
-      mpz_poly_mul_mpz (poly0[ALG_SIDE], poly0[ALG_SIDE], k);
+      mpz_poly_mul_mpz (poly[ALG_SIDE], poly[ALG_SIDE], k);
     }
   /* now compute rotation by x^2 */
-  mpz_sub (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], 3), mpz_poly_coeff_const(poly0[ALG_SIDE], 3));
-  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
-  mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
+  mpz_sub (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], 3), mpz_poly_coeff_const(poly[ALG_SIDE], 3));
+  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly[RAT_SIDE], 1)));
+  mpz_divexact (k, k, mpz_poly_coeff_const(poly[RAT_SIDE], 1));
   fmt::print ("rotation [{},", k);
   ASSERT (mpz_fits_slong_p (k));
   u0 = mpz_get_si (k);
-  mpz_poly_rotation(poly0[ALG_SIDE], poly0[ALG_SIDE], poly0[RAT_SIDE], k, 2);
-  mpz_sub (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], 2), mpz_poly_coeff_const(poly0[ALG_SIDE], 2));
-  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
-  mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
+  mpz_poly_rotation(poly[ALG_SIDE], poly[ALG_SIDE], poly[RAT_SIDE], k, 2);
+  mpz_sub (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], 2), mpz_poly_coeff_const(poly[ALG_SIDE], 2));
+  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly[RAT_SIDE], 1)));
+  mpz_divexact (k, k, mpz_poly_coeff_const(poly[RAT_SIDE], 1));
   fmt::print ("{},", k);
   ASSERT (mpz_fits_slong_p (k));
   v0 = mpz_get_si (k);
-  mpz_poly_rotation(poly0[ALG_SIDE], poly0[ALG_SIDE], poly0[RAT_SIDE], k, 1);
-  mpz_sub (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], 1), mpz_poly_coeff_const(poly0[ALG_SIDE], 1));
-  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
-  mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
+  mpz_poly_rotation(poly[ALG_SIDE], poly[ALG_SIDE], poly[RAT_SIDE], k, 1);
+  mpz_sub (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], 1), mpz_poly_coeff_const(poly[ALG_SIDE], 1));
+  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly[RAT_SIDE], 1)));
+  mpz_divexact (k, k, mpz_poly_coeff_const(poly[RAT_SIDE], 1));
   fmt::print ("{}]\n", k);
   ASSERT (mpz_fits_slong_p (k));
   w0 = mpz_get_si (k);
-  mpz_poly_rotation(poly0[ALG_SIDE], poly0[ALG_SIDE], poly0[RAT_SIDE], k, 0);
-  ASSERT_ALWAYS(mpz_cmp (mpz_poly_coeff_const(poly0[ALG_SIDE], 0),
+  mpz_poly_rotation(poly[ALG_SIDE], poly[ALG_SIDE], poly[RAT_SIDE], k, 0);
+  ASSERT_ALWAYS(mpz_cmp (mpz_poly_coeff_const(poly[ALG_SIDE], 0),
                          mpz_poly_coeff_const(cpoly[ALG_SIDE], 0)) == 0);
 }
 
-double
+static double
 rotate_area_v (cxx_cado_poly const & poly0, double maxlognorm, long v)
 {
   double area;
@@ -751,7 +757,7 @@ rotate_area_v (cxx_cado_poly const & poly0, double maxlognorm, long v)
 }
 
 /* estimate the rootsieve area for a given u */
-double
+static double
 rotate_area_u (cxx_cado_poly const & poly0, double maxlognorm, long u)
 {
   double area, sum = 0.0;
@@ -766,7 +772,6 @@ rotate_area_u (cxx_cado_poly const & poly0, double maxlognorm, long u)
                    maxlognorm, cpoly.skew);
   vmin = (r.kmin < (double) LONG_MIN) ? LONG_MIN : r.kmin;
   vmax = (r.kmax > (double) LONG_MAX) ? LONG_MAX : r.kmax;
-#define SAMPLE 100
   if (vmax / SAMPLE - vmin / SAMPLE > 1)
     h = vmax / SAMPLE - vmin / SAMPLE;
   else
@@ -782,22 +787,19 @@ rotate_area_u (cxx_cado_poly const & poly0, double maxlognorm, long u)
 
 /* estimate the rootsieve area for umin <= u <= umax */
 double
-rotate_area (cxx_cado_poly const & cpoly, double maxlognorm, long umin, long umax)
+rootsieve::rotate_area (long umin, long umax) const
 {
-  double area, sum = 0.0;
+  double sum = 0.0;
 
   for (long u = umin; u <= umax; u++)
-    {
-      area = rotate_area_u (cpoly, maxlognorm, u);
-      sum += area;
-    }
+    sum += rotate_area_u (poly, maxlognorm, u);
   return sum;
 }
 
-/* Given a sieving area, a maximal effort, and a value of keep,
+/* Given a sieving area, our maximal effort, and our value of keep,
    compute the best 'mod' value. */
 long
-best_mod (double area, double maxeffort, double keep)
+rootsieve::best_mod (double sieving_area)
 {
   long l[] = {1, 2, 6, 12, 60, 420, 840, 2520, 27720, 360360, 720720, 12252240,
               232792560, 5354228880, 26771144400, 80313433200, 2329089562800};
@@ -809,8 +811,8 @@ best_mod (double area, double maxeffort, double keep)
        Note: there is a bias when vmax-vmin is smaller than mod, since we
        only keep congruences that contain at least an element in [vmin, vmax],
        thus the probability is larger than (vmax-vmin)/mod. */
-    e = area / (double) mod / (double) mod * (double) keep;
-    if (e <= maxeffort)
+    e = sieving_area / (double) mod / (double) mod * (double) keep;
+    if (e <= effort)
       break;
     i += 1;
   }
@@ -830,22 +832,20 @@ static int main_(int argc, char const * argv[])
 {
     int argc0 = argc;
     char const **argv0 = argv;
-    cxx_cado_poly cpoly;
+    rootsieve rs;
     int I = 0;
     double margin = NORM_MARGIN;
     long umin = LONG_MIN, umax = LONG_MAX;
     int sopt = 0;
     double time = seconds ();
-    long B = ALPHA_BOUND;
-    cxx_gmp_randstate rstate;
 
     cxx_param_list pl;
     const char * polyfilename = NULL;
 
     declare_usage(pl);
-    pl.configure_switch_old("-v", &verbose);
+    pl.configure_switch_old("-v", &rs.verbose);
     pl.configure_switch_old("-sopt", &sopt);
-    pl.configure_switch_old("-E", &optimizeE);
+    pl.configure_switch_old("-E", &rs.optimizeE);
 
     if (argc == 1)
         pl.fail("Error, a polynomial file is mandatory");
@@ -866,9 +866,9 @@ static int main_(int argc, char const * argv[])
     pl.parse("Bf", bound_f);
     pl.parse("Bg", bound_g);
     pl.parse("margin", margin);
-    pl.parse("effort", effort);
-    pl.parse("keep", keep);
-    if (pl.parse("mod", mod) && mod < 1)
+    pl.parse("effort", rs.effort);
+    pl.parse("keep", rs.keep);
+    if (pl.parse("mod", rs.mod) && rs.mod < 1)
         pl.fail("Error, -mod must be at least 1");
     /* LONG_MIN and LONG_MAX are reserved to mean "the user said nothing",
      * so they are only rejected when the option is actually given. */
@@ -876,13 +876,13 @@ static int main_(int argc, char const * argv[])
         pl.fail("Error, -umin is out of range");
     if (pl.parse("umax", umax) && umax == LONG_MAX)
         pl.fail("Error, -umax is out of range");
-    if (pl.parse("B", B))
-        set_alpha_bound(B);
+    if (pl.parse("B", rs.B))
+        set_alpha_bound(rs.B);
     if (!polyfilename)
         polyfilename = pl.lookup_old("poly");
 
-    if (optimizeE)
-        guard_alpha = GUARD_ALPHA;
+    if (rs.optimizeE)
+        rs.guard_alpha = GUARD_ALPHA;
 
     if (pl.warn_unused())
         pl.fail("unexpected parameter(s) on the command line");
@@ -900,89 +900,93 @@ static int main_(int argc, char const * argv[])
 #endif
     printf ("# Using %d thread(s)\n", omp_get_num_threads ());
 
-    ASSERT_ALWAYS(B <= 65536);
+    ASSERT_ALWAYS(rs.B <= 65536);
 
     if (I != 0)
       area = bound_f * pow (2.0, (double) (2 * I - 1));
 
-    if (!cpoly.read(polyfilename))
+    rs.Bf = bound_f;
+    rs.Bg = bound_g;
+    rs.area = area;
+
+    if (!rs.poly.read(polyfilename))
         pl.fail("Problem when reading file {}", polyfilename);
 
-    if (cpoly.skew == 0.0)
-      cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
+    if (rs.poly.skew == 0.0)
+      rs.poly.skew = L2_skewness (rs.poly[ALG_SIDE]);
 
     /* if -sopt, size-optimize */
     if (sopt)
       {
-        cxx_cado_poly c = cpoly;
+        cxx_cado_poly c = rs.poly;
         size_optimization (c[ALG_SIDE], c[RAT_SIDE],
-                           cpoly[ALG_SIDE], cpoly[RAT_SIDE],
-                           SOPT_DEFAULT_EFFORT, verbose);
+                           rs.poly[ALG_SIDE], rs.poly[RAT_SIDE],
+                           SOPT_DEFAULT_EFFORT, rs.verbose);
         printf ("# initial polynomial:\n");
-        cpoly.fprintf(stdout);
-        print_transformation (cpoly, c);
-        cpoly = c;
+        rs.poly.fprintf(stdout);
+        rs.print_transformation (c);
+        rs.poly = c;
         printf ("# size-optimized polynomial:\n");
-        cpoly.fprintf(stdout);
+        rs.poly.fprintf(stdout);
       }
 
-    nprimes = initPrimes (B);
+    rs.init_primes ();
 
     /* compute the skewness */
-    cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
-    double lognorm = L2_lognorm (cpoly[ALG_SIDE], cpoly.skew);
-    double maxlognorm = lognorm + margin;
-    printf ("initial lognorm %.2f, maxlognorm %.2f\n", lognorm, maxlognorm);
+    rs.poly.skew = L2_skewness (rs.poly[ALG_SIDE]);
+    double lognorm = L2_lognorm (rs.poly[ALG_SIDE], rs.poly.skew);
+    rs.maxlognorm = lognorm + margin;
+    printf ("initial lognorm %.2f, maxlognorm %.2f\n", lognorm, rs.maxlognorm);
 
     /* determine range [umin,umax] */
     rotation_space r;
-    expected_growth (&r, cpoly[ALG_SIDE], cpoly[RAT_SIDE], 2,
-                     maxlognorm, cpoly.skew);
+    expected_growth (&r, rs.poly[ALG_SIDE], rs.poly[RAT_SIDE], 2,
+                     rs.maxlognorm, rs.poly.skew);
     if (umin == LONG_MIN) /* umin was not given by the user */
       umin = (r.kmin < (double) LONG_MIN) ? LONG_MIN : r.kmin;
     if (umax == LONG_MAX) /* umax was not given by the user */
       umax = (r.kmax > (double) LONG_MAX) ? LONG_MAX : r.kmax;
-    if (verbose)
+    if (rs.verbose)
       printf ("umin=%ld umax=%ld\n", umin, umax);
 
-    if (mod == 0) /* compute best 'mod' for given effort */
+    if (rs.mod == 0) /* compute best 'mod' for given effort */
       {
-        double sieving_area = rotate_area (cpoly, maxlognorm, umin, umax);
+        double sieving_area = rs.rotate_area (umin, umax);
         /* print total sieving area */
         printf ("sieving area %.2e\n", sieving_area);
-        mod = best_mod (sieving_area, effort, keep);
+        rs.best_mod (sieving_area);
       }
 
     long ucur = 0; /* current translation in u */
     for (long u = umin; u <= umax; u++)
       {
-        rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], ucur, u, 2);
+        rotate_aux (rs.poly[ALG_SIDE], rs.poly[RAT_SIDE], ucur, u, 2);
         ucur = u;
 
-        rotate (cpoly, B, maxlognorm, bound_f, bound_g, area, u, rstate);
+        rs.rotate (u);
       }
 
     /* restore original polynomial */
-    rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], ucur, 0, 2);
+    rotate_aux (rs.poly[ALG_SIDE], rs.poly[RAT_SIDE], ucur, 0, 2);
 
-    /* perform the best rotation */
     fmt::print ("best rotation: u={} v={} w={} alpha={:.2f}\n",
-            bestu, bestv, bestw, best_alpha);
+            rs.bestu, rs.bestv, rs.bestw, rs.best_alpha);
 
     /* perform the best rotation */
-    rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, bestu, 2);
-    rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, bestv, 1);
-    mpz_poly_rotation(cpoly[ALG_SIDE], cpoly[ALG_SIDE], cpoly[RAT_SIDE], bestw, 0);
+    rotate_aux (rs.poly[ALG_SIDE], rs.poly[RAT_SIDE], 0, rs.bestu, 2);
+    rotate_aux (rs.poly[ALG_SIDE], rs.poly[RAT_SIDE], 0, rs.bestv, 1);
+    mpz_poly_rotation(rs.poly[ALG_SIDE], rs.poly[ALG_SIDE], rs.poly[RAT_SIDE],
+                      rs.bestw, 0);
 
     /* recompute the skewness of the best polynomial */
-    cpoly.skew = L2_combined_skewness2 (cpoly[0], cpoly[1]);
+    rs.poly.skew = L2_combined_skewness2 (rs.poly[0], rs.poly[1]);
 
-    print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
+    print_cadopoly_extra (stdout, rs.poly, argc0, argv0, 0);
 
     time = seconds () - time;
     printf ("# Sieved %.2e polynomials in %.2f seconds (%.2es/p)\n",
-            tot_pols, time, time / tot_pols);
-    printf ("# Average alpha %.2f\n", tot_alpha / tot_pols);
+            rs.tot_pols, time, time / rs.tot_pols);
+    printf ("# Average alpha %.2f\n", rs.tot_alpha / rs.tot_pols);
 
     return 0;
 }
