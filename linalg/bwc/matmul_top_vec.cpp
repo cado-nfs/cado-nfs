@@ -681,23 +681,27 @@ void mmt_vec_set_random_through_file(mmt_vec & v, std::string const & filename_p
     unsigned int const Adisk_width = splitwidth;
     unsigned int const Adisk_multiplex = v.abase->simd_groupsize() / Adisk_width;
 
-    ASSERT_ALWAYS(itemsondisk % Adisk_multiplex == 0);
-    unsigned int const loc_itemsondisk = itemsondisk / Adisk_multiplex;
+    /* This is the size that mmt_vec_load expects to read back from each
+     * of the Adisk_multiplex files, spelled exactly as it is spelled
+     * there. Nothing here needs Adisk_multiplex to divide itemsondisk.
+     */
+    size_t const sizeondisk = A->vec_elt_stride(itemsondisk);
+    size_t const fraction = sizeondisk / Adisk_multiplex;
 
     if (pi.m.trank == 0 && pi.m.jrank == 0) {
         for(unsigned int b = 0 ; b < Adisk_multiplex ; b++) {
             unsigned int const b0 = block_position + b * Adisk_width;
             auto filename = fmt::format(fmt::runtime(filename_pattern), b0, b0 + splitwidth);
 
-            /* we want to create v.n / Adisk_multiplex entries --
-             * but we can't do that with access to just A. So we
-             * generate slightly more, and rely on itemsondisk to do
-             * the job of properly cutting the overflowing data.
+            /* We need "fraction" random bytes, but we can only ask A for
+             * whole elements. This many is enough, and possibly one
+             * element too many:
+             *   iceildiv(i, m) * stride >= i * stride / m >= fraction
              */
-
-            size_t const nitems = iceildiv(v.n, Adisk_multiplex);
+            size_t const nitems = iceildiv(itemsondisk, Adisk_multiplex);
             arith_generic::elt * y;
             y = A->alloc(nitems);
+            ASSERT_ALWAYS(A->vec_elt_stride(nitems) >= fraction);
             A->vec_set_zero(y, nitems);
             A->vec_set_random(y, nitems, rstate);
             double tt = -wct_seconds();
@@ -706,12 +710,10 @@ void mmt_vec_set_random_through_file(mmt_vec & v, std::string const & filename_p
                 fflush(stdout);
             }
             auto f = fopen_helper(filename, "wb");
-            const size_t rc = fwrite(y, A->vec_elt_stride(1), loc_itemsondisk, f.get());
-            ASSERT_ALWAYS(rc == loc_itemsondisk);
+            const size_t rc = fwrite(y, 1, fraction, f.get());
+            ASSERT_ALWAYS(rc == fraction);
             tt += wct_seconds();
             if (tcan_print) {
-                size_t const sizeondisk = A->vec_elt_stride(loc_itemsondisk);
-                size_t const fraction = sizeondisk / Adisk_multiplex;
                 fmt::print(" done [{} in {:.2f}, {}/s]\n",
                         size_disp(fraction),
                         tt,
