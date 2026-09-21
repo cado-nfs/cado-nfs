@@ -12,6 +12,7 @@
 #include "params.hpp"
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
+#include "utils_cxx.hpp"
 
 /* The maximum degree of polynomials supported. Used for statically 
    allocating storage (i.e. "mpz_t poly[MAX_DEGREE]") */
@@ -54,8 +55,7 @@ struct cxx_cado_poly : public std::vector<cxx_mpz_poly>
          * polynomial file */
         pl.parse("skew", (skew));
         if (skew <= 0.0) {
-            fprintf(stderr, "Error, please provide a positive skewness\n");
-            exit(EXIT_FAILURE);
+            pl.fail("Error, please provide a positive skewness");
         }
     }
 

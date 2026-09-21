@@ -4506,8 +4506,7 @@ mpz_poly_factor_list_lift(std::vector<std::pair<cxx_mpz_poly, int>> & lf,
 
         for (auto const & [ u, e ]: lf) {
             if (e != 1) {
-                fprintf(stderr, "Ramified ell not supported\n");
-                exit(EXIT_FAILURE);
+                throw cado::error("Ramified ell not supported");
             }
         }
     }

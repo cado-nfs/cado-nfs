@@ -18,6 +18,7 @@
 #include "params.hpp"
 #include "cado_poly.hpp"
 #include "sm_utils.hpp"
+#include "cado_main.hpp"
 
 using namespace std;
 
@@ -124,8 +125,15 @@ static void badideals_declare_usage(cxx_param_list & pl)/*{{{*/
     pl.declare_usage("ell", "ell (for computing default number of maps ; not used for bad ideals)");
 }/*}}}*/
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     setvbuf(stderr, nullptr, _IONBF, 0);
     setvbuf(stdout, nullptr, _IONBF, 0);
@@ -199,4 +207,6 @@ int main(int argc, char const * argv[])
     } else {
         pl.fail("-poly or -polystr are mandatory");
     }
+
+    return EXIT_SUCCESS;
 }
