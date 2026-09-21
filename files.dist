@@ -1479,11 +1479,13 @@ tests/sieve/reduce-plattice/simd-base.hpp
 tests/sieve/rsa220.poly
 tests/sieve/sievetest.sh
 tests/sieve/strategies/CMakeLists.txt
+tests/sieve/strategies/sample_methods.txt
 tests/sieve/strategies/test_benchfm.cpp
 tests/sieve/strategies/test_filtering.cpp
 tests/sieve/strategies/test_gen_decomp.cpp
 tests/sieve/strategies/test_generate_composite_numbers.cpp
 tests/sieve/strategies/test_generate_strategies.cpp
+tests/sieve/strategies/test_gst_missing_family.sh
 tests/sieve/strategies/test_main_script.sh
 tests/sieve/strategies/utils_st/CMakeLists.txt
 tests/sieve/strategies/utils_st/test_convex_hull.cpp

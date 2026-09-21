@@ -5,7 +5,9 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <exception>
 #include <fstream>
+#include <string>
 
 #include "fmt/base.h"
 
@@ -81,8 +83,7 @@ static void declare_usage(cxx_param_list & pl)
 /*     MAIN                                                             */
 /************************************************************************/
 
-// coverity[root_function]
-int main(int argc, char const * argv[])
+static int gst(int argc, char const * argv[])
 {
     cxx_param_list pl;
     declare_usage(pl);
@@ -279,6 +280,25 @@ int main(int argc, char const * argv[])
             tabular_fm_concat(data_pp1, data_pp1_27);
             tabular_fm_concat(data_pp1, data_pp1_65);
 
+            /* The code below indexes tab[0] of each of these tables, and
+             * later on feeds them to the convex hull computation. A
+             * family that the input file does not mention at all is a
+             * user error, not something we can paper over. */
+            struct {
+                tabular_fm_t const * data;
+                char const * name;
+            } const families[] = {
+                {data_pm1, "PM1"},
+                {data_pp1, "PP1-27 or PP1-65"},
+                {data_ecm_b12, "ECM-B12"},
+                {data_ecm_m12, "ECM-M12"},
+                {data_ecm_m16, "ECM-M16"},
+            };
+            for (auto const & f : families)
+                if (f.data->size == 0)
+                    pl.fail("Error: file {} contains no {} method\n",
+                            name_file_in, f.name);
+
             // add zero method if doesn't exist!
             fm_t * zero = fm_create();
             unsigned long method_zero[4] = {0, 0, 0, 0};
@@ -396,4 +416,26 @@ int main(int argc, char const * argv[])
         }
     }
     return EXIT_SUCCESS;
+}
+
+/* Bad parameters and bad input files are reported by an exception.
+ * Catching it here is what makes the complaint land on stderr in a form
+ * we control, rather than as whatever the C++ runtime prints before it
+ * aborts -- which differs between libstdc++ and libc++, and can be
+ * nothing at all.
+ */
+// coverity[root_function]
+int main(int argc, char const * argv[])
+{
+    try {
+        return gst(argc, argv);
+    } catch (std::exception const & e) {
+        /* the messages we throw are already prefixed with "Error: ", and
+         * pl.fail() has printed the usage before throwing. */
+        std::string msg = e.what();
+        if (!msg.ends_with('\n'))
+            msg += '\n';
+        fmt::print(stderr, "{}", msg);
+        return EXIT_FAILURE;
+    }
 }

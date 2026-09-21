@@ -44,6 +44,13 @@ cado_define_test(test_benchfm.cpp
   ${SRC_UTILS}
   LIBRARIES ${LIB_EXEC})
 
+cado_define_test(SCRIPT
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_gst_missing_family.sh
+    PROVIDE_TEMPORARY_WDIR
+    TARGET_DEPENDENCIES gst
+    TIMEOUT 40
+)
+
 if(DEFINED ENV{CHECKS_EXPENSIVE})
     cado_define_test(SCRIPT
         ${CMAKE_CURRENT_SOURCE_DIR}/test_main_script.sh

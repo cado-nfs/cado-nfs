@@ -68,8 +68,11 @@ int select_next_point(tabular_point const & t, point const & pt)
     return res;
 }
 
+/* return the index of the leftmost point, or -1 if t is empty */
 int search_init_point(tabular_point const & t)
 {
+    if (t.empty())
+        return -1;
     int res = 0;
     point pt_min = t[0];
     for (int i = 0; i < (int)t.size(); i++) {
@@ -86,6 +89,11 @@ int search_init_point(tabular_point const & t)
 
 tabular_point convex_hull(tabular_point const & t)
 {
+    /* the convex hull of the empty set is the empty set. Returning
+     * early also avoids the meaningless scaling computation below. */
+    if (t.empty())
+        return {};
+
     double minx = INFINITY;
     double maxx = 0;
     double miny = INFINITY;
