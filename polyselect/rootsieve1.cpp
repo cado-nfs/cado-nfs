@@ -20,35 +20,35 @@
 
 #include <cfloat>
 #include <climits>
-#include <cstdio>
-#include <cstdint>
-#include <cstdlib>
-#include <cstring>
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+
+#include <algorithm>
+#include <vector>
 
 #include <gmp.h>
 
+#include "fmt/base.h"
+
 #include "area.hpp"
 #include "auxiliary.hpp" /* for common routines with polyselect_old.c */
+#include "cado_main.hpp"
 #include "cado_poly.hpp"
+#include "cxx_mpz.hpp"
 #include "gcd.h"
 #include "gmp_aux.h"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "murphyE.hpp"
 #include "omp_proxy.h"
+#include "params.hpp"
 #include "polyselect_alpha.h"
 #include "polyselect_norms.hpp"
 #include "size_optimization.hpp"
 #include "timing.h"
-#include "macros.h"
-#include "polyselect_alpha.h"
-
-#include <memory>
-
-#include "utils_cxx.hpp"
 #include "verbose.hpp"
-#include "cado_main.hpp"
 
 
 /* define ORIGINAL if you want the original algorithm from the paper */
@@ -68,7 +68,7 @@ std::unique_ptr<long[]> Primes; /* primes less than B */
 long nprimes;
 std::unique_ptr<long[]> Q;      /* largest p^k < B */
 long bestu = 0, bestv = 0;      /* current best rotation */
-mpz_t bestw;                    /* current best rotation in w */
+cxx_mpz bestw;                  /* current best rotation in w */
 double best_alpha = DBL_MAX;    /* alpha of best rotation */
 double best_E = 0;              /* E of best rotation (with -E) */
 double tot_pols = 0;            /* number of sieved polynomial */
@@ -257,128 +257,100 @@ typedef struct
   double alpha;
 } congruence;
 
-/* Insert alpha into c, where c has already n entries (maximum is keep).
-   Return the new value of n. */
-static int
-insert_congruence (congruence *c, int n, int keep, double alpha, long v, long w,
-	      long vmin, long vmax, long mod)
+/* Insert alpha into c, which holds at most keep entries sorted by
+   increasing alpha. */
+static void
+insert_congruence (std::vector<congruence> & c, int keep, double alpha,
+                   long v, long w, long vmin, long vmax, long mod)
 {
-  int i;
-
   /* check if this congruence has at least one representative in [vmin,vmax] */
   long t = get_mod (v - vmin, mod);
   if (vmin + t > vmax)
-    return n; /* no representative in [vmin,vmax] */
+    return; /* no representative in [vmin,vmax] */
 
   /* if alpha exceeds the best alpha value + guard_alpha, then it cannot
      yield A[j] < best_alpha + guard_alpha in rotate_v(). Note that this
      remains true after crt: if mod=mod1*mod2, and alpha1 > best_alpha1
      + guard_alpha, then since alpha = alpha1 + alpha2, then
      alpha > best_alpha1 + best_alpha2 + guard_alpha */
-  if (n > 0 && alpha > c[0].alpha + guard_alpha)
-    return n;
+  if (!c.empty () && alpha > c.front ().alpha + guard_alpha)
+    return;
 
-  for (i = n; i > 0 && alpha < c[i-1].alpha; i--)
-    c[i] = c[i-1];
-  /* now i = 0 or alpha >= c[i-1].alpha */
-  if (i < keep)
-    {
-      c[i].vmod = v;
-      c[i].wmod = w;
-      c[i].alpha = alpha;
-    }
-  n += (n < keep);
-  return n;
+  auto it = std::upper_bound (c.begin (), c.end (), alpha,
+                              [](double a, congruence const & x) {
+                                return a < x.alpha;
+                              });
+  if (it - c.begin () >= keep)
+    return;
+  c.insert (it, { v, w, alpha });
+  if ((int) c.size () > keep)
+    c.pop_back ();
 }
 
-/* Return the (at most keep) best congruences (v,w) mod 'mod'.
-   Put in *nc the number of returned congruences. */
-static congruence*
-best_congruences (cxx_cado_poly const & poly0, long mod, int keep, long vmin, long vmax,
-              int *nc, long u, gmp_randstate_ptr rstate)
+/* Return the (at most keep) best congruences (v,w) mod 'mod'. */
+static std::vector<congruence>
+best_congruences (cxx_cado_poly const & poly0, long mod, int keep, long vmin,
+                  long vmax, long u, gmp_randstate_ptr rstate)
 {
-  int nfactors = 0;
-  unsigned long *factors = NULL, p;
-  congruence *c, *d, *e;
-  int nd, ne;
-  int i;
   cxx_cado_poly poly;
   long q, Q = 1;
 
   if (mod == 1)
-    {
-      c = new congruence[1];
-      c[0].vmod = c[0].wmod = 0;
-      c[0].alpha = 0; /* value does not matter */
-      *nc = 1;
-      return c;
-    }
+    return { { 0, 0, 0 /* value does not matter */ } };
 
-  *nc = 0;
   /* first determine the prime factors of mod */
+  std::vector<long> factors;
   for (long t = mod, p = 2; t != 1; p += 1 + (p & 1))
     {
       if ((t % p) == 0)
         {
-          nfactors ++;
-          checked_realloc(factors, nfactors);
           q = 1;
           while ((t % p) == 0)
             {
               t /= p;
               q *= p;
             }
-          factors[nfactors - 1] = q;
+          factors.push_back (q);
         }
     }
 
   /* make a local copy of the original polynomial */
   poly = poly0;
 
-  c = new congruence[keep + 1];
-  d = new congruence[keep + 1];
-  e = new congruence[keep + 1];
+  std::vector<congruence> c, d, e;
 
-  for (i = 0; i < nfactors; i++)
+  for (size_t i = 0; i < factors.size (); i++)
     {
-      nd = 0; /* number of elements in 'd' */
+      d.clear ();
       q = factors[i];
-      /* determine p such that q=p^k */
-      for (p = 2; q % p; p++);
       for (long v = 0; v < q; v++)
         {
           for (long w = 0; w < q; w++)
             {
-              double alpha;
-              alpha = average_alpha (poly, v, w, q, rstate);
-              nd = insert_congruence (d, nd, keep, alpha, v, w, vmin, vmax, q);
+              double alpha = average_alpha (poly, v, w, q, rstate);
+              insert_congruence (d, keep, alpha, v, w, vmin, vmax, q);
             }
         }
-      if (i == 0) /* copy d into c */
-        {
-          memcpy (c, d, nd * sizeof (congruence));
-          *nc = nd;
-        }
+      if (i == 0)
+        c = d;
       else /* merge c and d into e */
         {
           long inv = invert (Q, q);
-          ne = 0;
-          for (int ic = 0; ic < *nc; ic++)
-            for (int id = 0; id < nd; id++)
+          e.clear ();
+          for (auto const & ci : c)
+            for (auto const & di : d)
               {
-                double alpha = c[ic].alpha + d[id].alpha;
-		/* if alpha is larger (i.e., worse) than the last element,
-		   since d[] is sorted by increasing values of alpha, we
-		   assume all further values will be worse */
-		if (ne == keep && e[ne-1].alpha < alpha)
-		  break;
-                long v = crt (c[ic].vmod, d[id].vmod, Q, q, inv);
-                long w = crt (c[ic].wmod, d[id].wmod, Q, q, inv);
-                ne = insert_congruence (e, ne, keep, alpha, v, w, vmin, vmax, Q * q);
+                double alpha = ci.alpha + di.alpha;
+                /* if alpha is larger (i.e., worse) than the last element,
+                   since d[] is sorted by increasing values of alpha, we
+                   assume all further values will be worse */
+                if ((int) e.size () == keep && e.back ().alpha < alpha)
+                  break;
+                long v = crt (ci.vmod, di.vmod, Q, q, inv);
+                long w = crt (ci.wmod, di.wmod, Q, q, inv);
+                insert_congruence (e, keep, alpha, v, w, vmin, vmax, Q * q);
               }
-          /* copy back e to c */
-          memcpy (c, e, ne * sizeof (congruence));
-          *nc = ne;
+          c = e;
         }
       Q *= q;
     }
@@ -387,7 +359,7 @@ best_congruences (cxx_cado_poly const & poly0, long mod, int keep, long vmin, lo
   if (u == -u0)
     {
       int included = -1;
-      for (i = 0; i < *nc; i++)
+      for (size_t i = 0; i < c.size (); i++)
         if (get_mod (-v0, mod) == c[i].vmod && get_mod (-w0, mod) == c[i].wmod)
           included = i;
       if (included >= 0)
@@ -396,20 +368,17 @@ best_congruences (cxx_cado_poly const & poly0, long mod, int keep, long vmin, lo
       else
         {
           double alpha = 0;
-          for (int j = 0; j < nfactors; j++)
-            alpha += average_alpha (poly, get_mod (-v0, factors[j]),
-                                    get_mod (-w0, factors[j]), factors[j], rstate);
+          for (long f : factors)
+            alpha += average_alpha (poly, get_mod (-v0, f), get_mod (-w0, f),
+                                    f, rstate);
           printf ("congruence of initial polynomial is not included");
-          if (*nc > 0)
-            printf (" (last %.2f wrt %.2f)\n", c[*nc - 1].alpha, alpha);
+          if (!c.empty ())
+            printf (" (last %.2f wrt %.2f)\n", c.back ().alpha, alpha);
           else
             printf (" (%.2f)\n", alpha);
         }
     }
 
-  free (factors);
-  delete[] d;
-  delete[] e;
   return c;
 }
 
@@ -422,12 +391,9 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
   long w, wmin, wmax;
   cxx_cado_poly poly;
   long l;
-  mpz_t wminz, wmaxz;
+  cxx_mpz wminz, wmaxz;
   double tot_pols_local = 0;
   double tot_alpha_local = 0;
-
-  mpz_init (wminz);
-  mpz_init (wmaxz);
 
   /* first make a local copy of the original polynomial */
   poly = poly0;
@@ -444,7 +410,7 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
   if (verbose > 1)
 #pragma omp critical
     {
-      gmp_printf ("v=%ld: wmin=%Zd wmax=%Zd\n", v, wminz, wmaxz);
+      fmt::print ("v={}: wmin={} wmax={}\n", v, wminz, wmaxz);
       fflush (stdout);
     }
 
@@ -488,23 +454,22 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
       wmax = mpz_get_si (wmaxz);
       wmin = mpz_get_si (wminz);
 
-      mpz_t ump;
-      mpz_init (ump);
-      auto * roots = new unsigned long[B];
+      cxx_mpz ump;
+      std::vector<unsigned long> roots (B);
       double nu;
-      auto * L = new float[B];
+      std::vector<float> L (B);
 
       /* sieve data: sieve_q contains the largest p^k < B for each prime p,
          it thus fits in an uint16_t if B does;
          sieve_s contains the first index i multiple of q where the contribution
          sieve_nu should be added, it is thus smaller than q and thus fits too. */
-      auto *sieve_d = new sieve_data[sum_of_prime_powers];
-      unsigned long sieve_n = 0;
+      std::vector<sieve_data> sieve_d;
+      sieve_d.reserve (sum_of_prime_powers);
       for (l = 0; l < nprimes; l++)
       {
           long p = Primes[l], s, t, q;
           double logp = log ((double) p);
-          memset (L, 0, B * sizeof (float));
+          std::fill (L.begin (), L.end (), 0);
           for (q = p; q <= Q[l]; q *= p)
           {
               /* the contribution is log(p)/p^(k-1)/(p+1) when the exponent k
@@ -524,7 +489,7 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
                   mpz_poly_eval_ui (ump, poly[RAT_SIDE], x);
                   gx = mpz_fdiv_ui (ump, q);
                   /* search roots w of fx + w*gx = 0 mod q */
-                  unsigned long nroots = get_roots (roots, fx, gx, q);
+                  unsigned long nroots = get_roots (roots.data (), fx, gx, q);
                   for (unsigned long i = 0; i < nroots; i++)
                   {
                       long w = roots[i];
@@ -549,26 +514,22 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
               else
                   t = (wmin - w + q - 1) / q;
               s = w + t * q - wmin;
-              sieve_d[sieve_n].q = q;
-              sieve_d[sieve_n].s = s;
-              sieve_d[sieve_n].nu = nu;
-              sieve_n ++;
+              sieve_d.push_back ({ (uint16_t) q, (uint16_t) s, (float) nu });
           }
       }
 
-      ASSERT_ALWAYS(sieve_n <= sum_of_prime_powers);
+      ASSERT_ALWAYS(sieve_d.size () <= sum_of_prime_powers);
 
 #define LEN (1<<14) /* length of the sieve array */
 
-      auto * A = new float[LEN];
+      std::vector<float> A (LEN);
 
       /* we sieve by chunks of LEN cells at a time */
       long wcur = wmin;
       while (wcur < wmax)
       {
           /* A[j] corresponds to w = wcur + j */
-          for (long j = 0; j < LEN; j++)
-              A[j] = expected;
+          std::fill (A.begin (), A.end (), (float) expected);
 
 #if defined(TRACE_V) && defined(TRACE_W)
           if (v == TRACE_V && (mod * wcur + modw <= TRACE_W &&
@@ -577,11 +538,11 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
 #endif
 
           /* now perform the sieve */
-          for (unsigned long i = 0; i < sieve_n; i++)
+          for (auto & sd : sieve_d)
           {
-              long q = sieve_d[i].q;
-              long s = sieve_d[i].s;
-              float nu = sieve_d[i].nu;
+              long q = sd.q;
+              long s = sd.s;
+              float nu = sd.nu;
               /* if mod=1, a given value of s corresponds to w = wcur + s
                  if mod>1, then s corresponds to w = mod*(wcur + s) + modw */
               while (s < LEN)
@@ -594,7 +555,7 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
                   A[s] -= nu;
                   s += q;
               }
-              sieve_d[i].s = s - LEN;
+              sd.s = (uint16_t) (s - LEN);
           }
 
           /* check for the smallest A[s] */
@@ -619,8 +580,8 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
                   mpz_poly_mul_si (poly[RAT_SIDE], poly[RAT_SIDE], mod);
                   /* this can only occur for one thread, thus no need to put
 #pragma omp critical */
-                  gmp_printf ("u=%ld v=%ld w=%ld lognorm=%.2f est_alpha_aff=%.2f E=%.2e [original]\n",
-                          u, v, mod * w + modw, lognorm, A[j], E);
+                  printf ("u=%ld v=%ld w=%ld lognorm=%.2f est_alpha_aff=%.2f E=%.2e [original]\n",
+                          u, v, mod * w + modw, lognorm, (double) A[j], E);
                   fflush (stdout);
                   /* restore the original polynomial (w=0) and skewness */
                   poly.skew = skew;
@@ -651,7 +612,7 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
                       mpz_set_si (bestw, mod * w + modw);
                       best_alpha = (double) A[j];
                       best_E = E;
-                      gmp_printf ("u=%ld v=%ld w=%Zd lognorm=%.2f est_alpha_aff=%.2f E=%.2e\n",
+                      fmt::print ("u={} v={} w={} lognorm={:.2f} est_alpha_aff={:.2f} E={:.2e}\n",
                               u, v, bestw, lognorm, best_alpha, E);
                       fflush (stdout);
                   }
@@ -667,16 +628,7 @@ rotate_v (cxx_cado_poly const & poly0, long v, long B,
           wcur += LEN;
       }
 
-      delete[] A;
-
-      delete[] sieve_d;
-      delete[] L;
-      delete[] roots;
-      mpz_clear (ump);
   }
-
-  mpz_clear (wminz);
-  mpz_clear (wmaxz);
 
   /* accumulate the number of polynomials and the alpha values */
 #pragma omp critical
@@ -702,8 +654,8 @@ rotate (cxx_cado_poly & cpoly, long B, double maxlognorm, double Bf, double Bg,
       fflush (stdout);
     }
 
-  int n;
-  congruence * c = best_congruences (cpoly, mod, keep, vmin, vmax, &n, u, rstate);
+  auto const c = best_congruences (cpoly, mod, keep, vmin, vmax, u, rstate);
+  int const n = c.size ();
   ASSERT_ALWAYS (n <= keep);
   printf ("u=%ld: kept %d congruence(s)", u, n);
   if (n == 0)
@@ -729,8 +681,6 @@ rotate (cxx_cado_poly & cpoly, long B, double maxlognorm, double Bf, double Bg,
       for (long v = vmin1; v <= vmax; v += mod)
         rotate_v (cpoly, v, B, maxlognorm, Bf, Bg, area, u, c[i].wmod);
     }
-
-  delete[] c;
 }
 
 /* don't modify poly, which is the size-optimized polynomial
@@ -738,15 +688,14 @@ rotate (cxx_cado_poly & cpoly, long B, double maxlognorm, double Bf, double Bg,
 static void
 print_transformation (cxx_cado_poly & poly0, cxx_cado_poly const & cpoly)
 {
-  mpz_t k;
+  cxx_mpz k;
   int d = poly0[ALG_SIDE]->deg;
 
-  mpz_init (k);
   /* first compute the translation k: g(x+k) = g1*x + g1*k + g0 */
   mpz_sub (k, mpz_poly_coeff_const(cpoly[RAT_SIDE], 0), mpz_poly_coeff_const(poly0[RAT_SIDE], 0));
   ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
   mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
-  gmp_printf ("translation %Zd, ", k);
+  fmt::print ("translation {}, ", k);
 
   mpz_poly_translation(poly0[ALG_SIDE], poly0[ALG_SIDE], k);
   mpz_poly_translation(poly0[RAT_SIDE], poly0[RAT_SIDE], k);
@@ -758,34 +707,33 @@ print_transformation (cxx_cado_poly & poly0, cxx_cado_poly const & cpoly)
 		mpz_poly_coeff_const(poly0[ALG_SIDE], d));
   if (mpz_cmp_ui (k, 1) != 0)
     {
-      gmp_printf ("multiplier %Zd, ", k);
+      fmt::print ("multiplier {}, ", k);
       mpz_poly_mul_mpz (poly0[ALG_SIDE], poly0[ALG_SIDE], k);
     }
   /* now compute rotation by x^2 */
   mpz_sub (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], 3), mpz_poly_coeff_const(poly0[ALG_SIDE], 3));
   ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
   mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
-  gmp_printf ("rotation [%Zd,", k);
+  fmt::print ("rotation [{},", k);
   ASSERT (mpz_fits_slong_p (k));
   u0 = mpz_get_si (k);
   mpz_poly_rotation(poly0[ALG_SIDE], poly0[ALG_SIDE], poly0[RAT_SIDE], k, 2);
   mpz_sub (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], 2), mpz_poly_coeff_const(poly0[ALG_SIDE], 2));
   ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
   mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
-  gmp_printf ("%Zd,", k);
+  fmt::print ("{},", k);
   ASSERT (mpz_fits_slong_p (k));
   v0 = mpz_get_si (k);
   mpz_poly_rotation(poly0[ALG_SIDE], poly0[ALG_SIDE], poly0[RAT_SIDE], k, 1);
   mpz_sub (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], 1), mpz_poly_coeff_const(poly0[ALG_SIDE], 1));
   ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
   mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
-  gmp_printf ("%Zd]\n", k);
+  fmt::print ("{}]\n", k);
   ASSERT (mpz_fits_slong_p (k));
   w0 = mpz_get_si (k);
   mpz_poly_rotation(poly0[ALG_SIDE], poly0[ALG_SIDE], poly0[RAT_SIDE], k, 0);
   ASSERT_ALWAYS(mpz_cmp (mpz_poly_coeff_const(poly0[ALG_SIDE], 0),
                          mpz_poly_coeff_const(cpoly[ALG_SIDE], 0)) == 0);
-  mpz_clear (k);
 }
 
 double
@@ -889,9 +837,7 @@ static int main_(int argc, char const * argv[])
     int sopt = 0;
     double time = seconds ();
     long B = ALPHA_BOUND;
-    gmp_randstate_t rstate;
-
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
 
     cxx_param_list pl;
     const char * polyfilename = NULL;
@@ -1007,21 +953,20 @@ static int main_(int argc, char const * argv[])
         mod = best_mod (sieving_area, effort, keep);
       }
 
-    mpz_init (bestw);
-    long u0 = 0; /* current translation in u */
+    long ucur = 0; /* current translation in u */
     for (long u = umin; u <= umax; u++)
       {
-        rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], u0, u, 2);
-        u0 = u;
+        rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], ucur, u, 2);
+        ucur = u;
 
         rotate (cpoly, B, maxlognorm, bound_f, bound_g, area, u, rstate);
       }
 
     /* restore original polynomial */
-    rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], u0, 0, 2);
+    rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], ucur, 0, 2);
 
     /* perform the best rotation */
-    gmp_printf ("best rotation: u=%ld v=%ld w=%Zd alpha=%1.2f\n",
+    fmt::print ("best rotation: u={} v={} w={} alpha={:.2f}\n",
             bestu, bestv, bestw, best_alpha);
 
     /* perform the best rotation */
@@ -1038,10 +983,6 @@ static int main_(int argc, char const * argv[])
     printf ("# Sieved %.2e polynomials in %.2f seconds (%.2es/p)\n",
             tot_pols, time, time / tot_pols);
     printf ("# Average alpha %.2f\n", tot_alpha / tot_pols);
-
-    mpz_clear (bestw);
-
-    gmp_randclear(rstate);
 
     return 0;
 }
