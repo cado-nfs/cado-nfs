@@ -179,16 +179,6 @@ average_alpha (cxx_cado_poly const & poly0, long modv, long modw, long q, gmp_ra
   return s / pow ((double) TRIES, 2.0);
 }
 
-/* return 1/p mod q */
-static long
-invert (long p, long q)
-{
-  for (long t = 1; t < q; t++)
-    if ((t * p) % q == 1)
-      return t;
-  ASSERT_ALWAYS(0);
-}
-
 /* Return c such that c = a mod p and c = b mod q.
    Assume invp = 1/p mod q. */
 static long
@@ -352,7 +342,9 @@ rootsieve::best_congruences (long vmin, long vmax, long u)
         c = d;
       else /* merge c and d into e */
         {
-          long inv = invert (Q, q);
+          /* Q and q are coprime, being powers of distinct primes */
+          long const inv = (long) invert_ul ((unsigned long) (Q % q),
+                                             (unsigned long) q);
           e.clear ();
           for (auto const & ci : c)
             for (auto const & di : d)
@@ -533,123 +525,123 @@ rootsieve::rotate_v (long v, long u, long modw)
   ASSERT_ALWAYS(0 <= t && t < mod);
   mpz_add_ui (wminz, wminz, t);
 
-  if (mpz_cmp (wminz, wmaxz) < 0) {
+  /* nothing to sieve for this v */
+  if (mpz_cmp (wminz, wmaxz) >= 0)
+    return;
 
-      /* if mod != 1, we have f + (k*mod+modw)*g = (f+modw*g) + k*(mod*g) */
-      if (mod > 1)
+  /* if mod != 1, we have f + (k*mod+modw)*g = (f+modw*g) + k*(mod*g) */
+  if (mod > 1)
+  {
+      rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, modw, 0); /* f <- f+modw*g */
+      mpz_poly_mul_si (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
+      /* wmin -> (wmin - modw) / mod */
+      mpz_sub_ui (wminz, wminz, modw);
+      ASSERT_ALWAYS(mpz_divisible_ui_p (wminz, mod));
+      mpz_divexact_ui (wminz, wminz, mod);
+      /* wmax -> (wmax - modw) / mod */
+      mpz_sub_ui (wmaxz, wmaxz, modw);
+      mpz_cdiv_q_ui (wmaxz, wmaxz, mod);
+  }
+
+  /* compute the expected value sum(log(p)/(p-1), p < B) */
+  double expected = 0.0;
+  for (long p : primes)
+      expected += log ((double) p) / (double) (p - 1);
+
+  ASSERT_ALWAYS (mpz_fits_slong_p (wmaxz));
+  ASSERT_ALWAYS (mpz_fits_slong_p (wminz));
+
+  wmax = mpz_get_si (wmaxz);
+  wmin = mpz_get_si (wminz);
+
+  /* the sieve carries its offsets from one chunk to the next, so
+     this is modified as we go */
+  std::vector<sieve_data> sieve_d = prepare_sieve (cpoly, wmin);
+
+  std::vector<float> A (LEN);
+
+  /* we sieve by chunks of LEN cells at a time */
+  long wcur = wmin;
+  while (wcur < wmax)
+  {
+      /* A[j] corresponds to w = wcur + j */
+      std::fill (A.begin (), A.end (), (float) expected);
+
+#if defined(TRACE_V) && defined(TRACE_W)
+      if (v == TRACE_V && (mod * wcur + modw <= TRACE_W &&
+                  TRACE_W < mod * (wcur + LEN) + modw))
+          printf ("initialized A[%d] to %f\n", TRACE_W, A[(TRACE_W - modw) / mod - wcur]);
+#endif
+
+      /* now perform the sieve */
+      for (auto & sd : sieve_d)
       {
-          rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, modw, 0); /* f <- f+modw*g */
-          mpz_poly_mul_si (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
-          /* wmin -> (wmin - modw) / mod */
-          mpz_sub_ui (wminz, wminz, modw);
-          ASSERT_ALWAYS(mpz_divisible_ui_p (wminz, mod));
-          mpz_divexact_ui (wminz, wminz, mod);
-          /* wmax -> (wmax - modw) / mod */
-          mpz_sub_ui (wmaxz, wmaxz, modw);
-          mpz_cdiv_q_ui (wmaxz, wmaxz, mod);
+          long q = sd.q;
+          long s = sd.s;
+          float nu = sd.nu;
+          /* if mod=1, a given value of s corresponds to w = wcur + s
+             if mod>1, then s corresponds to w = mod*(wcur + s) + modw */
+          while (s < LEN)
+          {
+#if defined(TRACE_V) && defined(TRACE_W)
+              if (v == TRACE_V && TRACE_W == mod * (wcur + s) + modw)
+                  printf ("q=%ld: update A[%d] from %f to %f\n",
+                          q, TRACE_W, A[s], A[s] - nu);
+#endif
+              A[s] -= nu;
+              s += q;
+          }
+          sd.s = (uint16_t) (s - LEN);
       }
 
-      /* compute the expected value sum(log(p)/(p-1), p < B) */
-      double expected = 0.0;
-      for (long p : primes)
-          expected += log ((double) p) / (double) (p - 1);
-
-      ASSERT_ALWAYS (mpz_fits_slong_p (wmaxz));
-      ASSERT_ALWAYS (mpz_fits_slong_p (wminz));
-
-      wmax = mpz_get_si (wmaxz);
-      wmin = mpz_get_si (wminz);
-
-      /* the sieve carries its offsets from one chunk to the next, so
-         this is modified as we go */
-      std::vector<sieve_data> sieve_d = prepare_sieve (cpoly, wmin);
-
-      std::vector<float> A (LEN);
-
-      /* we sieve by chunks of LEN cells at a time */
-      long wcur = wmin;
-      while (wcur < wmax)
+      /* check for the smallest A[s] */
+      /* if wcur + LEN > wmax, we check only wmax - wcur entries */
+      long maxj = (wcur + LEN <= wmax) ? LEN : wmax - wcur;
+      for (long j = 0; j < maxj; j++)
       {
-          /* A[j] corresponds to w = wcur + j */
-          std::fill (A.begin (), A.end (), (float) expected);
-
-#if defined(TRACE_V) && defined(TRACE_W)
-          if (v == TRACE_V && (mod * wcur + modw <= TRACE_W &&
-                      TRACE_W < mod * (wcur + LEN) + modw))
-              printf ("initialized A[%d] to %f\n", TRACE_W, A[(TRACE_W - modw) / mod - wcur]);
-#endif
-
-          /* now perform the sieve */
-          for (auto & sd : sieve_d)
+          tot_alpha_local += A[j];
+          tot_pols_local += 1;
+          /* print alpha and E of original polynomial */
+          if (u == -u0 && v == -v0 && mod * (wcur + j) + modw == -w0)
           {
-              long q = sd.q;
-              long s = sd.s;
-              float nu = sd.nu;
-              /* if mod=1, a given value of s corresponds to w = wcur + s
-                 if mod>1, then s corresponds to w = mod*(wcur + s) + modw */
-              while (s < LEN)
-              {
-#if defined(TRACE_V) && defined(TRACE_W)
-                  if (v == TRACE_V && TRACE_W == mod * (wcur + s) + modw)
-                      printf ("q=%ld: update A[%d] from %f to %f\n",
-                              q, TRACE_W, A[s], A[s] - nu);
-#endif
-                  A[s] -= nu;
-                  s += q;
-              }
-              sd.s = (uint16_t) (s - LEN);
-          }
-
-          /* check for the smallest A[s] */
-          /* if wcur + LEN > wmax, we check only wmax - wcur entries */
-          long maxj = (wcur + LEN <= wmax) ? LEN : wmax - wcur;
-          for (long j = 0; j < maxj; j++)
-          {
-              tot_alpha_local += A[j];
-              tot_pols_local += 1;
-              /* print alpha and E of original polynomial */
-              if (u == -u0 && v == -v0 && mod * (wcur + j) + modw == -w0)
-              {
-                  /* local value of w, the global one is mod * w + modw */
-                  long const w = wcur + j;
-                  double lognorm;
-                  double const E = murphyE_at (cpoly, w, lognorm);
-                  /* this can only occur for one thread, thus no need to put
+              /* local value of w, the global one is mod * w + modw */
+              long const w = wcur + j;
+              double lognorm;
+              double const E = murphyE_at (cpoly, w, lognorm);
+              /* this can only occur for one thread, thus no need to put
 #pragma omp critical */
-                  printf ("u=%ld v=%ld w=%ld lognorm=%.2f est_alpha_aff=%.2f E=%.2e [original]\n",
-                          u, v, mod * w + modw, lognorm, (double) A[j], E);
+              printf ("u=%ld v=%ld w=%ld lognorm=%.2f est_alpha_aff=%.2f E=%.2e [original]\n",
+                      u, v, mod * w + modw, lognorm, (double) A[j], E);
+              fflush (stdout);
+          }
+          if (A[j] < best_alpha + guard_alpha)
+          {
+              long const w = wcur + j;
+              double lognorm;
+              double const E = murphyE_at (cpoly, w, lognorm);
+
+              if (optimizeE == 0 || (optimizeE == 1 && E > best_E))
+#pragma omp critical
+              {
+                  bestu = u;
+                  bestv = v;
+                  mpz_set_si (bestw, mod * w + modw);
+                  best_alpha = (double) A[j];
+                  best_E = E;
+                  fmt::print ("u={} v={} w={} lognorm={:.2f} est_alpha_aff={:.2f} E={:.2e}\n",
+                          u, v, bestw, lognorm, best_alpha, E);
                   fflush (stdout);
               }
-              if (A[j] < best_alpha + guard_alpha)
-              {
-                  long const w = wcur + j;
-                  double lognorm;
-                  double const E = murphyE_at (cpoly, w, lognorm);
-
-                  if (optimizeE == 0 || (optimizeE == 1 && E > best_E))
-#pragma omp critical
-                  {
-                      bestu = u;
-                      bestv = v;
-                      mpz_set_si (bestw, mod * w + modw);
-                      best_alpha = (double) A[j];
-                      best_E = E;
-                      fmt::print ("u={} v={} w={} lognorm={:.2f} est_alpha_aff={:.2f} E={:.2e}\n",
-                              u, v, bestw, lognorm, best_alpha, E);
-                      fflush (stdout);
-                  }
-              }
           }
-
-#if defined(TRACE_V) && defined(TRACE_W)
-          if (v == TRACE_V && (mod * wcur + modw <= TRACE_W &&
-                      TRACE_W < mod * (wcur + LEN) + modw))
-              printf ("A[%d] = %f\n", TRACE_W, A[(TRACE_W - modw) / mod - wcur]);
-#endif
-
-          wcur += LEN;
       }
 
+#if defined(TRACE_V) && defined(TRACE_W)
+      if (v == TRACE_V && (mod * wcur + modw <= TRACE_W &&
+                  TRACE_W < mod * (wcur + LEN) + modw))
+          printf ("A[%d] = %f\n", TRACE_W, A[(TRACE_W - modw) / mod - wcur]);
+#endif
+
+      wcur += LEN;
   }
 
   /* accumulate the number of polynomials and the alpha values */
@@ -817,22 +809,23 @@ rootsieve::rotate_area (long umin, long umax) const
 long
 rootsieve::best_mod (double sieving_area)
 {
-  long l[] = {1, 2, 6, 12, 60, 420, 840, 2520, 27720, 360360, 720720, 12252240,
-              232792560, 5354228880, 26771144400, 80313433200, 2329089562800};
-  int i = 0;
-  double e;
-  do {
-    mod = l[i];
-    /* The number of polynomials sieved is approximately area/mod^2*keep.
-       Note: there is a bias when vmax-vmin is smaller than mod, since we
-       only keep congruences that contain at least an element in [vmin, vmax],
-       thus the probability is larger than (vmax-vmin)/mod. */
-    e = sieving_area / (double) mod / (double) mod * (double) keep;
-    if (e <= effort)
-      break;
-    i += 1;
-  }
-  while (i < 17);
+  /* http://oeis.org/A051451 */
+  static constexpr long l[] = {1, 2, 6, 12, 60, 420, 840, 2520, 27720, 360360,
+    720720, 12252240, 232792560, 5354228880, 26771144400, 80313433200,
+    2329089562800};
+  double e = 0;
+
+  for (long m : l)
+    {
+      mod = m;
+      /* The number of polynomials sieved is approximately area/mod^2*keep.
+         Note: there is a bias when vmax-vmin is smaller than mod, since we
+         only keep congruences that contain at least an element in
+         [vmin, vmax], thus the probability is larger than (vmax-vmin)/mod. */
+      e = sieving_area / (double) mod / (double) mod * (double) keep;
+      if (e <= effort)
+        break;
+    }
   printf ("using mod = %ld, effort = %.2e\n", mod, e);
   return mod;
 }
