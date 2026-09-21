@@ -44,7 +44,10 @@
 #include "macros.h"
 #include "polyselect_alpha.h"
 
+#include <memory>
+
 #include "utils_cxx.hpp"
+#include "verbose.hpp"
 #include "cado_main.hpp"
 
 
@@ -61,8 +64,9 @@
 
 /* global variables */
 int verbose = 0;                /* verbosity level */
-long *Primes, nprimes;          /* primes less than B */
-long *Q;                        /* largest p^k < B */
+std::unique_ptr<long[]> Primes; /* primes less than B */
+long nprimes;
+std::unique_ptr<long[]> Q;      /* largest p^k < B */
 long bestu = 0, bestv = 0;      /* current best rotation */
 mpz_t bestw;                    /* current best rotation in w */
 double best_alpha = DBL_MAX;    /* alpha of best rotation */
@@ -83,20 +87,28 @@ typedef struct sieve_data {
 } sieve_data;
 
 static void
-usage_and_die (const char *argv0)
+declare_usage (cxx_param_list & pl)
 {
-  fprintf (stderr, "usage: %s [-area a] [-I n] [-Bf b] [-Bg c] [-margin x] [-v] [-sopt] [-V vmax] [-W wmax] [-B bbb] poly\n", argv0);
-  fprintf (stderr, "  poly: filename of polynomial\n");
-  fprintf (stderr, "  -area a      area parameter for Murphy-E computation (default %.2e)\n", AREA);
-  fprintf (stderr, "  -I nnn       I-value for Murphy-E computation (overrides area)\n");
-  fprintf (stderr, "  -Bf b        Bf bound for Murphy-E computation (default %.2e)\n", BOUND_F);
-  fprintf (stderr, "  -Bg c        Bg bound for Murphy-E computation (default %.2e)\n", BOUND_G);
-  fprintf (stderr, "  -margin x    allows a lognorm increase of x (default %.2f)\n", NORM_MARGIN);
-  fprintf (stderr, "  -v           verbose toggle\n");
-  fprintf (stderr, "  -sopt        first size-optimize the given polynomial\n");
-  fprintf (stderr, "  -B nnn       parameter for alpha computation (default %d)\n", ALPHA_BOUND);
-  fprintf (stderr, "  -E           optimize E instead of alpha\n");
-  throw cado::error("bad usage");
+  pl.declare_usage("poly", "filename of polynomial (may be given positionally)");
+  pl.declare_usage("area", fmt::format("area parameter for Murphy-E computation (default {:.2e})", AREA));
+  pl.declare_usage("I", "I-value for Murphy-E computation (overrides area)");
+  pl.declare_usage("Bf", fmt::format("Bf bound for Murphy-E computation (default {:.2e})", BOUND_F));
+  pl.declare_usage("Bg", fmt::format("Bg bound for Murphy-E computation (default {:.2e})", BOUND_G));
+  pl.declare_usage("margin", fmt::format("allows a lognorm increase of x (default {:.2f})", NORM_MARGIN));
+  pl.declare_usage("effort", "total effort");
+  pl.declare_usage("B", fmt::format("parameter for alpha computation (default {})", ALPHA_BOUND));
+  /* use http://oeis.org/A051451 for -mod:
+     1, 2, 6, 12, 60, 420, 840, 2520, 27720, 360360, 720720, 12252240,
+     232792560, 5354228880, 26771144400, 80313433200, 2329089562800,
+     72201776446800, 144403552893600 */
+  pl.declare_usage("mod", "consider congruence classes of u,v,w mod this");
+  pl.declare_usage("umin", "lower end of the rotation range");
+  pl.declare_usage("umax", "upper end of the rotation range");
+  pl.declare_usage("keep", "number of best congruences kept");
+  pl.declare_usage("v", "(switch) verbose mode, repeat for more");
+  pl.declare_usage("sopt", "(switch) first size-optimize the given polynomial");
+  pl.declare_usage("E", "(switch) optimize E instead of alpha");
+  verbose_decl_usage(pl);
 }
 
 /* return x mod m, with 0 <= x < m */
@@ -112,16 +124,24 @@ initPrimes (unsigned long B)
 {
   unsigned long nprimes = 0, p, q, l;
 
-  Primes = new long[B];
-  ASSERT_ALWAYS(Primes != NULL);
+  /* Count first, so that the array comes out at exactly the right size
+   * and needs no shrinking afterwards. B is at most 65536 here, so the
+   * extra primality sweep costs nothing worth measuring. */
   for (p = 2; p < B; p += 1 + (p > 2))
     if (ulong_isprime (p))
-      Primes[nprimes++] = p;
-  checked_realloc(Primes, nprimes);
+      nprimes++;
+
+  Primes = std::make_unique<long[]>(nprimes);
+  {
+    unsigned long k = 0;
+    for (p = 2; p < B; p += 1 + (p > 2))
+      if (ulong_isprime (p))
+        Primes[k++] = p;
+    ASSERT_ALWAYS(k == nprimes);
+  }
 
   /* compute prime powers */
-  Q = new long[nprimes];
-  ASSERT_ALWAYS(Q != NULL);
+  Q = std::make_unique<long[]>(nprimes);
   for (l = 0; l < nprimes; l++)
     {
       p = Primes[l];
@@ -873,106 +893,58 @@ static int main_(int argc, char const * argv[])
 
     gmp_randinit_default(rstate);
 
-    while (argc >= 2 && argv[1][0] == '-')
-      {
-        if (strcmp (argv[1], "-area") == 0)
-          {
-            area = atof (argv [2]);
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-I") == 0)
-          {
-            I = atoi (argv [2]);
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-Bf") == 0)
-          {
-            bound_f = atof (argv [2]);
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-Bg") == 0)
-          {
-            bound_g = atof (argv [2]);
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-margin") == 0)
-          {
-            margin = atof (argv [2]);
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-effort") == 0)
-          {
-            effort = atof (argv [2]);
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-v") == 0)
-          {
-            verbose ++;
-            argv ++;
-            argc --;
-          }
-        else if (strcmp (argv[1], "-E") == 0)
-          {
-            optimizeE = 1;
-            guard_alpha = GUARD_ALPHA;
-            argv ++;
-            argc --;
-          }
-        else if (strcmp (argv[1], "-sopt") == 0)
-          {
-            sopt = 1;
-            argv ++;
-            argc --;
-          }
-        else if (strcmp (argv[1], "-B") == 0)
-          {
-            unsigned long B = strtol (argv [2], NULL, 10);
-            set_alpha_bound (B);
-            argv += 2;
-            argc -= 2;
-          }
-        /* use http://oeis.org/A051451 for -mod:
-           1, 2, 6, 12, 60, 420, 840, 2520, 27720, 360360, 720720, 12252240,
-           232792560, 5354228880, 26771144400, 80313433200, 2329089562800,
-           72201776446800, 144403552893600 */
-        else if (strcmp (argv[1], "-mod") == 0)
-          {
-            mod = strtol (argv [2], NULL, 10);
-            ASSERT_ALWAYS(mod >= 1);
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-umin") == 0)
-          {
-            umin = strtol (argv [2], NULL, 10);
-            ASSERT_ALWAYS(umin > LONG_MIN); /* LONG_MIN is reserved */
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-umax") == 0)
-          {
-            umax = strtol (argv [2], NULL, 10);
-            ASSERT_ALWAYS(umax < LONG_MAX); /* LONG_MAX is reserved */
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-keep") == 0)
-          {
-            keep = atoi (argv [2]);
-            argv += 2;
-            argc -= 2;
-          }
-        else
-          break;
-      }
-    if (argc != 2)
-        usage_and_die (argv[0]);
+    cxx_param_list pl;
+    const char * polyfilename = NULL;
+
+    declare_usage(pl);
+    pl.configure_switch_old("-v", &verbose);
+    pl.configure_switch_old("-sopt", &sopt);
+    pl.configure_switch_old("-E", &optimizeE);
+
+    if (argc == 1)
+        pl.fail("Error, a polynomial file is mandatory");
+
+    argv++, argc--;
+    for (int wild = 0 ; argc ; ) {
+        if (pl.update_cmdline(argc, argv)) continue;
+        if (wild == 0 && argv[0][0] != '-') {
+            polyfilename = argv[0];
+            argc--, argv++, wild++;
+            continue;
+        }
+        pl.fail("Unhandled parameter {}", argv[0]);
+    }
+
+    pl.parse("area", area);
+    pl.parse("I", I);
+    pl.parse("Bf", bound_f);
+    pl.parse("Bg", bound_g);
+    pl.parse("margin", margin);
+    pl.parse("effort", effort);
+    pl.parse("keep", keep);
+    if (pl.parse("mod", mod) && mod < 1)
+        pl.fail("Error, -mod must be at least 1");
+    /* LONG_MIN and LONG_MAX are reserved to mean "the user said nothing",
+     * so they are only rejected when the option is actually given. */
+    if (pl.parse("umin", umin) && umin == LONG_MIN)
+        pl.fail("Error, -umin is out of range");
+    if (pl.parse("umax", umax) && umax == LONG_MAX)
+        pl.fail("Error, -umax is out of range");
+    if (pl.parse("B", B))
+        set_alpha_bound(B);
+    if (!polyfilename)
+        polyfilename = pl.lookup_old("poly");
+
+    if (optimizeE)
+        guard_alpha = GUARD_ALPHA;
+
+    if (pl.warn_unused())
+        pl.fail("unexpected parameter(s) on the command line");
+    verbose_interpret_parameters(pl);
+    pl.print_command_line(stdout);
+
+    if (!polyfilename)
+        pl.fail("Error, a polynomial file is mandatory");
 
 #pragma omp parallel
 #if defined(_OPENMP) && _OPENMP >= 202011
@@ -987,11 +959,8 @@ static int main_(int argc, char const * argv[])
     if (I != 0)
       area = bound_f * pow (2.0, (double) (2 * I - 1));
 
-    if (!cpoly.read(argv[1]))
-      {
-        fprintf (stderr, "Problem when reading file %s\n", argv[1]);
-        usage_and_die (argv[0]);
-      }
+    if (!cpoly.read(polyfilename))
+        pl.fail("Problem when reading file {}", polyfilename);
 
     if (cpoly.skew == 0.0)
       cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
@@ -1070,8 +1039,6 @@ static int main_(int argc, char const * argv[])
             tot_pols, time, time / tot_pols);
     printf ("# Average alpha %.2f\n", tot_alpha / tot_pols);
 
-    delete[] Primes;
-    delete[] Q;
     mpz_clear (bestw);
 
     gmp_randclear(rstate);
