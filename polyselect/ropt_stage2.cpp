@@ -22,6 +22,7 @@
 #include "ropt_tree.h"  // node ...
 #include "size_optimization.hpp"
 #include "timing.h"             // for milliseconds
+#include "utils_cxx.hpp"
 
 //#define TIMING_ROPT_STAGE2
 /**
@@ -83,8 +84,7 @@ sievearray_init ( sievearray_t sievearray,
       sievearray->array[k] = tmpu;
   }
   else {
-    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-    exit (1);
+    throw cado::error("Error, cannot allocate memory in {}", __func__);
   }
 }
 
@@ -104,8 +104,7 @@ sievearray_reset ( sievearray_t sievearray )
       sievearray->array[k] = tmpu;
   }
   else {
-    fprintf (stderr, "Error, null memory in %s.\n", __func__);
-    exit (1);
+    throw cado::error("Error, null memory in {}.", __func__);
   }
 }
 
@@ -154,9 +153,7 @@ rootsieve_run_multroot_lift_idx ( unsigned int v,
                                   unsigned int pe )
 {
   if (pl >= pe) {
-    fprintf ( stderr, "Non-invertible element in "
-              "rootsieve_run_multroot_lift_idx().\n" );
-    exit(1);
+    throw cado::error("Non-invertible element in rootsieve_run_multroot_lift_idx().");
   }
   /* findthe val_p (MOD), which must be < e */
   unsigned int a, b, c;
@@ -556,8 +553,7 @@ rootsieve_run_multroot ( sievearray_t sa,
   fuv_ui = (unsigned int*) malloc ((d + 1) * sizeof (unsigned int));
   g_ui = (unsigned int*) malloc ((2) * sizeof (unsigned int));
   if ((f_ui == NULL) || (g_ui == NULL) || (fuv_ui == NULL)) {
-    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-    exit (1);
+    throw cado::error("Error, cannot allocate memory in {}", __func__);
   }
   reduce_poly_uint (f_ui, rs.cpoly[1], pe);
   reduce_poly_uint (g_ui, rs.cpoly[0], pe);
@@ -624,8 +620,7 @@ rootsieve_one_block ( sievearray_t sa,
 
   if ( subsgl == NULL || submul == NULL || j_idx == NULL ||
        j_idx_i0 == NULL || roottype_flag == NULL ) {
-    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-    exit (1);
+    throw cado::error("Error, cannot allocate memory in {}", __func__);
   }
 
   bblock_size = L1_cachesize;
@@ -890,11 +885,8 @@ rootsieve_one_sublattice ( ropt_poly const & poly,
   if (len_B < (double) size_array_mem / len_A)
     size_array_mem = len_B * len_A;
   if (size_array_mem <= (unsigned long) len_A) {
-    fprintf (stderr, "Error: Amax - Amin + 1 = %lu is too long. "
-             "This happend when A is too large while B is "
-             "too small. Ropt doesn't support this yet.\n",
-             s2param.Amax - s2param.Amin + 1);
-    exit(1);
+    throw cado::error("Error: Amax - Amin + 1 = {} is too long. This happend when A is too large while B is too small. Ropt doesn't support this yet.",
+            s2param.Amax - s2param.Amin + 1);
   }
 
   /* size of B block that fits in memory at one time. Note:

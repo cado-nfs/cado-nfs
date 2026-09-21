@@ -6,6 +6,7 @@
 #include "params.hpp"
 #include "cxx_mpz.hpp"
 #include "verbose.hpp"             // verbose_output_print
+#include "cado_main.hpp"
 
 static void
 declare_usage(cxx_param_list & pl)
@@ -19,7 +20,14 @@ declare_usage(cxx_param_list & pl)
     verbose_decl_usage(pl);
 }
 
+static int main_ (int argc, char const * argv[]);
+
 int main (int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_ (int argc, char const * argv[])
 {
     cxx_mpz p, ell;
     unsigned int n = 0;

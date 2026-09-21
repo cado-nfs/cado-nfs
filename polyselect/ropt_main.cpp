@@ -56,6 +56,7 @@
 #include "best_polynomials_queue.hpp"
 
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; /* used as mutual exclusion
                                                      lock for output */
@@ -133,11 +134,8 @@ usage_adv (char const **argv)
            "'c_d Y1 Y0'. The parameters -n and -d are compulsory.\n");
 
   fprintf (stderr, "\nExample 5: %s %s -f fname --s2 -a 12 -b 345 -c 6789 -mod 1814400 -bmax 16 -cmax 10000000\n", argv[0], argv[1]);
-  fprintf (stderr, "Sieve-only mode. Assume that we know the polynomial has good\n"
-           "root property at rotation (12*x^2 + 345*x + 6789), we want to\n"
-           "search 12*x^2 + (345 + 1814400*i)*x + (6789 + 1814400*j) where\n"
-           "i, j are bounded by -bmax and -cmax.\n");
-  exit(1);
+  fprintf (stderr, "Sieve-only mode. Assume that we know the polynomial has good\nroot property at rotation (12*x^2 + 345*x + 6789), we want to\nsearch 12*x^2 + (345 + 1814400*i)*x + (6789 + 1814400*j) where\ni, j are bounded by -bmax and -cmax.\n");
+  throw cado::error("bad usage");
 }
 
 
@@ -245,8 +243,7 @@ ropt_parse_param ( int argc,
         {
           if (I_area == 2)
             {
-              fprintf (stderr, "Error, both -I/-A and -area are given\n");
-              exit (1);
+              throw cado::error("Error, both -I/-A and -area are given");
             }
           area = atof (argv[2]);
           I_area = 1;
@@ -257,8 +254,7 @@ ropt_parse_param ( int argc,
         {
           if (I_area == 1)
             {
-              fprintf (stderr, "Error, both -area and -I/-A are given\n");
-              exit (1);
+              throw cado::error("Error, both -area and -I/-A are given");
             }
           I_area = 2;
           A = 2 * atoi (argv[2]) - 1;
@@ -269,8 +265,7 @@ ropt_parse_param ( int argc,
         {
           if (I_area == 1)
             {
-              fprintf (stderr, "Error, both -area and -I/-A are given\n");
-              exit (1);
+              throw cado::error("Error, both -area and -I/-A are given");
             }
           I_area = 2;
           A = atoi (argv[2]);
@@ -285,18 +280,15 @@ ropt_parse_param ( int argc,
         }
         else if (argc >= 3 && strcmp (argv[1], "--skip_ropt") == 0)
         {
-          fprintf (stderr, "Error: cannot use --skip_ropt with --s2.\n");
-          exit(1);
+          throw cado::error("Error: cannot use --skip_ropt with --s2.");
         }
         else if (argc >= 3 && strcmp (argv[1], "--gen_raw") == 0)
         {
-          fprintf (stderr, "Error: cannot use --gen_raw with --s2.\n");
-          exit(1);
+          throw cado::error("Error: cannot use --gen_raw with --s2.");
         }
         else if (argc >= 3 && strcmp (argv[1], "--sopt") == 0)
         {
-          fprintf (stderr, "Error: cannot use --sopt with --s2.\n");
-          exit(1);
+          throw cado::error("Error: cannot use --sopt with --s2.");
         }
         else {
           usage_adv (argv);
@@ -324,8 +316,7 @@ ropt_parse_param ( int argc,
         {
           param->w_length = atoi (argv[2]) - param->w_left_bound + 1;
           if (param->w_length < 0) {
-            fprintf (stderr, "Error in options -amin and/or -amax.\n");
-            exit(1);
+            throw cado::error("Error in options -amin and/or -amax.");
           }
           argv += 2;
           argc -= 2;
@@ -561,8 +552,7 @@ static int main_adv (int argc, char const * argv[])
 
     file = fopen(filename, "r");
     if (file == NULL) {
-      fprintf(stderr, "# Error in reading file\n");
-      exit (1);
+      throw cado::error("# Error in reading file");
     }
 
     /* parse parameters */
@@ -587,20 +577,17 @@ static int main_adv (int argc, char const * argv[])
 
     file = fopen(filename, "r");
     if (file == NULL) {
-      fprintf(stderr, "# Error in reading file\n");
-      exit (1);
+      throw cado::error("# Error in reading file");
     }
 
     /* parse parameters */
     ropt_parse_param (argc, argv, param);
 
     if (mpz_cmp_ui(param->n, 0) == 0) {
-      fprintf(stderr, "# Error: please input parameter \"-n number\"\n");
-      exit (1);
+      throw cado::error("# Error: please input parameter \"-n number\"");
     }
     if ( param->d == 0 ) {
-      fprintf(stderr, "# Error: please input parameter \"-n degree\"\n");
-      exit (1);
+      throw cado::error("# Error: please input parameter \"-n degree\"");
     }
 
     /* call ropt_on_msievepoly() */
@@ -662,12 +649,9 @@ declare_usage_basic (cxx_param_list & pl)
 static void
 usage_basic (const char *argv MAYBE_UNUSED, const char * missing, cxx_param_list & pl)
 {
-  if (missing) {
-    fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
-            missing);
-  }
-  pl.print_usage(stderr);
-  exit (EXIT_FAILURE);
+  if (missing)
+    pl.fail("\nError: missing or invalid parameter \"-{}\"", missing);
+  pl.fail("bad usage");
 }
 
 void cado_poly_ropt_printer(int i, double score, cxx_cado_poly & best_poly, void * arg)
@@ -897,7 +881,14 @@ static int main_basic (int argc, char const * argv[])
  * depending whether we have the option --adv.
  * Note the cadoprograms.py uses the main_basic() interface.
  */
+static int main_ (int argc, char const * argv[]);
+
 int main (int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_ (int argc, char const * argv[])
 {
   /* usage */
 

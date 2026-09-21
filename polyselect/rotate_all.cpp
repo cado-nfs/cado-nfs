@@ -17,6 +17,8 @@
 #include "polyselect_norms.hpp"
 #include "polyselect_alpha.h"
 #include "timing.h"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 /* for the rotation, we try (j*x+k) for |k| <= 2^MAX_k */
 int MAX_k = 16;
@@ -514,10 +516,17 @@ usage_and_die (const char *argv0)
   fprintf (stderr, "  apply rotation f += (j*x+k)*g to poly.\n");
   fprintf (stderr, "  poly: filename of polynomial\n");
   fprintf (stderr, "  j,k : integers\n");
-  exit (1);
+  throw cado::error("bad usage");
 }
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_cado_poly cpoly;
     long kmax, jmin, kmin;

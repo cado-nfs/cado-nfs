@@ -12,6 +12,7 @@
 #include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "params.hpp"
+#include "cado_main.hpp"
 
 /* This simplistic binary just computes the rotation f+k*g, starting from a
  * polynomial pair (f,g), and a rotation polynomial k (given least
@@ -20,14 +21,10 @@
 
 static void usage(const char *argv, const char *missing, cxx_param_list & pl)
 {
-    fprintf(stderr, "usage: %s [parameters] <polynomial file> [<rotation coefficients> ...]\n", argv);
+    fmt::print(stderr, "usage: {} [parameters] <polynomial file> [<rotation coefficients> ...]\n", argv);
     if (missing)
-    {
-        fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
-                missing);
-    }
-    pl.print_usage(stderr);
-    exit(EXIT_FAILURE);
+        pl.fail("\nError: missing or invalid parameter \"-{}\"", missing);
+    pl.fail("bad usage");
 }
 
 static void declare_usage(cxx_param_list & pl)
@@ -41,7 +38,14 @@ static void declare_usage(cxx_param_list & pl)
 }
 
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     char const ** argv0 = argv;
     int argc0 = argc;

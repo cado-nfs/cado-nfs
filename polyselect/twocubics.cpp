@@ -45,6 +45,7 @@
 #include "ropt.hpp"
 #include "macros.h"
 #include "params.hpp"
+#include "cado_main.hpp"
 #endif
 
 double best_E = DBL_MAX; /* combined score E (the smaller the better) */
@@ -444,15 +445,19 @@ declare_usage(cxx_param_list & pl)
 static void
 usage (const char *argv MAYBE_UNUSED, const char * missing, cxx_param_list & pl)
 {
-  if (missing) {
-    fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
-        missing);
-  }
-  pl.print_usage(stderr);
-  exit (EXIT_FAILURE);
+  if (missing)
+    pl.fail("\nError: missing or invalid parameter \"-{}\"", missing);
+  pl.fail("bad usage");
 }
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
   char const ** argv0 = argv;
   int quiet = 0, nthreads = 1;

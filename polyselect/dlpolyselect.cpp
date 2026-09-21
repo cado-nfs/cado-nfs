@@ -83,6 +83,8 @@ skew: 1.37
 #include "polyselect_alpha.h"
 #include "timing.h"
 #include "mpz_mat.h"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 /* We assume a difference <= ALPHA_BOUND_GUARD between alpha computed
    with ALPHA_BOUND_SMALL and ALPHA_BOUND. In practice the largest value
@@ -341,8 +343,7 @@ get_maxtries (unsigned int B, unsigned int d)
       count[i] = c;
       if (maxtries >= ULONG_MAX / count[i])
         {
-          fprintf (stderr, "Error, too large -bound option\n");
-          exit (1);
+          throw cado::error("Error, too large -bound option");
         }
       maxtries *= count[i];
     }
@@ -769,10 +770,17 @@ usage ()
     fprintf (stderr, "   -Bf nnn           sieving bound for f\n");
     fprintf (stderr, "   -Bg nnn           sieving bound for g\n");
     fprintf (stderr, "   -area nnn         sieving area\n");
-    exit (1);
+    throw cado::error("bad usage");
 }
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     int i;
     mpz_t N;
@@ -911,9 +919,7 @@ int main(int argc, char const * argv[])
           gcd_uint64 (modm, bound + 1) != 1 ||
           gcd_uint64 (modm, 2 * bound + 1) != 1)
           {
-            fprintf (stderr, "Error, modm should be coprime to "
-                     "2*bound*(bound+1)*(2*bound+1)\n");
-            exit (1);
+            throw cado::error("Error, modm should be coprime to 2*bound*(bound+1)*(2*bound+1)");
           }
         double maxtries_double = (double) bound;
         maxtries_double *= (double) (bound + 1);

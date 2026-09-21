@@ -27,6 +27,7 @@
 #include "ropt_sublattice_priority_queue.hpp"
 #include "ropt_tree.h"
 #include "timing.h"
+#include "utils_cxx.hpp"
 
 
 /**
@@ -345,8 +346,7 @@ find_sublattice ( single_sublattice_priority_queue_ptr top,
     if ( (f_ui == NULL) ||
          (g_ui == NULL) ||
          (fuv_ui == NULL) ) {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-      exit (1);
+      throw cado::error("Error, cannot allocate memory in {}", __func__);
     }
 
     /* compute f (mod pe) */
@@ -390,9 +390,7 @@ return_combined_sublattice_check_tlen ( ropt_s1param_ptr s1param )
 
   /* check */
   if (s1param->tlen_e_sl < 1) {
-    fprintf ( stderr, "Error, number of primes in \"-e\" (len_e_sl) "
-              "should be between 1 and 10\n" );
-    exit(1);
+    throw cado::error("Error, number of primes in \"-e\" (len_e_sl) should be between 1 and 10");
   }
 }
 

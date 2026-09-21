@@ -45,6 +45,7 @@
 #include "polyselect_alpha.h"
 
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 
 /* define ORIGINAL if you want the original algorithm from the paper */
@@ -95,7 +96,7 @@ usage_and_die (const char *argv0)
   fprintf (stderr, "  -sopt        first size-optimize the given polynomial\n");
   fprintf (stderr, "  -B nnn       parameter for alpha computation (default %d)\n", ALPHA_BOUND);
   fprintf (stderr, "  -E           optimize E instead of alpha\n");
-  exit (1);
+  throw cado::error("bad usage");
 }
 
 /* return x mod m, with 0 <= x < m */
@@ -850,7 +851,14 @@ best_mod (double area, double maxeffort, double keep)
   return mod;
 }
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     int argc0 = argc;
     char const **argv0 = argv;

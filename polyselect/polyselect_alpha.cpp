@@ -11,6 +11,7 @@
 #include "mpz_poly.h"
 #include "polyselect_alpha.h"
 #include "rootfinder.h"
+#include "utils_cxx.hpp"
 
 /************************** polynomial arithmetic ****************************/
 
@@ -423,8 +424,7 @@ average_valuation_affine_root (mpz_poly_ptr f, unsigned long p, unsigned long r 
    /* init fv */
    fv = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
    if (fv == NULL) {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-      exit (1);
+      throw cado::error("Error, cannot allocate memory in {}", __func__);
    }
 
    for (i = 0; i <= d; i++)

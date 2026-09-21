@@ -29,6 +29,7 @@
 #include "polyselect_thread_team.hpp"
 #include "size_optimization.hpp"
 #include "timing.h"
+#include "utils_cxx.hpp"
 
 //#define DEBUG_POLYSELECT
 //#define DEBUG_POLYSELECT2
@@ -323,8 +324,7 @@ void polyselect_main_data_parse_Nd(polyselect_main_data_ptr main, cxx_param_list
 
     if (!have_n)
     {
-        fprintf(stderr, "No n defined ; sorry.\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("No n defined ; sorry.");
     }
 
     if (mpz_cmp_ui(main->N, 0) <= 0)
@@ -342,8 +342,7 @@ void polyselect_main_data_parse_ad_range(polyselect_main_data_ptr main, cxx_para
     pl.parse("incr", main->incr);
     if (main->incr <= 0)
     {
-        fprintf(stderr, "Error, incr should be positive\n");
-        exit(1);
+        throw cado::error("Error, incr should be positive");
     }
 
     /* if no -admin is given, mpz_init did set it to 0, which is exactly
@@ -352,8 +351,7 @@ void polyselect_main_data_parse_ad_range(polyselect_main_data_ptr main, cxx_para
     /* admin should be nonnegative */
     if (mpz_cmp_ui(main->admin, 0) < 0)
     {
-        fprintf(stderr, "Error, admin should be nonnegative\n");
-        exit(1);
+        throw cado::error("Error, admin should be nonnegative");
     }
     /* if admin = 0, start from incr */
     if (mpz_cmp_ui(main->admin, 0) == 0)
@@ -376,8 +374,7 @@ void polyselect_main_data_parse_maxtime_or_target(polyselect_main_data_ptr main,
     /* maxtime and target_E are incompatible */
     if (main->maxtime != DBL_MAX && main->target_E != 0.0)
     {
-        fprintf(stderr, "Options -maxtime and -target_E are incompatible\n");
-        exit(1);
+        pl.fail("Options -maxtime and -target_E are incompatible");
     }
 }
 
@@ -394,8 +391,7 @@ void polyselect_main_data_parse_P(polyselect_main_data_ptr main, cxx_param_list 
     Pd = (double) P;
     if (Pd > (double) UINT_MAX)
     {
-        fprintf(stderr, "Error, too large value of P\n");
-        exit(1);
+        throw cado::error("Error, too large value of P");
     }
 
     if (4.0 * Pd * Pd >= (double) UINT64_MAX)
@@ -411,9 +407,7 @@ void polyselect_main_data_parse_P(polyselect_main_data_ptr main, cxx_param_list 
 
     if (P <= (unsigned long) SPECIAL_Q[LEN_SPECIAL_Q - 2])
     {
-        fprintf(stderr, "Error, too small value of P, need P > %u\n",
-                SPECIAL_Q[LEN_SPECIAL_Q - 2]);
-        exit(1);
+        throw cado::error("Error, too small value of P, need P > {}", SPECIAL_Q[LEN_SPECIAL_Q - 2]);
     }
     /* since for each prime p in [P,2P], we convert p^2 to int64_t, we need
        (2P)^2 < 2^63, thus P < 2^30.5 */
@@ -421,8 +415,7 @@ void polyselect_main_data_parse_P(polyselect_main_data_ptr main, cxx_param_list 
     /* TODO: investigate, document. */
     if (P >= 1073741824UL)
     {
-        fprintf(stderr, "Error, too large value of P\n");
-        exit(1);
+        throw cado::error("Error, too large value of P");
     }
     main->P = P;
 }

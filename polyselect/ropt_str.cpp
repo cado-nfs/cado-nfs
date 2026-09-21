@@ -24,6 +24,7 @@
 #include "size_optimization.hpp"
 #include "polyselect_norms.hpp"
 #include "polyselect_alpha.h"
+#include "utils_cxx.hpp"
 
 
 /* -----------------*/
@@ -568,8 +569,7 @@ ropt_s1param_init ( ropt_s1param_ptr s1param )
     malloc ( NUM_SUBLATTICE_PRIMES * sizeof (unsigned int) );
 
   if (s1param->e_sl == NULL || s1param->individual_nbest_sl == NULL) {
-    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-    exit (1);
+    throw cado::error("Error, cannot allocate memory in {}", __func__);
   }
 
   for (i = 0; i < NUM_SUBLATTICE_PRIMES; i ++) {
