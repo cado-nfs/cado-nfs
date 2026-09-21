@@ -84,6 +84,8 @@ skew: 1.37
 #include "timing.h"
 #include "mpz_mat.h"
 #include "cado_main.hpp"
+#include "verbose.hpp"
+#include "params.hpp"
 #include "utils_cxx.hpp"
 
 /* We assume a difference <= ALPHA_BOUND_GUARD between alpha computed
@@ -752,25 +754,24 @@ polygen_JL1 (mpz_t n,
 }
 
 static void
-usage ()
+declare_usage (cxx_param_list & pl)
 {
-    fprintf (stderr, "./dlpolyselect -N xxx -df xxx -dg xxx -bound xxx [-modr xxx] [-modm xxx] [-t xxx] [-easySM <ell>] [-skewed] [-rrf nnn]\n");
-    fprintf (stderr, "Mandatory parameters:\n");
-    fprintf (stderr, "   -N xxx            input number\n");
-    fprintf (stderr, "   -df xxx           degree of polynomial f\n");
-    fprintf (stderr, "   -dg xxx           degree of polynomial g\n");
-    fprintf (stderr, "   -bound xxx        bound for absolute value of coefficients of f\n");
-    fprintf (stderr, "Optional parameters:\n");
-    fprintf (stderr, "   -modr r -modm m   processes only polynomials of index r mod m\n");
-    fprintf (stderr, "   -t n              uses n threads\n");
-    fprintf (stderr, "   -easySM ell       generates polynomials with minimal number of SMs mod ell\n");
-    fprintf (stderr, "   -skewed           search for skewed polynomials\n");
-    fprintf (stderr, "   -rrf nnn          f should have nnn real roots\n");
-    fprintf (stderr, "   -rrg nnn          g should have nnn real roots\n");
-    fprintf (stderr, "   -Bf nnn           sieving bound for f\n");
-    fprintf (stderr, "   -Bg nnn           sieving bound for g\n");
-    fprintf (stderr, "   -area nnn         sieving area\n");
-    throw cado::error("bad usage");
+    pl.declare_usage("N", "input number (mandatory)");
+    pl.declare_usage("df", "degree of polynomial f (mandatory)");
+    pl.declare_usage("dg", "degree of polynomial g (mandatory)");
+    pl.declare_usage("bound", "bound for absolute value of coefficients of f (mandatory)");
+    pl.declare_usage("modr", "process only polynomials of index modr mod modm");
+    pl.declare_usage("modm", "process only polynomials of index modr mod modm");
+    pl.declare_usage("t", "number of threads to use");
+    pl.declare_usage("easySM", "generate polynomials with minimal number of SMs mod this ell");
+    pl.declare_usage("skewed", "(switch) search for skewed polynomials");
+    pl.declare_usage("rrf", "f should have that many real roots");
+    pl.declare_usage("rrg", "g should have that many real roots");
+    pl.declare_usage("Bf", "sieving bound for f");
+    pl.declare_usage("Bg", "sieving bound for g");
+    pl.declare_usage("area", "sieving area");
+    pl.declare_usage("v", "(switch) verbose mode");
+    verbose_decl_usage(pl);
 }
 
 static int main_(int argc, char const * argv[]);
@@ -782,7 +783,6 @@ int main(int argc, char const * argv[])
 
 static int main_(int argc, char const * argv[])
 {
-    int i;
     mpz_t N;
     mpz_t ell;
     unsigned int df = 0, dg = 0;
@@ -796,113 +796,61 @@ static int main_(int argc, char const * argv[])
     mpz_init (N);
     mpz_init (ell);
 
-    /* printf command-line */
-    printf ("#");
-    for (i = 0; i < argc; i++)
-        printf (" %s", argv[i]);
-    printf ("\n");
-    fflush (stdout);
+    cxx_param_list pl;
+    int verbose = 0;
 
-    /* parsing */
-    while (argc >= 2 && argv[1][0] == '-')
+    declare_usage(pl);
+    pl.configure_switch_old("-skewed", &skewed);
+    pl.configure_switch_old("-v", &verbose);
+
+    if (argc == 1)
+        pl.fail("Error, missing input number (-N option)");
+
+    argv++, argc--;
+    for ( ; argc ; ) {
+        if (pl.update_cmdline(argc, argv)) continue;
+        pl.fail("Invalid option: {}", argv[0]);
+    }
+
     {
-        if (argc >= 3 && strcmp (argv[1], "-N") == 0) {
-            mpz_set_str (N, argv[2], 10);
-            argv += 2;
-            argc -= 2;
-        }
-        else if (argc >= 3 && strcmp (argv[1], "-easySM") == 0) {
-            mpz_set_str (ell, argv[2], 10);
+        /* -N and -easySM are the two parameters that do not fit in a
+         * machine word. */
+        std::string tmp;
+        if (pl.parse("N", tmp))
+            mpz_set_str(N, tmp.c_str(), 10);
+        if (pl.parse("easySM", tmp)) {
+            mpz_set_str(ell, tmp.c_str(), 10);
             easySM = 1;
-            argv += 2;
-            argc -= 2;
-        }
-        else if (argc >= 3 && strcmp (argv[1], "-df") == 0) {
-            df = atoi (argv[2]);
-            argv += 2;
-            argc -= 2;
-        }
-        else if (argc >= 3 && strcmp (argv[1], "-dg") == 0) {
-            dg = atoi (argv[2]);
-            argv += 2;
-            argc -= 2;
-        }
-        else if (argc >= 3 && strcmp (argv[1], "-bound") == 0) {
-            bound = atoi (argv[2]);
-            argv += 2;
-            argc -= 2;
-        }
-        else if (argc >= 3 && strcmp (argv[1], "-modm") == 0) {
-	    modm = strtoul (argv[2], NULL, 10);
-            argv += 2;
-            argc -= 2;
-        }
-        else if (argc >= 3 && strcmp (argv[1], "-modr") == 0) {
-	    modr = strtoul (argv[2], NULL, 10);
-            argv += 2;
-            argc -= 2;
-        }
-        else if (argc >= 3 && strcmp (argv[1], "-t") == 0) {
-            nthreads = atoi (argv[2]);
-            argv += 2;
-            argc -= 2;
-        }
-        /* if rrf = -1 (default), f might have any number of real roots,
-           otherwise it should have exactly 'rrf' real roots */
-        else if (argc >= 3 && strcmp (argv[1], "-rrf") == 0) {
-            rrf = atoi (argv[2]);
-            argv += 2;
-            argc -= 2;
-        }
-        /* if rrg = -1 (default), g might have any number of real roots,
-           otherwise it should have exactly 'rrg' real roots */
-        else if (argc >= 3 && strcmp (argv[1], "-rrg") == 0) {
-            rrg = atoi (argv[2]);
-            argv += 2;
-            argc -= 2;
-        }
-        else if (argc >= 2 && strcmp (argv[1], "-skewed") == 0) {
-            skewed = 1;
-            argv += 1;
-            argc -= 1;
-        }
-        else if (argc >= 3 && strcmp (argv[1], "-Bf") == 0) {
-            Bf = atof (argv[2]);
-            argv += 2;
-            argc -= 2;
-        }
-        else if (argc >= 3 && strcmp (argv[1], "-Bg") == 0) {
-            Bg = atof (argv[2]);
-            argv += 2;
-            argc -= 2;
-        }
-        else if (argc >= 3 && strcmp (argv[1], "-area") == 0) {
-            Area = atof (argv[2]);
-            argv += 2;
-            argc -= 2;
-        }
-        else {
-            fprintf (stderr, "Invalid option: %s\n", argv[1]);
-            usage();
-            exit (1);
         }
     }
+    pl.parse("df", df);
+    pl.parse("dg", dg);
+    pl.parse("bound", bound);
+    pl.parse("modm", modm);
+    pl.parse("modr", modr);
+    pl.parse("t", nthreads);
+    /* if rrf (resp. rrg) is -1 (the default), f (resp. g) may have any
+     * number of real roots, otherwise it should have exactly that many */
+    pl.parse("rrf", rrf);
+    pl.parse("rrg", rrg);
+    pl.parse("Bf", Bf);
+    pl.parse("Bg", Bg);
+    pl.parse("area", Area);
 
-    if (mpz_cmp_ui (N, 0) <= 0) {
-        fprintf (stderr, "Error, missing input number (-N option)\n");
-        usage ();
-    }
+    if (pl.warn_unused())
+        pl.fail("unexpected parameter(s) on the command line");
+    verbose_interpret_parameters(pl);
+    pl.print_command_line(stdout);
 
-    if (df == 0) {
-        fprintf (stderr, "Error, missing degree (-df option)\n");
-        usage ();
-    }
+    if (mpz_cmp_ui (N, 0) <= 0)
+        pl.fail("Error, missing input number (-N option)");
 
-    if (dg == 0 || dg >= df) {
-        fprintf (stderr, "Error, missing or erroneous degree (-dg option): ");
-        fprintf (stderr, "one should have dg < df.\n");
-        usage ();
-    }
+    if (df == 0)
+        pl.fail("Error, missing degree (-df option)");
+
+    if (dg == 0 || dg >= df)
+        pl.fail("Error, missing or erroneous degree (-dg option): "
+                "one should have dg < df.");
 
     opt_flag = Bf != 0 && Bg != 0 && Area != 0;
 
