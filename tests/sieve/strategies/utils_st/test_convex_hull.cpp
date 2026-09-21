@@ -89,6 +89,14 @@ int main(int argc, char const * argv[])
     ASSERT_ALWAYS(x0 < x1);
     gmp_randseed_ui(state, seed);
 
+    /* an empty set has an empty convex hull. gst used to reach this with
+     * an input file that mentions no method of some family, and the code
+     * indexed the first point before noticing. */
+    if (!convex_hull(tabular_point()).empty()) {
+        fmt::print(stderr, "Error: convex hull of the empty set\n");
+        exit(EXIT_FAILURE);
+    }
+
     /* a reference convex hull */
     tabular_point H;
     for(unsigned int i = 0 ; i < N ; i++) {
