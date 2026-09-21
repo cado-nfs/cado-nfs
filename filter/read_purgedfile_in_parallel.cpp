@@ -214,14 +214,24 @@ static void read_local_rows(vector_of_typerow_pointer_ptr V, FILE * fi, off_t by
             /* see "BAD IDEAS FOR PARSING LOOP" below for things that
              * I tried and didn't play out well.  */
             char * p = line;
-            char * z = p + strlen(line);
+            size_t const len = strlen(line);
             /* otherwise 4096 is not enough ! */
-            ASSERT_ALWAYS((size_t) (z - p) < (sizeof(line) - 1));
-            /* we want to point to the EOL delimiter */
-            z--;
+            ASSERT_ALWAYS(len < (sizeof(line) - 1));
+            /* Where the interesting part of the line stops: at the EOL
+             * delimiter, or at the end of the string if the last line of
+             * the file happens not to be terminated. (A line that is too
+             * long for our buffer would look the same, but the assertion
+             * above has ruled that out.) */
+            char * z = line + len;
+            if (len > 0 && z[-1] == '\n')
+                z--;
 
             for( ; *p && *p != ':' ; p++);
-            for( ; p++ != z ; ) {
+            /* note the comparison: p may well jump _over_ z, e.g. if
+             * there is no colon at all in the line. We must not run past
+             * the end of the buffer in that case. */
+            for( ; p < z ; ) {
+                p++;
                 index_t x;
                 p = hacked_strtoul16(&x, p);
                 if (x < skip)
@@ -340,11 +350,20 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
         DIE_ERRNO_DIAG(rc < 0, "fseek(%s)", filename);
 
         /* Except when we're at the beginning of the stream, read until
-         * we get a newline */
-        for (; i > 0 && fgetc(fi) != '\n';);
+         * we get a newline. Note that we must stop at end of file too. A
+         * file whose last line is not terminated would otherwise have us
+         * spin forever, since fgetc() keeps returning EOF. */
+        if (i > 0) {
+            for(int c ; (c = fgetc(fi)) != '\n' && c != EOF ; );
+        }
         spos_tab[i] = ftell(fi);
 
 #pragma omp barrier
+
+        /* Cut positions are only ever moved forwards, and they start out
+         * sorted, so this holds. read_local_rows() would read the same
+         * rows twice, or skip some, if it did not. */
+        ASSERT_ALWAYS(spos_tab[i] <= spos_tab[i + 1]);
 
         off_t bytes_to_read = spos_tab[i + 1] - spos_tab[i];
         vector_of_typerow_pointer V;

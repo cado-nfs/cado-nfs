@@ -478,12 +478,19 @@ requires requires { m.from_ab(cxx_mpz(), cxx_mpz()); }
             const int rc = fseek(fi, spos_tab[i], SEEK_SET);
             ASSERT_ALWAYS(rc == 0);
             if (i > 0) {
-                /* Except when we're at the end of the stream, read until
-                 * we get a newline */
-                for( ; fgetc(fi) != '\n' ; ) ;
+                /* Except when we're at the beginning of the stream, read
+                 * until we get a newline. Note that we must stop at end
+                 * of file too: a file whose last line is not terminated
+                 * would otherwise have us spin forever, since fgetc()
+                 * keeps returning EOF. */
+                for(int c ; (c = fgetc(fi)) != '\n' && c != EOF ; ) ;
             }
             spos_tab[i] = ftell(fi);
 #pragma omp barrier
+            /* Cut positions are only ever moved forwards, and they start
+             * out sorted, so this holds. We would read the same (a,b)
+             * pairs twice, or skip some, if it did not. */
+            ASSERT_ALWAYS(spos_tab[i] <= spos_tab[i + 1]);
             std::vector<typename M::T> loc_prd;
             unsigned long loc_nab = 0;
             unsigned long loc_nfree = 0;
