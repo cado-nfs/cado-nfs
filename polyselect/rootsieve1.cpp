@@ -250,6 +250,9 @@ struct rootsieve {
   void insert_congruence (std::vector<congruence> & c, double alpha, long v,
                           long w, long vmin, long vmax, long modulus) const;
   std::vector<congruence> best_congruences (long vmin, long vmax, long u);
+  std::vector<sieve_data> prepare_sieve (cxx_cado_poly const & cpoly,
+                                         long wmin) const;
+  double murphyE_at (cxx_cado_poly & cpoly, long w, double & lognorm) const;
   void rotate_v (long v, long u, long modw);
   void rotate (long u);
   void print_transformation (cxx_cado_poly const & cpoly);
@@ -396,19 +399,116 @@ rootsieve::best_congruences (long vmin, long vmax, long u)
   return c;
 }
 
+/* Compute the contribution of each prime power to alpha, for the
+   polynomial cpoly. An entry (q, s, nu) means that nu is to be added to
+   every cell of index s, s+q, s+2q, ... of a sieve array that starts at
+   w = wmin. */
+std::vector<sieve_data>
+rootsieve::prepare_sieve (cxx_cado_poly const & cpoly, long wmin) const
+{
+    cxx_mpz ump;
+    std::vector<unsigned long> roots (B);
+    std::vector<float> L (B);
+
+    /* the sieve holds at most one entry per residue class modulo the
+       largest power of each prime */
+    unsigned long sum_of_prime_powers = 0;
+    for (long q : prime_powers)
+        sum_of_prime_powers += q;
+
+    std::vector<sieve_data> sieve_d;
+    sieve_d.reserve (sum_of_prime_powers);
+
+    for (size_t l = 0; l < primes.size (); l++)
+    {
+        long const p = primes[l];
+        long const qmax = prime_powers[l];
+        double const logp = log ((double) p);
+
+        std::fill (L.begin (), L.end (), 0);
+        for (long q = p; q <= qmax; q *= p)
+        {
+            /* the contribution is log(p)/p^(k-1)/(p+1) when the exponent k
+               is not the largest one, and log(p)/p^(k-1)/(p+1)*p/(p-1) for
+               the largest exponent k */
+            double nu = logp / (double) q * (double) p / (double) (p + 1);
+#ifndef ORIGINAL
+            if (q == qmax)
+                nu *= (double) p / (double) (p - 1);
+#endif
+            for (long x = 0; x < q; x++)
+            {
+                /* compute f(x) and g(x) mod p^k, where q = p^k */
+                mpz_poly_eval_ui (ump, cpoly[ALG_SIDE], x);
+                unsigned long const fx = mpz_fdiv_ui (ump, q);
+                mpz_poly_eval_ui (ump, cpoly[RAT_SIDE], x);
+                unsigned long const gx = mpz_fdiv_ui (ump, q);
+                /* search roots w of fx + w*gx = 0 mod q */
+                unsigned long const nroots = get_roots (roots.data (), fx, gx, q);
+                for (unsigned long i = 0; i < nroots; i++)
+                {
+                    long const w = roots[i];
+                    /* update for w+t*q */
+                    for (long t = 0; t < qmax / q; t++)
+                        L[w + t * q] += nu;
+                }
+            }
+        }
+
+        /* prepare data for the sieve */
+        for (long w = 0; w < qmax; w++)
+        {
+            double const nu = L[w];
+            if (nu == 0.0)
+                continue;
+            /* compute s = w+t*qmax-wmin such that s - qmax < 0 <= s, i.e.,
+               (t-1)*qmax < wmin-w <= t*qmax: t = ceil((wmin-w)/qmax) */
+            long t;
+            if (wmin - w < 0)
+                t = (wmin - w) / qmax;
+            else
+                t = (wmin - w + qmax - 1) / qmax;
+            long const s = w + t * qmax - wmin;
+            sieve_d.push_back ({ (uint16_t) qmax, (uint16_t) s, (float) nu });
+        }
+    }
+
+    ASSERT_ALWAYS(sieve_d.size () <= sum_of_prime_powers);
+
+    return sieve_d;
+}
+
+/* Rotate cpoly by w -- the local value, the global rotation being
+   mod*w+modw -- and return the Murphy-E value of the result, with its
+   lognorm in *lognorm. cpoly comes back as it was. */
+double
+rootsieve::murphyE_at (cxx_cado_poly & cpoly, long w, double & lognorm) const
+{
+  rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, w, 0);
+  double const skew = cpoly.skew; /* save skewness */
+  cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
+  lognorm = L2_lognorm (cpoly[ALG_SIDE], cpoly.skew);
+  /* to compute E, we need to divide g by mod */
+  mpz_poly_divexact_ui (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
+  double const E = MurphyE (cpoly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
+  /* restore g, the skewness, and the polynomial we were given */
+  mpz_poly_mul_si (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
+  cpoly.skew = skew;
+  rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], w, 0, 0);
+  return E;
+}
+
 /* rotation for a fixed value of v */
 void
 rootsieve::rotate_v (long v, long u, long modw)
 {
-  long w, wmin, wmax;
-  cxx_cado_poly cpoly;
-  size_t l;
+  long wmin, wmax;
   cxx_mpz wminz, wmaxz;
   double tot_pols_local = 0;
   double tot_alpha_local = 0;
 
   /* first make a local copy of the original polynomial */
-  cpoly = poly;
+  cxx_cado_poly cpoly = poly;
 
   /* compute f + (v*x)*g */
   rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, v, 1);
@@ -449,16 +549,10 @@ rootsieve::rotate_v (long v, long u, long modw)
           mpz_cdiv_q_ui (wmaxz, wmaxz, mod);
       }
 
-      /* compute the expected value sum(log(p)/(p-1), p < B) and the
-         sum of largest prime powers sum(p^floor(log(B-1)/log(p)), p < B) */
+      /* compute the expected value sum(log(p)/(p-1), p < B) */
       double expected = 0.0;
-      unsigned long sum_of_prime_powers = 0;
-      for (l = 0; l < primes.size (); l++)
-      {
-          long p = primes[l];
+      for (long p : primes)
           expected += log ((double) p) / (double) (p - 1);
-          sum_of_prime_powers += prime_powers[l];
-      }
 
       ASSERT_ALWAYS (mpz_fits_slong_p (wmaxz));
       ASSERT_ALWAYS (mpz_fits_slong_p (wminz));
@@ -466,67 +560,9 @@ rootsieve::rotate_v (long v, long u, long modw)
       wmax = mpz_get_si (wmaxz);
       wmin = mpz_get_si (wminz);
 
-      cxx_mpz ump;
-      std::vector<unsigned long> roots (B);
-      double nu;
-      std::vector<float> L (B);
-
-      std::vector<sieve_data> sieve_d;
-      sieve_d.reserve (sum_of_prime_powers);
-      for (l = 0; l < primes.size (); l++)
-      {
-          long p = primes[l], s, t, q;
-          double logp = log ((double) p);
-          std::fill (L.begin (), L.end (), 0);
-          for (q = p; q <= prime_powers[l]; q *= p)
-          {
-              /* the contribution is log(p)/p^(k-1)/(p+1) when the exponent k
-                 is not the largest one, and log(p)/p^(k-1)/(p+1)*p/(p-1) for the
-                 largest exponent k */
-              nu = logp / (double) q * (double) p / (double) (p + 1);
-#ifndef ORIGINAL
-              if (q == prime_powers[l])
-                  nu *= (double) p / (double) (p - 1);
-#endif
-              for (long x = 0; x < q; x++)
-              {
-                  /* compute f(x) and g(x) mod p^k, where q = p^k */
-                  unsigned long fx, gx;
-                  mpz_poly_eval_ui (ump, cpoly[ALG_SIDE], x);
-                  fx = mpz_fdiv_ui (ump, q);
-                  mpz_poly_eval_ui (ump, cpoly[RAT_SIDE], x);
-                  gx = mpz_fdiv_ui (ump, q);
-                  /* search roots w of fx + w*gx = 0 mod q */
-                  unsigned long nroots = get_roots (roots.data (), fx, gx, q);
-                  for (unsigned long i = 0; i < nroots; i++)
-                  {
-                      long w = roots[i];
-                      /* update for w+t*q */
-                      for (t = 0; t < prime_powers[l] / q; t++)
-                          L[w + t * q] += nu;
-                  }
-              }
-          }
-
-          /* prepare data for the sieve */
-          q = prime_powers[l];
-          for (w = 0; w < q; w++)
-          {
-              nu = L[w];
-              if (nu == 0.0)
-                  continue;
-              /* compute s = w+t*q-wmin such that s - q < 0 <= s, i.e.,
-                 (t-1)*q < wmin-w <= t*q: t = ceil((wmin-w)/q) */
-              if (wmin - w < 0)
-                  t = (wmin - w) / q;
-              else
-                  t = (wmin - w + q - 1) / q;
-              s = w + t * q - wmin;
-              sieve_d.push_back ({ (uint16_t) q, (uint16_t) s, (float) nu });
-          }
-      }
-
-      ASSERT_ALWAYS(sieve_d.size () <= sum_of_prime_powers);
+      /* the sieve carries its offsets from one chunk to the next, so
+         this is modified as we go */
+      std::vector<sieve_data> sieve_d = prepare_sieve (cpoly, wmin);
 
       std::vector<float> A (LEN);
 
@@ -574,41 +610,21 @@ rootsieve::rotate_v (long v, long u, long modw)
               /* print alpha and E of original polynomial */
               if (u == -u0 && v == -v0 && mod * (wcur + j) + modw == -w0)
               {
-                  w = wcur + j; /* local value of w, the global one is mod * w + modw */
-                  rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, w, 0);
-                  double skew = cpoly.skew; /* save skewness */
-                  cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
-                  double lognorm = L2_lognorm (cpoly[ALG_SIDE], cpoly.skew);
-                  /* to compute E, we need to divide g by mod */
-                  mpz_poly_divexact_ui (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
-                  double E = MurphyE (cpoly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
-                  /* restore g */
-                  mpz_poly_mul_si (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
+                  /* local value of w, the global one is mod * w + modw */
+                  long const w = wcur + j;
+                  double lognorm;
+                  double const E = murphyE_at (cpoly, w, lognorm);
                   /* this can only occur for one thread, thus no need to put
 #pragma omp critical */
                   printf ("u=%ld v=%ld w=%ld lognorm=%.2f est_alpha_aff=%.2f E=%.2e [original]\n",
                           u, v, mod * w + modw, lognorm, (double) A[j], E);
                   fflush (stdout);
-                  /* restore the original polynomial (w=0) and skewness */
-                  cpoly.skew = skew;
-                  rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], w, 0, 0);
               }
               if (A[j] < best_alpha + guard_alpha)
               {
-                  w = wcur + j;
-                  /* compute E */
-                  rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, w, 0);
-                  double skew = cpoly.skew; /* save skewness */
-                  cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
-                  double lognorm = L2_lognorm (cpoly[ALG_SIDE], cpoly.skew);
-                  /* to compute E, we need to divide g by mod */
-                  mpz_poly_divexact_ui (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
-                  double E = MurphyE (cpoly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
-                  /* restore g */
-                  mpz_poly_mul_si (cpoly[RAT_SIDE], cpoly[RAT_SIDE], mod);
-                  /* restore the original polynomial (w=0) and skewness */
-                  cpoly.skew = skew;
-                  rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], w, 0, 0);
+                  long const w = wcur + j;
+                  double lognorm;
+                  double const E = murphyE_at (cpoly, w, lognorm);
 
                   if (optimizeE == 0 || (optimizeE == 1 && E > best_E))
 #pragma omp critical
