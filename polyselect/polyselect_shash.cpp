@@ -15,6 +15,7 @@
 #include "polyselect_thread.hpp"
 #include "misc.h"
 #include "macros.h"
+#include "utils_cxx.hpp"
 
 /*
  * This is an implementation of a quick hash table with integer entries
@@ -130,8 +131,7 @@ polyselect_shash_init_multi (polyselect_shash_t * H, unsigned int init_size, uns
     H[0]->pmem = (uint32_t*) malloc (H[0]->alloc * sizeof (uint32_t));
     if (!H[0]->mem || !H[0]->pmem)
     {
-        fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-        exit (1);
+        throw cado::error("Error, cannot allocate memory in {}", __func__);
     }
 
     polyselect_shash_reset_multi(H, multi);

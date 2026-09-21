@@ -18,6 +18,7 @@
 #include "verbose.hpp"
 
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 /*
  * Compute g(x) = f(a*x+b), with deg f = d, and a and b are longs.
@@ -132,8 +133,7 @@ lift_root_unramified(mpz_t *f, int d, unsigned long r,
         mp_poly_eval(aux, f, d, mp_r);
         mp_poly_eval_diff(aux2, f, d, mp_r);
         if (!mpz_invert(aux2, aux2, mp_p)) {
-            fprintf(stderr, "Error in lift_root_unramified: multiple root mod %lu\n", p);
-            exit(EXIT_FAILURE);
+            throw cado::error("Error in lift_root_unramified: multiple root mod {}", p);
         }
         mpz_mul(aux, aux, aux2);
         mpz_sub(aux, mp_r, aux);
@@ -470,8 +470,15 @@ static void declare_usage(cxx_param_list & pl)
     verbose_decl_usage(pl);
 }
 
+static int main_ (int argc, char const *argv[]);
+
 int
 main (int argc, char const *argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_ (int argc, char const *argv[])
 {
   cxx_param_list pl;
   cxx_cado_poly cpoly;
@@ -500,8 +507,7 @@ main (int argc, char const *argv[])
   if (outfilename != NULL) {
     outputfile = fopen_maybe_compressed(outfilename, "w");
     if (!outputfile) {
-        fprintf(stderr, "Error: could not open output file: %s\n", outfilename);
-        exit(EXIT_FAILURE);
+        throw cado::error("Error: could not open output file: {}", outfilename);
     }
   } else {
     outputfile = stdout;
@@ -518,9 +524,7 @@ main (int argc, char const *argv[])
 
   pl.parse("side", side);
   if (side >= (int)cpoly.nsides()){
-      fprintf(stderr, "Error: side must be in [0..%d[\n", cpoly.nsides());
-      pl.print_usage(stderr);
-      exit(EXIT_FAILURE);
+      pl.fail("Error: side must be in [0..{}[", cpoly.nsides());
   }
 
   // No side is given: choose the unique algebraic side.
@@ -530,18 +534,14 @@ main (int argc, char const *argv[])
               if (side == -1) {
                   side = i;
               } else {
-                  fprintf(stderr, "Error: there are more than one algebraic side;"
-                          " parameter -side is therefore mandatory\n");
-                  pl.print_usage(stderr);
-                  exit(EXIT_FAILURE);
+                  pl.fail("Error: there are more than one algebraic side;"
+                          " parameter -side is therefore mandatory");
               }
           }
       }
       if (side == -1) {
-          fprintf(stderr, "Error: there are no algebraic side;"
-                  " parameter -side is therefore mandatory\n");
-          pl.print_usage(stderr);
-          exit(EXIT_FAILURE);
+          pl.fail("Error: there are no algebraic side;"
+                  " parameter -side is therefore mandatory");
       }
   }
 

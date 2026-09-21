@@ -279,7 +279,10 @@ step_coverage_report() {
         -o "$work"
         --branch
         --ignore-not-existing
-        --excl-line 'ASSERT_ALWAYS'
+        # Lines that only report a fatal error and leave. They are a
+        # fifth of everything the report shows as uncovered, and no test
+        # is ever going to reach them.
+        --excl-line '(ASSERT_ALWAYS|\bthrow\b|\.fail\(|exit\s*\(\s*EXIT_FAILURE|abort\s*\(\s*\))'
         --ignore '/usr/*'
         --ignore "$bt_rel/*"
     )

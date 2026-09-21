@@ -46,6 +46,7 @@
 #include "verbose.hpp"
 #include "fstream_maybe_compressed.hpp"
 #include "cxx_mpz.hpp"
+#include "cado_main.hpp"
 
 /* {{{ set_of_files
  *
@@ -286,8 +287,15 @@ struct dup1_process {
 
 };
 
+static int main_ (int argc, char const * argv[]);
+
 int
 main (int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_ (int argc, char const * argv[])
 {
     cxx_param_list pl;
 

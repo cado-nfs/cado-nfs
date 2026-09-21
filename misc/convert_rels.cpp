@@ -51,6 +51,10 @@ command line is faster than the current code:
 #include "renumber.hpp"
 #include "timing.h"
 #include "typedefs.h"
+#include "cado_main.hpp"
+#include "verbose.hpp"
+#include "params.hpp"
+#include "utils_cxx.hpp"
 
 #define MAX_PRIMES 255 /* maximal number of factor base primes */
 #define MAX_LPRIMES 3  /* maximal number of large primes */
@@ -181,8 +185,7 @@ static int get_format_lines(int iformat) {
     case FORMAT_FK:
         return 3;
     default:
-        fprintf(stderr, "Unknown format!\n");
-        exit(1);
+        throw cado::error("Unknown format!");
     }
 }
 
@@ -581,8 +584,7 @@ read_relation_cado (FILE *fp, relation  *rel, relation_data * data MAYBE_UNUSED)
 
   if (c != ':')
     {
-      fprintf (stderr, "Error, invalid relation (expected \":\"): ");
-      exit(1);
+      throw cado::error("Error, invalid relation (expected \":\"): ");
     }
 
   rel->afb_entries = 0; /* number of algebraic primes */
@@ -599,8 +601,7 @@ read_relation_cado (FILE *fp, relation  *rel, relation_data * data MAYBE_UNUSED)
     
   if (c != '\n')
     {
-      fprintf (stderr, "Error, invalid relation (expected newline): ");
-      exit(1);
+      throw cado::error("Error, invalid relation (expected newline): ");
     }
 
   rel->sp_entries = 0;
@@ -624,8 +625,7 @@ fk_read_line (const char * lp, const int maxlen, FILE *fp, const char *file)
     i = strlen (lp); /* fgets() always puts a '\0' so this is safe */
     if (i == maxlen - 1 && lp[i] != '\n')
       {
-	fprintf (stderr, "Error, input line too long\n");
-	exit(1);
+	throw cado::error("Error, input line too long");
       }
     skip = 0;
     if (i == 0 || lp[i - 1] != '\n')
@@ -656,8 +656,7 @@ fk_read_primes (char **lp, unsigned long *exponent, unsigned long *primes)
       p = strtoul (*lp, &nlp, 16);
       if (nlp == *lp)
 	{
-	  fprintf (stderr, "Error, could not parse prime\n");
-	  exit (1);
+	  throw cado::error("Error, could not parse prime");
 	}
       *lp = nlp;
       
@@ -683,8 +682,7 @@ read_relation_fk (FILE *fp, relation  *rel, relation_data * data)
 
   if (line[0] != 'W' || line[1] != ' ')
     {
-      fprintf (stderr, "Error, no W line at start of relation\n");
-      exit (1);
+      throw cado::error("Error, no W line at start of relation");
     }
   lp = line + 2;
 
@@ -693,20 +691,17 @@ read_relation_fk (FILE *fp, relation  *rel, relation_data * data)
   rel->b = strtoul (lp, &lp, 16);
   if (lp[0] != '\n')
     {
-      fprintf (stderr, "Error, could not read a and/or b value\n");
-      exit (1);
+      throw cado::error("Error, could not read a and/or b value");
     }
   
   /* Read the "X" line, which has the algebraic primes */
   if (fk_read_line (line, 512, fp, file) != 1)
     {
-      fprintf (stderr, "Error, incomplete relation at end of file\n");
-      exit (1);
+      throw cado::error("Error, incomplete relation at end of file");
     }
   if (line[0] != 'X' || (line[1] != ' ' && line[1] != '\n'))
     {
-      fprintf (stderr, "Error, no X line after W line\n");
-      exit (1);
+      throw cado::error("Error, no X line after W line");
     }
   lp = line + (line[1] == ' ' ? 2 : 1);
 
@@ -716,13 +711,11 @@ read_relation_fk (FILE *fp, relation  *rel, relation_data * data)
   /* Read the "Y" line, which has the rational primes */
   if (fk_read_line (line, 512, fp, file) != 1)
     {
-      fprintf (stderr, "Error, incomplete relations at end of file\n");
-      exit (1);
+      throw cado::error("Error, incomplete relations at end of file");
     }
   if (line[0] != 'Y' || (line[1] != ' ' && line[1] != '\n'))
     {
-      fprintf (stderr, "Error, no Y line after X line\n");
-      exit (1);
+      throw cado::error("Error, no Y line after X line");
     }
   lp = line + (line[1] == ' ' ? 2 : 1);
 
@@ -764,8 +757,7 @@ read_relation_cwi (FILE *fp, relation  *rel, relation_data * data)
   /* check flag=01xy */
   if (flag[0] != '0' || flag[1] != '1')
     {
-      fprintf (stderr, "Error, flag differs from 01xy: %.4s\n", flag);
-      exit (1);
+      throw cado::error("Error, flag differs from 01xy: {:.4}", flag);
     }
 
   for (side = 0; side < 2; side++)
@@ -785,8 +777,7 @@ read_relation_cwi (FILE *fp, relation  *rel, relation_data * data)
         {
           if (fscanf (fp, " %ld", &p) != 1)
             {
-              fprintf (stderr, "Error, can't read next %s prime\n", side_name);
-              exit (1);
+              throw cado::error("Error, can't read next {} prime", side_name);
             }
           add_prime (primes, exps, fb_entries, p);
         }
@@ -799,9 +790,8 @@ read_relation_cwi (FILE *fp, relation  *rel, relation_data * data)
   ret = fscanf (fp, "%c\n", &c);
   if (ret != 1 || (c != ';' && c != ':'))
     {
-      fprintf (stderr, "Error, invalid relation for a=%" PRId64 
-                       " b=%" PRIu64 "\n", rel->a, rel->b);
-      exit (1);
+      throw cado::error("Error, invalid relation for a={} b={}",
+              rel->a, rel->b);
     }
 
   rel->end_of_set = (c == ';');
@@ -1042,16 +1032,14 @@ read_relation_renumbered (FILE *fp, relation  *rel, relation_data * data)
             add_prime (rel->aprimes, rel->aexp, &rel->afb_entries, x.p);
         }
         else {
-            fprintf (stderr, "Got unexpected side: %d", x.side);
-            exit(1);
+            throw cado::error("Got unexpected side: {}", x.side);
         }
     }
   } while ((c = getc (fp)) == ',');
 
   if (c != '\n')
   {
-      fprintf (stderr, "Error, invalid relation (expected newline)\n");
-      exit(1);
+      throw cado::error("Error, invalid relation (expected newline)");
   }
 
   if (rel->b == 0 && skip_freerel_primes) {
@@ -1174,8 +1162,7 @@ read_fb (FILE *fp, int32_t **rfb, int32_t *rfb_size, int32_t **afb,
   ASSERT (retscanf == 1);
   if (degf > DEGF_MAX)
     {
-      fprintf (stderr, "Error, too large degree\n");
-      exit (1);
+      throw cado::error("Error, too large degree");
     }
   if (verbose)
     fprintf (stderr, "%cc%d: ", c, degf);
@@ -1188,8 +1175,7 @@ read_fb (FILE *fp, int32_t **rfb, int32_t *rfb_size, int32_t **afb,
       retscanf = fscanf (fp, "c%d: ", &c);
       if (c != i)
 	{
-	  fprintf (stderr, "Error, missing coefficient of degree %d\n", i);
-	  exit (1);
+	  throw cado::error("Error, missing coefficient of degree {}", i);
 	}
       if (verbose)
 	fprintf (stderr, "\nc%d: ", i);
@@ -1201,8 +1187,7 @@ read_fb (FILE *fp, int32_t **rfb, int32_t *rfb_size, int32_t **afb,
   c = getc (fp);
   if (c != BF_DELIMITER)
     {
-      fprintf (stderr, "Error, delimited expected\n");
-      exit (1);
+      throw cado::error("Error, delimited expected");
     }
   if (verbose)
     putc ('\n', stderr);
@@ -1220,8 +1205,7 @@ read_fb (FILE *fp, int32_t **rfb, int32_t *rfb_size, int32_t **afb,
   c = getc (fp);
   if (c != BF_DELIMITER)
     {
-      fprintf (stderr, "Error, delimited expected\n");
-      exit (1);
+      throw cado::error("Error, delimited expected");
     }
   if (verbose)
     fprintf (stderr, "\nRFBsize=%ld AFBsize=%ld\n", RFBsize, AFBsize);
@@ -1243,27 +1227,42 @@ read_fb (FILE *fp, int32_t **rfb, int32_t *rfb_size, int32_t **afb,
 }
 
 static void
-usage (const char *s)
+declare_usage (cxx_param_list & pl)
 {
-  fprintf (stderr, "Usage: %s [options] f0 f1 ...\n", s);
-  fprintf (stderr, "       where f0 f1 ... are input files with relations\n");
-  fprintf (stderr, "Options:\n");
-  fprintf (stderr, "       -v       - verbose\n");
-  fprintf (stderr, "       -if xxx  - specifies input format (default ggnfs)\n");
-  fprintf (stderr, "       -of yyy  - specifies output format (default cado)\n");
-  fprintf (stderr, "                  where xxx, yyy are in {cado, fk, cwi, cwi2, ggnfs, renumbered}\n");
-  fprintf (stderr, "                  cwi has rational side first, cwi2 algebraic first\n");
-  fprintf (stderr, "       -fb file - factor base (needed for ggnfs input)\n");
-  fprintf (stderr, "       -deg d   - algebraic degree (for fk output)\n");
-  fprintf (stderr, "       -lpb l   - discard relations with primes >= 2^l\n");
-  fprintf (stderr, "       -nomulti - print repeated primes only once\n");
-  fprintf (stderr, "       -skip-freerel-primes - do not print primes for free relations (for msieve)\n");
+  pl.declare_usage_header("Usage: convert_rels [options] f0 f1 ...\n"
+                  "       where f0 f1 ... are input files with relations\n");
+  pl.declare_usage("v", "(switch) verbose");
+  pl.declare_usage("if", "input format, one of cado, fk, cwi, cwi2, ggnfs,"
+                         " renumbered (default ggnfs); cwi has rational side"
+                         " first, cwi2 algebraic first");
+  pl.declare_usage("of", "output format, one of cado, fk, cwi, cwi2, ggnfs"
+                         " (default cado)");
+  pl.declare_usage("fb", "factor base (needed for ggnfs input)");
+  pl.declare_usage("deg", "algebraic degree (for fk output)");
+  pl.declare_usage("lpb", "discard relations with primes >= 2^lpb");
+  pl.declare_usage("nomulti", "(switch) print repeated primes only once");
+  pl.declare_usage("skip-freerel-primes",
+                   "(switch) do not print primes for free relations (for msieve)");
+  pl.declare_usage("poly", "the polynomial file (for -if renumbered)");
+  pl.declare_usage("renumber", "the renumber file (for -if renumbered)");
+  pl.declare_usage("out", "output file (default stdout)");
+  pl.declare_usage("t", "number of threads to run");
+  verbose_decl_usage(pl);
+}
 
-  fprintf (stderr, "       -poly file - the polynomial file (for -if renumbered)\n");
-  fprintf (stderr, "       -renumber file - the renumber file (for -if renumbered)\n");
-  fprintf (stderr, "       -out file - output file (or stdout)\n");
-  fprintf (stderr, "       -t NUM - Number of threads to run\n");
-
+/* map a format name to the corresponding enum value. alg_first is set
+ * when the name asks for the algebraic side to come first. */
+static int
+parse_format (cxx_param_list & pl, std::string const & name, int & alg_first)
+{
+  alg_first = 0;
+  if (name == "cado") return FORMAT_CADO;
+  if (name == "fk") return FORMAT_FK;
+  if (name == "ggnfs") return FORMAT_GGNFS;
+  if (name == "cwi") return FORMAT_CWI;
+  if (name == "cwi2") { alg_first = 1; return FORMAT_CWI; }
+  if (name == "renumbered") return FORMAT_INDEXED;
+  pl.fail("Unknown format: {}", name);
 }
 
 static void* read_rels(void* _args) {
@@ -1281,8 +1280,7 @@ static void* read_rels(void* _args) {
     for (i = 0; fgets(line, sizeof(line) / sizeof(line[0]), fp) != NULL; i++) {
         len = strlen(line);
         if (write(workers[i % num_workers].fd[0], line, len) != len) {
-            perror("write");
-            exit(1);
+            throw cado::error("write: {}", strerror(errno));
         }
     }
 
@@ -1450,7 +1448,14 @@ static void* write_rels(void* _args) {
     return NULL;
 }
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
   FILE *fp;
   int32_t *rfb = NULL, *afb = NULL;
@@ -1460,7 +1465,6 @@ int main(int argc, char const * argv[])
   int oformat = FORMAT_CADO; /* default output format */
   mpz_t f[DEGF_MAX + 1];
   int num_files = 0;
-  const char * program_name = argv[0];
   int lpb = 0; /* 0 means no bound */
   int multi = 1, in_alg_first = 0, out_alg_first = 0;
 
@@ -1482,133 +1486,58 @@ int main(int argc, char const * argv[])
 
   FILE* out_fp = stdout;
 
-  while (argc > 1 && argv[1][0] == '-')
-    {
-      if (argc > 2 && strcmp (argv[1], "-if") == 0)
-	{
-          if (strcmp (argv[2], "cado") == 0)
-            iformat = FORMAT_CADO;
-          else if (strcmp (argv[2], "fk") == 0)
-            iformat = FORMAT_FK;
-          else if (strcmp (argv[2], "ggnfs") == 0)
-            iformat = FORMAT_GGNFS;
-          else if (strcmp (argv[2], "cwi") == 0)
-            iformat = FORMAT_CWI;
-          else if (strcmp (argv[2], "cwi2") == 0)
-            {
-              iformat = FORMAT_CWI;
-              in_alg_first = 1;
-            }
-          else if (strcmp (argv[2], "renumbered") == 0)
-            iformat = FORMAT_INDEXED;
-          else
-            {
-              fprintf (stderr, "Unknown format: %s\n", argv[2]);
-              exit (1);
-            }
-	  argv += 2;
-	  argc -= 2;
-	}
-      else if (argc > 2 && strcmp (argv[1], "-of") == 0)
-	{
-          if (strcmp (argv[2], "cado") == 0)
-            oformat = FORMAT_CADO;
-          else if (strcmp (argv[2], "fk") == 0)
-            oformat = FORMAT_FK;
-          else if (strcmp (argv[2], "ggnfs") == 0)
-            oformat = FORMAT_GGNFS;
-          else if (strcmp (argv[2], "cwi") == 0)
-            oformat = FORMAT_CWI;
-          else if (strcmp (argv[2], "cwi2") == 0)
-            {
-              oformat = FORMAT_CWI;
-              out_alg_first = 1;
-            }
-          else
-            {
-              fprintf (stderr, "Unknown format: %s\n", argv[2]);
-              exit (1);
-            }
-	  argv += 2;
-	  argc -= 2;
-	}
-      else if (argc > 2 && strcmp (argv[1], "-deg") == 0)
-        {
-          degf = atoi (argv[2]);
-          argv += 2;
-          argc -= 2;
-        }
-      else if (strcmp (argv[1], "-v") == 0)
-	{
-	  verbose = 1;
-	  argv ++;
-	  argc --;
-	}
-      else if (argc > 2 && strcmp (argv[1], "-fb") == 0)
-    {
-      fbfile = argv[2];
-      argv += 2;
-      argc -= 2;
-    }
-      else if (argc > 2 && strcmp (argv[1], "-lpb") == 0)
-	{
-	  lpb = atoi (argv[2]);
-	  argv += 2;
-	  argc -= 2;
-	}
-      else if (strcmp (argv[1], "-nomulti") == 0)
-	{
-	  multi = 0;
-	  argv ++;
-	  argc --;
-	}
-      else if (argc > 2 && strcmp (argv[1], "-skip-freerel-primes") == 0)
-    {
-      skip_freerel_primes = 1;
-      argv ++;
-      argc --;
-    }
-      else if (argc > 2 && strcmp (argv[1], "-poly") == 0)
-    {
-      polyfile = argv[2];
-      argv += 2;
-      argc -= 2;
-    }
-      else if (argc > 2 && strcmp (argv[1], "-renumber") == 0)
-    {
-      renumberfile = argv[2];
-      argv += 2;
-      argc -= 2;
-    }
-      else if (argc > 2 && strcmp (argv[1], "-t") == 0)
-    {
-      num_threads = atoi (argv[2]);
-      if (num_threads <= 1) {
-          num_threads = 1;
+  cxx_param_list pl;
+  std::vector<std::string> relsfiles;
+
+  declare_usage(pl);
+  pl.configure_switch_old("-v", &verbose);
+  pl.configure_switch_old("-skip-freerel-primes", &skip_freerel_primes);
+  int nomulti = 0;
+  pl.configure_switch_old("-nomulti", &nomulti);
+
+  if (argc == 1)
+      pl.fail("Error, at least one input file is needed");
+
+  argv++, argc--;
+  for ( ; argc ; ) {
+      if (pl.update_cmdline(argc, argv)) continue;
+      relsfiles.emplace_back(argv[0]);
+      argc--, argv++;
+  }
+
+  {
+      std::string tmp;
+      if (pl.parse("if", tmp))
+          iformat = parse_format(pl, tmp, in_alg_first);
+      if (pl.parse("of", tmp)) {
+          oformat = parse_format(pl, tmp, out_alg_first);
+          if (oformat == FORMAT_INDEXED)
+              pl.fail("Unknown format: {}", tmp);
       }
-      argv += 2;
-      argc -= 2;
-    }
-      else if (argc > 2 && strcmp (argv[1], "-out") == 0)
-    {
-      outfile = argv[2];
-      argv += 2;
-      argc -= 2;
-    }
-      else
-	{
-	  fprintf (stderr, "Unknown option: %s\n", argv[1]);
-	  exit (1);
-	}
-    }
+  }
+  pl.parse("deg", degf);
+  pl.parse("lpb", lpb);
+  pl.parse("t", num_threads);
+  if (num_threads <= 1)
+      num_threads = 1;
+  /* -nomulti clears "multi", which starts at 1 */
+  if (nomulti)
+      multi = 0;
+  fbfile = pl.lookup_old("fb");
+  polyfile = pl.lookup_old("poly");
+  renumberfile = pl.lookup_old("renumber");
+  outfile = pl.lookup_old("out");
+
+  if (pl.warn_unused())
+      pl.fail("unexpected parameter(s) on the command line");
+  verbose_interpret_parameters(pl);
 
   /* for ggnfs input, we need the factor base,
      and for Franke-Kleinjung output, we need the algebraic degree */
-  if ((iformat == FORMAT_GGNFS && fbfile == NULL) || argc <= 1)
-    {
-      usage (program_name);
-      exit (1);
-    }
+  if (iformat == FORMAT_GGNFS && fbfile == NULL)
+      pl.fail("Error, -fb is mandatory with -if ggnfs");
+  if (relsfiles.empty())
+      pl.fail("Error, at least one input file is needed");
 
   if (outfile != NULL) {
       out_fp = fopen_maybe_compressed(outfile, "w");
@@ -1622,8 +1551,7 @@ int main(int argc, char const * argv[])
 
   if (oformat == FORMAT_GGNFS)
     {
-      fprintf (stderr, "Error, GGNFS output format not yet implemented\n");
-      exit (1);
+      throw cado::error("Error, GGNFS output format not yet implemented");
     }
 
   for (i = 0; i <= DEGF_MAX; i++)
@@ -1648,8 +1576,7 @@ int main(int argc, char const * argv[])
       fp = fopen (fbfile, "rb");
       if (fp == NULL)
         {
-          fprintf (stderr, "Error, unable to open factor base file %s\n", fbfile);
-          exit (1);
+          throw cado::error("Error, unable to open factor base file {}", fbfile);
         }
       degf = read_fb (fp, &rfb, &rfb_size, &afb, &afb_size, verbose, f);
       fclose (fp);
@@ -1657,18 +1584,15 @@ int main(int argc, char const * argv[])
 
   if (iformat == FORMAT_INDEXED) {
       if (renumberfile == NULL) {
-          fprintf(stderr, "Missing -renumber for -if renumbered!\n");
-          exit(1);
+          throw cado::error("Missing -renumber for -if renumbered!");
       }
       if (polyfile == NULL) {
-          fprintf(stderr, "Missing -poly for -if renumbered!\n");
-          exit(1);
+          throw cado::error("Missing -poly for -if renumbered!");
       }
 
       if (!cpoly.read(polyfile))
       {
-          fprintf (stderr, "Error reading polynomial file\n");
-          exit(1);
+          throw cado::error("Error reading polynomial file");
       }
 
       renumber_table = renumber_t(cpoly);
@@ -1692,8 +1616,7 @@ int main(int argc, char const * argv[])
       read_relation = read_relation_renumbered;
       break;
   default:
-      fprintf (stderr, "Error, unknown format %d\n", iformat);
-      exit (1);
+      throw cado::error("Error, unknown format {}", iformat);
   }
   switch (oformat)
   {
@@ -1707,8 +1630,7 @@ int main(int argc, char const * argv[])
      print_relation = print_relation_cwi;
      break;
    default:
-     fprintf (stderr, "Error, unknown format %d\n", oformat);
-     exit (1);
+     throw cado::error("Error, unknown format {}", oformat);
   }
 
 
@@ -1734,11 +1656,9 @@ int main(int argc, char const * argv[])
           .oformat = oformat
   };
 
-  while (argc > 1)
+  for (auto const & thisfile : relsfiles)
     {
-      relsfile = argv[1];
-      argv ++;
-      argc --;
+      relsfile = thisfile.c_str();
       /* if output format is Franke-Kleinjung, print degree if provided */
       if (oformat == FORMAT_FK && num_files == 0 && degf != 0)
           fprintf (out_fp, "F 0 X %d 1\n", degf);
@@ -1750,8 +1670,7 @@ int main(int argc, char const * argv[])
       fp = fopen_maybe_compressed (relsfile, "r");
       if (fp == NULL)
       {
-          fprintf (stderr, "Error, unable to open relation file %s\n", relsfile);
-          exit (1);
+          throw cado::error("Error, unable to open relation file {}", relsfile);
       }
 
       if (iformat == FORMAT_GGNFS)

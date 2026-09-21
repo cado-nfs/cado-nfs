@@ -33,6 +33,7 @@
 #include "params.hpp"
 #include "rootfinder.h"
 #include "verbose.hpp"
+#include "utils_cxx.hpp"
 
 void todo_list_base::configure_switches(cxx_param_list & pl)
 {
@@ -85,10 +86,9 @@ todo_list_base::todo_list_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     if (auto const * filename = pl.has("todo"); filename != nullptr) {
         todo_list_fd = std::make_unique<std::ifstream>(*filename);
         if (todo_list_fd->fail()) {
-            fmt::print(stderr, "{}: {}\n", *filename, strerror(errno));
             /* There's no point in proceeding, since it would really change
              * the behaviour of the program to do so */
-            exit(EXIT_FAILURE);
+            throw cado::error("{}: {}", *filename, strerror(errno));
         }
     }
 
@@ -251,15 +251,12 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     : todo_list_base(cpoly, pl)
 {
     if (allow_composite_q && galois) {
-        fprintf(stderr, "-galois and -allow-compsq are incompatible options "
-                        "at the moment\n");
-        exit(EXIT_FAILURE);
+        pl.fail("-galois and -allow-compsq are incompatible options at the moment");
     }
 
     if (nq_max != SIZE_MAX) {
         if (pl.has("rho")) {
-            fprintf(stderr, "Error: argument -nq is incompatible with -rho\n");
-            exit(EXIT_FAILURE);
+            pl.fail("Error: argument -nq is incompatible with -rho");
         }
         if (pl.has("q1"))
             verbose_fmt_print(0, 1, "# Warning: arguments nq and q1 will both "
@@ -272,8 +269,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
 
     if (mpz_cmp_ui(q0, 0) == 0) {
         if (!todo_list_fd) {
-            fprintf(stderr, "Error: Need either -todo or -q0\n");
-            exit(EXIT_FAILURE);
+            pl.fail("Error: Need either -todo or -q0");
         }
         return;
     }
@@ -290,13 +286,11 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
             cxx_mpz q0_cmdline = q0;
             auto fac_q = next_legitimate_specialq(q0, q0, 0);
             if (mpz_cmp(q0, q0_cmdline) != 0) {
-                fprintf(stderr, "Error: q0 is not a legitimate special-q\n");
-                exit(EXIT_FAILURE);
+                pl.fail("Error: q0 is not a legitimate special-q");
             }
             std::vector<cxx_mpz> roots = mpz_poly_roots(cpoly[sqside], q0, fac_q, rstate);
             if (std::ranges::find(roots, rho) == roots.end()) {
-                fprintf(stderr, "Error: rho is not a root modulo q0\n");
-                exit(EXIT_FAILURE);
+                pl.fail("Error: rho is not a root modulo q0");
             }
             push_unlocked(special_q(q0, rho, sqside));
             /* Set empty interval [q0 + 1, q0] as special-q interval */
@@ -314,8 +308,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
 
     if (random_sampling) {
         if (mpz_cmp_ui(q0, 0) == 0 || mpz_cmp_ui(q1, 0) == 0) {
-            fprintf(stderr, "Error: --random-sample requires -q0 and -q1\n");
-            exit(EXIT_FAILURE);
+            pl.fail("Error: --random-sample requires -q0 and -q1");
         }
         /* For random sampling, it's important that for all integers in
          * the range [q0, q1[, their nextprime() is within the range, and
@@ -344,11 +337,9 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
          * really.
          */
         if (mpz_cmp(q0, q1) > 0) {
-            fmt::print(stderr, 
-                    "Error: range [{},{}[ contains no prime with roots mod f\n",
+            throw cado::error("Error: range [{},{}[ contains no prime with roots mod f",
                     q0,
                     q1_orig);
-            exit(EXIT_FAILURE);
         }
     }
 }
@@ -473,8 +464,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             if (roots.empty()) {
                 spin++;
                 if (spin >= 1000) {
-                    fprintf(stderr, "Error: cannot find primes with roots in one of the sub-ranges for random sampling\n");
-                    exit(EXIT_FAILURE);
+                    throw cado::error("Error: cannot find primes with roots in one of the sub-ranges for random sampling");
                 }
                 continue;
             }
@@ -541,13 +531,11 @@ siqs_todo_list::siqs_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     pl.parse("qfac-max", qfac_max);
 
     if (qfac_min <= 2) {
-        fmt::print(stderr, "# Error, -qfac-min must be > 2\n");
-        exit(EXIT_FAILURE);
+        pl.fail("# Error, -qfac-min must be > 2");
     }
 
     if (!pl.parse("qfac-nfac", qfac_nfac)) {
-        fmt::print(stderr, "# Error, -qfac-nfac is mandatory\n");
-        exit(EXIT_FAILURE);
+        pl.fail("# Error, -qfac-nfac is mandatory");
     }
 
     /* It's not forbidden to miss -q0 */
@@ -556,8 +544,7 @@ siqs_todo_list::siqs_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
 
     if (mpz_cmp_si(qidx0, -1) == 0) {
         if (!todo_list_fd) {
-            fprintf(stderr, "Error: Need either -todo or -qidx0\n");
-            exit(EXIT_FAILURE);
+            pl.fail("Error: Need either -todo or -qidx0");
         }
         return;
     }
@@ -567,9 +554,8 @@ siqs_todo_list::siqs_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         cxx_mpz tmp;
         mpz_add_ui(tmp, qidx0, nq_max);
         if (tmp != qidx1) {
-            fmt::print(stderr, "Error: incompatible '-nq {}' / '-qidx1 {}' for "
-                               "qidx0={}\n", nq_max, qidx1, qidx0);
-            exit(EXIT_FAILURE);
+            pl.fail("Error: incompatible '-nq {}' / '-qidx1 {}' for qidx0={}",
+                    nq_max, qidx1, qidx0);
         }
     }
 
@@ -586,8 +572,7 @@ siqs_todo_list::siqs_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
 
     if (random_sampling) {
         if (mpz_cmp_si(qidx0, -1) == 0 || mpz_cmp_si(qidx1, -1) == 0) {
-            fprintf(stderr, "Error: --random-sample requires -qidx0 and -qidx1\n");
-            exit(EXIT_FAILURE);
+            pl.fail("Error: --random-sample requires -qidx0 and -qidx1");
         }
     }
 }

@@ -11,6 +11,7 @@
 #include "bw-common.hpp"
 #include "bwc_filenames.hpp"
 #include "params.hpp"
+#include "cado_main.hpp"
 
 
 /* Some utility classes and functions to compute the constant and leading terms
@@ -264,8 +265,15 @@ det_from_lingen_prog(unsigned int n, cxx_mpz const & p,
 }
 
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 
@@ -286,28 +294,22 @@ int main(int argc, char const * argv[])
     std::string ffile;
     pl.parse("ffile", ffile);
     if (ffile.empty()) {
-        fmt::print(stderr, "Error, -ffile must be a nonempty string\n");
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("Error, -ffile must be a nonempty string");
     }
 
     unsigned int charpoly_deg = UINT_MAX;
     pl.parse("charpoly-degree", charpoly_deg);
     if (charpoly_deg == UINT_MAX) {
-        fmt::print(stderr, "Error, -charpoly-degree must be specified\n");
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("Error, -charpoly-degree must be specified");
     }
     /* }}} */
 
     if (mpz_cmp_ui(bw->p, 2U) == 0) {
-        fmt::print(stderr, "Error, -p cannot be 2 in this binary\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("Error, -p cannot be 2 in this binary");
     }
 
     if (pl.warn_unused()) {
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("unexpected parameter(s) on the command line");
     }
 
     int ret = det_from_lingen_prog(bw->n, bw->p, ffile, charpoly_deg);

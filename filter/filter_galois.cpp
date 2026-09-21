@@ -32,6 +32,7 @@
 #include "typedefs.h"
 #include "verbose.hpp"
 #include "filelist.hpp"
+#include "cado_main.hpp"
 
 /* exactly the same as in dup2... */
 struct output_specification {
@@ -183,7 +184,7 @@ struct filter_galois_process {
         , largeab(pl)
     {
         if (!cpoly.read(polyfilename))
-            throw cado::error("cannot read {}", polyfilename());
+            pl.fail("cannot read {}", polyfilename());
     }
 
     void read() {
@@ -323,8 +324,15 @@ static void declare_usage(cxx_param_list & pl)
     verbose_decl_usage(pl);
 }
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

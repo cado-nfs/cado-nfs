@@ -19,6 +19,7 @@
 #include "macros.h"
 #include "params.hpp"
 #include "tab_decomp.hpp"
+#include "cado_main.hpp"
 #include "tab_fm.hpp"
 #include "tab_strategy.hpp"
 
@@ -367,9 +368,9 @@ static int gst(int argc, char const * argv[])
                 // Check parameters
 
                 if (lim0 == 0 || lpb0 == -1 || mfb0 == -1 || lim1 == 0 ||
-                    lpb1 == -1 || mfb1 == -1 || ncurves)
+                    lpb1 == -1 || mfb1 == -1 || ncurves == -1)
                     pl.fail("Error: parameters -lim0 -lpb0 -mfb0"
-                            " -lim1 -lpb1 -mfb1 are mandatories\n");
+                            " -lim1 -lpb1 -mfb1 -ncurves are mandatories\n");
                 /*
                   computes the matrix of strategies where for each couple
                   (r0, r1) we will optain the best strategies to find a
@@ -418,24 +419,14 @@ static int gst(int argc, char const * argv[])
     return EXIT_SUCCESS;
 }
 
-/* Bad parameters and bad input files are reported by an exception.
- * Catching it here is what makes the complaint land on stderr in a form
- * we control, rather than as whatever the C++ runtime prints before it
- * aborts -- which differs between libstdc++ and libc++, and can be
- * nothing at all.
+/* Bad parameters and bad input files are reported by an exception;
+ * cado::main_wrapper is what turns it into a message on stderr and a
+ * nonzero exit status, rather than whatever the C++ runtime prints
+ * before it aborts -- which differs between libstdc++ and libc++, and
+ * can be nothing at all.
  */
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    try {
-        return gst(argc, argv);
-    } catch (std::exception const & e) {
-        /* the messages we throw are already prefixed with "Error: ", and
-         * pl.fail() has printed the usage before throwing. */
-        std::string msg = e.what();
-        if (!msg.ends_with('\n'))
-            msg += '\n';
-        fmt::print(stderr, "{}", msg);
-        return EXIT_FAILURE;
-    }
+    return cado::main_wrapper(gst, argc, argv);
 }

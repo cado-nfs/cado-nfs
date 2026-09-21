@@ -44,6 +44,8 @@
 #include "tab_fm.hpp"
 #include "tab_strategy.hpp"
 #include "timing.h"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 // #include "facul_fwd.hpp"
 // #include "pm1.h"
 // #include "pp1.h"
@@ -225,8 +227,7 @@ generate_matrix_cado(char const * name_directory_decomp, tabular_fm_t * methods,
                 fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim0, r0);
             std::ifstream is(filename);
             if (!(is >> tab_decomp)) {
-                fmt::print(stderr, "Cannot read {}\n", filename);
-                exit(EXIT_FAILURE);
+                throw cado::error("Cannot read {}", filename);
             }
         }
         data_rat[r0] =
@@ -245,8 +246,7 @@ generate_matrix_cado(char const * name_directory_decomp, tabular_fm_t * methods,
                 fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim1, r1);
             std::ifstream is(filename);
             if (!(is >> tab_decomp)) {
-                fmt::print(stderr, "Cannot read {}\n", filename);
-                exit(EXIT_FAILURE);
+                throw cado::error("Cannot read {}", filename);
             }
         }
 
@@ -654,8 +654,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
                 fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim0, r0);
             std::ifstream is(filename);
             if (!(is >> tab_decomp)) {
-                fmt::print(stderr, "Cannot read {}\n", filename);
-                exit(EXIT_FAILURE);
+                throw cado::error("Cannot read {}", filename);
             }
         }
         data_rat[r0] =
@@ -675,8 +674,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
                 fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim1, r1);
             std::ifstream is(filename);
             if (!(is >> tab_decomp)) {
-                fmt::print(stderr, "Cannot read {}\n", filename);
-                exit(EXIT_FAILURE);
+                throw cado::error("Cannot read {}", filename);
             }
         }
 
@@ -693,8 +691,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
                                             name_directory_decomp, lim0, r0);
                 std::ifstream is(filename);
                 if (!(is >> tab_decomp_r0)) {
-                    fmt::print(stderr, "Cannot read {}\n", filename);
-                    exit(EXIT_FAILURE);
+                    throw cado::error("Cannot read {}", filename);
                 }
 
                 const std::array<tabular_decomp, 2> init_tab {tab_decomp_r0,
@@ -766,9 +763,7 @@ generate_matrix_ileav(const char * name_directory_decomp,
         file_in = fopen(name_file_in, "r");
         data_rat[r0] = tabular_strategy_fscan(file_in);
         if (data_rat[r0] == nullptr) {
-            fprintf(stderr, "Parser error: can't read the file '%s'\n",
-                    name_file_in);
-            exit(EXIT_FAILURE);
+            throw cado::error("Parser error: can't read the file '{}'", (char const *) name_file_in);
         }
         fclose(file_in);
     }
@@ -787,8 +782,7 @@ generate_matrix_ileav(const char * name_directory_decomp,
             std::ifstream is(filename);
 
             if (!(is >> tab_decomp)) {
-                fmt::print(stderr, "Cannot read {}\n", filename);
-                exit(EXIT_FAILURE);
+                throw cado::error("Cannot read {}", filename);
             }
         }
         char name_file_in[strlen(name_directory_str) + 64];
@@ -799,9 +793,7 @@ generate_matrix_ileav(const char * name_directory_decomp,
         file_in = fopen(name_file_in, "r");
         tabular_strategy_t * strat_r1 = tabular_strategy_fscan(file_in);
         if (strat_r1 == nullptr) {
-            fprintf(stderr, "Parser error: can't read the file '%s'\n",
-                    name_file_in);
-            exit(EXIT_FAILURE);
+            throw cado::error("Parser error: can't read the file '{}'", (char const *) name_file_in);
         }
         fclose(file_in);
 
@@ -816,8 +808,7 @@ generate_matrix_ileav(const char * name_directory_decomp,
                                             name_directory_decomp, lim0, r0);
                 std::ifstream is(filename);
                 if (!(is >> tab_decomp_r0)) {
-                    fmt::print(stderr, "Cannot read {}\n", filename);
-                    exit(EXIT_FAILURE);
+                    throw cado::error("Cannot read {}", filename);
                 }
 
                 const std::array<tabular_decomp, 2> init_tab {tab_decomp_r0,
@@ -1130,8 +1121,15 @@ static void declare_usage(cxx_param_list & pl)
 /*     MAIN                                                             */
 /************************************************************************/
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
     declare_usage(pl);
@@ -1220,8 +1218,7 @@ int main(int argc, char const * argv[])
     FILE * file_C = fopen(name_file_cofactor, "r");
     unsigned long ** distrib_C = extract_matrix_C(file_C, mfb0 + 1, mfb1 + 1);
     if (distrib_C == nullptr) {
-        fprintf(stderr, "Error while reading file %s\n", name_file_cofactor);
-        exit(EXIT_FAILURE);
+        throw cado::error("Error while reading file {}", name_file_cofactor);
     }
     fclose(file_C);
 
@@ -1237,10 +1234,8 @@ int main(int argc, char const * argv[])
     // fclose (filee);
     FILE * file_in = fopen("/localdisk/trichard/cadoRSA155/data_fm_25", "r");
     if (file_in == nullptr) {
-        fprintf(
-            stderr,
-            "impossible to read: /localdisk/trichard/cadoRSA155/data_fm_25\n");
-        exit(1);
+        throw cado::error("impossible to read:"
+                " /localdisk/trichard/cadoRSA155/data_fm_25");
     }
     tabular_fm_t * methods = tabular_fm_fscan(file_in);
     /* we set mfb = 3*lpb0 to avoid the special-case of 2 large primes */

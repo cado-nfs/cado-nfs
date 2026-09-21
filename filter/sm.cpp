@@ -50,6 +50,7 @@ Output
 #include "stats.h"
 #include "timing.h"
 #include "verbose.hpp"
+#include "cado_main.hpp"
 
 static stats_data_t stats; /* struct for printing progress */
 
@@ -239,7 +240,14 @@ static void declare_usage(cxx_param_list & pl)
 
 /* -------------------------------------------------------------------------- */
 
+static int main_(int argc, char const ** argv);
+
 int main(int argc, char const ** argv)
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const ** argv)
 {
     MPI_Init(&argc, (char ***)&argv);
     int rank;

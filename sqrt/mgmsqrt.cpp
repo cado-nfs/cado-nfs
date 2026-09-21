@@ -21,6 +21,7 @@
 #include "utils_cxx.hpp"
 #include "numbertheory/number_field.hpp"
 #include "numbertheory/number_field_order.hpp"
+#include "cado_main.hpp"
 
 struct montgomery_eth_root {
     number_field const & K;
@@ -103,7 +104,14 @@ struct mgmsqrt {
     }
 };
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     setvbuf(stdout, nullptr, _IONBF, 0);
     setvbuf(stderr, nullptr, _IONBF, 0);

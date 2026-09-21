@@ -280,8 +280,7 @@ void mf_bal_parse_cmdline(struct mf_bal_args * mba, cxx_param_list & pl, int * p
             (*p_argv)++,(*p_argc)--;
             continue;
         }
-        fprintf(stderr, "unknown option %s\n", (*p_argv)[0]);
-        exit(1);
+        pl.fail("unknown option {}", (*p_argv)[0]);
     }
 }
 
@@ -295,8 +294,7 @@ void mf_bal_interpret_parameters(struct mf_bal_args * mba, cxx_param_list & pl)
     pl.parse("--withcoeffs", mba->withcoeffs);
 
     if (!mba->nh || !mba->nv) {
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("nh and nv are mandatory");
     }
 
     if ((tmp = pl.lookup_old("reorder")) != nullptr) {
@@ -322,15 +320,8 @@ void mf_bal_interpret_parameters(struct mf_bal_args * mba, cxx_param_list & pl)
             mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_YES;
             mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
         } else {
-            fprintf(stderr, "Argument \"%s\" to the \"reorder\" parameter not understood\n"
-                    "Supported values are:\n"
-                    "\tauto (default)\n"
-                    "\tnone\n"
-                    "\trows\n"
-                    "\tcolumns\n"
-                    "\tboth (equivalent forms: \"rows,columns\" or \"columns,rows\"\n",
+            throw cado::error("Argument \"{}\" to the \"reorder\" parameter not understood\nSupported values are:\n\tauto (default)\n\tnone\n\trows\n\tcolumns\n\tboth (equivalent forms: \"rows,columns\" or \"columns,rows\"",
                     tmp);
-            exit(EXIT_FAILURE);
         }
     }
 
@@ -384,11 +375,10 @@ void mf_bal(struct mf_bal_args * mba)
     }
 
     if (mba->mfile.empty()) {
-        fprintf(stderr, "Matrix file name (mfile) must be given, even though the file itself does not have to be present\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("Matrix file name (mfile) must be given, even though the file itself does not have to be present");
     }
-    if (mba->rwfile.empty()) { fprintf(stderr, "No rwfile given\n"); exit(1); }
-    if (mba->cwfile.empty()) { fprintf(stderr, "No cwfile given\n"); exit(1); }
+    if (mba->rwfile.empty()) throw cado::error("No rwfile given");
+    if (mba->cwfile.empty()) throw cado::error("No cwfile given");
 
     balancing bal;
     balancing_init(bal);
@@ -500,8 +490,7 @@ void mf_bal(struct mf_bal_args * mba)
         t_w += wct_seconds();
 
         if (nr < matsize[d]) {
-            fmt::print(stderr, "{}: short {} count\n", filename, text[d]);
-            exit(EXIT_FAILURE);
+            throw cado::error("{}: short {} count", filename, text[d]);
         }
         fmt::print("read {} in {:.1f} s ({:.1f} MB / s)\n",
                 filename, t_w, 1.0e-6 * double(sbuf[d]->st_size) / t_w);
@@ -551,11 +540,10 @@ void mf_bal(struct mf_bal_args * mba)
 
         if (bal.ncoeffs) {
             if (totalweight != bal.ncoeffs) {
-                fmt::print(stderr, "Inconsistency in number of coefficients\n"
-                        "From {}: {}, from file sizes; {}\n",
+                throw cado::error("Inconsistency in number of coefficients\n"
+                        "From {}: {}, from file sizes; {}\n"
+                        "Maybe use the --withcoeffs option for DL matrices ?",
                         filename, totalweight, bal.ncoeffs);
-                fmt::print(stderr, "Maybe use the --withcoeffs option for DL matrices ?\n");
-                exit(1);
             }
         } else {
             bal.ncoeffs = totalweight;
@@ -590,8 +578,7 @@ void mf_bal(struct mf_bal_args * mba)
         t_rw += wct_seconds();
         fclose(frw);
         if (nr < bal.nrows) {
-            fprintf(stderr, "%s: short row count\n", rwfile);
-            exit(1);
+            throw cado::error("{}: short row count", rwfile);
         }
         double rs1 = 0;
         double rs2 = 0;

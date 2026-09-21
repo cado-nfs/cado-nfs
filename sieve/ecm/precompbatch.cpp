@@ -10,6 +10,8 @@
 #include "verbose.hpp"    // verbose_decl_usage
 #include "params.hpp"
 #include "las-side-config.hpp"
+#include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 
 static void declare_usage(cxx_param_list & pl)
@@ -24,8 +26,15 @@ static void declare_usage(cxx_param_list & pl)
 }
 
 // coverity[root_function]
+static int main_ (int argc, char const *argv[]);
+
 int
 main (int argc, char const *argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_ (int argc, char const *argv[])
 {
   cxx_param_list pl;
   cxx_cado_poly cpoly;
@@ -42,8 +51,7 @@ main (int argc, char const *argv[])
   if ((filename = pl.lookup_old("poly")) == NULL)
       pl.fail("Error: parameter -poly is mandatory\n");
   if (!cpoly.read(filename)) {
-      fprintf (stderr, "Error reading polynomial file %s\n", filename);
-      exit (EXIT_FAILURE);
+      throw cado::error("Error reading polynomial file {}", filename);
   }
 
   pl.parse("t", nb_threads);

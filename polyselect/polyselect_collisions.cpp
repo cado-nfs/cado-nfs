@@ -967,8 +967,7 @@ collision_on_each_sq_r(unsigned long q,
 
   if (!tinv_qq)
     {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-      exit(1);
+      throw cado::error("Error, cannot allocate memory in {}", __func__);
     }
   /* number_pr + 1 for guard for pre-load in collision_on_each_sq (nv) */
   auto tq = std::make_unique<unsigned long[]>((number_pr + 1) * count);
@@ -1168,8 +1167,7 @@ collision_on_sq_conductor(unsigned long c, polyselect_thread_ptr thread)
   auto *invqq = new unsigned long[thread->team->league->pt->lenPrimes];
   if (!invqq)
     {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-      exit(1);
+      throw cado::error("Error, cannot allocate memory in {}", __func__);
     }
 
   /* init special-q roots */

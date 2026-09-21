@@ -38,6 +38,8 @@
 #include "params.hpp"
 #include "select_mpi.h"
 #include "subdivision.hpp"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 /* define WARNING to get warning for non-zero padding coefficients */
 // #define WARNING
@@ -674,8 +676,15 @@ static int all_tests(cxx_param_list & pl,
 }
 
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     /* We're not really mpi, but we link code that _is_ mpi */
     MPI_Init(&argc, (char ***) &argv);
@@ -709,13 +718,10 @@ int main(int argc, char const * argv[])
                 argc--, argv++;
                 continue;
             } else {
-                fmt::print(stderr, "bad argument list\n");
-                exit(EXIT_FAILURE);
+                throw cado::error("bad argument list");
             }
         }
-        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("Unhandled parameter {}", argv[0]);
     }
 
     pl.parse("-v", verbose);
@@ -724,9 +730,7 @@ int main(int argc, char const * argv[])
             cpdir += '/';
 
     if (!pl.parse("prime", prime)) {
-        fprintf(stderr, "Missing parameter: prime\n");
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("Missing parameter: prime");
     }
     std::array<int, 2> mpi_dims = { 0, 0 };
     if (pl.parse("mpi", mpi_dims, "x")) {
@@ -735,14 +739,10 @@ int main(int argc, char const * argv[])
     }
     pl.parse("seed", seed);
     if (!pl.parse("m", bw_parameters.m)) {
-        fmt::print(stderr, "Missing parameter: m\n");
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("Missing parameter: m");
     }
     if (!pl.parse("n", bw_parameters.n)) {
-        fmt::print(stderr, "Missing parameter: n\n");
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("Missing parameter: n");
     }
     pl.parse("restrict_E", restrict_E);
     pl.lookup("sanity-check");
@@ -761,8 +761,7 @@ int main(int argc, char const * argv[])
     }
 
     if (pl.warn_unused()) {
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("unexpected parameter(s) on the command line");
     }
 
     gmp_randseed_ui(state, seed);

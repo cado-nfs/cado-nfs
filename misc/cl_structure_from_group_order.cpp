@@ -31,6 +31,8 @@
 #include "prime_power_factorization.hpp"
 #include "roots_mod.hpp"
 #include "verbose.hpp"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 /* boost::hash_combine
  * Copyright 2005-2014 Daniel James.
@@ -738,7 +740,14 @@ struct command_line
     }
 };
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
     command_line cmdline;
@@ -765,15 +774,12 @@ int main(int argc, char const * argv[])
     cxx_cado_poly cpoly;
     if (!cpoly.read(cmdline.polyfilename.c_str()))
     {
-        fmt::print(stderr, "Error reading polynomial file\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("Error reading polynomial file");
     }
 
     /* check that poly is x^2-d with d < 0 */
     if (!cado_poly_is_imaginary_quadratic(cpoly)) {
-        fmt::print(stderr, "This binary is only working for 1 poly of the form "
-                           "x^2-d, with negative d\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("This binary is only working for 1 poly of the form x^2-d, with negative d");
     }
 
     /* To help the parsing from Python script. */

@@ -28,6 +28,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "polyselect_norms.hpp"
 #include "cado_poly.hpp"
 #include "macros.h"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 static void
 compute_skewness (const char *input_file, const char *output_file)
@@ -35,8 +37,7 @@ compute_skewness (const char *input_file, const char *output_file)
   cxx_cado_poly p;
   if (!p.read(input_file))
     {
-      fprintf (stderr, "Error reading polynomial file %s\n", input_file);
-      exit (EXIT_FAILURE);
+      throw cado::error("Error reading polynomial file {}", input_file);
     }
   p.skew = L2_combined_skewness2 (p[RAT_SIDE], p[ALG_SIDE]);
   if (output_file == NULL) {
@@ -46,18 +47,26 @@ compute_skewness (const char *input_file, const char *output_file)
     of = fopen (output_file, "w");
     if (of == NULL)
       {
-        fprintf (stderr, "Error writing polynomial file %s\n", output_file);
-        exit (EXIT_FAILURE);
+        throw cado::error("Error writing polynomial file {}", output_file);
       }
     p.fprintf (of);
   }
 } 
 
 // usage: skewness input_file output_file
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
   ASSERT_ALWAYS (argc == 2 || argc == 3);
   const char *input_file = argv[1];
   const char *output_file = (argc == 3) ? argv[2] : NULL;
   compute_skewness (input_file, output_file);
+
+  return EXIT_SUCCESS;
 }

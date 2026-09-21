@@ -43,6 +43,7 @@
 #include "macros.h"
 #include "verbose.hpp"
 #include "params.hpp"
+#include "utils_cxx.hpp"
 
 #ifndef TRACE_K
 #error "This file *must* be compiled with TRACE_K defined"
@@ -124,9 +125,7 @@ void where_am_I::interpret_parameters(cxx_param_list & pl)
         if (sscanf(abstr, "%" SCNd64",%" SCNu64, &ab.a, &ab.b) == 2)
             have_trace_ab = 1;
         else {
-            fprintf (stderr, "Invalid value for parameter: -traceab %s\n",
-                     abstr);
-            exit (EXIT_FAILURE);
+            pl.fail("Invalid value for parameter: -traceab {}", abstr);
         }
     }
 #endif
@@ -136,9 +135,7 @@ void where_am_I::interpret_parameters(cxx_param_list & pl)
         if (sscanf(ijstr, "%d,%u", &ij.i, &ij.j) == 2) {
             have_trace_ij = 1;
         } else {
-            fprintf (stderr, "Invalid value for parameter: -traceij %s\n",
-                     ijstr);
-            exit (EXIT_FAILURE);
+            pl.fail("Invalid value for parameter: -traceij {}", ijstr);
         }
     }
 
@@ -147,9 +144,7 @@ void where_am_I::interpret_parameters(cxx_param_list & pl)
         if (sscanf(Nxstr, "%u,%u", &Nx.N, &Nx.x) == 2)
             have_trace_Nx = 1;
         else {
-            fprintf (stderr, "Invalid value for parameter: -traceNx %s\n",
-                     Nxstr);
-            exit (EXIT_FAILURE);
+            pl.fail("Invalid value for parameter: -traceNx {}", Nxstr);
         }
     }
     if (have_trace_ab) pl_ab = std::unique_ptr<trace_ab_t>(new trace_ab_t(ab));
@@ -195,10 +190,8 @@ void where_am_I::begin_special_q(
             convert_Nx_to_ij(trace_ij.i, trace_ij.j, trace_Nx.N, trace_Nx.x, logI);
             Q.convert_ij_to_ab(trace_ab.a, trace_ab.b, trace_ij.i, trace_ij.j);
         } else {
-            fprintf(stderr, "Error, tracing requested for x=%u but"
-                    " this siever was compiled with LOG_BUCKET_REGION=%d\n",
+            throw cado::error("Error, tracing requested for x={} but this siever was compiled with LOG_BUCKET_REGION={}",
                     trace_Nx.x, LOG_BUCKET_REGION);
-            exit(EXIT_FAILURE);
         }
     }
 

@@ -16,6 +16,8 @@
 #include "generate_factoring_method.hpp"
 #include "macros.h"
 #include "tab_fm.hpp"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 static void declare_usage(cxx_param_list & pl)
 {
@@ -54,8 +56,15 @@ static void declare_usage(cxx_param_list & pl)
 /*                      MAIN */
 /************************************************************************/
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 
@@ -83,10 +92,8 @@ int main(int argc, char const * argv[])
 
 	tabular_fm_t *res_ch = convex_hull_from_file(file_in.get(), file_out.get());
 	if (res_ch == nullptr) {
-	    fprintf(stderr, "impossible to read %s\n"
-		    "impossible to write in the file %s\n",
-		    pathname_fch_in, pathname_fch_out);
-	    exit(EXIT_FAILURE);
+	    throw cado::error("impossible to read {}\nimpossible to write in the file {}",
+	            pathname_fch_in, pathname_fch_out);
 	}
 	tabular_fm_free(res_ch);
     } else {
@@ -142,12 +149,8 @@ int main(int argc, char const * argv[])
 		method = EC_METHOD;
 		curve = MONTY16;
 	    } else {
-		fprintf(stderr,
-			"Your factoring method '%s' doesn't exist.\n"
-			"Choose an other method from the below file:\n"
-			"PM1, PP1-27, PP1-65, ECM-M12, ECM-M16, ECM-B12\n",
-			name_fm);
-		exit(EXIT_FAILURE);
+		pl.fail("Your factoring method '{}' doesn't exist.\nChoose an other method from the below file:\nPM1, PP1-27, PP1-65, ECM-M12, ECM-M16, ECM-B12",
+		        name_fm);
 	    }
 	}
 
@@ -193,9 +196,7 @@ int main(int argc, char const * argv[])
         DIE_ERRNO_DIAG(file_out == nullptr, "fopen(%s)", name_file_out);
 	int const err = tabular_fm_fprint(file_out, res);
 	if (err < 0) {
-	    fprintf(stderr,
-		    "error:: try to write in the file '%s'.\n", name_file_out);
-	    exit(EXIT_FAILURE);
+	    throw cado::error("error:: try to write in the file '{}'.", name_file_out);
 	}
 	fclose(file_out);
 	tabular_fm_free(res);

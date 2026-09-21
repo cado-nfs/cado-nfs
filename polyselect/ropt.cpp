@@ -30,6 +30,7 @@
 #include "size_optimization.hpp"
 #include "auxiliary.hpp"
 #include "polyselect_alpha.h"
+#include "utils_cxx.hpp"
 
 
 /**
@@ -168,8 +169,7 @@ ropt_do_both_stages ( ropt_poly & poly,
      else if (d == 6 || d == 7)
          ropt_quadratic (poly, bestpoly, param, info);
      else {
-         fprintf (stderr, "Error: only support deg 3, 4, 5, 6 and 7.\n");
-         exit(EXIT_FAILURE);
+         throw cado::error("Error: only support deg 3, 4, 5, 6 and 7.");
      }
 }
 

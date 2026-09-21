@@ -17,6 +17,7 @@
 #include "portability.h"
 #include "size_optimization.hpp"
 #include "verbose.hpp"
+#include "cado_main.hpp"
 
 static void
 declare_usage(cxx_param_list & pl)
@@ -38,14 +39,20 @@ declare_usage(cxx_param_list & pl)
 static void
 usage (const char *argv MAYBE_UNUSED, cxx_param_list & pl)
 {
-  pl.print_usage(stderr);
-  exit (EXIT_FAILURE);
+  pl.fail("bad usage");
 }
 
 /*
    main function 
 */
+static int main_ (int argc, char const * argv[]);
+
 int main (int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_ (int argc, char const * argv[])
 {
   char const * argv0 = argv[0];
   int use_only_translation = 0; /* only use translation in optimization */

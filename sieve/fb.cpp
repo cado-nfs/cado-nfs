@@ -50,6 +50,7 @@
 #include "timing.h"
 #include "verbose.hpp"
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 struct qlattice_basis; // IWYU pragma: keep
 
@@ -1009,7 +1010,14 @@ struct find_value_change_points_recursive {
 
 #if 0
 /* test code */
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     double scale = 1;
     if (argc == 2) {
@@ -2122,10 +2130,7 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
             std::string const & s = all_sides[side].fbfilename;
             char const * fbfilename = s.empty() ? NULL : s.c_str();
             if (!fbfilename) {
-                fprintf(stderr,
-                        "Error: factor base file for side %d is not given\n",
-                        side);
-                exit(EXIT_FAILURE);
+                throw cado::error("Error: factor base file for side {} is not given", side);
             }
             verbose_fmt_print(0, 1,
                                  "# Reading side-{} factor base from {}\n",
@@ -2223,11 +2228,8 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
             size_t const fbc_size = lseek(fbc, 0, SEEK_END);
 
             if ((fbc_size & (sysconf(_SC_PAGE_SIZE) - 1)) != 0) {
-                fprintf(
-                    stderr,
-                    "Fatal error: existing cache file %s is not page-aligned\n",
-                    fbc_filename);
-                exit(EXIT_FAILURE);
+                throw cado::error("Fatal error: existing cache file {}"
+                        " is not page-aligned", fbc_filename);
             }
 
             std::ostringstream os;
@@ -2235,11 +2237,8 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
             os << "\n\n\n\n\n"; /* a convenience so that "head" displays the
                                    header */
             if (os.str().size() > fbc_header::header_block_size) {
-                fprintf(
-                    stderr,
-                    "Fatal error: header doesn't fit (contents follow):\n%s\n",
-                    os.str().c_str());
-                exit(EXIT_FAILURE);
+                throw cado::error("Fatal error: header doesn't fit"
+                        " (contents follow):\n{}", os.str());
             }
 
             /* yes it's a short read, but we expect that all writes will do

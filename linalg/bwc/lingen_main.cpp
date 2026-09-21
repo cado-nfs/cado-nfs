@@ -25,6 +25,8 @@
 #include "misc.h"
 #include "params.hpp"
 #include "portability.h"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 /* If non-zero, then reading from A is actually replaced by reading from
  * a random generator */
@@ -341,16 +343,13 @@ static int wrapped_main(int argc, char const *argv[])
     auto const afile = pl.parse<std::string>("afile");
 
     if (bw->m == -1) {
-	fmt::print(stderr, "no m value set\n");
-	exit(EXIT_FAILURE);
+	throw cado::error("no m value set");
     }
     if (bw->n == -1) {
-	fmt::print(stderr, "no n value set\n");
-	exit(EXIT_FAILURE);
+	throw cado::error("no n value set");
     }
     if (!global_flag_tune && afile.empty() && !random_input_length) {
-        fmt::print(stderr, "No afile provided\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("No afile provided");
     }
 
     /* we allow ffile and ffile to be both NULL */
@@ -370,8 +369,7 @@ static int wrapped_main(int argc, char const *argv[])
         }
     }
     if (pl.parse("nrhs", (bm.d.nrhs)) && rhs_name) {
-        fmt::print(stderr, "# the command line arguments rhs= and nrhs= are incompatible\n");
-        exit(EXIT_FAILURE);
+        pl.fail("# the command line arguments rhs= and nrhs= are incompatible");
     }
     if (rhs_name && strcmp(rhs_name, "none") != 0) {
         if (!rank)
@@ -441,8 +439,7 @@ static int wrapped_main(int argc, char const *argv[])
 
 #ifdef  CADO_FAKEMPI_H
         if (mpi[0]*mpi[1] > 1) {
-            fmt::print(stderr, "non-trivial option mpi= can't be used with fakempi. Please do an MPI-enabled build (MPI=1)\n");
-            exit(EXIT_FAILURE);
+            pl.fail("non-trivial option mpi= can't be used with fakempi. Please do an MPI-enabled build (MPI=1)");
         }
 #endif
         if (!rank)
@@ -669,8 +666,15 @@ static int wrapped_main(int argc, char const *argv[])
 /* We do this so that the dtors of the data that gets allocated within
  * main are allowed to use MPI_Comm_rank.
  */
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
 #ifdef  HAVE_OPENMP
     if (getenv("OMP_DYNAMIC") == NULL) {

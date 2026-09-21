@@ -9,6 +9,7 @@
 
 #include "indexed_relation.hpp"
 #include "omp_proxy.h"  // IWYU pragma: keep
+#include "cado_main.hpp"
 #include "typedefs.h"
 
 /* This binary can be used on files in indexed form (e.g. out of dup2 or
@@ -25,7 +26,14 @@
  * having the thing openmp'ed alleviates the concerns a little bit.
  *
  */
+static int indexed_relations_to_density(int, char const **);
+
 int main()
+{
+    return cado::main_wrapper(indexed_relations_to_density, 0, nullptr);
+}
+
+static int indexed_relations_to_density(int, char const **)
 {
     std::vector<unsigned int> density;
 #pragma omp parallel

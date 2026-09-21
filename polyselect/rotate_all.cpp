@@ -17,6 +17,10 @@
 #include "polyselect_norms.hpp"
 #include "polyselect_alpha.h"
 #include "timing.h"
+#include "cado_main.hpp"
+#include "params.hpp"
+#include "verbose.hpp"
+#include "utils_cxx.hpp"
 
 /* for the rotation, we try (j*x+k) for |k| <= 2^MAX_k */
 int MAX_k = 16;
@@ -507,38 +511,66 @@ rotate (mpz_poly_ptr f, unsigned long alim,
 
 
 
+/* apply rotation f += (j*x+k)*g to poly. */
 static void
-usage_and_die (const char *argv0)
+declare_usage (cxx_param_list & pl)
 {
-  fprintf (stderr, "usage: %s [-v] poly kmax\n", argv0);
-  fprintf (stderr, "  apply rotation f += (j*x+k)*g to poly.\n");
-  fprintf (stderr, "  poly: filename of polynomial\n");
-  fprintf (stderr, "  j,k : integers\n");
-  exit (1);
+  pl.declare_usage("poly", "filename of polynomial (may be given positionally)");
+  pl.declare_usage("kmax", "bound on the rotation (may be given positionally)");
+  pl.declare_usage("v", "(switch) verbose mode, repeat for more");
+  verbose_decl_usage(pl);
 }
+
+static int main_(int argc, char const * argv[]);
 
 int main(int argc, char const * argv[])
 {
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
+{
     cxx_cado_poly cpoly;
-    long kmax, jmin, kmin;
+    long kmax = 0, jmin, kmin;
     unsigned long alim = 2000;
     int argc0 = argc, verbose = 0;
     const char **argv0 = argv;
+    const char * polyfilename = NULL;
+    cxx_param_list pl;
 
-    while (argc >= 2 && strcmp (argv[1], "-v") == 0)
-      {
-        argv ++;
-        argc --;
-        verbose ++;
-      }
+    declare_usage(pl);
+    pl.configure_switch_old("-v", &verbose);
 
-    if (argc != 3)
-        usage_and_die (argv0[0]);
-    if (!cpoly.read(argv[1])) {
-        fprintf(stderr, "Problem when reading file %s\n", argv[1]);
-        usage_and_die (argv0[0]);
+    if (argc == 1)
+        pl.fail("Error, a polynomial file is mandatory");
+
+    argv++, argc--;
+    for (int wild = 0 ; argc ; ) {
+        if (pl.update_cmdline(argc, argv)) continue;
+        if (wild == 0) {
+            polyfilename = argv[0];
+            argc--, argv++, wild++;
+            continue;
+        } else if (wild == 1) {
+            kmax = strtol(argv[0], NULL, 10);
+            argc--, argv++, wild++;
+            continue;
+        }
+        pl.fail("Unhandled parameter {}", argv[0]);
     }
-    kmax = strtol(argv[2], NULL, 10);
+
+    if (!polyfilename)
+        polyfilename = pl.lookup_old("poly");
+    pl.parse("kmax", kmax);
+
+    if (pl.warn_unused())
+        pl.fail("unexpected parameter(s) on the command line");
+    verbose_interpret_parameters(pl);
+
+    if (!polyfilename)
+        pl.fail("Error, a polynomial file is mandatory");
+    if (!cpoly.read(polyfilename))
+        pl.fail("Problem when reading file {}", polyfilename);
     MAX_k = kmax;
 
     cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);

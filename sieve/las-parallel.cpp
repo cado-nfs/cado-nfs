@@ -443,10 +443,9 @@ struct las_parallel_desc::helper {
        /* how many jobs can fit ? */
        int const how_many = total_ram() / (jobram * (1<<30));
        if (how_many == 0) {
-           fprintf(stderr, "This machine does not have enough memory"
-                   " (%" PRIu64 " GB) to fit jobs that need %.2f GB\n",
+           throw cado::error("This machine does not have enough memory"
+                   " ({} GB) to fit jobs that need {:.2f} GB",
                    total_ram() >> 30, jobram);
-           exit(EXIT_FAILURE);
        }
        /* This means subjobs can't be smaller than this: */
        computed_min_pu_fit = iceildiv(number_of(-1, 0), how_many);

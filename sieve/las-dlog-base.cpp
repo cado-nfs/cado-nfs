@@ -14,6 +14,7 @@
 #include "params.hpp"
 #include "portability.h"
 #include "verbose.hpp"
+#include "utils_cxx.hpp"
 
 void las_dlog_base::declare_usage(cxx_param_list & pl)
 {
@@ -42,15 +43,13 @@ las_dlog_base::las_dlog_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         logfilename = strdup(tmp);
     }
     if (!logfilename != !renumberfilename) {
-        fprintf(stderr, "In descent mode, want either renumber+log, or none\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("In descent mode, want either renumber+log, or none");
     }
     pl.parse_mandatory("lpb0", lpb[0]);
     pl.parse_mandatory("lpb1", lpb[1]);
 #if SIZEOF_P_R_VALUES < 8
     if (lpb[0] >= 32 || lpb[1] >= 32) {
-        fprintf(stderr, "In descent mode, lpb >= 32 requires SIZEOF_P_R_VALUES==8\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("In descent mode, lpb >= 32 requires SIZEOF_P_R_VALUES==8");
     }
 #endif
 
@@ -104,8 +103,8 @@ void las_dlog_base::read()
 
     for(int side = 0 ; side < renumber_table.get_nb_polys() ; side++) {
         if (lpb[side] != renumber_table.get_lpb(side)) {
-            fmt::print(stderr, "lpb{}={} different from lpb{}={} stored in renumber table, probably a bug\n", side, lpb[side], side, renumber_table.get_lpb(side));
-            exit(EXIT_FAILURE);
+            throw cado::error("lpb{}={} different from lpb{}={} stored in renumber table, probably a bug",
+                    side, lpb[side], side, renumber_table.get_lpb(side));
         }
     }
 

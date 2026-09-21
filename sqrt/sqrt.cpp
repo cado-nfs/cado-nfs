@@ -64,6 +64,7 @@
 #include "runtime_numeric_cast.hpp"
 #include "fstream_maybe_compressed.hpp"
 #include "cado_math_aux.hpp"
+#include "cado_main.hpp"
 #include "utils_cxx.hpp"
 #include "linalg/bblas/bblas_bitrev.hpp"
 
@@ -633,8 +634,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
 
   if (mpz_sgn (prod) < 0)
     {
-      fmt::print (stderr, "Error, product is negative: try another dependency\n");
-      exit(EXIT_FAILURE);
+      throw cado::error("Error, product is negative: try another dependency");
     }
 
 #pragma omp critical
@@ -686,7 +686,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
           p = getprime_mt (pi);
         }
       prime_info_clear (pi);
-      exit(EXIT_FAILURE);
+      throw cado::error("{} prime(s) appear to odd power", errors);
     }
 
   mpz_mod (prod, prod, Np);
@@ -1000,9 +1000,8 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
 
         if (mpz_sizeinbase (pk, 2) > target_size)
         {
-            fmt::print (stderr, "Failed to reconstruct an integer polynomial\n");
             fmt::print ("Failed\n");
-            exit(EXIT_FAILURE);
+            throw cado::error("Failed to reconstruct an integer polynomial");
         }
 
         /* invariant: invsqrtA = 1/sqrt(A) bmod p^k */
@@ -1146,9 +1145,8 @@ FindSuitableModP (cxx_mpz_poly const & F, cxx_mpz const & N)
             return p;
     }
 
-    fmt::print (stderr, "Error, found no suitable prime up to {}\n", MAXP);
-    fmt::print (stderr, "See paragraph \"Factoring with SNFS\" in README\n");
-    exit(EXIT_FAILURE);
+    throw cado::error("Error, found no suitable prime up to {}\n"
+            "See paragraph \"Factoring with SNFS\" in README", MAXP);
 
     return 0;
 }
@@ -1387,9 +1385,8 @@ static int calculateSqrtQS( /* {{{ */
     }
 
     if (mpz_sgn(prod.first) < 0) {
-        fmt::print(stderr, "Error, product is negative: try another "
-                            "dependency\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("Error, product is negative: try another "
+                          "dependency");
     }
 
 #pragma omp critical
@@ -1436,7 +1433,7 @@ static int calculateSqrtQS( /* {{{ */
                   break;
             }
         }
-        exit(EXIT_FAILURE);
+        throw cado::error("{} prime(s) appear to odd power", errors);
     }
 
     mpz_mod(prod.first, prod.first, Np);
@@ -2005,8 +2002,15 @@ static void declare_usage(cxx_param_list & pl) /* {{{ */
     pl.declare_usage("v", "More verbose output");
 } /* }}} */
 
+static int main_(int argc, char const *argv[]);
+
 // coverity[root_function]
 int main(int argc, char const *argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const *argv[])
 {
     fmt::print (stderr, "{}\n", collect_command_line(argc, argv));
 

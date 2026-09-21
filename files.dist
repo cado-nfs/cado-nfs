@@ -1707,6 +1707,8 @@ utils/cado_addsubmul.hpp
 utils/cado_compile_time_hacks.hpp
 utils/cado_constants.hpp
 utils/cado_expression_parser.hpp
+utils/cado_main.cpp
+utils/cado_main.hpp
 utils/cado_math_aux.hpp
 utils/cado_mp_conversions.hpp
 utils/cado_parsing_base.hpp

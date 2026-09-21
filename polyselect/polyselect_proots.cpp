@@ -17,6 +17,7 @@
 #include "polyselect_thread_team.hpp"
 #include "gcd.h"
 #include "roots_mod.hpp"
+#include "utils_cxx.hpp"
 
 /* init polyselect_proots_t */
 void
@@ -32,8 +33,7 @@ polyselect_proots_init (polyselect_proots_ptr R,
   R->roots = (uint64_t **) malloc (size * sizeof (*(R->roots)));
 
   if (R->nr == NULL || R->roots == NULL) {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-      exit(1);
+      throw cado::error("Error, cannot allocate memory in {}", __func__);
   }
   for (unsigned int i = 0; i < R->size; i++) {
       R->nr[i] = 0;

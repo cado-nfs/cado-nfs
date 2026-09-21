@@ -11,9 +11,17 @@
 
 #include "params.hpp"
 #include "macros.h"
+#include "cado_main.hpp"
+
+static int main_(int argc, char const * argv[]);
 
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

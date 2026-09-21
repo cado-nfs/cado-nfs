@@ -4,6 +4,7 @@
 
 #include "mf_bal.hpp"
 #include "params.hpp"
+#include "cado_main.hpp"
 
 /* This program computes how a matrix would have to be balanced for
  * fitting a job grid of given size. This does _not_ read the matrix,
@@ -16,7 +17,14 @@
  * Essentially we would hook onto the mmt_fill_fields_from_balancing()
  * function called from mmt_finish_init().
  */
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     mf_bal_args mba;
     mba.do_perm[0] = mf_bal_args::MF_BAL_PERM_AUTO;

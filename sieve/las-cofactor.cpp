@@ -15,6 +15,7 @@
 #include "las-cofactor.hpp"
 #include "macros.h"
 #include "params.hpp"
+#include "utils_cxx.hpp"
 
 void cofactorization_statistics::declare_usage(cxx_param_list & pl)
 {
@@ -31,8 +32,7 @@ cofactorization_statistics::cofactorization_statistics(cxx_param_list & pl)
     }
     file = fopen (statsfilename, "w");
     if (file == nullptr) {
-        fprintf (stderr, "Error, cannot create file %s\n", statsfilename);
-        exit (EXIT_FAILURE);
+        throw cado::error("Error, cannot create file {}", statsfilename);
     }
 }
 

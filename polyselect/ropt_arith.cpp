@@ -17,6 +17,7 @@
 #include "macros.h"     // ASSERT
 #include "ropt_arith.hpp"
 #include "ropt_str.hpp"
+#include "utils_cxx.hpp"
 
 
 /**
@@ -30,8 +31,7 @@ solve_lineq ( unsigned long a,
 {
   /* in general, we should know that gcd(b, p) = 1 */
   if (b % p == 0) {
-    fprintf (stderr, "Error, impossible inverse in solve_lineq().\n");
-    exit (1);
+    throw cado::error("Error, impossible inverse in solve_lineq().");
   }
 
   unsigned long tmp;

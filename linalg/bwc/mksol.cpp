@@ -30,6 +30,7 @@
 #include "select_mpi.h"
 #include "bwc_filenames.hpp"
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
@@ -71,12 +72,8 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     if ((char2 && (As_width != 64 && As_width != 128 && As_width != 256))
             || (!char2 && As_width > 1))
     {
-        fmt::print(stderr,
-                "We cannot support computing {} solutions at a time "
-                "with one single Spmv operation, given the currently "
-                "implemented code\n",
+        throw cado::error("We cannot support computing {} solutions at a time with one single Spmv operation, given the currently implemented code",
                 As_width);
-        exit(EXIT_FAILURE);
     }
     std::unique_ptr<arith_generic> As(arith_generic::instance(bw->p, As_width));
     /* How many F files do we need to read simultaneously to form
@@ -357,9 +354,7 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
                             if (i == 0 && j == 0 && k == 0) rc0 = rc;
 
                             if (rc != rc0) {
-                                fmt::print(stderr, "Inconsistency in number of "
-                                        "coefficients for F files\n");
-                                exit(EXIT_FAILURE);
+                                throw cado::error("Inconsistency in number of coefficients for F files");
                             }
                             /* TODO: *maybe* transpose the F coefficients
                              * at this point */
@@ -370,9 +365,10 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
                 if (rc0 < bw->interval) {
                     short_read = true;
                     if (s1 != sx) {
-                        fmt::print(stderr, "Problem while reading coefficients of f for degrees [{}..{}[ ; we should not have a short read given that bw->end={}\n",
+                        throw cado::error("Problem while reading coefficients"
+                                " of f for degrees [{}..{}[ ; we should not"
+                                " have a short read given that bw->end={}",
                                 s0, s1, bw_end_copy);
-                        exit(EXIT_FAILURE);
                     }
                     sx = bw_end_copy = s0 + rc;
                 }
@@ -512,8 +508,15 @@ static void * mksol_prog(parallelizing_info & pi, cxx_param_list & pl, void * ar
     return nullptr;
 }
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

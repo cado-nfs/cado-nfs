@@ -15,6 +15,7 @@
 #include "polyselect_poly_header.h"
 #include "roots_mod.hpp"
 #include "macros.h"
+#include "utils_cxx.hpp"
 
 
 /* first combination of k elements among 0, ..., n-1: 0, 1, 2, 3, \cdots */
@@ -111,8 +112,7 @@ comp_sq_roots ( polyselect_poly_header_srcptr header,
   rq = (uint64_t*) malloc (header->d * sizeof (uint64_t));
   if (rq == NULL)
     {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-      exit(1);
+      throw cado::error("Error, cannot allocate memory in {}", __func__);
     }
 
   /* prepare the special-q's */
@@ -147,9 +147,8 @@ comp_sq_roots ( polyselect_poly_header_srcptr header,
       mpz_mod_ui (r2, r2, q*q);
 
       if (mpz_cmp (r1, r2) != 0) {
-        fprintf (stderr, "Root computation wrong in comp_sq_roots().\n");
-        fprintf (stderr, "q: %lu, rq: %lu\n", q, rq[j]);
-        exit(1);
+        throw cado::error("Root computation wrong in comp_sq_roots().\n"
+                "q: {}, rq: {}", q, rq[j]);
       }
     }
 

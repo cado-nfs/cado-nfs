@@ -477,8 +477,11 @@ struct cxx_param_list {
     // 42).
     void configure_alias(std::string const & key, std::string const & alias);
 
+    /* [[noreturn]]: this always throws. Saying so lets callers use it
+     * wherever they would have written a throw, without the compiler
+     * complaining that control reaches the end of a non-void function. */
     template <typename... Args>
-    void fail(fmt::format_string<Args...> s, Args &&... args) const
+    [[noreturn]] void fail(fmt::format_string<Args...> s, Args &&... args) const
     {
         std::string ss = fmt::format(s, std::forward<Args>(args)...);
         if (!ss.ends_with("\n"))

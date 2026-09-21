@@ -65,6 +65,7 @@ B) to use within another program: compile without -DMAIN, the main function
 #include "mpz_poly.h"
 #include "double_poly.h"
 #include "macros.h"
+#include "cado_main.hpp"
 
 /*
  *
@@ -599,7 +600,14 @@ usp_root_interval_refine (usp_root_interval_ptr r, mpz_poly_srcptr P, double pre
 #undef MAX_LOOPS
 
 #ifdef MAIN
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
   int i, s, n, nroots, verbose = 1;
   double T = 0.0;

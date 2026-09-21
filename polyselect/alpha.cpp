@@ -10,6 +10,7 @@
 #include "macros.h"
 #include "params.hpp"
 #include "polyselect_alpha.h"
+#include "cado_main.hpp"
 
 struct alpha_process {
     parameter_mandatory<std::string, "poly", "input polynomial file">
@@ -49,7 +50,14 @@ struct alpha_process {
     }
 };
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

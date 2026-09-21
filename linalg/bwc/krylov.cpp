@@ -29,6 +29,7 @@
 #include "utils_cxx.hpp"
 #include "xdotprod.hpp"
 #include "xvectors.hpp"
+#include "cado_main.hpp"
 
 using namespace fmt::literals;
 
@@ -377,8 +378,15 @@ static void * krylov_prog(parallelizing_info & pi, cxx_param_list & pl, void * a
     return nullptr;
 }
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 
@@ -397,7 +405,7 @@ int main(int argc, char const * argv[])
     parallelizing_info::lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters */
-    if (bw->ys[0] < 0) { fmt::print(stderr, "no ys value set\n"); exit(1); }
+    if (bw->ys[0] < 0) pl.fail("no ys value set");
 
     ASSERT_ALWAYS(pl.has("ys"));
     ASSERT_ALWAYS(!pl.has("solutions"));

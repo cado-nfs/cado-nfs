@@ -14,6 +14,7 @@
 #include "nlohmann/json.hpp"
 #include "fstream_maybe_compressed.hpp"
 #include "params.hpp"
+#include "cado_main.hpp"
 
 struct clamp_tool {
     parameter_with_default<std::string, "o", "output file", "-"> out;
@@ -100,7 +101,14 @@ struct clamp_tool {
     
 };
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

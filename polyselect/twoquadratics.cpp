@@ -19,6 +19,7 @@
 #include "polyselect_alpha.h"
 
 #include "cxx_mpz.hpp"
+#include "cado_main.hpp"
 
 struct cado_poly_extended : public cxx_cado_poly {
   cxx_mpz m = -1, p = 0;
@@ -311,11 +312,17 @@ static void declare_usage(cxx_param_list & pl)
 
 static void usage (const char *argv MAYBE_UNUSED, cxx_param_list & pl)
 {
-  pl.print_usage(stderr);
-  exit (EXIT_FAILURE);
+  pl.fail("bad usage");
 }
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
   const char * argv0 = argv[0];
   int verbose = 0, quiet = 0, print = 0;

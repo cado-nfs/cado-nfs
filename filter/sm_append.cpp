@@ -53,6 +53,8 @@
 #include "sm_utils.hpp"
 #include "timing.h"
 #include "verbose.hpp"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 // {{{ debug print interface
 static unsigned int const debug = 0;
@@ -120,8 +122,7 @@ ab_pair::ab_pair(char const * p)
         p++;
     }
     if (sscanf(p, "%" SCNx64 ",%" SCNx64 ":", &a, &b) < 2) {
-        fprintf(stderr, "Parse error at line: %s\n", p0);
-        exit(EXIT_FAILURE);
+        throw cado::error("Parse error at line: {}", p0);
     }
     a *= sign;
 }
@@ -629,8 +630,7 @@ static void sm_append_sync(FILE * in, FILE * out,
             p++;
         }
         if (sscanf(p, "%" SCNx64 ",%" SCNx64 ":", &a, &b) < 2) {
-            fprintf(stderr, "Parse error at line: %s\n", buf);
-            exit(EXIT_FAILURE);
+            throw cado::error("Parse error at line: {}", buf);
         }
 
         cxx_mpz_poly pol;
@@ -695,8 +695,15 @@ static void declare_usage(cxx_param_list & pl)
 
 /* -------------------------------------------------------------------------- */
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     MPI_Init(&argc, (char ***)&argv);
     int rank;

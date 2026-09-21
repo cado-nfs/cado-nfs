@@ -15,6 +15,7 @@
 #include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "portability.h"
+#include "utils_cxx.hpp"
 
 // This function is no longer exported
 #define BUF_MAX 10000
@@ -74,8 +75,8 @@ cxx_cado_poly::cxx_cado_poly(cxx_cado_poly::plist const &, cxx_param_list & pl)
 
     for (int side = 0; side < nsides(); side++)
         if ((*this)[side]->deg < 0)
-            throw cado::error("Error, polynomial on side {} has degree < 0 in "
-                        "cado_poly_set_plist\n", side);
+            pl.fail("Error, polynomial on side {} has degree < 0 in "
+                    "cado_poly_set_plist", side);
 
     for (int side = 0; side < nsides(); side++) {
         auto & g = (*this)[side];
@@ -150,8 +151,7 @@ int cxx_cado_poly::read(const char *filename)
             char * newvalue;
             q = strchr(newitem, '=');
             if (q == NULL) {
-                fprintf(stderr, "wrong value in inline-poly file\n");
-                exit (EXIT_FAILURE);
+                throw cado::error("wrong value in inline-poly file");
             }
             newitem[q-newitem] = '\0';
             newkey = newitem;
@@ -295,8 +295,7 @@ int cxx_cado_poly::getm(cxx_mpz & m, cxx_mpz const & N) const
      */
 
     if (mpz_poly_degree(G) != 1) {
-        fprintf(stderr, "Error, cannot determine m given that the common mapping is not linear\n");
-        exit (EXIT_FAILURE);
+        throw cado::error("Error, cannot determine m given that the common mapping is not linear");
     }
 
     cxx_mpz inv;

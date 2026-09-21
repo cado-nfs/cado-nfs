@@ -11,6 +11,8 @@
 #include "bw-common.hpp"
 #include "arith-generic.hpp"
 #include "macros.h"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 static void * bench_comm_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
@@ -20,8 +22,7 @@ static void * bench_comm_prog(parallelizing_info & pi, cxx_param_list & pl, void
 
     int const ys[2] = { bw->ys[0], bw->ys[1], };
     if (pi.interleaved) {
-        fprintf(stderr, "bench_bwc does not work in the interleaved setting\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("bench_bwc does not work in the interleaved setting");
     }
 
     std::unique_ptr<arith_generic> const A(arith_generic::instance(bw->p, ys[1]-ys[0]));
@@ -39,8 +40,15 @@ static void * bench_comm_prog(parallelizing_info & pi, cxx_param_list & pl, void
     return nullptr;
 }
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 
@@ -58,7 +66,7 @@ int main(int argc, char const * argv[])
     parallelizing_info::lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters */
-    if (bw->ys[0] < 0) { fprintf(stderr, "no ys value set\n"); exit(1); }
+    if (bw->ys[0] < 0) pl.fail("no ys value set");
 
     ASSERT_ALWAYS(pl.has("ys"));
     ASSERT_ALWAYS(!pl.has("solutions"));

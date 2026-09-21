@@ -26,6 +26,8 @@
 #include "parallelizing_info.hpp"
 #include "params.hpp"
 #include "select_mpi.h"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 static void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
 {
@@ -239,8 +241,7 @@ static void * dispatch_prog(parallelizing_info & pi, cxx_param_list & pl, void *
         if (pi.m.jrank == 0 && pi.m.trank == 0) {
             if (diff) {
                 printf("%s : failed\n", checkname);
-                fprintf(stderr, "aborting on sanity check failure.\n");
-                exit(1);
+                throw cado::error("aborting on sanity check failure.");
             }
             printf("%s : ok\n", checkname);
         }
@@ -252,8 +253,15 @@ static void * dispatch_prog(parallelizing_info & pi, cxx_param_list & pl, void *
 }
 
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 
@@ -282,7 +290,7 @@ int main(int argc, char const * argv[])
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
-    if (bw->ys[0] < 0) { fprintf(stderr, "no ys value set\n"); exit(1); }
+    if (bw->ys[0] < 0) pl.fail("no ys value set");
 
     /* Forcibly disable interleaving here */
     pl.remove_key("interleaving");

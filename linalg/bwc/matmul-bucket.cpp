@@ -57,6 +57,7 @@
 #include "matmul_facade.hpp"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "params.hpp"
+#include "utils_cxx.hpp"
 
 using namespace std;
 
@@ -2134,8 +2135,7 @@ void matmul_bucket<Arith>::build_cache(matrix_u32 && m)
         mb.do_all_huge_slices(&main_i0, fence, scratch2size);
     }
     if (main_i0 < fence) {
-        fmt::print(stderr, "ARGH ! only created a submatrix ({} < {}) !!\n", main_i0, fence);
-        exit(1);
+        throw cado::error("ARGH ! only created a submatrix ({} < {}) !!", main_i0, fence);
     }
 
 

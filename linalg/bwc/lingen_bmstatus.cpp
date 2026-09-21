@@ -13,6 +13,7 @@
 #include "lingen_call_companion.hpp"
 #include "lingen_hints.hpp"
 #include "select_mpi.h"
+#include "utils_cxx.hpp"
 
 /* Attention: reloading a checkpoint invalidates this reference !! */
 template<bool is_binary>
@@ -41,9 +42,7 @@ lingen_call_companion & bmstatus<is_binary>::companion(int depth, size_t L)/*{{{
     auto it = std::find_if(hints.begin(), hints.end(), same_depth { depth } );
     if (it == hints.end()) {
         if (!rank)
-            fprintf(stderr, "# No tuned configuration for"
-                    " depth=%d !!!\n", depth);
-        exit(EXIT_FAILURE);
+        throw cado::error("# No tuned configuration for depth={} !!!", depth);
     }
     if (!rank)
         fprintf(stderr, "# Using nearby configuration for"

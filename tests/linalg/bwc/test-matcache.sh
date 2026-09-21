@@ -127,3 +127,49 @@ for nbys in 64 $variable_width ; do
     done
 done
 
+
+# "huge" is the one slice type the sweep above cannot reach: it needs
+# more than 65536 rows, which the matrix above does not have, and it is
+# also absent from the default method set, so nothing selects it on its
+# own. There is no point in going far past the threshold -- what we are
+# after is the code path, not the size.
+$bindir/linalg/bwc/random_matrix -nrows 70000 -d 4 --binary \
+    -o $wdir/big.bin --freq -s $seed > /dev/null
+
+for nbys in 64 $variable_width ; do
+    for direction in left right ; do
+        eval argtail=\(\$bench_arg_${direction}\)
+        rm -f $wdir/big.bin-bucket.bin $wdir/big.bin-bucketT.bin
+        out=$wdir/bench.bucket.$nbys.huge.$direction.out
+        $bindir/linalg/bwc/bench_matcache -r --nmax 2 --nchecks 2 \
+            -impl bucket -nbys $nbys matmul_bucket_methods=huge \
+            "${argtail[@]}" $wdir/big.bin > $out 2>&1 || :
+        if ! grep -q "^All 2 checks passed" $out ; then
+            echo "bucket nbys=$nbys methods=huge $direction: check failed" >&2
+            cat $out >&2
+            exit 1
+        fi
+        echo "matcache bucket nbys=$nbys methods=huge $direction ok"
+    done
+done
+
+# Build one cache, then run again without -r so that the second run
+# reloads it from the file rather than rebuilding it from the matrix.
+# Nothing else covers reload_cache_private().
+rm -f $wdir/mat.bin-bucket.bin $wdir/mat.bin-bucketT.bin
+$bindir/linalg/bwc/bench_matcache -r --nmax 2 --nchecks 2 -impl bucket \
+    $wdir/mat.bin > $wdir/bench.bucket.reload-build.out 2>&1 || :
+out=$wdir/bench.bucket.reload.out
+$bindir/linalg/bwc/bench_matcache --nmax 2 --nchecks 2 -impl bucket \
+    $wdir/mat.bin > $out 2>&1 || :
+if ! grep -q "^All 2 checks passed" $out ; then
+    echo "bucket cache reload: check failed" >&2
+    cat $out >&2
+    exit 1
+fi
+if grep -q "Building cache file" $out ; then
+    echo "bucket cache reload: rebuilt the cache instead of reloading it" >&2
+    cat $out >&2
+    exit 1
+fi
+echo "matcache bucket cache reload ok"

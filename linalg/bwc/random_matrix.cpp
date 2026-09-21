@@ -41,6 +41,7 @@
 
 #ifdef WANT_MAIN
 #include <cinttypes>
+#include "cado_main.hpp"
 #endif
 
 /* The random generation works as follows.
@@ -486,8 +487,7 @@ void random_matrix_ddata::adjust_force_kernel(random_matrix_process_data const &
         coeff_alpha = pow(n0, -1.0 / maxcoeff);
     }
     if (p(0) >= 1.0) {
-        fprintf(stderr, "Error: this density is not acceptable for the current distribution equation. Please adjust the internal offset parameter to something larger.\nrows");
-        exit(1);
+        throw cado::error("Error: this density is not acceptable for the current distribution equation. Please adjust the internal offset parameter to something larger.\nrows");
     }
 }
 
@@ -955,7 +955,14 @@ static void random_matrix_process_print(random_matrix_process_data & r, random_m
     F.row_sdev = sdev;
 }
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
     int verbose = 0;

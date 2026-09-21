@@ -19,6 +19,7 @@
 #include "lingen_qcode_prime.hpp"
 #include "macros.h"
 #include "tree_stats.hpp"
+#include "utils_cxx.hpp"
 
 /* This destructively cancels the first len coefficients of E, and
  * computes the appropriate matrix pi which achieves this. The
@@ -259,9 +260,7 @@ struct bw_lingen_basecase_raw_object {
             if (!rc) {
                 std::ostringstream os;
                 ab->cxx_out(os, *inv);
-                fprintf(stderr, "Error, found a factor of the modulus: %s\n",
-                        os.str().c_str());
-                exit(EXIT_FAILURE);
+                throw cado::error("Error, found a factor of the modulus: {}", os.str().c_str());
             }
             ab->neg(*inv, *inv);
             for (unsigned int kl = jl + 1; kl < b ; kl++) {

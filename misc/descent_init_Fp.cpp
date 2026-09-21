@@ -29,6 +29,7 @@
 #include "mpz_mat.h"
 #include "cxx_mpz.hpp"
 #include "params.hpp"
+#include "cado_main.hpp"
 
 static double default_B1done;
 
@@ -466,8 +467,15 @@ static void descent_configure_switches(cxx_param_list & pl)
 }
 
 
+static int main_(int argc, char const * argv[]);
+
 int
 main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     unsigned long seed = 0;
     unsigned long target = 0; // the target smoothness

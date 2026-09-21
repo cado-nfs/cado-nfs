@@ -26,11 +26,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #include "auxiliary.hpp"
 
+#include <memory>
+
 #include "cado_poly.hpp"
 #include "params.hpp"
 #include "murphyE.hpp"
 #include "polyselect_norms.hpp"
 #include "polyselect_alpha.h"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 int fullscore = 0;
 
@@ -39,28 +43,32 @@ compute_murphyE (const char *input_file, const char *output_file)
 {
     cxx_cado_poly p;
     double E;
-    int rc = EXIT_SUCCESS;
 
-    FILE * of = NULL;
-
+    /* Nothing below can be done with a polynomial we failed to read, so
+     * leave right away rather than carry on with an empty one. */
     if (!p.read(input_file)) {
 	fprintf(stderr, "Error reading polynomial file %s\n", input_file);
-        rc = EXIT_FAILURE;
-    } else if (output_file == NULL) {
+        return EXIT_FAILURE;
+    }
+
+    /* Owns the file only when we opened one; writing goes to "of" in
+     * either case. */
+    std::unique_ptr<FILE, delete_FILE> owned;
+    FILE * of = stdout;
+
+    if (output_file == NULL) {
 	E = MurphyE(p, bound_f, bound_g, area, MURPHY_K, get_alpha_bound());
-        of = stdout;
         if (!fullscore)
             printf("%.5g\n", E);
     } else {
-	FILE *of;
-	of = fopen(output_file, "w");
-	if (of == NULL) {
+        owned = fopen_helper(output_file, "w", true);
+	if (!owned) {
 	    fprintf(stderr, "Error writing polynomial file %s\n",
 		    output_file);
-            rc = EXIT_FAILURE;
-	} else {
-            p.fprintf(of);
-        }
+            return EXIT_FAILURE;
+	}
+        of = owned.get();
+        p.fprintf(of);
     }
 
     if (fullscore) {
@@ -97,11 +105,18 @@ compute_murphyE (const char *input_file, const char *output_file)
 
     }
 
-    return rc;
+    return EXIT_SUCCESS;
 }
 
 // usage: score input_file <output_file>
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

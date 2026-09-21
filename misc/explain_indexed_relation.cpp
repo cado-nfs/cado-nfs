@@ -22,6 +22,8 @@
 #include "typedefs.h"
 #include "renumber.hpp"
 #include "indexed_relation.hpp"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 /* This program takes (from stdin) an indexed relation (typically as
  * found in the .purged.gz file, or in the .dup1/ subdirectories after
@@ -112,8 +114,7 @@ struct command_line {
         pl.parse("lpbs", lpb);
         if (!cpoly.read(polyfilename))
         {
-            fmt::print (stderr, "Error reading polynomial file\n");
-            exit (EXIT_FAILURE);
+            pl.fail("Error reading polynomial file");
         }
 
     }
@@ -310,7 +311,14 @@ void examine_one_relation(renumber_t const & tab, std::set<index_t> & printed, i
     }
 }
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     command_line cmdline;
 

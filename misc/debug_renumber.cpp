@@ -22,6 +22,7 @@
 #include "typedefs.h"
 #include "verbose.hpp"
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 static void declare_usage(cxx_param_list & pl)
 {
@@ -203,8 +204,7 @@ static int debug_renumber(int argc, char const * argv[])
         pl.fail("Error, --lpbs is only valid with --build\n");
 
     if (!cpoly.read(polyfilename)) {
-        fprintf(stderr, "Error reading polynomial file\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("Error reading polynomial file");
     }
 
     renumber_t tab(cpoly);
@@ -267,12 +267,5 @@ static int debug_renumber(int argc, char const * argv[])
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    try {
-        return debug_renumber(argc, argv);
-    } catch (std::exception const & e) {
-        /* so that the complaint comes after what we printed so far */
-        std::cout.flush();
-        fmt::print(stderr, "Error: {}\n", e.what());
-        return EXIT_FAILURE;
-    }
+    return cado::main_wrapper(debug_renumber, argc, argv);
 }

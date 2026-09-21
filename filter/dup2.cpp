@@ -97,6 +97,7 @@
 #endif
 
 #include <variant>
+#include "cado_main.hpp"
 
 
 struct missing_parameter : public parameter_error { /* {{{ */
@@ -345,8 +346,7 @@ struct dup2_process { /* {{{ */
                     " full (avg cost {:1.2f})\n",
                     full_table, double_ratio(cost, nrels_tot));
             if (full_table >= 99) {
-                fprintf(stderr, "Error, hash table is full\n");
-                exit(1);
+                throw cado::error("Error, hash table is full");
             }
             factor += 1.0;
         }
@@ -788,7 +788,14 @@ struct dup2_process { /* {{{ */
     } /* }}} */
 }; /* }}} */
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

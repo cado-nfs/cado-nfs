@@ -111,8 +111,7 @@ polyselect_qroots_add (polyselect_qroots_ptr R, unsigned int q, unsigned int nr,
   R->roots[R->size] = new uint64_t[MAX_DEGREE];
   if (R->roots[R->size] == NULL)
     {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-      exit(1);
+      throw cado::error("Error, cannot allocate memory in {}", __func__);
     }
   for (i = 0; i < nr; i++)
     R->roots[R->size][i] = roots[i];

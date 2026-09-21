@@ -37,6 +37,8 @@
 #include "xdotprod.hpp"
 #include "xvectors.hpp"
 #include "bwc_filenames.hpp"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 static void bw_rank_check(matmul_top_data & mmt, cxx_param_list & pl)
 {
@@ -59,9 +61,7 @@ static void bw_rank_check(matmul_top_data & mmt, cxx_param_list & pl)
             fmt::print(stderr,
                     "Proceeding anyway as per skip_bw_early_rank_check=1\n");
         } else {
-            fmt::print(stderr, "Aborting. Use skip_bw_early_rank_check=1 to "
-                            "proceed nevertheless.\n");
-            exit(EXIT_FAILURE);
+            throw cado::error("Aborting. Use skip_bw_early_rank_check=1 to proceed nevertheless.");
         }
     }
 }
@@ -477,14 +477,8 @@ struct prep_object {
                 if (ntri)
                     ++my_nx;
                 if (ntri >= 4) {
-                    fmt::print(stderr,
-                               "Cannot find a satisfactory initialization, "
-                               "and your RHS vectors leave with no leeway for "
-                               "randomness "
-                               "(nrhs={}, n={}). "
-                               "Maybe your RHS vectors are bad ?\n",
-                               nrhs, bw->n);
-                    exit(EXIT_FAILURE);
+                    throw cado::error("Cannot find a satisfactory initialization, and your RHS vectors leave with no leeway for randomness (nrhs={}, n={}). Maybe your RHS vectors are bad ?",
+                            nrhs, bw->n);
                 }
             } else if (ntri >= my_nx * 10) {
                 ++my_nx;
@@ -720,8 +714,15 @@ static void * prep_prog(parallelizing_info & pi, cxx_param_list & pl,
     return nullptr;
 }
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

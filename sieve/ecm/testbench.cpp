@@ -60,6 +60,7 @@ To test the mpz arithmetic on a 64-bit processor:
 #include "arith/modredc_ul_default.h"
 #include "timing.h"
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 #define MAX_METHODS 20
 
@@ -174,8 +175,15 @@ static unsigned long next_prime(unsigned long start)
     return start;
 }
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     char const * argv0 = argv[0];
     unsigned long start, stop, i, mod = 0UL, inpstop = ULONG_MAX;
@@ -242,8 +250,7 @@ int main(int argc, char const * argv[])
             } else if (strcmp(argv[1], "-ecmem12") == 0) {
                 parameterization = MONTYTWED12;
             } else {
-                fprintf(stderr, "Unrecognized option: %s\n", argv[1]);
-                exit(EXIT_FAILURE);
+                throw cado::error("Unrecognized option: {}", argv[1]);
             }
             method_params.emplace_back(EC_METHOD, B1, B2, parameterization,
                                        parameter, extra_primes);
@@ -270,17 +277,13 @@ int main(int argc, char const * argv[])
             } else if (strcmp(argv[1], "-poem12") == 0) {
                 po_parameterization = MONTYTWED12;
             } else {
-                fprintf(stderr, "Unrecognized option: %s\n", argv[1]);
-                exit(EXIT_FAILURE);
+                throw cado::error("Unrecognized option: {}", argv[1]);
             }
             po_parameter = strtol(argv[2], NULL, 10);
 
             if (!ec_parameter_is_valid(po_parameterization, po_parameter)) {
-                fprintf(
-                    stderr,
-                    "Parameter %lu is not valid with parametrization '%s'\n",
-                    po_parameter, argv[1]);
-                exit(EXIT_FAILURE);
+                throw cado::error("Parameter {} is not valid with"
+                        " parametrization '{}'", po_parameter, argv[1]);
             }
 
             argc -= 2;

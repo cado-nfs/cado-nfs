@@ -122,6 +122,7 @@
 #include "cado_math_aux.hpp"
 #include "cado_mp_conversions.hpp"
 #include "work_queue.hpp"
+#include "cado_main.hpp"
 
 using cado_mpi::mpi_data_agrees;
 using cado_mpi::allreduce;
@@ -2444,7 +2445,14 @@ static void banner()
     }
 }
 
+static int main_(int argc, char const ** argv);
+
 int main(int argc, char const ** argv)
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const ** argv)
 {
     int ret;
     int asked_r = 0;

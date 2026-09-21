@@ -897,7 +897,10 @@ class PolyselectJL(Program):
                  bound: Parameter(checktype=int) = None,
                  modm: Parameter(checktype=int) = None,
                  modr: Parameter(checktype=int) = None,
-                 skew: Toggle() = None,
+                 rrf: Parameter(checktype=int) = None,
+                 rrg: Parameter(checktype=int) = None,
+                 # the binary's switch is -skewed, not -skew
+                 skew: Toggle("skewed") = None,  # noqa: F821
                  threads: Parameter("t", checktype=int) = None,  # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)

@@ -61,6 +61,8 @@
 #include "getprime.h"
 #include "dllist.h"
 #include "auxiliary.hpp"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -216,8 +218,7 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
   mpz_mul_ui(m, header->ad, header->d);
   if (mpz_invert(adm1, l, m) == 0)
     {
-      fprintf(stderr, "Error in 1/l mod (d*ad)\n");
-      exit(1);
+      throw cado::error("Error in 1/l mod (d*ad)");
     }
   mpz_mul(adm1, adm1, mtilde);
   mpz_mod(adm1, adm1, m);	/* m is d*ad here */
@@ -660,7 +661,14 @@ void * thread_loop(polyselect_thread_ptr thread)
 }
 
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
   /* nthreads = 0 means: do something automatic */
   int quiet = 0;
