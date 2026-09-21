@@ -25,8 +25,7 @@ static size_t number_of_words(std::string const & filename)
 
     int const rc = stat(filename.c_str(), sbuf);
     if (rc < 0) {
-        fmt::print(stderr, "stat({}): {}\n", filename, strerror(errno));
-        exit(EXIT_FAILURE);
+        throw cado::error("stat({}): {}", filename, strerror(errno));
     }
     return sbuf->st_size / sizeof(uint32_t);
 }
@@ -66,8 +65,7 @@ matrix_u32::from_file(std::string const & mfile,
     ASSERT_ALWAYS(f);
     size_t const nread = fread(m.p.data(), sizeof(uint32_t), msize, f.get());
     if (nread < msize) {
-        fmt::print(stderr, "{}: short read ({} < {})\n", mfile, nread, msize);
-        exit(EXIT_FAILURE);
+        throw cado::error("{}: short read ({} < {})", mfile, nread, msize);
     }
 
 

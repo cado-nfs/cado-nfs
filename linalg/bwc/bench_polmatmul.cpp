@@ -23,13 +23,13 @@
 #include "misc.h"
 #include "portability.h"
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 // scan-headers: stop here
 
 static void usage()
 {
-    fmt::print(stderr, "Usage: ./bench_polmatmul [--nrep <k>] <N> <m> <n>\n");
-    exit(1);
+    throw cado::error("Usage: ./bench_polmatmul [--nrep <k>] <N> <m> <n>");
 }
 
 /* Counted in unsigned longs -- must exceed all caches by large, so as to
@@ -907,9 +907,7 @@ static void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N, 
         }
 
         if (DATA_POOL_SIZE * ULONG_BITS / 2 < d) {
-            fmt::print(stderr, "Please increa DATA_POOL_SIZE to at least {}\n",
-                       W(2 * d));
-            exit(1);
+            throw cado::error("Please increa DATA_POOL_SIZE to at least {}", W(2 * d));
         }
 
         fmt::print("[{}] length of E is {} ({} MB)\n", level, d,
@@ -970,7 +968,14 @@ static void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N, 
     }
 }
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     /* This is a bench program. We want the output quick.  */
     setvbuf(stdout, nullptr, _IONBF, 0);

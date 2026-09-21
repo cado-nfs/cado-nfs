@@ -18,6 +18,7 @@
 #include "params.hpp"
 
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 /* This program is rather standalone. It checks the current directory
  * for files matching the pattern A%u-%u.%u-%u, and concatenates them.
@@ -27,8 +28,7 @@
 
 void usage()
 {
-    fprintf(stderr, "Usage: acollect [m=<m>] [wdir=<path>] [--remove-old]\n");
-    exit(EXIT_FAILURE);
+    throw cado::error("Usage: acollect [m=<m>] [wdir=<path>] [--remove-old]");
 }
 
 struct afile_s {
@@ -84,15 +84,12 @@ unsigned int read_afiles(struct afile_list * a, int bits_per_coeff)
             continue;
         }
         if ((A->n1 * bits_per_coeff) % CHAR_BIT || (A->n0 * bits_per_coeff) % CHAR_BIT) {
-            fprintf(stderr, "%s has bad boundaries\n",
-                    de->d_name);
-            exit(EXIT_FAILURE);
+            throw cado::error("{} has bad boundaries", de->d_name);
         }
         struct stat sbuf[1];
         rc = stat(de->d_name, sbuf);
         if (rc < 0) {
-            fprintf(stderr, "stat(%s): %s\n", de->d_name, strerror(errno));
-            exit(EXIT_FAILURE);
+            throw cado::error("stat({}): {}", de->d_name, strerror(errno));
         }
         ssize_t expected = bits_per_coeff;
         expected *= A->n1-A->n0;
@@ -101,9 +98,7 @@ unsigned int read_afiles(struct afile_list * a, int bits_per_coeff)
         expected *= bw->m;
 
         if (sbuf->st_size != expected) {
-            fprintf(stderr, "%s does not have expected size %zu\n",
-                    de->d_name, expected);
-            exit(EXIT_FAILURE);
+            throw cado::error("{} does not have expected size {}", de->d_name, expected);
         }
 
         a->n++;
@@ -130,7 +125,14 @@ unsigned int read_afiles(struct afile_list * a, int bits_per_coeff)
     return a->n;
 }
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     int remove_old = 0;
     int bits_per_coeff = 1;
@@ -186,10 +188,9 @@ int main(int argc, char const * argv[])
         unsigned int j = j0;
         for( ; k1 < a->n && a->a[k1]->n0 == n0 ; k1++) {
             if (a->a[k1]->n1 != n1 || a->a[k1]->j0 != j) {
-                fprintf(stderr, "Found inconsistent files A%u-%u.%u-%u and A%u-%u.%u-%u\n",
+                throw cado::error("Found inconsistent files A{}-{}.{}-{} and A{}-{}.{}-{}",
                         a->a[k0]->n0, a->a[k0]->n1, a->a[k0]->j0, a->a[k0]->j1,
                         a->a[k1]->n0, a->a[k1]->n1, a->a[k1]->j0, a->a[k1]->j1);
-                exit(EXIT_FAILURE);
             }
             j = a->a[k1]->j1;
         }
@@ -214,15 +215,13 @@ int main(int argc, char const * argv[])
             for( ; ; ) {
                 int nr = fread(buf, 1, BUFSIZ, g);
                 if (nr < BUFSIZ && ferror(g)) {
-                    fprintf(stderr, "%s: %s\n", tmp, strerror(errno));
-                    exit(EXIT_FAILURE);
+                    throw cado::error("{}: {}", tmp, strerror(errno));
                 }
                 if (nr == 0)
                     break;
                 int nw = fwrite(buf, 1, nr, f);
                 if (nr < nw) {
-                    fprintf(stderr, "copying %s: %s\n", tmp, strerror(errno));
-                    exit(EXIT_FAILURE);
+                    throw cado::error("copying {}: {}", tmp, strerror(errno));
                 }
                 if (nr < BUFSIZ)
                     break;
@@ -231,8 +230,7 @@ int main(int argc, char const * argv[])
 
             if (remove_old) {
                 if (unlink(tmp) < 0) {
-                    fprintf(stderr, "unlink(%s): %s\n", tmp, strerror(errno));
-                    exit(EXIT_FAILURE);
+                    throw cado::error("unlink({}): {}", tmp, strerror(errno));
                 }
             }
             free(tmp);
@@ -244,17 +242,14 @@ int main(int argc, char const * argv[])
             ASSERT_ALWAYS(r >= 0);
             r = rename("A.temp", tmp);
             if (r < 0) {
-                fprintf(stderr, "rename(A.temp, %s): %s\n",
-                        tmp, strerror(errno));
-                exit(EXIT_FAILURE);
+                throw cado::error("rename(A.temp, {}): {}", tmp, strerror(errno));
             }
             free(tmp);
         }
     }
 
     if (did_merge && !remove_old) {
-        fprintf(stderr, "Done some merges, but cannot continue unless --remove-old is specified\n");
-        exit(EXIT_FAILURE);
+        pl.fail("Done some merges, but cannot continue unless --remove-old is specified");
     }
 
     /* Good. Now merge the other way around. Not clear it's really
@@ -284,10 +279,9 @@ int main(int argc, char const * argv[])
         unsigned int n = n0;
         for( ; k1 < a->n && a->a[k1]->j0 == j0 ; k1++) {
             if (a->a[k1]->j1 != j1 || a->a[k1]->n0 != n) {
-                fprintf(stderr, "Found inconsistent files A%u-%u.%u-%u and A%u-%u.%u-%u\n",
+                throw cado::error("Found inconsistent files A{}-{}.{}-{} and A{}-{}.{}-{}",
                         a->a[k0]->n0, a->a[k0]->n1, a->a[k0]->j0, a->a[k0]->j1,
                         a->a[k1]->n0, a->a[k1]->n1, a->a[k1]->j0, a->a[k1]->j1);
-                exit(EXIT_FAILURE);
             }
             n = a->a[k1]->n1;
         }
@@ -330,16 +324,14 @@ int main(int argc, char const * argv[])
                     sz = (a->a[k]->n1 - a->a[k]->n0) * bits_per_coeff/ CHAR_BIT;
                     rz = fread(ptr, 1, sz, rs[k-k0]);
                     if (rz < sz) {
-                        fprintf(stderr, "fwrite: short read\n");
-                        exit(EXIT_FAILURE);
+                        throw cado::error("fwrite: short read");
                     }
                     ptr += sz;
                 }
                 sz = (n1-n0)* bits_per_coeff/CHAR_BIT;
                 rz = fwrite(buf, 1, sz, f);
                 if (rz != sz) {
-                    fprintf(stderr, "fwrite: short write\n");
-                    exit(EXIT_FAILURE);
+                    throw cado::error("fwrite: short write");
                 }
             }
             final->j1++;
@@ -352,8 +344,7 @@ int main(int argc, char const * argv[])
 
         if (fflush(f) != 0) {
             // we're in trouble
-            fprintf(stderr, "fflush(): %s\n", strerror(errno));
-            exit(EXIT_FAILURE);
+            throw cado::error("fflush(): {}", strerror(errno));
         }
 
         final->j1 = j1;
@@ -366,8 +357,7 @@ int main(int argc, char const * argv[])
                     a->a[k]->n0,a->a[k]->n1,a->a[k]->j0,a->a[k]->j1);
             ASSERT_ALWAYS(rc >= 0);
             if (unlink(tmp) < 0) {
-                fprintf(stderr, "unlink(%s): %s\n", tmp, strerror(errno));
-                exit(EXIT_FAILURE);
+                throw cado::error("unlink({}): {}", tmp, strerror(errno));
             }
             free(tmp);
         }
@@ -380,8 +370,7 @@ int main(int argc, char const * argv[])
         r = asprintf(&tmp, "A%u-%u.%u-%u", final->n0,final->n1,final->j0,final->j1);
         r = rename("A.temp", tmp);
         if (r < 0) {
-            fprintf(stderr, "rename(A.temp, %s): %s\n", tmp, strerror(errno));
-            exit(EXIT_FAILURE);
+            throw cado::error("rename(A.temp, {}): {}", tmp, strerror(errno));
         }
         printf("%s\n",tmp);
         free(tmp);

@@ -595,8 +595,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
         {
             size_t const rc = fread(&w, sizeof(uint32_t), 1, f.get());
             if (rc != 1) {
-                fmt::print(stderr, "{}: short read\n", mfile);
-                exit(EXIT_FAILURE);
+                throw cado::error("{}: short read", mfile);
             }
         }
         ASSERT_ALWAYS(w <= (1 + withcoeffs) * D.fw_colperm.size());
@@ -607,8 +606,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
         {
             size_t const rc = fread(row.data(), sizeof(uint32_t), ww, f.get());
             if (rc != ww) {
-                fmt::print(stderr, "{}: short read\n", mfile);
-                exit(EXIT_FAILURE);
+                throw cado::error("{}: short read", mfile);
             }
         }
         z += ww * sizeof(uint32_t);

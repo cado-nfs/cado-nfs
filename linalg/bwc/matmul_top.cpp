@@ -950,8 +950,8 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data & mmt, int i, 
 
                     mf_bal(&mba);
                 } else {
-                    fprintf(stderr, "Cannot access balancing file %s: %s\n", Mloc.bname.c_str(), strerror(errno));
-                    exit(EXIT_FAILURE);
+                    throw cado::error("Cannot access balancing file {}: {}",
+                            Mloc.bname.c_str(), strerror(errno));
                 }
             }
             balancing_read_header(Mloc.bal, Mloc.bname);
@@ -1114,18 +1114,15 @@ matmul_top_data::matmul_top_data(
 
     if (random_description || static_random_matrix) {
         if (nbals || nmatrices) {
-            fprintf(stderr, "random_matrix is incompatible with balancing= and matrix=\n");
-            exit(EXIT_FAILURE);
+            pl.fail("random_matrix is incompatible with balancing= and matrix=");
         }
     } else if (nbals && !nmatrices) {
-        fprintf(stderr, "missing parameter matrix=\n");
-        exit(EXIT_FAILURE);
+        pl.fail("missing parameter matrix=");
     } else if (!nbals && nmatrices) {
         /* nbals == 0 is a hint towards taking the default balancing file
          * names, that's it */
     } else if (nbals != nmatrices) {
-        fprintf(stderr, "balancing= and matrix= have inconsistent number of items\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("balancing= and matrix= have inconsistent number of items");
     }
 
     if (random_description)

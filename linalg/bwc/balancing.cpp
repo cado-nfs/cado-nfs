@@ -164,8 +164,7 @@ static void balancing_read_header_inner(balancing & bal, FILE * pfile)
     rc += fread32_little(bal.pshuf_inv, 2, pfile);
     ASSERT_ALWAYS(rc == 15);
     if (bal.zero != 0 || bal.magic != BALANCING_MAGIC) {
-        fprintf(stderr, "Incompatible balancing file\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("Incompatible balancing file");
     }
     /* It does not make sense to say that we want to replicate
      * permutations if we have both a row and a column permutation in the

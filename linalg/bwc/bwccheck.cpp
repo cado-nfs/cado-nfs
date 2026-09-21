@@ -30,6 +30,7 @@
 #include "select_mpi.h"
 #include "utils_cxx.hpp"
 #include "bwc_filenames.hpp"
+#include "cado_main.hpp"
 
 // arguments we need
 // m
@@ -92,10 +93,8 @@ static size_t common_size(arith_generic * Ac, std::vector<T> const & Cfiles, con
             vsize = items;
             vsize_first = C;
         } else if (vsize != items) {
-            fmt::print(stderr,
-                    "File sizes disagree for {} ({} items) and {} ({} items)\n",
+            throw cado::error("File sizes disagree for {} ({} items) and {} ({} items)",
                     vsize_first, vsize, C, items);
-            exit(EXIT_FAILURE);
         }
     }
     if (vsize) fmt::print("{} files have {} coordinates\n", name, vsize);
@@ -525,8 +524,7 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
 
     /* Check A files using V, D, T, and R */
     if ((Tfiles.empty() || Rfiles.empty()) && !Dfiles.empty()) {
-        fmt::print(stderr, "{}", "It makes no sense to provide Cd files and no Cr and Ct file\n");
-        exit(EXIT_FAILURE);
+        throw cado::error("{}", "It makes no sense to provide Cd files and no Cr and Ct file\n");
     } else if (!Tfiles.empty() && !Rfiles.empty() && !Dfiles.empty()) {
         check_A_files(Ac.get(), Vfiles, Afiles, Dfiles, Rfiles.front(), Tfiles.front(), nfailed);
     }
@@ -534,8 +532,7 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
     if (nfailed) {
         std::string diag = fmt::format("{} checks FAILED !!!!!!!!!!!!!!!!!\n", nfailed);
         fmt::print("{}", diag);
-        fmt::print(stderr, "{}", diag);
-        exit(EXIT_FAILURE);
+        throw cado::error("{}", diag);
     }
 
 
@@ -653,7 +650,14 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
 }
 
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

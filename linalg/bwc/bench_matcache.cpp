@@ -42,12 +42,11 @@
 #include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 #include "version_info.h" // cado_revision_string
 #include "worker-threads.h"
+#include "cado_main.hpp"
 
 static void usage()
 {
-    fmt::print(stderr,
-            "Usage: ./bench [--impl <implementation>] [--tmax <time>] [--nmax <n_iter>] [--nchecks <number> | --nocheck] [-r|--rebuild] [-t|--transpose] [--nthreads <number>] [--cycles <frequency>] -- <file0> [<file1> ... ]\n");
-    exit(1);
+    throw cado::error("Usage: ./bench [--impl <implementation>] [--tmax <time>] [--nmax <n_iter>] [--nchecks <number> | --nocheck] [-r|--rebuild] [-t|--transpose] [--nthreads <number>] [--cycles <frequency>] -- <file0> [<file1> ... ]");
 }
 
 
@@ -138,8 +137,8 @@ struct bench_args {// {{{
         rebuild   = pl.parse<bool>("--rebuild");
 
         if (mfiles.size() != (size_t) nthreads) {
-            fmt::print(stderr, "{} threads requested, but {} files given on the command line.\n", nthreads, mfiles.size());
-            exit(EXIT_FAILURE);
+            throw cado::error("{} threads requested, but {} files given on the command line.",
+                    nthreads, mfiles.size());
         }
 
         p.resize(nthreads);
@@ -227,16 +226,14 @@ void bench_args::do_simple_matmul_if_requested()// {{{
     private_args const & P(p[0]);
 
     if (nthreads > 1) {
-        fmt::print(stderr, "srcvec incompatible with multithread\n");
-        exit(EXIT_FAILURE);
+        pl.fail("srcvec incompatible with multithread");
     }
 
     P.fill_both_vectors_zero();
 
     std::unique_ptr<FILE, delete_FILE> f(fopen(srcvecname.c_str(), "rb"));
     if (!f) {
-        fmt::print(stderr, "fopen({}): {}\n", srcvecname, strerror(errno));
-        exit(EXIT_FAILURE);
+        throw cado::error("fopen({}): {}", srcvecname, strerror(errno));
     }
     /* with transpose, we're doing vector times matrix (rowvec
      * times matrix -> colvec) */
@@ -247,8 +244,7 @@ void bench_args::do_simple_matmul_if_requested()// {{{
             n * sizeof(uint64_t), srcvecname);
     size_t const nread = fread(srcvec, sizeof(uint64_t), n, f.get());
     if (nread != size_t(n)) {
-        fmt::print(stderr, "short read ({} < {})\n", nread, n);
-        exit(1);
+        throw cado::error("short read ({} < {})", nread, n);
     }
 
     do_for_all_threads(mul_func);
@@ -260,8 +256,7 @@ void bench_args::do_simple_matmul_if_requested()// {{{
             nw * sizeof(uint64_t), dstvecname);
     size_t const nwritten = fwrite(dstvec, sizeof(uint64_t), nw, f.get());
     if (nwritten != size_t(nw)) {
-        fmt::print(stderr, "short write ({} < {})\n", nwritten, nw);
-        exit(1);
+        throw cado::error("short write ({} < {})", nwritten, nw);
     }
     fmt::print(stderr, "Saved [{}]{} * [{}] to [{}]\n",
             P.mm->cachefile_name,
@@ -486,7 +481,14 @@ static void banner(int argc, char const * argv[])// {{{
     fmt::print(stderr, "# Compilation flags " CFLAGS "\n");
 }// }}}
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     setvbuf(stdout, nullptr, _IONBF, 0);
     setvbuf(stderr, nullptr, _IONBF, 0);

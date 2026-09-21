@@ -30,6 +30,7 @@
 #include "utils_cxx.hpp"
 #include "bwc_filenames.hpp"
 #include "misc.h"
+#include "cado_main.hpp"
 
 /* We create the check data based on:
  *
@@ -390,8 +391,15 @@ static void * sec_prog(parallelizing_info & pi, cxx_param_list & pl, void * arg 
     return nullptr;
 }
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

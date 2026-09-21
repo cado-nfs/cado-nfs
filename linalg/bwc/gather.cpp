@@ -43,6 +43,7 @@
 #include "mmt_vector_pair.hpp"
 #include "utils_cxx.hpp"
 #include "bwc_filenames.hpp"
+#include "cado_main.hpp"
 
 static int exitcode = 0;
 
@@ -1028,12 +1029,8 @@ static void * gather_prog(parallelizing_info & pi, cxx_param_list & pl, void * a
     if ((char2 && (A_width != 64 && A_width != 128 && A_width != 256))
             || (!char2 && A_width > 1))
     {
-        fmt::print(stderr,
-                "We cannot support computing {} solutions at a time "
-                "with one single Spmv operation, given the currently "
-                "implemented code\n",
+        throw cado::error("We cannot support computing {} solutions at a time with one single Spmv operation, given the currently implemented code",
                 A_width);
-        exit(EXIT_FAILURE);
     }
 
     abase_proxy const abase_solutions(pi, A_width);
@@ -1340,8 +1337,15 @@ static void * gather_prog(parallelizing_info & pi, cxx_param_list & pl, void * a
     return nullptr;
 }
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

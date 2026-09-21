@@ -38,6 +38,7 @@
 #include "macros.h"
 #include "omp_proxy.h"
 #include "timing.h"
+#include "utils_cxx.hpp"
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
@@ -157,12 +158,11 @@ size_t lingen_file_input<is_binary>::guessed_length() const
 
         if (!ascii) {
             if (filesize % avg) {
-                fprintf(stderr, "File %s has %zu bytes, while its size"
-                        " should be a multiple of %zu bytes "
+                throw cado::error("File {} has {} bytes, while its size"
+                        " should be a multiple of {} bytes "
                         "(assuming binary input; "
-                        "perhaps --ascii is missing ?).\n",
-                        filename.c_str(), filesize, avg);
-                exit(EXIT_FAILURE);
+                        "perhaps --ascii is missing ?).",
+                        filename, filesize, avg);
             }
             guess = filesize / avg;
         } else {
@@ -290,9 +290,7 @@ normalize_column(matpoly<false>& M, std::vector<unsigned int> const& pivots)
     if (!rc) {
         std::ostringstream os;
         M.ab->cxx_out(os, *tmp);
-        fprintf(stderr, "Error, found a factor of the modulus: %s\n",
-                os.str().c_str());
-        exit(EXIT_FAILURE);
+        throw cado::error("Error, found a factor of the modulus: {}", os.str().c_str());
     }
     M.ab->neg(*tmp, *tmp);
     for (unsigned int i = 0; i < M.m; i++) {
@@ -375,11 +373,9 @@ void lingen_E_from_A<is_binary>::refresh_cache_upto(unsigned int k)
             cache.zero_pad(next_k1);
         ssize_t const nk = A.read_to_matpoly(cache, cache_k1, next_k1);
         if (nk < (ssize_t) (k - cache_k1)) {
-            fprintf(stderr, "short read from A\n");
-            printf("This amount of data is insufficient. "
-                    "Cannot find %u independent cols within A\n",
-                    m);
-            exit(EXIT_FAILURE);
+            throw cado::error("short read from A\n"
+                    "This amount of data is insufficient. "
+                    "Cannot find {} independent cols within A", m);
         }
         cache_k1 = next_k1;
     }
@@ -1498,16 +1494,14 @@ void pipe(lingen_input_wrapper_base<is_binary> & in, lingen_output_wrapper_base<
                 Z.zero_pad(nz);
             ssize_t const nn = out.write_from_matpoly(Z, 0, nz);
             if (nn < (ssize_t) nz) {
-                fprintf(stderr, "short write\n");
-                exit(EXIT_FAILURE);
+                throw cado::error("short write");
             }
             zq -= nz;
             done += nz;
         }
         ssize_t const nn = out.write_from_matpoly(F, 0, n1);
         if (nn < n1) {
-            fprintf(stderr, "short write\n");
-            exit(EXIT_FAILURE);
+            throw cado::error("short write");
         }
         zq = n - n1;
         done += n1;

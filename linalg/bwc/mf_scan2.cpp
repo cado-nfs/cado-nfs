@@ -27,6 +27,7 @@
 #include "misc.h"
 #include "fix-endianness.h"
 #include "utils_cxx.hpp"
+#include "cado_main.hpp"
 
 static void mf_scan2_decl_usage(cxx_param_list & pl)
 {
@@ -210,9 +211,7 @@ static void master_loop(ringbuf & R, FILE * f_in, FILE * f_rw)
                 break;
         }
         if (((int32_t)row_length) < 0) {
-            fmt::print(stderr, "Found row with more than 2G entries."
-                    " You most probably omitted the --withcoeffs flag\n");
-            exit(EXIT_FAILURE);
+            throw cado::error("Found row with more than 2G entries. You most probably omitted the --withcoeffs flag");
         }
         {
             auto const rc = fwrite32_little(&row_length, 1, f_rw);
@@ -293,8 +292,15 @@ static void maincode(ringbuf & R, int nb_consumers, FILE * f_in, FILE * f_rw, FI
     write_column_weights(T, f_cw);
 }
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
     std::string rwfile;
@@ -317,9 +323,7 @@ int main(int argc, char const * argv[])
             argv++,argc--;
             continue;
         }
-        fmt::print(stderr, "unknown option {}\n", argv[0]);
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("unknown option {}", argv[0]);
     }
 
     pl.parse("--withcoeffs", withcoeffs);
@@ -332,8 +336,7 @@ int main(int argc, char const * argv[])
     pl.parse("cwfile", cwfile);
 
     if (mfile.empty()) {
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("mfile is mandatory");
     }
 
     if (!ends_with(mfile, ".bin")) {
@@ -415,5 +418,7 @@ int main(int argc, char const * argv[])
     } else {
         maincode<true>(R, consumers, f_in.get(), f_rw.get(), f_cw.get());
     }
+
+    return EXIT_SUCCESS;
 }
 

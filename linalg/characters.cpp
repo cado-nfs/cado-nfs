@@ -110,6 +110,8 @@
 #include "submatrix_range.hpp"
 #include "timing.h"
 #include "version_info.h"
+#include "cado_main.hpp"
+#include "utils_cxx.hpp"
 
 typedef struct {
     unsigned long p;      /* algebraic prime */
@@ -665,8 +667,15 @@ declare_usage (cxx_param_list & pl)
                                                 "on each side");
 }
 
+static int main_(int argc, char const * argv[]);
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     const char * heavyblockname = NULL;
     int nchars, nratchars = 0;
@@ -716,10 +725,8 @@ int main(int argc, char const * argv[])
         pl.fail("Error: parameter -nchar is mandatory\n");
 
     if (only_sign_chars && nchars != cpoly.nsides()) {
-        fmt::print(stderr, "Error: with -only-sign-chars, -nchars should be "
-                           "equal to the number of sides ({}), got {}\n",
-                           cpoly.nsides(), nchars);
-        exit (EXIT_FAILURE);
+        pl.fail("Error: with -only-sign-chars, -nchars should be equal to the number of sides ({}), got {}",
+                cpoly.nsides(), nchars);
     }
 
     pl.parse("only_sign_chars", only_sign_chars);
@@ -727,9 +734,8 @@ int main(int argc, char const * argv[])
     /* parse the optional -nratchars option */
     pl.parse("nratchars", nratchars);
     if (nratchars && cpoly.get_ratside() == -1) { /* no rat side */
-        fmt::print(stderr, "Error: nratchars is non-zero ({}) but poly has no "
-                           "rational side\n", nratchars);
-        exit (EXIT_FAILURE);
+        pl.fail("Error: nratchars is non-zero ({}) but poly has no rational side",
+                nratchars);
     }
     /* parse lpb{side} for each side of cpoly */
     for (int side = 0; side < cpoly.nsides(); ++side)
@@ -845,8 +851,7 @@ int main(int argc, char const * argv[])
         for( ; sanity ; sanity>>=1) nonzero_deps += sanity&1UL;
     }
     if (!nonzero_deps) {
-        fprintf(stderr, "Error, all dependencies are zero !\n");
-        exit(1);
+        throw cado::error("Error, all dependencies are zero !");
     }
     k.write_to_flat_file(outname, 0, 0, k.nrows(), k.ncols());
 

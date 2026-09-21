@@ -23,6 +23,7 @@
 #include "misc.h"       // mkdir_with_parents next_power_of_2 integer_sqrt
 #include "params.hpp"
 #include "cado-sighandlers.h"
+#include "utils_cxx.hpp"
 
 struct bw_params bw[1];
 
@@ -129,8 +130,7 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
          * multithreaded yet */
         mkdir_with_parents(tmp, 1);
         if (chdir(tmp) < 0) {
-            fprintf(stderr, "chdir(%s): %s\n", tmp, strerror(errno));
-            exit(EXIT_FAILURE);
+            throw cado::error("chdir({}): {}", tmp, strerror(errno));
         }
     }
 
@@ -176,9 +176,8 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
         } else if (strcmp(tmp_l, bw_dirtext[1]) == 0) {
             bw->dir = 1;
         } else {
-            fprintf(stderr, "Parameter nullspace may only be %s|%s\n",
+            pl.fail("Parameter nullspace may only be {}|{}",
                     bw_dirtext[0], bw_dirtext[1]);
-            exit(EXIT_FAILURE);
         }
         free(tmp_l);
     } else {
@@ -193,16 +192,14 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
             if (nullspace_forced) {
                 fprintf(stderr, "Proceeding anyway (uppercase nullspace argument)\n");
             } else {
-                fprintf(stderr, "Aborting. Pass nullspace=RIGHT if this is really intended.\n");
-                exit(EXIT_FAILURE);
+                throw cado::error("Aborting. Pass nullspace=RIGHT if this is really intended.");
             }
         } else {
             fprintf(stderr, "p>2 seems appropriate for discrete logarithm. Yet, the nullspace parameter has been passed as nullspace=left. This looks odd.\n");
             if (nullspace_forced) {
                 fprintf(stderr, "Proceeding anyway (uppercase nullspace argument)\n");
             } else {
-                fprintf(stderr, "Aborting. Pass nullspace=LEFT if this is really intended.\n");
-                exit(EXIT_FAILURE);
+                throw cado::error("Aborting. Pass nullspace=LEFT if this is really intended.");
             }
         }
     }
@@ -219,9 +216,7 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
     okm += pl.parse("m", bw->m);
     okn += pl.parse("n", bw->n);
     if (!okm || !okn) {
-        fprintf(stderr, "parameter m and/or n is missing\n");
-        pl.print_usage(stderr);
-        exit(EXIT_FAILURE);
+        pl.fail("parameter m and/or n is missing");
     }
 
     /* This is used only within secure.cpp, and undergoes some further
@@ -323,8 +318,8 @@ int bw_common_init(struct bw_params * bw, int * p_argc, char const *** p_argv)/*
             if (LEXGE2(ver,subver,MPI_VERSION,MPI_SUBVERSION)) {
                 fprintf(stderr, "****** Warning: this program was compiled with headers for an MPI implementation honouring version %d.%d, while the library implements version %d.%d. This is not a problem per se, but it very likely hints at the fact that the MPI implementation you're using to run the program differs from the one you used to compile it. It does cause problems fairly often. Be warned.\n", MPI_VERSION,MPI_SUBVERSION, ver,subver);
             } else {
-                fprintf(stderr, "****** Warning: this program was compiled with headers for an MPI implementation honouring version %d.%d, while the library implements version %d.%d. This is a fatal error (and presumably you're actually not seeing this message because your code failed to link).\n", MPI_VERSION,MPI_SUBVERSION, ver,subver);
-                exit(EXIT_FAILURE);
+                throw cado::error("****** Warning: this program was compiled with headers for an MPI implementation honouring version {}.{}, while the library implements version {}.{}. This is a fatal error (and presumably you're actually not seeing this message because your code failed to link).",
+                        MPI_VERSION,MPI_SUBVERSION, ver,subver);
             }
         }
     }

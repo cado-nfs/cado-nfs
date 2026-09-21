@@ -19,6 +19,7 @@
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "params.hpp"
 #include "matrix_u32.hpp"   // for matrix_u32
+#include "cado_main.hpp"
 
 
 static void declare_usage(cxx_param_list & pl)
@@ -52,7 +53,14 @@ struct cado::params::parser<direction_flag> {
     }
 };
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_mpz prime;
     mpz_set_ui(prime, 2);
@@ -122,4 +130,6 @@ int main(int argc, char const * argv[])
     mm->ncoeffs = std::get<2>(matrix);
     mm->build_cache(std::move(std::get<0>(matrix)));
     mm->save_cache();
+
+    return EXIT_SUCCESS;
 }
