@@ -276,7 +276,7 @@ struct purged_file_reader {
              * mechanism :-(
              * this should obviously be refactored.
              */
-            nread = read_purgedfile_in_parallel(mat, purgedname.c_str());
+            nread = read_purgedfile_in_parallel(mat, purgedname);
         } else {
             using relation_type =
                 cado::relation_building_blocks::primes_block<
