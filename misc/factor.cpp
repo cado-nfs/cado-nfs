@@ -28,6 +28,7 @@
  * fully_factor::primes, within fully_factor::print_progress
  */
 #include "fmt/ranges.h" // IWYU pragma: keep
+#include "cado_main.hpp"
 
 fully_factor::fully_factor(cxx_mpz n)
   : N(std::move(n))
@@ -459,7 +460,14 @@ struct command_line
     }
 };
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
     command_line cmdline;

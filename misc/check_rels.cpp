@@ -30,6 +30,7 @@
 #include "typedefs.h"
 #include "verbose.hpp"
 #include "fstream_maybe_compressed.hpp"
+#include "cado_main.hpp"
 
 #define FACTOR_DOES_NOT_DIVIDE 1UL
 #define FACTOR_NOT_PRIME 2UL
@@ -399,7 +400,14 @@ static size_t filter(filelist const & input, bool abhexa,
     }
 }
 
+static int main_(int argc, char const * argv[]);
+
 int main(int argc, char const * argv[])
+{
+    return cado::main_wrapper(main_, argc, argv);
+}
+
+static int main_(int argc, char const * argv[])
 {
     cxx_param_list pl;
 
