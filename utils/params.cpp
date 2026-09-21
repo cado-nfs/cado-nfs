@@ -24,7 +24,10 @@ using cado::params::cxx_param_list;
 
 void cxx_param_list::print_usage(FILE *f) const
 {
-    const auto * const argv0 = cmdline_argv0[0];
+    /* cmdline_argv0 is only set once update_cmdline() has seen the
+     * command line. A program invoked with no argument at all prints its
+     * usage before that ever happens, so the pointer may still be null. */
+    const auto * const argv0 = cmdline_argv0 ? cmdline_argv0[0] : nullptr;
 
     if (argv0 != nullptr)
         fmt::print(f, "Usage: {} <parameters>\n", argv0);
