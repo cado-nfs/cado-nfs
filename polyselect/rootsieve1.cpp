@@ -743,7 +743,7 @@ print_transformation (cxx_cado_poly & poly0, cxx_cado_poly const & cpoly)
 
   mpz_init (k);
   /* first compute the translation k: g(x+k) = g1*x + g1*k + g0 */
-  mpz_sub (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 0), mpz_poly_coeff_const(poly0[RAT_SIDE], 0));
+  mpz_sub (k, mpz_poly_coeff_const(cpoly[RAT_SIDE], 0), mpz_poly_coeff_const(poly0[RAT_SIDE], 0));
   ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
   mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
   gmp_printf ("translation %Zd, ", k);
@@ -752,9 +752,9 @@ print_transformation (cxx_cado_poly & poly0, cxx_cado_poly const & cpoly)
   mpz_poly_translation(poly0[RAT_SIDE], poly0[RAT_SIDE], k);
 
   /* size_optimization might multiply f0 by some integer t */
-  ASSERT_ALWAYS(mpz_divisible_p (mpz_poly_coeff_const(poly0[ALG_SIDE], d),
+  ASSERT_ALWAYS(mpz_divisible_p (mpz_poly_coeff_const(cpoly[ALG_SIDE], d),
 				 mpz_poly_coeff_const(poly0[ALG_SIDE], d)));
-  mpz_divexact (k, mpz_poly_coeff_const(poly0[ALG_SIDE], d),
+  mpz_divexact (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], d),
 		mpz_poly_coeff_const(poly0[ALG_SIDE], d));
   if (mpz_cmp_ui (k, 1) != 0)
     {
