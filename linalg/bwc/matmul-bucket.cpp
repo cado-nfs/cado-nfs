@@ -2147,7 +2147,8 @@ void matmul_bucket<Arith>::build_cache(matrix_u32 && m)
 template<typename Arith>
 int matmul_bucket<Arith>::reload_cache_private()/* {{{ */
 {
-    auto f = matmul_common_reload_cache_fopen(sizeof(elt), *this, MM_MAGIC);
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    auto f = matmul_common_reload_cache_fopen(xab->elt_stride(), *this, MM_MAGIC);
     if (!f) return 0;
 
     for( ;; ) {
@@ -2193,7 +2194,8 @@ int matmul_bucket<Arith>::reload_cache_private()/* {{{ */
 template<typename Arith>
 void matmul_bucket<Arith>::save_cache_private()/*{{{*/
 {
-    auto f = matmul_common_save_cache_fopen(sizeof(elt), *this, MM_MAGIC);
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    auto f = matmul_common_save_cache_fopen(xab->elt_stride(), *this, MM_MAGIC);
     if (!f) return;
 
     for(auto & h : headers) {

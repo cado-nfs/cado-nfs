@@ -772,7 +772,8 @@ void matmul_zone<Arith, fast_gfp>::build_cache(matrix_u32 && m)/*{{{*/
 template<typename Arith, typename fast_gfp>
 int matmul_zone<Arith, fast_gfp>::reload_cache_private()
 {
-    auto f = matmul_common_reload_cache_fopen(sizeof(typename Arith::elt), *this, MM_MAGIC);
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    auto f = matmul_common_reload_cache_fopen(xab->elt_stride(), *this, MM_MAGIC);
     if (!f) return 0;
     cachefile c(f.get());
     c >> blocks;
@@ -791,7 +792,8 @@ int matmul_zone<Arith, fast_gfp>::reload_cache_private()
 template<typename Arith, typename fast_gfp>
 void matmul_zone<Arith, fast_gfp>::save_cache_private()
 {
-    auto f = matmul_common_save_cache_fopen(sizeof(typename Arith::elt), *this, MM_MAGIC);
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    auto f = matmul_common_save_cache_fopen(xab->elt_stride(), *this, MM_MAGIC);
     if (!f) return;
     cachefile c(f.get());
     c << blocks;

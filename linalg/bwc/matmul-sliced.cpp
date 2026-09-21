@@ -322,7 +322,8 @@ void matmul_sliced<Arith>::build_cache(matrix_u32 && m)
 template<typename Arith>
 int matmul_sliced<Arith>::reload_cache_private()
 {
-    auto f = matmul_common_reload_cache_fopen(sizeof(typename Arith::elt), *this, MM_MAGIC);
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    auto f = matmul_common_reload_cache_fopen(xab->elt_stride(), *this, MM_MAGIC);
     if (!f) return 0;
 
     size_t n;
@@ -337,7 +338,8 @@ int matmul_sliced<Arith>::reload_cache_private()
 template<typename Arith>
 void matmul_sliced<Arith>::save_cache_private()
 {
-    auto f = matmul_common_save_cache_fopen(sizeof(typename Arith::elt), *this, MM_MAGIC);
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    auto f = matmul_common_save_cache_fopen(xab->elt_stride(), *this, MM_MAGIC);
     if (!f) return;
 
     size_t const n = data.size();
