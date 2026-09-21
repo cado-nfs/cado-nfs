@@ -33,6 +33,13 @@ while [ $# -gt 0 ] ; do
         shift
         bindir=$1
         shift
+    elif [ "$1" = "--variable-width" ] ; then
+        # a simd width that no fixed-width arithmetic backend serves, so
+        # that arith_generic::instance() falls back to the
+        # variable-width layer. Empty if that layer is not compiled in.
+        shift
+        variable_width=$1
+        shift
     else
         usage
     fi
@@ -90,6 +97,33 @@ for impl in basic sliced bucket ; do
         fi
 
         echo "matcache $impl $direction ok"
+    done
+done
+
+# The bucket implementation cuts the matrix in several ways, and each of
+# them has its own multiplication code. The default cutting of a small
+# matrix only ever produces small slices, so ask for the other ones
+# explicitly. Widths are swept as well: the variable-width layer used to
+# get all of its pointer arithmetic and all of its cache sizing wrong,
+# and nothing noticed because the tests only ever asked for widths that
+# a fixed-width backend serves.
+for nbys in 64 $variable_width ; do
+    for methods in small1 small1,small2 large vsc ; do
+        for direction in left right ; do
+            eval argtail=\(\$bench_arg_${direction}\)
+            rm -f $wdir/mat.bin-bucket.bin $wdir/mat.bin-bucketT.bin
+            out=$wdir/bench.bucket.$nbys.$methods.$direction.out
+            $bindir/linalg/bwc/bench_matcache -r --nmax 2 --nchecks 2 \
+                -impl bucket -nbys $nbys \
+                matmul_bucket_methods=$methods \
+                "${argtail[@]}" $wdir/mat.bin > $out 2>&1 || :
+            if ! grep -q "^All 2 checks passed" $out ; then
+                echo "bucket nbys=$nbys methods=$methods $direction: check failed" >&2
+                cat $out >&2
+                exit 1
+            fi
+            echo "matcache bucket nbys=$nbys methods=$methods $direction ok"
+        done
     done
 done
 

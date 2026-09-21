@@ -54,6 +54,12 @@ while [ $# -gt 0 ] ; do
         shift
         arith_layer=$1
         shift
+    elif [ "$1" = "--width" ] ; then
+        # only meaningful for the variable-width layer, which is reached
+        # only when no fixed-width backend serves that width.
+        shift
+        width=$1
+        shift
     elif [ "$1" = "--backends" ] ; then
         shift
         backends=($1)
@@ -124,7 +130,7 @@ echo "## backends to test: ${backends[*]}"
 
 if [ "$prime" = 2 ] ; then
     case "$arith_layer" in
-        bz) m=1024; n=256;;
+        bz) m=1024; n=${width:-256};;
         b*) n=`echo $arith_layer | cut -c2-`; m=$n;;
         *) echo "unknown arithmetic layer $arith_layer" >&2; exit 1;;
     esac

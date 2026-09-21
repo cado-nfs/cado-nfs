@@ -130,19 +130,27 @@ struct matmul_sliced : public matmul_interface {
     matmul_sliced& operator=(matmul_sliced &&) noexcept = default;
 
     private:
-    static unsigned int npack_initial(cxx_param_list & pl) {
+    /* this converts a number of bytes into a number of rows, so the
+     * divisor must be the runtime element stride. sizeof(elt) is wrong
+     * for the variable-width layer, whose elt type is an empty class
+     * (sizeof 1) since the data lives elsewhere. */
+    // NOLINTBEGIN(readability-static-accessed-through-instance)
+    static unsigned int npack_initial(Arith * ab, cxx_param_list & pl) {
         unsigned int npack = L1_CACHE_SIZE;
         pl.parse("l1_cache_size", npack);
-        npack /= sizeof(typename Arith::elt);
-        return npack;
+        npack /= ab->elt_stride();
+        /* the row index within a slice is stored on 16 bits */
+        return MIN(MAX(npack, 1U), 1U << 16);
     }
+    // NOLINTEND(readability-static-accessed-through-instance)
 };
 
 template<typename Arith>
 matmul_sliced<Arith>::matmul_sliced(matmul_public && P, arith_concrete_base * pxx, cxx_param_list & pl, int optimized_direction)
     : matmul_interface(std::move(P))
     , xab((Arith *) pxx) // NOLINT(cppcoreguidelines-pro-type-cstyle-cast)
-    , npack(npack_initial(pl))
+    /* xab is initialized above, so it may be used here */
+    , npack(npack_initial(xab, pl))
 {
     int const suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
     store_transposed = suggest;
@@ -314,7 +322,8 @@ void matmul_sliced<Arith>::build_cache(matrix_u32 && m)
 template<typename Arith>
 int matmul_sliced<Arith>::reload_cache_private()
 {
-    auto f = matmul_common_reload_cache_fopen(sizeof(typename Arith::elt), *this, MM_MAGIC);
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    auto f = matmul_common_reload_cache_fopen(xab->elt_stride(), *this, MM_MAGIC);
     if (!f) return 0;
 
     size_t n;
@@ -329,7 +338,8 @@ int matmul_sliced<Arith>::reload_cache_private()
 template<typename Arith>
 void matmul_sliced<Arith>::save_cache_private()
 {
-    auto f = matmul_common_save_cache_fopen(sizeof(typename Arith::elt), *this, MM_MAGIC);
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    auto f = matmul_common_save_cache_fopen(xab->elt_stride(), *this, MM_MAGIC);
     if (!f) return;
 
     size_t const n = data.size();

@@ -77,7 +77,8 @@ void matmul_basic<Arith>::build_cache(matrix_u32 && m)
 template<typename Arith>
 int matmul_basic<Arith>::reload_cache_private()
 {
-    auto f = matmul_common_reload_cache_fopen(sizeof(typename Arith::elt), *this, MM_MAGIC);
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    auto f = matmul_common_reload_cache_fopen(xab->elt_stride(), *this, MM_MAGIC);
     if (!f) return 0;
 
     uint32_t datasize;
@@ -92,7 +93,8 @@ int matmul_basic<Arith>::reload_cache_private()
 template<typename Arith>
 void matmul_basic<Arith>::save_cache_private()
 {
-    auto f = matmul_common_save_cache_fopen(sizeof(typename Arith::elt), *this, MM_MAGIC);
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    auto f = matmul_common_save_cache_fopen(xab->elt_stride(), *this, MM_MAGIC);
     if (!f) return;
 
     MATMUL_COMMON_WRITE_ONE32(q.size(), f.get());
