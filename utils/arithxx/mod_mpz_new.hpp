@@ -414,44 +414,56 @@ class arithxx_mod_mpz_new::Modulus
     /* }}} */
 
     /* {{{ mul sqr */
+    /* One full product (or square), then one division by m. Moduli of
+     * up to mul_stack_limbs limbs, which covers all cofactorization
+     * uses, do not touch the heap.
+     */
+    static constexpr mp_size_t mul_stack_limbs = 8;
+
+  private:
+    void reduce_product(Residue & r, mp_limb_t const * t) const
+    {
+        mp_size_t const n = mpz_size(m);
+        mp_limb_t q_stack[mul_stack_limbs + 1];
+        std::unique_ptr<mp_limb_t[]> q_heap;
+        mp_limb_t * q = q_stack;
+        if (n > mul_stack_limbs) {
+            q_heap.reset(new mp_limb_t[n + 1]);
+            q = q_heap.get();
+        }
+        mpn_tdiv_qr(q, r.r.get(), 0, t, 2 * n, mpz_limbs_read(m), n);
+    }
+
+  public:
     void mul(Residue & r, Residue const & a, Residue const & b) const
     {
-        mp_size_t const nrWords = mpz_size(m);
-        mp_limb_t Q[2];
-        mp_limb_t * t;
-        if (r.r == a.r || r.r == b.r) {
-            t = new mp_limb_t[nrWords + 1];
-        } else {
-            t = r.r.get();
+        if (a.r == b.r) {
+            sqr(r, a);
+            return;
         }
-        t[nrWords] = mpn_mul_1(t, a.r.get(), nrWords, b.r[nrWords - 1]);
-        if (t[nrWords] != 0)
-            mpn_tdiv_qr(Q, t, 0, t, nrWords + 1, mpz_limbs_read(m), nrWords);
-        /* t <= (m-1) * beta */
-        for (mp_size_t iWord = nrWords - 1; iWord > 0; iWord--) {
-            mpn_copyd(t + 1, t, nrWords);
-            t[0] = 0;
-            const mp_limb_t msw = mpn_addmul_1(t, a.r.get(), nrWords, b.r[iWord - 1]);
-            t[nrWords] += msw;
-            const mp_limb_t cy = t[nrWords] < msw;
-            if (cy) {
-                const mp_limb_t bw = subM(t + 1, t + 1);
-                ASSERT_ALWAYS(bw == cy);
-            }
-            if (t[nrWords] != 0)
-                mpn_tdiv_qr(Q, t, 0, t, nrWords + 1, mpz_limbs_read(m), nrWords);
+        mp_size_t const n = mpz_size(m);
+        mp_limb_t t_stack[2 * mul_stack_limbs];
+        std::unique_ptr<mp_limb_t[]> t_heap;
+        mp_limb_t * t = t_stack;
+        if (n > mul_stack_limbs) {
+            t_heap.reset(new mp_limb_t[2 * n]);
+            t = t_heap.get();
         }
-        if (cmpM(t) >= 0) {
-            mpn_tdiv_qr(Q, t, 0, t, nrWords, mpz_limbs_read(m), nrWords);
-        }
-        if (r.r == a.r || r.r == b.r) {
-            mpn_copyi(r.r.get(), t, nrWords);
-            delete[] t;
-        }
+        mpn_mul_n(t, a.r.get(), b.r.get(), n);
+        reduce_product(r, t);
     }
     void sqr(Residue & r, Residue const & a) const
     {
-        mul(r, a, a);
+        mp_size_t const n = mpz_size(m);
+        mp_limb_t t_stack[2 * mul_stack_limbs];
+        std::unique_ptr<mp_limb_t[]> t_heap;
+        mp_limb_t * t = t_stack;
+        if (n > mul_stack_limbs) {
+            t_heap.reset(new mp_limb_t[2 * n]);
+            t = t_heap.get();
+        }
+        mpn_sqr(t, a.r.get(), n);
+        reduce_product(r, t);
     }
     /* }}} */
 
