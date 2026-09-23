@@ -233,9 +233,9 @@ arithxx_details::api<arithxx_mod_mpz_new>::gcd
 (Integer & r, const Residue & a) const
 {
     auto const & me = downcast();
-    cxx_mpz A;
-
-    me.set_mpz_residue(A, a);
+    /* read the limbs of a in place, no copy */
+    mpz_t A;
+    mpz_roinit_n(A, a.r.get(), mpz_size(me.m));
     mpz_gcd(r, A, me.m);
 }
 

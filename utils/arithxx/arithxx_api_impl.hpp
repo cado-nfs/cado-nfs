@@ -5,6 +5,7 @@
 #include <cstddef>
 
 #include <algorithm>
+#include <type_traits>
 
 #include "arithxx_common.hpp"
 #include "u64arith.h"
@@ -616,6 +617,23 @@ arithxx_details::api<layer>::gcd(Integer & r, const Residue & A) const
 
     if (me.is0(A)) {
         r = me.getmod();
+        return;
+    }
+
+    if constexpr (std::is_same_v<Integer, Integer64>) {
+        /* On one word, Euclid's algorithm with the hardware division is
+         * faster than the binary algorithm below. The residue
+         * representation (Montgomery or not) does not change the gcd.
+         */
+        uint64_t a = A.r[0], b = me.m[0];
+        if (a >= b)
+            a %= b;
+        while (a) {
+            uint64_t const t = b % a;
+            b = a;
+            a = t;
+        }
+        r = Integer(b);
         return;
     }
 
