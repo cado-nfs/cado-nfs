@@ -960,6 +960,7 @@ sieve/ecm/Makefile
 sieve/ecm/README.bytecode
 sieve/ecm/batch.cpp
 sieve/ecm/batch.hpp
+sieve/ecm/bench_facul.sh
 sieve/ecm/bytecode.c
 sieve/ecm/bytecode.h
 sieve/ecm/bytecode_mishmash_B1_data.h
