@@ -14,6 +14,7 @@
 
 #include "arithxx/mod64.hpp"
 #include "arithxx/modredc64.hpp"
+#include "arithxx/modredc96.hpp"
 #include "arithxx/modredc126.hpp"
 #include "arithxx/mod_mpz_new.hpp"
 #include "ec_arith_Weierstrass_new.hpp"
@@ -479,5 +480,6 @@ void ECWeierstrass<layer>::ProjectivePoint::smul (ProjectivePoint &R, const uint
 
 template class ECWeierstrass<arithxx_mod64>;
 template class ECWeierstrass<arithxx_modredc64>;
+template class ECWeierstrass<arithxx_modredc96>;
 template class ECWeierstrass<arithxx_modredc126>;
 template class ECWeierstrass<arithxx_mod_mpz_new>;

@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#include <vector>
+#include <span>
 
 #include "u64arith.h"
 
@@ -87,9 +87,9 @@ struct arithxx_details::redc64
     using redc<layer>::redc1;
 
   protected:
-    // return c/a[i] mod N, or an empty vector if one of the a[i] is not
-    // invertible
-    std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer const & c) const;
+    // put c/a[i] mod N in r[i], which must have the size of a. Return
+    // false if one of the a[i] is not invertible
+    bool batchinv_redc(std::span<uint64_t> r, std::span<uint64_t const> a, Integer const & c) const;
     friend struct arithxx_details::batch_Q_to_Fp_context<layer>;
 };
 

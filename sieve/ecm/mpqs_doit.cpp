@@ -29,37 +29,32 @@
 /* number of small primes we skip (should be >= 1 since we always skip 2) */
 #define SKIP 10
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <stdint.h>
-#include <float.h> /* for DBL_MAX */
-#include <gmp.h>
-#include <limits.h> // ULONG_MAX
-#include "timing.h"
-#include "macros.h"
-#include "arith/mod_ul.h"
-#include "arith/mod_ul_default.h"
-#include "arith/modredc_ul.h"
-#include "mpqs_doit.h"
-#include "gmp_aux.h"
-#include "arith/ularith.h"
+#include <cfloat> /* for DBL_MAX */
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
-#if 1
-/* Allows disabling static for profiling */
-#define STATIC static
-#else
-#define STATIC
-#endif
+#include <span>
+#include <vector>
+
+#include <gmp.h>
+
+#include "arithxx/modredc64.hpp"
+#include "arithxx/u64arith.h"
+#include "gmp_aux.h"
+#include "macros.h"
+#include "mpqs_doit.hpp"
+#include "timing.h"
 
 typedef struct {
   unsigned int p;
   unsigned int r;      /* root of x^2 = k*N (mod p) */
   uint64_t invp;       /* 1/p mod 2^64, needed for trial division */
   unsigned char logp;  /* log(p) / log(radix), needed for sieve */
-  unsigned long invp2; /* floor(ULONG_MAX/p), needed for trial division */
-  unsigned long conv;  /* 2^(2*LONG_BITS) % p, used for converting to REDC */
+  uint64_t invp2;      /* floor(UINT64_MAX/p), needed for trial division */
+  uint64_t conv;       /* 2^128 % p, used for converting to REDC */
   unsigned int Mp;     /* M mod p */
 } fb_t;
 
@@ -87,7 +82,7 @@ typedef struct
 } bernstein_struct;
 typedef bernstein_struct bernstein_t[1];
 
-void init_tree (bernstein_t, unsigned int, unsigned long *, unsigned int);
+void init_tree (bernstein_t, unsigned int, uint64_t const *, unsigned int);
 void clear_tree (bernstein_t);
 void accumulate (bernstein_t, mpz_t, mpz_t, fb_t *);
 void get_smooth (bernstein_t);
@@ -103,8 +98,8 @@ static unsigned char isprime_table[] = {
 static const size_t isprime_table_size =
     sizeof(isprime_table) / sizeof(isprime_table[0]);
 
-STATIC int
-jacobi (unsigned long a, unsigned long b)
+static int
+jacobi (uint64_t a, uint64_t b)
 {
   mpz_t aa, bb;
   int res;
@@ -118,7 +113,7 @@ jacobi (unsigned long a, unsigned long b)
 }
 
 /* return b^e mod n, assuming n has at most 32 bits */
-STATIC uint64_t
+static uint64_t
 mod_pow_uint64 (uint64_t b, uint64_t e, uint64_t n)
 {
   uint64_t r = 1, f = 1, y = b;
@@ -134,17 +129,17 @@ mod_pow_uint64 (uint64_t b, uint64_t e, uint64_t n)
   return r;
 }
 
-static inline unsigned long
-test_divisible(const unsigned long x, const fb_t * const F)
+static inline uint64_t
+test_divisible(const uint64_t x, const fb_t * const F)
 {
-  const unsigned long r = x * F->invp;
+  const uint64_t r = x * F->invp;
   return (r <= F->invp2) ? r : 0;
 }
 
 static inline int
-divide_out(unsigned long * const x, const fb_t * const F)
+divide_out(uint64_t * const x, const fb_t * const F)
 {
-  unsigned long cofac;
+  uint64_t cofac;
   int e = 0;
   while ((cofac = test_divisible(*x, F)) != 0) {
     e++;
@@ -158,7 +153,7 @@ divide_out(unsigned long * const x, const fb_t * const F)
    Qian Sha, Xiao Fan, 2011, http://arxiv.org/abs/1111.4877.
    Solve x^2 = rr (mod p).
 */
-STATIC uint64_t
+static uint64_t
 tonelli_shanks (uint64_t rr, uint64_t p)
 {
   uint64_t q, s, i, j, l;
@@ -203,22 +198,12 @@ tonelli_shanks (uint64_t rr, uint64_t p)
   return hh;
 }
 
-/* Given k1 containing initially r such that r^2 = N (mod p),
-   return k1 and k2 which are the roots of (a*x+b)^2 = N (mod p),
-   i.e., k1 = (r-b)/a+M (mod p) and k2 = (-r-b)/a+M (mod p).
-   Assume p is odd, and inva = 1/sqrt(a) mod p.
-   Ensures k1 <= k2 at the end.
-
-   TODO: The two DIV instructions in this function (as part of modul_mul)
-   take about 7% of the total time for factoring 128-bit composites.
-*/
-
-static inline unsigned long
-mul_redc(const unsigned long a, const unsigned long b, const fb_t * const F)
+static inline uint64_t
+mul_redc(const uint64_t a, const uint64_t b, const fb_t * const F)
 {
-  unsigned long plow, phigh, r;
-  ularith_mul_ul_ul_2ul (&plow, &phigh, a, b);
-  ularith_redc(&r, plow, phigh, F->p, -F->invp);
+  uint64_t plow, phigh, r;
+  u64arith_mul_1_1_2 (&plow, &phigh, a, b);
+  u64arith_redc(&r, plow, phigh, F->p, -F->invp);
   return r;
 }
 
@@ -232,9 +217,13 @@ findroot2 (unsigned long *k2, const unsigned long b,
 }
 #endif
 
-STATIC unsigned long
-findroot_new (unsigned long *k2, const unsigned long b,
-              unsigned long inva, const fb_t * const F)
+/* Return k1 and put in k2 the roots of (a*x+b)^2 = N (mod p), shifted by
+   M, i.e., (r-b)/a+M and (-r-b)/a+M (mod p) where r = F->r is a square
+   root of N mod p. Assume p is odd, and inva = 1/a mod p.
+   Ensures k1 <= k2 at the end. */
+static uint64_t
+findroot_new (uint64_t *k2, const uint64_t b,
+              uint64_t inva, const fb_t * const F)
 {
   /* the two roots are (k1-b)/a and (-k1-b)/a */
   /* Given conv = 2^128 % p,
@@ -242,26 +231,21 @@ findroot_new (unsigned long *k2, const unsigned long b,
      Compute redc((b + r) * redc_inva) == (-b - r) * inva (mod p)
      Compute redc((b - r) * redc_inva) == (-b + r) * inva (mod p)
   */
-  const unsigned long p = F->p;
-  const unsigned long r = F->r;
-  const unsigned long Mp = F->Mp;
+  const uint64_t p = F->p;
+  const uint64_t r = F->r;
+  const uint64_t Mp = F->Mp;
 
-  unsigned long t1, t2;
+  uint64_t t1, t2;
 
-#if 0
-  ASSERT_ALWAYS(p > 2);
-  ASSERT_ALWAYS(ULONG_MAX - b >= r);
-#endif
-
-  const unsigned long redc_inva = mul_redc(p - inva, F->conv, F);
+  const uint64_t redc_inva = mul_redc(p - inva, F->conv, F);
   t1 = mul_redc((b >= r) ? b - r : r - b, redc_inva, F);
   if (b < r && t1 != 0)
     t1 = p - t1;
-  ularith_addmod_ul_ul (&t1, t1, Mp, p);
+  u64arith_addmod_1_1 (&t1, t1, Mp, p);
   t2 = mul_redc(b + r, redc_inva, F);
-  ularith_addmod_ul_ul (&t2, t2, Mp, p);
+  u64arith_addmod_1_1 (&t2, t2, Mp, p);
 
-  unsigned long k1;
+  uint64_t k1;
   if (t1 < t2)
     {
       k1 = t1;
@@ -271,48 +255,6 @@ findroot_new (unsigned long *k2, const unsigned long b,
     {
       k1 = t2;
       *k2 = t1;
-    }
-  return k1;
-}
-
-unsigned long
-findroot (unsigned long *k2, unsigned long bmodp, unsigned long p,
-          unsigned long k1, unsigned long inva, unsigned long Mp)
-{
-  /* the two roots are (k1-b)/a and (-k1-b)/a */
-  modulus_t pp;
-  residueul_t tt, uu, vv, bb;
-  modul_initmod_ul (pp, p);
-  modul_init (bb, pp);
-  modul_init (tt, pp);
-  modul_init (uu, pp);
-  modul_init (vv, pp);
-  modul_set_ul_reduced (bb, bmodp, pp);
-  modul_set_ul_reduced (tt, inva, pp);
-  modul_set_ul_reduced (vv, k1, pp);
-  modul_neg (uu, vv, pp);
-  modul_sub (uu, uu, bb, pp);       /* -r-b */
-  modul_mul (uu, uu, tt, pp);       /* (-r-b)/a */
-  *k2 = mod_get_ul (uu, pp);
-  *k2 += Mp;                        /* (-r-b)/a + M */
-  if (*k2 >= p)
-    *k2 -= p;
-  modul_sub (uu, vv, bb, pp);       /* r-b */
-  modul_mul (uu, uu, tt, pp);       /* (r-b)/a */
-  k1 = mod_get_ul (uu, pp);
-  k1 += Mp;                         /* (r-b)/a + M */
-  if (k1 >= p)
-    k1 -= p;
-  modul_clear (bb, pp);
-  modul_clear (tt, pp);
-  modul_clear (uu, pp);
-  modul_clear (vv, pp);
-  modul_clearmod (pp);
-  if (*k2 < k1)
-    {
-      unsigned long tmp = *k2;
-      *k2 = k1;
-      return tmp;
     }
   return k1;
 }
@@ -385,7 +327,7 @@ div2mod(const unsigned long a, const unsigned long p)
      which is correct so long as a < p */
 }
 
-STATIC void
+static void
 nextprime_init (const unsigned long _first, data_t data)
 {
   /* Always start at an odd index */
@@ -424,7 +366,7 @@ nextprime_init (const unsigned long _first, data_t data)
 }
 
 /* Returns the smallest prime >= n */
-STATIC unsigned long
+static unsigned long
 nextprime_get_next (const unsigned long n, data_t data)
 {
   if (n <= 2)
@@ -485,11 +427,11 @@ hash_init (hash_t H, unsigned long L)
 
   H->alloc = ulong_nextprime ((unsigned long) pi);
   H->size = 0;
-  H->p = malloc (H->alloc * sizeof (unsigned int));
-  H->row = malloc (H->alloc * sizeof (mpz_t));
-  H->x = malloc (H->alloc * sizeof (mpz_t));
-  H->y = malloc (H->alloc * sizeof (mpz_t));
-  H->w = malloc (H->alloc * sizeof (unsigned long));
+  H->p = (unsigned int *) malloc (H->alloc * sizeof (unsigned int));
+  H->row = (mpz_t *) malloc (H->alloc * sizeof (mpz_t));
+  H->x = (mpz_t *) malloc (H->alloc * sizeof (mpz_t));
+  H->y = (mpz_t *) malloc (H->alloc * sizeof (mpz_t));
+  H->w = (unsigned long *) malloc (H->alloc * sizeof (unsigned long));
   for (i = 0; i < H->alloc; i++)
     {
       H->p[i] = 0;
@@ -558,12 +500,12 @@ hash_clear (hash_t H)
    We put relations in column 'shift' and above.
    Assume r > 0.
 */
-STATIC void
+static void
 trialdiv_mpqs (mpz_t r, fb_t *F, unsigned int ncol, int shift, mpz_t row,
 	       data_t data)
 {
   unsigned int i;
-  unsigned long B = F[ncol-1].p, R;
+  uint64_t B = F[ncol-1].p, R;
   int e;
 
   ASSERT (mpz_sgn (r) > 0);
@@ -578,19 +520,19 @@ trialdiv_mpqs (mpz_t r, fb_t *F, unsigned int ncol, int shift, mpz_t row,
 #else
   i = SKIP;
 #endif
-  if (!mpz_fits_ulong_p (r)) {
+  if (!mpz_fits_uint64_p (r)) {
     for ( ; i < ncol; i++)
       {
         unsigned long p = F[i].p;
 
-        if (mpz_divisible_ui_p (r, p))
+        if (mpz_divisible_uint64_p (r, p))
           {
             e = 0;
 
             do {
-              mpz_divexact_ui (r, r, p);
+              mpz_divexact_uint64 (r, r, p);
               e ++;
-            } while (mpz_divisible_ui_p (r, p));
+            } while (mpz_divisible_uint64_p (r, p));
 
             if (e & 1)
               setbit (row, shift, i + 1);
@@ -598,7 +540,7 @@ trialdiv_mpqs (mpz_t r, fb_t *F, unsigned int ncol, int shift, mpz_t row,
             /* we don't check for cases where r = 1 or is a prime <= B here,
                since they will have very rarely */
 
-            if (mpz_fits_ulong_p (r))
+            if (mpz_fits_uint64_p (r))
               {
                 i = i + 1;
                 break;
@@ -607,16 +549,15 @@ trialdiv_mpqs (mpz_t r, fb_t *F, unsigned int ncol, int shift, mpz_t row,
       }
     }
 
-  /* now r fits into an unsigned long */
-  R = mpz_get_ui (r);
+  /* now r fits into an uint64_t */
+  R = mpz_get_uint64 (r);
   for (; i < ncol; i++)
     {
-      unsigned long p = F[i].p;
+      const uint64_t p = F[i].p;
 
       /* F[i].invp is 1/p mod 2^64, thus q = R/p mod 2^64:
          the division R/p is exact iff q*p fits in a 64-bit word,
-         i.e., when q <= F[i].invp2 = floor(ULONG_MAX/p) [we assume
-         unsigned long has 64 bits here] */
+         i.e., when q <= F[i].invp2 = floor(UINT64_MAX/p) */
       const int e = divide_out (&R, &F[i]);
       if (e)
         {
@@ -675,8 +616,26 @@ update8 (unsigned char *S, unsigned long M, unsigned char logp)
     S8[i>>3] -= l8;
 }
 
+/* Return the first i' >= i such that one of the 8 bytes of S from i'
+   on has a bit of mask8 set, or end if there is none. i and end are
+   multiples of 8. This is a function of its own so that the variables
+   of this loop stay in registers: inside mpqs_doit, gcc spills them. */
+static inline unsigned long
+next_candidate_block (unsigned char const * S, unsigned long i,
+                      unsigned long end, uint64_t mask8)
+{
+  for ( ; i < end; i += 8)
+    {
+      uint64_t w;
+      memcpy (&w, S + i, sizeof (w));
+      if (w & mask8)
+        break;
+    }
+  return i;
+}
+
 /* put factor in z */
-STATIC void
+static void
 gauss (mpz_t z, mpz_t *Mat, int nrel, int wrel, int ncol, mpz_t *X, mpz_t *Y,
        const mpz_t N0, int verbose)
 {
@@ -823,7 +782,7 @@ gauss (mpz_t z, mpz_t *Mat, int nrel, int wrel, int ncol, mpz_t *X, mpz_t *Y,
 }
 
 /* consider all primes up to B, and all odd multipliers up to K */
-STATIC int
+static int
 best_multiplier (const mpz_t N, unsigned long B, unsigned long K)
 {
   unsigned long i, n, *Q, p, q, j, t, Nq, k, best_k = 1;
@@ -840,7 +799,7 @@ best_multiplier (const mpz_t N, unsigned long B, unsigned long K)
       p = Primes[i];
       for (q = p, k = 1; q * p <= B; q = q * p, k++);
       Q[i] = q;
-      X[i] = malloc (q * sizeof(double));
+      X[i] = (double *) malloc (q * sizeof(double));
       for (t = 0; t < q; t++)
         X[i][t] = 0;
       unsigned long qmax = q;
@@ -886,17 +845,19 @@ best_multiplier (const mpz_t N, unsigned long B, unsigned long K)
 /* Put in f a factor of N0 using MPQS.
    Assume N0 is odd. */
 void
-mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
+mpqs_doit (mpz_ptr f, mpz_srcptr N0, int verbose)
 {
   mpz_t N, *Mat, *X, *Y;
   unsigned char *S, *T, threshold = 0, mask = 128;
-  uint64_t *S8, mask8 = 0;
-  unsigned long p, k, Nbits, M, i, wrel, L = 0, *P, *Q;
+  uint64_t mask8 = 0;
+  unsigned long p, k, Nbits, M, i, wrel, L = 0;
   long j, nrel = 0, lim, ncol;
   mpz_t a, b, c, sqrta, r, axb;
   const double radix = sqrt(2.);
   const double inv_logradix = 1. / log(radix);
   long st;
+  /* Only maintained when verbose: reading the clock can cost a system
+     call, and these are shared by all threads. */
   static long init_time = 0, sieve_time = 0, check_time = 0;
   static long gauss_time = 0, total_time = 0;
   unsigned short *W; /* column weight */
@@ -910,7 +871,8 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
   /* assume N0 is odd */
   ASSERT_ALWAYS (mpz_fdiv_ui (N0, 2) == 1);
 
-  init_time -= milliseconds ();
+  if (verbose)
+    init_time -= milliseconds ();
 
   Nbits = mpz_sizeinbase (N0, 2);
 
@@ -944,10 +906,9 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
   mpz_init (axb);
 
   /* compute factor base */
-  F = malloc (ncol * sizeof (fb_t));
-  P = malloc (ncol * sizeof (unsigned long));
-  Q = malloc (ncol * sizeof (unsigned long));
-  W = malloc ((ncol + 1) * sizeof (unsigned short));
+  F = (fb_t *) malloc (ncol * sizeof (fb_t));
+  std::vector<uint64_t> P(ncol);
+  W = (unsigned short *) malloc ((ncol + 1) * sizeof (unsigned short));
   /* a prime p can appear in x^2 mod N only if p is a square modulo N */
   mpz_ui_pow_ui (b, 2, 64);
   memset (data->prime_index, 0, INDEX * sizeof (int));
@@ -963,10 +924,10 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
           for (int k = p - 1; k >= 0 && data->prime_index[k] == 0; k--)
             data->prime_index[k] = j;
           mpz_invert (c, a, b); /* c = 1/p mod 2^64 */
-          F[j].invp = mpz_get_ui (c);
-          F[j].invp2 = ULONG_MAX / p;
-          ularith_div_2ul_ul_ul_r(&F[j].conv, 0, 1, p);
-          ularith_div_2ul_ul_ul_r(&F[j].conv, 0, F[j].conv, p);
+          F[j].invp = mpz_get_uint64 (c);
+          F[j].invp2 = UINT64_MAX / p;
+          u64arith_divr_2_1_1(&F[j].conv, 0, 1, p);
+          u64arith_divr_2_1_1(&F[j].conv, 0, F[j].conv, p);
           F[j].Mp = M % p;
           j++;
         }
@@ -992,11 +953,14 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
       mpz_init (Y[i]);
     }
   /* FIXME: the 2nd argument here should depend on the number size */
-  init_tree (Z, 5, P + SKIP, lim - SKIP);
+  init_tree (Z, 5, P.data() + SKIP, lim - SKIP);
+  /* the factor base primes whose roots we sieve, and 1/a modulo each */
+  const std::span<uint64_t const> P_sieved(P.data() + SKIP, lim - SKIP);
+  std::vector<uint64_t> Q(P_sieved.size());
 
   /* initialize sieve area [-M, M-1] */
-  S = malloc (2 * M * sizeof (char));
-  T = malloc (2 * M * sizeof (char));
+  S = (unsigned char *) malloc (2 * M * sizeof (char));
+  T = (unsigned char *) malloc (2 * M * sizeof (char));
   ASSERT_ALWAYS(((long) S & 7) == 0);
 
   /* initialize square roots mod p */
@@ -1024,14 +988,16 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
 
   hash_init (H, L); /* hash table storing relations with large primes */
 
-  init_time += milliseconds ();
+  if (verbose)
+    init_time += milliseconds ();
 
   int pols = 0;
   mpz_init (r);
   mpz_init (data->nextprime_bitfield);
   nextprime_init (mpz_get_ui(sqrta), data);
   while (nrel < ncol + WANT_EXCESS) {
-  sieve_time -= milliseconds ();
+  if (verbose)
+    sieve_time -= milliseconds ();
   do {
     unsigned long next_p = nextprime_get_next (mpz_get_ui(sqrta) + 1, data);
     mpz_set_ui(sqrta, next_p);
@@ -1183,12 +1149,18 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
   memcpy (S, T, 2 * M);
 
   /* sieve */
-  modredcul_batch_Q_to_Fp (Q + SKIP, 1, aa, 0, P + SKIP, lim - SKIP);
+  /* Q[j - SKIP] = 1/a mod P[j]. This cannot fail, since a is the square
+     of a prime larger than the factor base bound. */
+  {
+    bool const ok = arithxx_modredc64::Modulus::batch_Q_to_Fp(Q,
+            Integer64(1), Integer64(aa), 0, P_sieved);
+    ASSERT_ALWAYS(ok);
+  }
   /* skip the small primes whose average contribution is already taken into
      account */
   for (j = SKIP; j < lim; j++)
     {
-      unsigned long k2 = -1, i2;
+      uint64_t k2 = -1, i2;
 
       p = F[j].p;
 #if SKIP == 0
@@ -1196,13 +1168,7 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
         k = findroot2 (&k2, bb, &F[j]);
       else
 #endif
-        k = findroot_new (&k2, bb, Q[j], &F[j]);
-#if 0
-      unsigned long old1, old2;
-      old1 = findroot (&old2, bb % p, p, F[j].r, Q[j], F[j].Mp);
-      ASSERT_ALWAYS(old1 == k);
-      ASSERT_ALWAYS(old2 == k2);
-#endif
+        k = findroot_new (&k2, bb, Q[j - SKIP], &F[j]);
       /* Note: if x^2 = k*N (mod p) has only one root, which can happen only
          when k*N is divisible by p (and then the root is 0) we will count
          twice this root, but this will be very rare, and by not considering
@@ -1216,19 +1182,19 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
         update (S, i, p, F[j].logp, M);
     }
 
-  st = milliseconds ();
-  sieve_time += st;
-  check_time -= st;
+  if (verbose)
+    {
+      st = milliseconds ();
+      sieve_time += st;
+      check_time -= st;
+    }
 
 #ifdef TRACE
   printf ("%d: S=%d\n", TRACE, S[M + TRACE]);
 #endif
 
   /* find smooth locations */
-  for (S8 = (uint64_t*) S, i = 0; i < 2*M; S8++)
-    if ((S8[0] & mask8) == 0)
-      i += 8;
-    else
+  for (i = 0; (i = next_candidate_block (S, i, 2*M, mask8)) < 2*M; )
       for (int ii = 0; ii < 8; ii++, i++)
         {
           if (S[i] >= threshold)
@@ -1291,7 +1257,8 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
             }
         }
   end_check:
-  check_time += milliseconds ();
+  if (verbose)
+    check_time += milliseconds ();
   }
   mpz_clear(data->nextprime_bitfield);
   mpz_clear (r);
@@ -1300,11 +1267,15 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
     printf ("%ld rels with %d polynomials: %f per poly\n",
             nrel, pols, (double) nrel / (double) pols);
 
-  gauss_time -= milliseconds ();
+  if (verbose)
+    gauss_time -= milliseconds ();
   gauss (f, Mat, nrel, wrel, ncol + 1, X, Y, N0, verbose);
-  st = milliseconds ();
-  gauss_time += st;
-  total_time = st;
+  if (verbose)
+    {
+      st = milliseconds ();
+      gauss_time += st;
+      total_time = st;
+    }
 
   free (S);
   free (T);
@@ -1319,8 +1290,6 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
   free (X);
   free (Y);
   free (F);
-  free (P);
-  free (Q);
   free (W);
   mpz_clear (axb);
   mpz_clear (c);
@@ -1339,7 +1308,7 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
 
 /* put in z the product P[0] * P[1] * ... * P[n-1] */
 void
-compute_P (mpz_t z, unsigned long *P, unsigned int n)
+compute_P (mpz_t z, uint64_t const *P, unsigned int n)
 {
   if (n == 1)
     mpz_set_ui (z, P[0]);
@@ -1358,7 +1327,7 @@ compute_P (mpz_t z, unsigned long *P, unsigned int n)
 
 /* m = 2^logm is the number of x[] we accumulate */
 void
-init_tree (bernstein_t T, unsigned int logm, unsigned long *P, unsigned int n)
+init_tree (bernstein_t T, unsigned int logm, uint64_t const *P, unsigned int n)
 {
   unsigned int m = 1 << logm, i, j;
 
@@ -1367,20 +1336,20 @@ init_tree (bernstein_t T, unsigned int logm, unsigned long *P, unsigned int n)
   T->logm = logm;
   T->m = m;
   T->size = 0;
-  T->x = malloc ((logm + 1) * sizeof (mpz_t*));
+  T->x = (mpz_t **) malloc ((logm + 1) * sizeof (mpz_t*));
   for (i = 0; i <= logm; i++)
     {
-      T->x[i] = malloc ((m >> i) * sizeof (mpz_t));
+      T->x[i] = (mpz_t *) malloc ((m >> i) * sizeof (mpz_t));
       for (j = 0; j < (m >> i); j++)
         mpz_init (T->x[i][j]);
     }
-  T->r = malloc (m * sizeof (mpz_t));
+  T->r = (mpz_t *) malloc (m * sizeof (mpz_t));
   for (i = 0; i < m; i++)
     mpz_init (T->r[i]);
-  T->axb = malloc (m * sizeof (mpz_t));
+  T->axb = (mpz_t *) malloc (m * sizeof (mpz_t));
   for (i = 0; i < m; i++)
     mpz_init (T->axb[i]);
-  T->w = malloc (m * sizeof (unsigned long));
+  T->w = (unsigned long *) malloc (m * sizeof (unsigned long));
 }
 
 void
@@ -1461,7 +1430,7 @@ accumulate (bernstein_t T, mpz_t x, mpz_t axb, fb_t *F)
 #endif
 
   if (mpz_fits_ulong_p(x)) {
-    unsigned long ux = mpz_get_ui(x);
+    uint64_t ux = mpz_get_uint64(x);
     for (int j = 1; j < SKIP; j++)
       {
         const int e = divide_out(&ux, &F[j]);
@@ -1472,15 +1441,15 @@ accumulate (bernstein_t T, mpz_t x, mpz_t axb, fb_t *F)
   } else {
     for (int j = 1; j < SKIP; j++)
       {
-        unsigned long p = F[j].p;
+        uint64_t p = F[j].p;
 
-        if (mpz_divisible_ui_p (x, p))
+        if (mpz_divisible_uint64_p (x, p))
           {
             int e = 0;
             do {
-              mpz_divexact_ui (x, x, p);
+              mpz_divexact_uint64 (x, x, p);
               e ++;
-            } while (mpz_divisible_ui_p (x, p));
+            } while (mpz_divisible_uint64_p (x, p));
             T->w[T->size] |= (e & 1) << (j + 1);
           }
       }

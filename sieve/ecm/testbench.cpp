@@ -38,6 +38,7 @@ To test the mpz arithmetic on a 64-bit processor:
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 
+#include <cinttypes>
 #include <climits>
 #include <cstdint>
 #include <cstdio>
@@ -51,13 +52,12 @@ To test the mpz arithmetic on a 64-bit processor:
 
 #include "cxx_mpz.hpp"
 #include "facul.hpp"
+#include "ecm.hpp"
 #include "facul_ecm.h"
 #include "facul_method.hpp"
 #include "facul_strategies.hpp"
 #include "facul_strategies_stats.hpp"
 #include "macros.h"
-#include "arith/modredc_ul.h"
-#include "arith/modredc_ul_default.h"
 #include "timing.h"
 #include "utils_cxx.hpp"
 #include "cado_main.hpp"
@@ -69,10 +69,7 @@ static void print_pointorder(unsigned long const p,
                              ec_parameterization_t parameterization,
                              int const verbose)
 {
-    modulus_t m;
-    unsigned long o, knownfac;
-
-    modredcul_initmod_ul(m, p);
+    unsigned long knownfac;
 
     if (parameterization & ECM_TORSION12)
         knownfac = 12;
@@ -81,12 +78,10 @@ static void print_pointorder(unsigned long const p,
     else
         knownfac = 1;
 
-    o = ec_parameterization_point_order_ul(parameterization, parameter,
-                                           knownfac, 0, m, verbose);
+    uint64_t const o = ec_parameterization_point_order(parameterization,
+            parameter, knownfac, 0, p, verbose);
     if (verbose)
-        printf("%lu %lu\n", p, o);
-
-    modredcul_clearmod(m);
+        printf("%lu %" PRIu64 "\n", p, o);
 }
 
 static facul_status tryfactor(cxx_mpz const & N, facul_strategy_oneside const & strategy,
@@ -192,7 +187,6 @@ static int main_(int argc, char const * argv[])
     char const * inp_fn = NULL;
     FILE * inp;
     cxx_mpz N, cof;
-    int const nr_methods = 0;
     int only_primes = 0, verbose = 0, quiet = 0;
     int printfactors = 0;
     int printnonfactors = 0;
@@ -372,7 +366,13 @@ static int main_(int argc, char const * argv[])
                                           (verbose / 3));
     }
     if (!quiet)
-        printf("Strategy has %d method(s)\n", nr_methods);
+        printf("Strategy has %zu method(s)\n", strategy.methods.size());
+
+    /* All input numbers are read or generated before the clock starts,
+     * so that the timing only covers the cofactorization itself. This
+     * makes testbench usable as a performance harness for facul().
+     */
+    std::vector<cxx_mpz> inputs;
 
     if (inp_fn == NULL) {
         if (argc < 3) {
@@ -386,46 +386,15 @@ static int main_(int argc, char const * argv[])
             start++;
         stop = strtoul(argv[2], NULL, 10);
 
-        if (only_primes)
-            i = next_prime(start);
-        else
-            i = start;
-
-        starttime = microseconds();
-
-        /* The main loop */
-        while (i <= stop) {
-            if (mod > 0)
-                primmod[i % mod]++;
-
-            total++;
-            if (do_pointorder) {
-                print_pointorder(i, po_parameter, po_parameterization,
-                                 verbose + printfactors);
-                /* TODO: check point order */
-            } else {
-                mpz_mul_ui(N, cof, i);
-                if (tryfactor(N, strategy, verbose, printfactors,
-                              printnonfactors)) {
-                    hits++;
-                    if (mod > 0)
-                        hitsmod[i % mod]++;
-                }
-            }
-
-            if (only_primes)
-                i = next_prime(i + 1);
-            else
-                i += 2;
-        }
+        for (i = only_primes ? next_prime(start) : start; i <= stop;
+             i = only_primes ? next_prime(i + 1) : i + 2)
+            inputs.emplace_back(i);
     } else {
         inp = fopen(inp_fn, "r");
         if (inp == NULL) {
             printf("Could not open %s\n", inp_fn);
             exit(EXIT_FAILURE);
         }
-
-        starttime = microseconds();
 
         /* Read lines from inp */
         while (!feof(inp) && inpstop-- > 0) {
@@ -438,25 +407,47 @@ static int main_(int argc, char const * argv[])
                 break;
             if (mpz_sgn(N) <= 0)
                 continue;
-            total++;
-
-            if (do_pointorder) {
-                if (mpz_fits_ulong_p(N))
-                    print_pointorder(mpz_get_ui(N), po_parameter,
-                                     po_parameterization, printfactors);
-                else
-                    gmp_fprintf(stderr,
-                                "%Zd does not fit into an unsigned long, not "
-                                "computing group order\n",
-                                (mpz_srcptr)N);
-            } else {
-                mpz_mul(N, N, cof);
-                if (tryfactor(N, strategy, verbose, printfactors,
-                              printnonfactors))
-                    hits++;
-            }
+            inputs.emplace_back(N);
         }
         fclose(inp);
+    }
+
+    if (mod > 0) {
+        for (auto const & x: inputs)
+            primmod[mpz_fdiv_ui(x, mod)]++;
+    }
+
+    std::vector<cxx_mpz> products;
+    if (!do_pointorder) {
+        products.reserve(inputs.size());
+        for (auto const & x: inputs) {
+            products.emplace_back();
+            mpz_mul(products.back(), x, cof);
+        }
+    }
+
+    starttime = microseconds();
+
+    for (size_t k = 0; k < inputs.size(); k++) {
+        auto const & x = inputs[k];
+        total++;
+        if (do_pointorder) {
+            if (mpz_fits_ulong_p(x))
+                print_pointorder(mpz_get_ui(x), po_parameter,
+                                 po_parameterization,
+                                 (inp_fn ? 0 : verbose) + printfactors);
+            else
+                gmp_fprintf(stderr,
+                            "%Zd does not fit into an unsigned long, not "
+                            "computing group order\n",
+                            (mpz_srcptr)x);
+            /* TODO: check point order */
+        } else if (tryfactor(products[k], strategy, verbose, printfactors,
+                             printnonfactors) == FACUL_SMOOTH) {
+            hits++;
+            if (mod > 0)
+                hitsmod[mpz_fdiv_ui(x, mod)]++;
+        }
     }
 
     endtime = microseconds();

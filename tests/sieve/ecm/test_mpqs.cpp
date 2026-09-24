@@ -1,13 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+
 #include <gmp.h>
+
 #include "tests_common.h"
-#include "sieve/ecm/mpqs_doit.h"
+#include "sieve/ecm/mpqs_doit.hpp"
 
 /* Set N to a crude approximation to 2^(b/2) */
-void
+static void
 set_sqrt_2exp(mpz_t N, const unsigned int e)
 {
   mpz_set_ui (N, 1);
@@ -49,7 +51,7 @@ int main(int argc, char const * argv[])
   /* With n primes, we can generate n*(n-1)/2 distinct products */
   /* We want n*(n-1)/2 >= iter  <==  n >= sqrt(iter*2) + 1 */
   n_primes = ceil(sqrt(2 * iter)) + 1;
-  primes = malloc(n_primes * sizeof(mpz_t));
+  primes = (mpz_t *) malloc(n_primes * sizeof(mpz_t));
 
   set_sqrt_2exp(N, bits - 1);
   for(i = 0; i < n_primes; i++) {

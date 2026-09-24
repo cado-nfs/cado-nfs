@@ -7,9 +7,11 @@
 #include <array>
 #include <memory>
 #include <new>
+#include <type_traits>
 
 #include <utility>
 
+#include "cxx_mpz.hpp"
 #include "utils_cxx.hpp"
 #include "arithxx_residue_std_op.hpp"
 #include "macros.h"
@@ -141,14 +143,28 @@ namespace arithxx_details {
             }
 #endif
 
-            void pow(Residue &, Residue const &, uint64_t const *, size_t) const;
-            void pow2(Residue &r, const uint64_t *e, size_t e_nrwords) const;
-
             void pow(Residue & r, Residue const & b, uint64_t e) const;
             void pow2(Residue &r, uint64_t e) const;
 
             void pow(Residue & r, Residue const & b, Integer const & e) const;
             void pow2(Residue &r, const Integer &e) const;
+
+            /* Exponents that do not fit in an Integer (e.g. the stage 1
+             * exponent of P-1) are given as cxx_mpz. For a layer whose
+             * Integer type is cxx_mpz, the overloads above do this. */
+            void pow(Residue & r, Residue const & b, cxx_mpz const & e) const
+                requires (!std::is_same_v<Integer, cxx_mpz>);
+            void pow2(Residue &r, cxx_mpz const & e) const
+                requires (!std::is_same_v<Integer, cxx_mpz>);
+
+            private:
+            /* the exponent is sum e[i] * 2^(i * bits of W), and e[n-1] may
+             * be zero */
+            template<typename W>
+            void pow_words(Residue & r, Residue const & b, W const * e, size_t n) const;
+            template<typename W>
+            void pow2_words(Residue & r, W const * e, size_t n) const;
+            public:
 
             /* {{{ V_dadd and V_dbl for Lucas sequences.
              *
@@ -163,6 +179,7 @@ namespace arithxx_details {
              * be the same variable as a or b but must not be the same
              * variable as d.
              */
+            ATTRIBUTE_ALWAYS_INLINE
             void V_dadd(Residue & r, Residue const & a, Residue const & b,
                     Residue const & d) const
             {
@@ -176,6 +193,7 @@ namespace arithxx_details {
              * be the same variable as a but must not be the same
              * variable as two.
              */
+            ATTRIBUTE_ALWAYS_INLINE
             void V_dbl(Residue & r, Residue const & a, Residue const & two) const
             {
                 auto const & me = downcast();

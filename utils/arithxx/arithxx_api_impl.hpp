@@ -5,6 +5,9 @@
 #include <cstddef>
 
 #include <algorithm>
+#include <bit>
+#include <limits>
+#include <type_traits>
 
 #include "arithxx_common.hpp"
 #include "u64arith.h"
@@ -26,15 +29,16 @@
    Assume e[e_nrwords-1] is not zero when e_nrwords > 0.
 */
 template <typename layer>
-void arithxx_details::api<layer>::pow(Residue & r,
+template <typename W>
+void arithxx_details::api<layer>::pow_words(Residue & r,
                                                    Residue const & b,
-                                                   uint64_t const * e,
+                                                   W const * e,
                                                    size_t const e_nrwords) const
 {
     auto const & me = downcast();
     size_t i = e_nrwords;
-    auto const msb = uint64_t(1) << 63;
-    uint64_t mask;
+    auto const msb = W(1) << (std::numeric_limits<W>::digits - 1);
+    W mask;
     Residue t(me);
 
     while (i > 0 && e[i - 1] == 0)
@@ -46,7 +50,7 @@ void arithxx_details::api<layer>::pow(Residue & r,
     }
 
     /* Find highest set bit in e[i]. */
-    mask = msb >> u64arith_clz(e[i - 1]);
+    mask = msb >> std::countl_zero(e[i - 1]);
     /* t = 1, so t^(mask/2) * b^e = t^mask * b^e  */
 
     me.set(t, b); /* (r*b)^mask * b^(e-mask) = r^mask * b^e */
@@ -65,13 +69,14 @@ void arithxx_details::api<layer>::pow(Residue & r,
 }
 
 template <typename layer>
-inline void arithxx_details::api<layer>::pow2(Residue & r, uint64_t const * e,
+template <typename W>
+inline void arithxx_details::api<layer>::pow2_words(Residue & r, W const * e,
                         size_t const e_nrwords) const
 {
     auto const & me = downcast();
     size_t i = e_nrwords;
-    auto const msb = uint64_t(1) << 63;
-    uint64_t mask;
+    auto const msb = W(1) << (std::numeric_limits<W>::digits - 1);
+    W mask;
     Residue t(me);
 
     while (i > 0 && e[i - 1] == 0)
@@ -82,7 +87,7 @@ inline void arithxx_details::api<layer>::pow2(Residue & r, uint64_t const * e,
         return;
     }
 
-    mask = msb >> u64arith_clz(e[i - 1]);
+    mask = msb >> std::countl_zero(e[i - 1]);
     mask >>= 1;
 
     me.set1(t);
@@ -101,25 +106,59 @@ inline void arithxx_details::api<layer>::pow2(Residue & r, uint64_t const * e,
     me.set(r, t);
 }
 
+/* With a one-word exponent, this simple loop (the one of the old arith
+ * layer) is 1 to 2% faster than the general one above.
+ */
 template <typename layer>
 inline void arithxx_details::api<layer>::pow(Residue & r, Residue const & b, uint64_t e) const
 {
-    pow(r, b, &e, 1);
+    auto const & me = downcast();
+
+    if (e == 0) {
+        me.set1(r);
+        return;
+    }
+
+    uint64_t mask = (uint64_t(1) << 63) >> u64arith_clz(e);
+    Residue t(me);
+    me.set(t, b);
+    while (mask > 1) {
+        me.sqr(t, t);
+        mask >>= 1;
+        if (e & mask)
+            me.mul(t, t, b);
+    }
+    me.set(r, t);
 }
 
 template <typename layer>
 inline void arithxx_details::api<layer>::pow2(Residue &r, const uint64_t e) const {
-    pow2(r, &e, 1);
+    pow2_words(r, &e, 1);
 }
 
 /* this does not work with mpz! */
 template <typename layer>
 inline void arithxx_details::api<layer>::pow(Residue & r, Residue const & b, Integer const & e) const {
-    pow(r, b, e.data(), e.size_in_words());
+    pow_words(r, b, e.data(), e.size_in_words());
 }
 template <typename layer>
 inline void arithxx_details::api<layer>::pow2(Residue &r, const Integer &e) const {
-    pow2(r, e.data(), e.size_in_words());
+    pow2_words(r, e.data(), e.size_in_words());
+}
+
+template <typename layer>
+inline void arithxx_details::api<layer>::pow(Residue & r, Residue const & b, cxx_mpz const & e) const
+    requires (!std::is_same_v<Integer, cxx_mpz>)
+{
+    ASSERT_ALWAYS(mpz_sgn(e) >= 0);
+    pow_words(r, b, mpz_limbs_read(e), mpz_size(e));
+}
+template <typename layer>
+inline void arithxx_details::api<layer>::pow2(Residue &r, cxx_mpz const & e) const
+    requires (!std::is_same_v<Integer, cxx_mpz>)
+{
+    ASSERT_ALWAYS(mpz_sgn(e) >= 0);
+    pow2_words(r, mpz_limbs_read(e), mpz_size(e));
 }
 
 /* Compute r = V_k (b) and rp1 = V_{k+1} (b) if rp1 != NULL
@@ -492,8 +531,9 @@ bool arithxx_details::api<layer>::div3(Residue & r, Residue const & a) const
         if (an + mn == 3) {
             t.r += me.m;
         } else {
-            t.r += me.m;
-            t.r += me.m;
+            /* 2m does not depend on a: one addition on the critical
+             * path, not two */
+            t.r += me.m + me.m;
         }
     }
 
@@ -616,6 +656,23 @@ arithxx_details::api<layer>::gcd(Integer & r, const Residue & A) const
 
     if (me.is0(A)) {
         r = me.getmod();
+        return;
+    }
+
+    if constexpr (std::is_same_v<Integer, Integer64>) {
+        /* On one word, Euclid's algorithm with the hardware division is
+         * faster than the binary algorithm below. The residue
+         * representation (Montgomery or not) does not change the gcd.
+         */
+        uint64_t a = A.r[0], b = me.m[0];
+        if (a >= b)
+            a %= b;
+        while (a) {
+            uint64_t const t = b % a;
+            b = a;
+            a = t;
+        }
+        r = Integer(b);
         return;
     }
 

@@ -58,7 +58,7 @@ add_order_test(em12 4 1000 2000)
 add_order_test(em12 4 1000000 1001000)
 add_order_test(em12 4 1000000000 1000001000)
 
-cado_define_test(test_mpqs.c LIBRARIES tests facul utils TIMEOUT 60)
+cado_define_test(test_mpqs.cpp LIBRARIES tests facul utils TIMEOUT 60)
 
 cado_define_test(test_chains.c LIBRARIES tests facul utils)
 

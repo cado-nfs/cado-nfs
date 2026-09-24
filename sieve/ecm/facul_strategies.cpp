@@ -25,8 +25,8 @@
 #include "facul_strategies.hpp"
 #include "facul_ecm.h"
 #include "facul_method.hpp"
-#include "pm1.h"
-#include "pp1.h"
+#include "pm1.hpp"
+#include "pp1.hpp"
 #include "macros.h"
 #include "verbose.hpp"
 

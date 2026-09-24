@@ -21,7 +21,7 @@ bool arithxx_details::api_bysize<layer, Integer128>::inv(Residue & r, Residue co
             "This code assumes that the current layer uses Montgomery representation");
 
     auto const & me = downcast();
-    Integer a, u, v;
+    Integer a, u;
     int t;
 #ifdef WANT_ASSERT_EXPENSIVE
     Residue tmp(*this);
@@ -52,57 +52,88 @@ bool arithxx_details::api_bysize<layer, Integer128>::inv(Residue & r, Residue co
     /* Now a = x/2^w */
     t = -64;
 
-    u = 1;
-    v = 0; /* 0 is a valid pointer */
+    /* The loop works on plain words, as the old arith code did: with
+     * Integer128 objects, gcc spills to memory in this loop, and it is
+     * then 10% slower than the old code.
+     */
+    uint64_t a0 = a[0], a1 = a[1], b0 = b[0], b1 = b[1];
+    uint64_t u0 = 1, u1 = 0, v0 = 0, v1 = 0;
+    /* x < y. The best form depends on the compiler: clang is 20% faster
+     * with plain C than with the asm subtraction with borrow, and gcc
+     * (13 to 15) is 1 to 6% faster with the latter. */
+    auto lt = [](uint64_t x0, uint64_t x1, uint64_t y0, uint64_t y1) {
+#ifdef __clang__
+        return x1 < y1 || (x1 == y1 && x0 < y0);
+#else
+        return u64arith_sub_2_2_cy(&x0, &x1, y0, y1) != 0;
+#endif
+    };
 
     /* make a odd */
-    auto lsh = int(a.ctz());
+    if (a0 == 0) {
+        a0 = a1;
+        a1 = 0;
+        t += 64;
+    }
+    auto lsh = int(u64arith_ctz(a0));
     t += lsh;
-    a >>= lsh;
+    u64arith_shr_2(&a0, &a1, lsh);
 
     // Here a and b are odd, and a < b
     do {
         /* Here, a and b are odd, 0 < a < b, u is odd and v is even */
-        ASSERT_EXPENSIVE(a < b);
-        ASSERT_EXPENSIVE((a & 1) == 1);
-        ASSERT_EXPENSIVE((b & 1) == 1);
-        ASSERT_EXPENSIVE((u & 1) == 1);
-        ASSERT_EXPENSIVE((v & 1) == 0);
+        ASSERT_EXPENSIVE(lt(a0, a1, b0, b1));
+        ASSERT_EXPENSIVE(a0 & b0 & u0 & 1);
+        ASSERT_EXPENSIVE((v0 & 1) == 0);
 
         do {
-            b -= a;
-            v += u;
-            ASSERT_EXPENSIVE((b & 1) == 0);
-
-            lsh = int(b.ctz());
+            u64arith_sub_2_2(&b0, &b1, a0, a1);
+            u64arith_add_2_2(&v0, &v1, u0, u1);
+            /* a zero low word is a word shift, so that all shifts
+             * below are by less than 64 bits */
+            if (b0 == 0) {
+                b0 = b1;
+                b1 = 0;
+                ASSERT_EXPENSIVE(u1 == 0);
+                u1 = u0;
+                u0 = 0;
+                t += 64;
+            }
+            lsh = int(u64arith_ctz(b0));
             t += lsh;
-            b >>= lsh;
-            u <<= lsh;
-        } while (a < b); /* ~50% branch taken :( */
+            u64arith_shr_2(&b0, &b1, lsh);
+            u64arith_shl_2(&u0, &u1, lsh);
+        } while (lt(a0, a1, b0, b1)); /* ~50% branch taken :( */
 
         /* Here, a and b are odd, 0 < b =< a, u is even and v is odd */
-        ASSERT_EXPENSIVE((a & 1) == 1);
-        ASSERT_EXPENSIVE((b & 1) == 1);
-        ASSERT_EXPENSIVE((u & 1) == 0);
-        ASSERT_EXPENSIVE((v & 1) == 1);
+        ASSERT_EXPENSIVE(a0 & b0 & v0 & 1);
+        ASSERT_EXPENSIVE((u0 & 1) == 0);
 
-        if (a == b)
+        if (a0 == b0 && a1 == b1)
             break;
-        ASSERT_EXPENSIVE(a > b);
 
         /* Here, a and b are odd, 0 < b < a, u is even and v is odd */
         do {
-            a -= b;
-            u += v;
-
-            ASSERT_EXPENSIVE((a & 1) == 0);
-            lsh = int(a.ctz());
-            a >>= lsh;
+            u64arith_sub_2_2(&a0, &a1, b0, b1);
+            u64arith_add_2_2(&u0, &u1, v0, v1);
+            if (a0 == 0) {
+                a0 = a1;
+                a1 = 0;
+                ASSERT_EXPENSIVE(v1 == 0);
+                v1 = v0;
+                v0 = 0;
+                t += 64;
+            }
+            lsh = int(u64arith_ctz(a0));
             t += lsh;
-            v <<= lsh;
-        } while (b < a); /* about 50% branch taken :( */
+            u64arith_shr_2(&a0, &a1, lsh);
+            u64arith_shl_2(&v0, &v1, lsh);
+        } while (lt(b0, b1, a0, a1)); /* about 50% branch taken :( */
         /* Here, a and b are odd, 0 < a =< b, u is odd and v is even */
-    } while (a != b);
+    } while (a0 != b0 || a1 != b1);
+
+    a = Integer(a0, a1);
+    u = Integer(u0, u1);
 
     if (a != 1) /* Non-trivial GCD */
         return false;

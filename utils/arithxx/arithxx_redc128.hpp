@@ -3,6 +3,9 @@
 
 #include <cstdint>
 
+#include <span>
+#include <vector>
+
 #include "u64arith.h"
 
 #include "arithxx_common.hpp"
@@ -87,7 +90,7 @@ struct arithxx_details::redc128
      * representation */
     void mul_ul(Residue & r, Residue const & a, uint64_t b) const;
   protected:
-    std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer const & c) const;
+    std::vector<Integer> batchinv_redc(std::span<uint64_t const> a, Integer const & c) const;
     friend struct arithxx_details::batch_Q_to_Fp_context<layer>;
 };
 #endif	/* UTILS_ARITHXX_REDC128_HPP_ */

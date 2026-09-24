@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+#include <span>
 #include <vector>
 
 #include "arithxx_redc128.hpp"
@@ -110,7 +111,7 @@ arithxx_details::redc128<layer>::mul_ul(Residue & r, Residue const & a, uint64_t
  */
 template<typename layer>
 auto
-arithxx_details::redc128<layer>::batchinv_redc(std::vector<uint64_t> const & a, Integer const & c) const
+arithxx_details::redc128<layer>::batchinv_redc(std::span<uint64_t const> a, Integer const & c) const
 -> std::vector<Integer>
 {
     auto const & me = downcast();

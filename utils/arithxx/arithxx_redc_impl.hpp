@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+#include <span>
 #include <vector>
 
 #include "arithxx_redc.hpp"
@@ -15,6 +16,15 @@ arithxx_details::redc<layer>::batch_Q_to_Fp(Integer const & num,
             std::vector<uint64_t> const & p)
 {
     return batch_Q_to_Fp_context<layer>(num, den)(p, k);
+}
+
+template<typename layer>
+bool
+arithxx_details::redc<layer>::batch_Q_to_Fp(std::span<uint64_t> r,
+        Integer const & num, Integer const & den, int k,
+        std::span<uint64_t const> p)
+{
+    return batch_Q_to_Fp_context<layer>(num, den)(r, p, k);
 }
 
 

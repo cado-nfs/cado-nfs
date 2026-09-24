@@ -1,10 +1,6 @@
 #ifndef CADO_FACUL_ECM_H
 #define CADO_FACUL_ECM_H
 
-#include "arith/modredc_ul.h"
-#include "arith/modredc_15ul.h"
-#include "arith/modredc_2ul2.h"
-#include "arith/mod_mpz.h"
 #include "bytecode.h"
 #include "stage2.h"
 
@@ -36,21 +32,6 @@ typedef struct {
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-int ecm_ul (modintredcul_t, const modulusredcul_t, const ecm_plan_t *);
-int ecm_15ul (modintredc15ul_t, const modulusredc15ul_t, const ecm_plan_t *);
-int ecm_2ul2 (modintredc2ul2_t, const modulusredc2ul2_t, const ecm_plan_t *);
-int ecm_mpz (modintmpz_t, const modulusmpz_t, const ecm_plan_t *);
-
-unsigned long ec_parameterization_point_order_ul (ec_parameterization_t,
-                                                  unsigned long,
-                                                  unsigned long,
-                                                  unsigned long,
-                                                  const modulusredcul_t,
-                                                  int);
-unsigned long ec_parameterization_curve_order_ul (ec_parameterization_t,
-                                                  unsigned long,
-                                                  const modulusredcul_t);
 
 void ecm_make_plan (ecm_plan_t *, unsigned int, unsigned int, 
 		    ec_parameterization_t, unsigned long, int, int);

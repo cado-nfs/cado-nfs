@@ -6,8 +6,8 @@
 #include "ec_arith_cost.h"
 #include "facul_ecm.h"
 #include "getprime.h"   // getprime
-#include "pm1.h"
-#include "pp1.h"
+#include "pm1.hpp"
+#include "pp1.hpp"
 #include "stage2.h"         // for stage2_clear_plan, stage2_make_plan, stag...
 #include "verbose.hpp"             // verbose_output_print
 #include "macros.h"
@@ -59,9 +59,7 @@ void
 pm1_make_plan (pm1_plan_t *plan, const unsigned int B1, const unsigned int B2,
 	       int verbose)
 {
-  mpz_t E;
   unsigned int p;
-  size_t tmp_E_nrwords;
 
   verbose_output_print(0, 3, "# make plan for P-1 with B1=%u, B2=%u\n", B1, B2);
 
@@ -71,8 +69,7 @@ pm1_make_plan (pm1_plan_t *plan, const unsigned int B1, const unsigned int B2,
     plan->exp2++;
 
   plan->B1 = B1;
-  mpz_init (E);
-  mpz_set_ui (E, 1UL);
+  mpz_set_ui (plan->E, 1UL);
   prime_info pi;
   prime_info_init (pi);
   p = (unsigned int) getprime_mt (pi);
@@ -83,22 +80,12 @@ pm1_make_plan (pm1_plan_t *plan, const unsigned int B1, const unsigned int B2,
       /* Uses p^k s.t. (p-1)p^(k-1) <= B1, except for p=2 because our
          base 2 is a QR for primes == 1 (mod 8) already */
       for (q = 1; q <= B1 / (p - 1); q *= p)
-        mpz_mul_ui (E, E, p);
+        mpz_mul_ui (plan->E, plan->E, p);
     }
   prime_info_clear (pi);
 
   if (verbose)
-    gmp_printf ("pm1_make_plan: E = %Zd;\n", E);
-
-  plan->E = (unsigned long *) mpz_export (NULL, &tmp_E_nrwords, -1, sizeof(unsigned long),
-                        0, 0, E);
-  plan->E_nrwords = (unsigned int) tmp_E_nrwords;
-  mpz_clear (E);
-  /* Find highest set bit in E. */
-  ASSERT (plan->E[plan->E_nrwords - 1] != 0);
-  plan->E_mask = ~0UL - (~0UL >> 1); /* Only MSB set */
-  while ((plan->E[plan->E_nrwords - 1] & plan->E_mask) == 0UL)
-    plan->E_mask >>= 1;
+    gmp_printf ("pm1_make_plan: E = %Zd;\n", (mpz_srcptr) plan->E);
 
   /* stage2 is done with P+1 code */
   stage2_cost_t stage2_opcost = {
@@ -114,10 +101,7 @@ void
 pm1_clear_plan (pm1_plan_t *plan)
 {
   stage2_clear_plan (&(plan->stage2));
-
-  free (plan->E);
-  plan->E = NULL;
-  plan->E_nrwords = 0;
+  mpz_set_ui (plan->E, 0);
   plan->B1 = 0;
 }
 

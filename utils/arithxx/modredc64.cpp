@@ -25,11 +25,13 @@ template<>
 bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A) const
 {
     auto const & me = downcast();
-    Integer x = me.m;
+    /* plain words, not Integer objects: this is what the old arith
+     * layer did, and gcc 13 and 14 compile it better */
+    uint64_t x = me.m[0];
     uint64_t u, v;
     int t, lsh;
 
-    ASSERT(A.r < x);
+    ASSERT(A.r < me.m);
     ASSERT(x & 1);
 
     if (A.r == 0)
@@ -37,12 +39,12 @@ bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A
 
     /* Let A = a*2^w, so we want the Montgomery representation of 1/a,
        which is 2^w/a. We start by getting y = a */
-    Integer y = me.frommontgomery(A.r);
+    uint64_t y = me.frommontgomery(A.r)[0];
 
     /* We simply set y = a/2^w and t=0. The result before
        correction will be 2^(w+t)/a so we have to divide by t, which
        may be >64, so we may have to do a full and a variable width REDC. */
-    y = me.frommontgomery(y);
+    y = me.frommontgomery(Integer(y))[0];
 
     /* Now y = a/2^w */
     t = 0;
@@ -51,7 +53,7 @@ bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A
     v = 0;
 
     // make y odd
-    lsh = int(y.ctz());
+    lsh = int(u64arith_ctz(y));
     y >>= lsh;
     t += lsh;
     /* v <<= lsh; ??? v is 0 here */
@@ -64,7 +66,7 @@ bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A
             v += u;
             if (x == 0)
                 break;
-            lsh = int(x.ctz());
+            lsh = int(u64arith_ctz(x));
             ASSERT_EXPENSIVE(lsh > 0);
             x >>= lsh;
             t += lsh;
@@ -83,7 +85,7 @@ bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A
             u += v;
             if (y == 0)
                 break;
-            lsh = int(y.ctz());
+            lsh = int(u64arith_ctz(y));
             ASSERT_EXPENSIVE(lsh > 0);
             y >>= lsh;
             t += lsh;

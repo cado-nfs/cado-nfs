@@ -66,7 +66,10 @@ have these coded right in the header file.
  - `div2`, `div3`, `div5`, `div7`, `div11`, `div13`: -> same name
 
 ### Powers.
- - `pow_ul`, `2pow_ul`, `pow_mp`, `2pow_mp`: -> `pow`
+ - `pow_ul`, `2pow_ul`: -> `pow` and `pow2` with a `uint64_t` exponent
+ - `pow_mp`, `2pow_mp`: -> `pow` and `pow2` with an `Integer` exponent,
+   or a `cxx_mpz` one if it does not fit in an `Integer`. There is no
+   interface that takes the exponent as an array of words.
 
 ### Primality tests:
  - `sprp`, `sprp2`, `isprime`: -> `is_strong_pseudoprime_base2` and
@@ -87,7 +90,10 @@ have these coded right in the header file.
  - `batch_Q_to_Fp` and `batch_Q_to_Fp_context`. These correspond to dead
    code in `las-fill-in-buckets.cpp`, meant to compute rational roots in
    batches. It got commented out at some point. The backend code is now
-   tested again, but not put in production.
+   tested again, and MPQS (`sieve/ecm/mpqs_doit.cpp`) uses the modredc64
+   one. Besides the version that returns a vector, there is one that
+   writes into caller-provided storage (a `std::span`), which does not
+   allocate.
 
 ### I/O
  - `fprintf`, `printf`: -> all under the umbrella of libfmt overloads,
