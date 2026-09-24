@@ -167,6 +167,7 @@ class arithxx_modredc126::Modulus
 #endif
 
   private:
+    ATTRIBUTE_ALWAYS_INLINE
     void mul(Integer & r, const Integer & a, const Integer & b) const
     {
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
@@ -274,6 +275,7 @@ class arithxx_modredc126::Modulus
         u64arith_sub_2_2_ge(&(r[0]), &(r[1]), m[0], m[1]);
 #endif
     }
+    ATTRIBUTE_ALWAYS_INLINE
     void mul(Residue & r, const Residue & a, const Integer & b) const
     {
         mul(r.r, a.r, b);
@@ -283,11 +285,13 @@ class arithxx_modredc126::Modulus
      * We have a few distinct overloads of the mul code for convenience,
      * mostly because of the batchinv_redc code which plays a few tricks.
      */
+    ATTRIBUTE_ALWAYS_INLINE
     void mul(Residue & r, const Residue & a, const Residue & b) const
     {
         mul(r.r, a.r, b.r);
     }
 
+    ATTRIBUTE_ALWAYS_INLINE
     void sqr(Residue & r, Residue const & a) const
     {
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM

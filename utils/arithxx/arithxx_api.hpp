@@ -179,6 +179,7 @@ namespace arithxx_details {
              * be the same variable as a or b but must not be the same
              * variable as d.
              */
+            ATTRIBUTE_ALWAYS_INLINE
             void V_dadd(Residue & r, Residue const & a, Residue const & b,
                     Residue const & d) const
             {
@@ -192,6 +193,7 @@ namespace arithxx_details {
              * be the same variable as a but must not be the same
              * variable as two.
              */
+            ATTRIBUTE_ALWAYS_INLINE
             void V_dbl(Residue & r, Residue const & a, Residue const & two) const
             {
                 auto const & me = downcast();
