@@ -72,6 +72,14 @@ void arithxx_details::api<arithxx_mod_mpz_new>::pow2(
     mod_mpz_new_powm(r.r.get(), B, e, nrWords, me.m);
 }
 
+/* The generic one-word version works with mul and sqr; mpz_powm is
+ * faster. */
+template <>
+void arithxx_details::api<arithxx_mod_mpz_new>::pow(Residue & r, Residue const & b, uint64_t e) const
+{
+    pow(r, b, &e, 1);
+}
+
 template <>
 void arithxx_details::api<arithxx_mod_mpz_new>::pow(Residue & r, Residue const & b, Integer const & e) const
 {

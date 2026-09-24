@@ -102,10 +102,29 @@ inline void arithxx_details::api<layer>::pow2(Residue & r, uint64_t const * e,
     me.set(r, t);
 }
 
+/* With a one-word exponent, this simple loop (the one of the old arith
+ * layer) is 1 to 2% faster than the general one above.
+ */
 template <typename layer>
 inline void arithxx_details::api<layer>::pow(Residue & r, Residue const & b, uint64_t e) const
 {
-    pow(r, b, &e, 1);
+    auto const & me = downcast();
+
+    if (e == 0) {
+        me.set1(r);
+        return;
+    }
+
+    uint64_t mask = (uint64_t(1) << 63) >> u64arith_clz(e);
+    Residue t(me);
+    me.set(t, b);
+    while (mask > 1) {
+        me.sqr(t, t);
+        mask >>= 1;
+        if (e & mask)
+            me.mul(t, t, b);
+    }
+    me.set(r, t);
 }
 
 template <typename layer>
