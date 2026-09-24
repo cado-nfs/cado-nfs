@@ -542,11 +542,11 @@ checks on osx system:
     - *checks-script
   <<: *checks-junit-report
  
-checks on freebsd14.4 system with clang:
+checks on freebsd14.5 system with clang:
   <<: *common-template
   stage: thorough
   tags:
-    - freebsd-14.4
+    - freebsd-14.5
   needs: []
   before_script:
     - sudo -E ci/ci/00-prepare-docker.sh
