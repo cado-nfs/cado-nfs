@@ -4,6 +4,9 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <type_traits>
+
+#include "cxx_mpz.hpp"
 #include "macros.h"
 
 /* Functions for residues. Slow and clean
@@ -371,7 +374,7 @@ class ResidueStdOp : public layer::Residue
     ResidueStdOp pow(uint64_t const e)
     {
         ResidueStdOp r(m);
-        m.pow_u64(r, *this, e);
+        m.pow(r, *this, e);
         return r;
     }
     ResidueStdOp pow(Integer const & e)
@@ -380,10 +383,11 @@ class ResidueStdOp : public layer::Residue
         m.pow(r, *this, e);
         return r;
     }
-    ResidueStdOp pow(uint64_t const * e, size_t const l)
+    ResidueStdOp pow(cxx_mpz const & e)
+        requires (!std::is_same_v<Integer, cxx_mpz>)
     {
         ResidueStdOp r(m);
-        m.pow(r, *this, e, l);
+        m.pow(r, *this, e);
         return r;
     }
     ResidueStdOp chebyshevV(uint64_t const e)

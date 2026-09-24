@@ -35,49 +35,38 @@ static void mod_mpz_new_powm(mp_limb_t * r, mpz_srcptr b, mpz_srcptr e,
     mpn_zero(r + k, n - k);
 }
 
-/* an mpz view of the exponent e, which is copied only if the limbs are
- * not 64-bit words */
-static void mod_mpz_new_powm(mp_limb_t * r, mpz_srcptr b,
-        uint64_t const * e, size_t const nrWords, mpz_srcptr m)
+/* an mpz view of a one-word exponent, without a copy if the limbs are
+ * 64-bit words */
+static void mod_mpz_new_powm(mp_limb_t * r, mpz_srcptr b, uint64_t const & e,
+        mpz_srcptr m)
 {
 #if GMP_LIMB_BITS == 64
     mpz_t E;
-    mpz_roinit_n(E, reinterpret_cast<mp_limb_t const *>(e), mp_size_t(nrWords));
+    mpz_roinit_n(E, reinterpret_cast<mp_limb_t const *>(&e), 1);
     mod_mpz_new_powm(r, b, E, m);
 #else
-    mod_mpz_new_powm(r, b, cxx_mpz(e, nrWords), m);
+    mod_mpz_new_powm(r, b, cxx_mpz(e), m);
 #endif
 }
 
+/* The generic versions work with mul and sqr; mpz_powm is faster. */
 template <>
-void arithxx_details::api<arithxx_mod_mpz_new>::pow(
-    Residue & r, Residue const & b, uint64_t const * e,
-    size_t const nrWords) const
+void arithxx_details::api<arithxx_mod_mpz_new>::pow(Residue & r, Residue const & b, uint64_t e) const
 {
     auto const & me = downcast();
     mpz_t B;
     mpz_roinit_n(B, b.r.get(), mpz_size(me.m));
-    mod_mpz_new_powm(r.r.get(), B, e, nrWords, me.m);
+    mod_mpz_new_powm(r.r.get(), B, e, me.m);
 }
 
 template <>
-void arithxx_details::api<arithxx_mod_mpz_new>::pow2(
-    Residue & r, uint64_t const * e,
-    size_t const nrWords) const
+void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue & r, uint64_t e) const
 {
     auto const & me = downcast();
     mp_limb_t const two = 2;
     mpz_t B;
     mpz_roinit_n(B, &two, 1);
-    mod_mpz_new_powm(r.r.get(), B, e, nrWords, me.m);
-}
-
-/* The generic one-word version works with mul and sqr; mpz_powm is
- * faster. */
-template <>
-void arithxx_details::api<arithxx_mod_mpz_new>::pow(Residue & r, Residue const & b, uint64_t e) const
-{
-    pow(r, b, &e, 1);
+    mod_mpz_new_powm(r.r.get(), B, e, me.m);
 }
 
 template <>

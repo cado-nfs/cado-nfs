@@ -66,7 +66,10 @@ have these coded right in the header file.
  - `div2`, `div3`, `div5`, `div7`, `div11`, `div13`: -> same name
 
 ### Powers.
- - `pow_ul`, `2pow_ul`, `pow_mp`, `2pow_mp`: -> `pow`
+ - `pow_ul`, `2pow_ul`: -> `pow` and `pow2` with a `uint64_t` exponent
+ - `pow_mp`, `2pow_mp`: -> `pow` and `pow2` with an `Integer` exponent,
+   or a `cxx_mpz` one if it does not fit in an `Integer`. There is no
+   interface that takes the exponent as an array of words.
 
 ### Primality tests:
  - `sprp`, `sprp2`, `isprime`: -> `is_strong_pseudoprime_base2` and

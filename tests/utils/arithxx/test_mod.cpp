@@ -398,7 +398,7 @@ template <class layer> class Tests
             e = Integer(ez);
 
         Residue const b = m(base);
-        m.pow(p, b, exponent, len);
+        m.pow(p, b, ez);
         r = m.get(p);
         if (R != (cxx_mpz)r) {
             std::cerr << tname<layer>() << "::pow(" << base << ", " << exponent
@@ -426,7 +426,7 @@ template <class layer> class Tests
             }
         }
         if (base == Integer(2)) {
-            m.pow2(p, exponent, len);
+            m.pow2(p, ez);
             r = m.get(p);
             if (R != (cxx_mpz)r) {
                 std::cerr << tname<layer>() << "::pow2(" << exponent << ", "
