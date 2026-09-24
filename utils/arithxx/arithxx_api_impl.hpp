@@ -493,8 +493,9 @@ bool arithxx_details::api<layer>::div3(Residue & r, Residue const & a) const
         if (an + mn == 3) {
             t.r += me.m;
         } else {
-            t.r += me.m;
-            t.r += me.m;
+            /* 2m does not depend on a: one addition on the critical
+             * path, not two */
+            t.r += me.m + me.m;
         }
     }
 

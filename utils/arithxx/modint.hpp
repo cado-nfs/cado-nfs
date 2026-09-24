@@ -614,6 +614,17 @@ namespace Integer_details {
             static uint64_t value(Integer const & r) {
                 using cado_math_aux::pow2_mod;
                 constexpr uint64_t w_mod_n = pow2_mod<64, n>::value;
+                if constexpr (k == 2 && w_mod_n == 1) {
+                    /* e.g. n=3 or n=5: since 2^64 == 1 (mod n), add
+                     * the two words with an end-around carry, and
+                     * reduce once. The sum plus the carry cannot
+                     * overflow again. */
+                    uint64_t const lo = r[Integer::max_size_in_words-2];
+                    uint64_t const hi = r[Integer::max_size_in_words-1];
+                    uint64_t s = lo + hi;
+                    s += s < lo;
+                    return s % n;
+                }
                 return (mod_n_impl<Integer, n, k-1>::value(r) * w_mod_n + r[Integer::max_size_in_words-k] % n) % n;
             }
         };
