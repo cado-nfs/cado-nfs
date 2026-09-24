@@ -3,10 +3,7 @@
 // include them here.
 // IWYU pragma: no_include "facul_ecm.h"  // for ecm_15ul
 // IWYU pragma: no_include "mpqs.h"       // for mpqs_15ul
-// IWYU pragma: no_include "pp1.h"        // for pp1_27_15ul, pp1_65_15ul
 #include "arith/modredc_15ul_default.h" // IWYU pragma: keep
-#define pp1_27 pp1_27_15ul
-#define pp1_65 pp1_65_15ul
 #define ecm ecm_15ul
 #define mpqs mpqs_15ul
 // scan-headers: skip

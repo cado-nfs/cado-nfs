@@ -48,7 +48,7 @@
 #include "utils_cxx.hpp"
 // #include "facul_fwd.hpp"
 // #include "pm1.hpp"
-// #include "pp1.h"
+// #include "pp1.hpp"
 // #include "stage2.h"
 
 #ifdef COMPILE_DEAD_CODE

@@ -41,20 +41,17 @@ include_directories(. ..)
 add_library(facul
     OBJECT
         ecm_ul.c
-        pp1_ul.c
         facul_doit_ul.cpp
         ecm_15ul.c
-        pp1_15ul.c
         facul_doit_15ul.cpp
         ecm_2ul2.c
-        pp1_2ul2.c
         facul_doit_2ul2.cpp
         ecm_mpz.c
-        pp1_mpz.c
         facul_doit_mpz.cpp
         stage2.c
         bytecode.c
         pm1.cpp
+        pp1.cpp
         makeplan.cpp facul.cpp modset.cpp
         facul_method.cpp
         facul_strategies_stats.cpp

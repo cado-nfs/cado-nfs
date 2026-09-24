@@ -9,7 +9,7 @@
 #include "facul_ecm.h"  // for ecm_plan_t, ecm_make_plan, ecm_clear_plan
 #include "macros.h"     // for ASSERT_ALWAYS, ASSERT, MAYBE_UNUSED
 #include "pm1.hpp"      // for pm1_plan_t, pm1_clear_plan, pm1_make_plan
-#include "pp1.h"        // for pp1_plan_t, pp1_clear_plan, pp1_make_plan
+#include "pp1.hpp"        // for pp1_plan_t, pp1_clear_plan, pp1_make_plan
 #include "utils_cxx.hpp"
 
 facul_method::~facul_method()

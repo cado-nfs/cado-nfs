@@ -7,7 +7,7 @@
 #include "facul_ecm.h"
 #include "getprime.h"   // getprime
 #include "pm1.hpp"
-#include "pp1.h"
+#include "pp1.hpp"
 #include "stage2.h"         // for stage2_clear_plan, stage2_make_plan, stag...
 #include "verbose.hpp"             // verbose_output_print
 #include "macros.h"

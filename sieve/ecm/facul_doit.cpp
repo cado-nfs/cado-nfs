@@ -21,7 +21,7 @@
 #include "facul_doit.hpp"
 #include "modset.hpp"
 #include "pm1.hpp"
-#include "pp1.h"
+#include "pp1.hpp"
 #include "facul_ecm.h"
 #include "facul.hpp"
 #include "mpqs.h"
