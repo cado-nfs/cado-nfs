@@ -19,7 +19,18 @@
 
 struct kbench_iters {
     size_t mul, pow, inv, prime;
+    /* comma-separated list of the kernels to run; all if empty */
+    std::string only;
 };
+
+/* whether kernel op is to be run */
+inline bool kbench_wanted(kbench_iters const & it, char const * op)
+{
+    if (it.only.empty())
+        return true;
+    std::string const o = "," + it.only + ",";
+    return o.find(std::string(",") + op + ",") != std::string::npos;
+}
 
 struct kbench_result {
     std::string op;

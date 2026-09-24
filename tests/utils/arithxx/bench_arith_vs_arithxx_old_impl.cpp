@@ -66,106 +66,126 @@ kbench_results MOD_APPEND_TYPE(bench_old)(cxx_mpz const & Mz, kbench_iters const
     auto low64 = [&](residue_t const a) { return MOD_APPEND_TYPE(low64)(a, m); };
     double ns;
 
-    reset();
-    ns = kbench_time(it.mul, [&]() {
-            for (size_t i = 0; i < it.mul; i++)
-                mod_mul(x, x, y, m);
-            });
-    res.push_back({ "mul", ns, low64(x) });
+    if (kbench_wanted(it, "mul")) {
+        reset();
+        ns = kbench_time(it.mul, [&]() {
+                for (size_t i = 0; i < it.mul; i++)
+                    mod_mul(x, x, y, m);
+                });
+        res.push_back({ "mul", ns, low64(x) });
+    }
 
-    reset();
-    ns = kbench_time(it.mul, [&]() {
-            for (size_t i = 0; i < it.mul; i++)
-                mod_sqr(x, x, m);
-            });
-    res.push_back({ "sqr", ns, low64(x) });
+    if (kbench_wanted(it, "sqr")) {
+        reset();
+        ns = kbench_time(it.mul, [&]() {
+                for (size_t i = 0; i < it.mul; i++)
+                    mod_sqr(x, x, m);
+                });
+        res.push_back({ "sqr", ns, low64(x) });
+    }
 
-    reset();
-    ns = kbench_time(it.mul, [&]() {
-            for (size_t i = 0; i < it.mul; i++) {
-                mod_add(x, x, y, m);
-                mod_sub(x, x, z, m);
-            }
-            });
-    res.push_back({ "add+sub", ns, low64(x) });
+    if (kbench_wanted(it, "add+sub")) {
+        reset();
+        ns = kbench_time(it.mul, [&]() {
+                for (size_t i = 0; i < it.mul; i++) {
+                    mod_add(x, x, y, m);
+                    mod_sub(x, x, z, m);
+                }
+                });
+        res.push_back({ "add+sub", ns, low64(x) });
+    }
 
-    reset();
-    ns = kbench_time(it.mul, [&]() {
-            for (size_t i = 0; i < it.mul; i++) {
-                /* differential addition on a Montgomery curve, 4M+2S */
-                mod_sub(u, px, pz, m);
-                mod_add(v, qx, qz, m);
-                mod_mul(u, u, v, m);
-                mod_add(t, px, pz, m);
-                mod_sub(v, qx, qz, m);
-                mod_mul(v, t, v, m);
-                mod_add(t, u, v, m);
-                mod_sub(v, u, v, m);
-                mod_sqr(t, t, m);
-                mod_sqr(v, v, m);
-                mod_mul(px, t, dz, m);
-                mod_mul(pz, v, dx, m);
-            }
-            });
-    res.push_back({ "dadd", ns, low64(px) ^ low64(pz) });
+    if (kbench_wanted(it, "dadd")) {
+        reset();
+        ns = kbench_time(it.mul, [&]() {
+                for (size_t i = 0; i < it.mul; i++) {
+                    /* differential addition on a Montgomery curve, 4M+2S */
+                    mod_sub(u, px, pz, m);
+                    mod_add(v, qx, qz, m);
+                    mod_mul(u, u, v, m);
+                    mod_add(t, px, pz, m);
+                    mod_sub(v, qx, qz, m);
+                    mod_mul(v, t, v, m);
+                    mod_add(t, u, v, m);
+                    mod_sub(v, u, v, m);
+                    mod_sqr(t, t, m);
+                    mod_sqr(v, v, m);
+                    mod_mul(px, t, dz, m);
+                    mod_mul(pz, v, dx, m);
+                }
+                });
+        res.push_back({ "dadd", ns, low64(px) ^ low64(pz) });
+    }
 
-    reset();
-    ns = kbench_time(it.mul, [&]() {
-            for (size_t i = 0; i < it.mul; i++)
-                mod_div3(x, x, m);
-            });
-    res.push_back({ "div3", ns, low64(x) });
+    if (kbench_wanted(it, "div3")) {
+        reset();
+        ns = kbench_time(it.mul, [&]() {
+                for (size_t i = 0; i < it.mul; i++)
+                    mod_div3(x, x, m);
+                });
+        res.push_back({ "div3", ns, low64(x) });
+    }
 
-    reset();
-    ns = kbench_time(it.pow, [&]() {
-            for (size_t i = 0; i < it.pow; i++) {
-                mod_pow_ul(x, x, kbench_pow_exponent, m);
-                mod_add1(x, x, m);
-            }
-            });
-    res.push_back({ "pow", ns, low64(x) });
+    if (kbench_wanted(it, "pow")) {
+        reset();
+        ns = kbench_time(it.pow, [&]() {
+                for (size_t i = 0; i < it.pow; i++) {
+                    mod_pow_ul(x, x, kbench_pow_exponent, m);
+                    mod_add1(x, x, m);
+                }
+                });
+        res.push_back({ "pow", ns, low64(x) });
+    }
 
-    reset();
-    unsigned long e = kbench_pow2_exponent;
-    ns = kbench_time(it.pow, [&]() {
-            for (size_t i = 0; i < it.pow; i++) {
-                mod_2pow_ul(x, e, m);
-                e = kbench_next_exponent(e);
-            }
-            });
-    res.push_back({ "2pow", ns, low64(x) });
+    if (kbench_wanted(it, "2pow")) {
+        reset();
+        unsigned long e = kbench_pow2_exponent;
+        ns = kbench_time(it.pow, [&]() {
+                for (size_t i = 0; i < it.pow; i++) {
+                    mod_2pow_ul(x, e, m);
+                    e = kbench_next_exponent(e);
+                }
+                });
+        res.push_back({ "2pow", ns, low64(x) });
+    }
 
-    reset();
-    ns = kbench_time(it.inv, [&]() {
-            for (size_t i = 0; i < it.inv; i++) {
-                mod_inv(x, x, m);
-                mod_add1(x, x, m);
-            }
-            });
-    res.push_back({ "inv", ns, low64(x) });
+    if (kbench_wanted(it, "inv")) {
+        reset();
+        ns = kbench_time(it.inv, [&]() {
+                for (size_t i = 0; i < it.inv; i++) {
+                    mod_inv(x, x, m);
+                    mod_add1(x, x, m);
+                }
+                });
+        res.push_back({ "inv", ns, low64(x) });
+    }
 
-    reset();
-    unsigned long gacc = 0;
-    ns = kbench_time(it.inv, [&]() {
-            for (size_t i = 0; i < it.inv; i++) {
-                mod_gcd(g, x, m);
-                gacc += mod_intget_ul(g);
-                mod_add(x, x, y, m);
-            }
-            });
-    res.push_back({ "gcd", ns, gacc });
+    if (kbench_wanted(it, "gcd")) {
+        reset();
+        unsigned long gacc = 0;
+        ns = kbench_time(it.inv, [&]() {
+                for (size_t i = 0; i < it.inv; i++) {
+                    mod_gcd(g, x, m);
+                    gacc += mod_intget_ul(g);
+                    mod_add(x, x, y, m);
+                }
+                });
+        res.push_back({ "gcd", ns, gacc });
+    }
 
-    /* called through a volatile pointer: mpz_probab_prime_p is declared
-     * pure, and would otherwise be hoisted out of the loop */
-    int (* volatile isprime)(modulus_t const) = [](modulus_t const mm) {
-        return int(mod_isprime(mm));
-    };
-    unsigned long pacc = 0;
-    ns = kbench_time(it.prime, [&]() {
-            for (size_t i = 0; i < it.prime; i++)
-                pacc += isprime(m);
-            });
-    res.push_back({ "isprime", ns, pacc });
+    if (kbench_wanted(it, "isprime")) {
+        /* called through a volatile pointer: mpz_probab_prime_p is declared
+         * pure, and would otherwise be hoisted out of the loop */
+        int (* volatile isprime)(modulus_t const) = [](modulus_t const mm) {
+            return int(mod_isprime(mm));
+        };
+        unsigned long pacc = 0;
+        ns = kbench_time(it.prime, [&]() {
+                for (size_t i = 0; i < it.prime; i++)
+                    pacc += isprime(m);
+                });
+        res.push_back({ "isprime", ns, pacc });
+    }
 
     for (auto * r : all)
         mod_clear(*r, m);

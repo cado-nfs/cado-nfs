@@ -11,7 +11,14 @@
  * the program fails if they do not. With -quick, the iteration counts
  * are small enough to run it as a test.
  *
- * Usage: bench_arith_vs_arithxx [-quick] [<bits> ...]
+ * Usage: bench_arith_vs_arithxx [-quick] [-only <op>,<op>...] [-new-first]
+ *                               [<bits> ...]
+ *
+ * -only restricts the run to the given kernels. Both layers are timed
+ * twice, in the order old, new, new, old, and the best time of each is
+ * kept: on some machines, what runs second in a process is consistently
+ * slower (by 2.5% on a Skylake, for 64-bit mul). -new-first times new,
+ * then old, once, to observe this.
  *
  * Without <bits>, every size at which either layer changes is tried.
  * Timings are best of 5, in nanoseconds per iteration, on one thread:
@@ -82,102 +89,122 @@ static kbench_results bench_new(cxx_mpz const & Mz, kbench_iters const & it)
     auto get64 = [&](Residue const & a) { return low64(m.get(a)); };
     double ns;
 
-    reset();
-    ns = kbench_time(it.mul, [&]() {
-            for (size_t i = 0; i < it.mul; i++)
-                m.mul(x, x, y);
-            });
-    res.push_back({ "mul", ns, get64(x) });
+    if (kbench_wanted(it, "mul")) {
+        reset();
+        ns = kbench_time(it.mul, [&]() {
+                for (size_t i = 0; i < it.mul; i++)
+                    m.mul(x, x, y);
+                });
+        res.push_back({ "mul", ns, get64(x) });
+    }
 
-    reset();
-    ns = kbench_time(it.mul, [&]() {
-            for (size_t i = 0; i < it.mul; i++)
-                m.sqr(x, x);
-            });
-    res.push_back({ "sqr", ns, get64(x) });
+    if (kbench_wanted(it, "sqr")) {
+        reset();
+        ns = kbench_time(it.mul, [&]() {
+                for (size_t i = 0; i < it.mul; i++)
+                    m.sqr(x, x);
+                });
+        res.push_back({ "sqr", ns, get64(x) });
+    }
 
-    reset();
-    ns = kbench_time(it.mul, [&]() {
-            for (size_t i = 0; i < it.mul; i++) {
-                m.add(x, x, y);
-                m.sub(x, x, z);
-            }
-            });
-    res.push_back({ "add+sub", ns, get64(x) });
+    if (kbench_wanted(it, "add+sub")) {
+        reset();
+        ns = kbench_time(it.mul, [&]() {
+                for (size_t i = 0; i < it.mul; i++) {
+                    m.add(x, x, y);
+                    m.sub(x, x, z);
+                }
+                });
+        res.push_back({ "add+sub", ns, get64(x) });
+    }
 
-    reset();
-    ns = kbench_time(it.mul, [&]() {
-            for (size_t i = 0; i < it.mul; i++) {
-                /* differential addition on a Montgomery curve, 4M+2S */
-                m.sub(u, px, pz);
-                m.add(v, qx, qz);
-                m.mul(u, u, v);
-                m.add(t, px, pz);
-                m.sub(v, qx, qz);
-                m.mul(v, t, v);
-                m.add(t, u, v);
-                m.sub(v, u, v);
-                m.sqr(t, t);
-                m.sqr(v, v);
-                m.mul(px, t, dz);
-                m.mul(pz, v, dx);
-            }
-            });
-    res.push_back({ "dadd", ns, get64(px) ^ get64(pz) });
+    if (kbench_wanted(it, "dadd")) {
+        reset();
+        ns = kbench_time(it.mul, [&]() {
+                for (size_t i = 0; i < it.mul; i++) {
+                    /* differential addition on a Montgomery curve, 4M+2S */
+                    m.sub(u, px, pz);
+                    m.add(v, qx, qz);
+                    m.mul(u, u, v);
+                    m.add(t, px, pz);
+                    m.sub(v, qx, qz);
+                    m.mul(v, t, v);
+                    m.add(t, u, v);
+                    m.sub(v, u, v);
+                    m.sqr(t, t);
+                    m.sqr(v, v);
+                    m.mul(px, t, dz);
+                    m.mul(pz, v, dx);
+                }
+                });
+        res.push_back({ "dadd", ns, get64(px) ^ get64(pz) });
+    }
 
-    reset();
-    ns = kbench_time(it.mul, [&]() {
-            for (size_t i = 0; i < it.mul; i++)
-                m.div3(x, x);
-            });
-    res.push_back({ "div3", ns, get64(x) });
+    if (kbench_wanted(it, "div3")) {
+        reset();
+        ns = kbench_time(it.mul, [&]() {
+                for (size_t i = 0; i < it.mul; i++)
+                    m.div3(x, x);
+                });
+        res.push_back({ "div3", ns, get64(x) });
+    }
 
-    reset();
-    ns = kbench_time(it.pow, [&]() {
-            for (size_t i = 0; i < it.pow; i++) {
-                m.pow(x, x, uint64_t(kbench_pow_exponent));
-                m.add1(x, x);
-            }
-            });
-    res.push_back({ "pow", ns, get64(x) });
+    if (kbench_wanted(it, "pow")) {
+        reset();
+        ns = kbench_time(it.pow, [&]() {
+                for (size_t i = 0; i < it.pow; i++) {
+                    m.pow(x, x, uint64_t(kbench_pow_exponent));
+                    m.add1(x, x);
+                }
+                });
+        res.push_back({ "pow", ns, get64(x) });
+    }
 
-    reset();
-    unsigned long e = kbench_pow2_exponent;
-    ns = kbench_time(it.pow, [&]() {
-            for (size_t i = 0; i < it.pow; i++) {
-                m.pow2(x, uint64_t(e));
-                e = kbench_next_exponent(e);
-            }
-            });
-    res.push_back({ "2pow", ns, get64(x) });
+    if (kbench_wanted(it, "2pow")) {
+        reset();
+        unsigned long e = kbench_pow2_exponent;
+        ns = kbench_time(it.pow, [&]() {
+                for (size_t i = 0; i < it.pow; i++) {
+                    m.pow2(x, uint64_t(e));
+                    e = kbench_next_exponent(e);
+                }
+                });
+        res.push_back({ "2pow", ns, get64(x) });
+    }
 
-    reset();
-    ns = kbench_time(it.inv, [&]() {
-            for (size_t i = 0; i < it.inv; i++) {
-                m.inv(x, x);
-                m.add1(x, x);
-            }
-            });
-    res.push_back({ "inv", ns, get64(x) });
+    if (kbench_wanted(it, "inv")) {
+        reset();
+        ns = kbench_time(it.inv, [&]() {
+                for (size_t i = 0; i < it.inv; i++) {
+                    m.inv(x, x);
+                    m.add1(x, x);
+                }
+                });
+        res.push_back({ "inv", ns, get64(x) });
+    }
 
-    reset();
-    unsigned long gacc = 0;
-    Integer g;
-    ns = kbench_time(it.inv, [&]() {
-            for (size_t i = 0; i < it.inv; i++) {
-                m.gcd(g, x);
-                gacc += (unsigned long) low64(g);
-                m.add(x, x, y);
-            }
-            });
-    res.push_back({ "gcd", ns, gacc });
+    if (kbench_wanted(it, "gcd")) {
+        reset();
+        unsigned long gacc = 0;
+        Integer g;
+        ns = kbench_time(it.inv, [&]() {
+                for (size_t i = 0; i < it.inv; i++) {
+                    m.gcd(g, x);
+                    gacc += (unsigned long) low64(g);
+                    m.add(x, x, y);
+                }
+                });
+        res.push_back({ "gcd", ns, gacc });
+    }
 
-    unsigned long pacc = 0;
-    ns = kbench_time(it.prime, [&]() {
-            for (size_t i = 0; i < it.prime; i++)
-                pacc += m.is_prime();
-            });
-    res.push_back({ "isprime", ns, pacc });
+    if (kbench_wanted(it, "isprime")) {
+        unsigned long pacc = 0;
+        ns = kbench_time(it.prime, [&]() {
+                for (size_t i = 0; i < it.prime; i++)
+                    pacc += m.is_prime();
+                });
+        res.push_back({ "isprime", ns, pacc });
+    }
 
     return res;
 }
@@ -214,10 +241,16 @@ static side new_layer(unsigned int bits)
 int main(int argc, char const * argv[])
 {
     bool quick = false;
+    bool new_first = false;
+    std::string only;
     std::vector<unsigned int> sizes;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-quick") == 0)
             quick = true;
+        else if (strcmp(argv[i], "-new-first") == 0)
+            new_first = true;
+        else if (strcmp(argv[i], "-only") == 0 && i + 1 < argc)
+            only = argv[++i];
         else
             sizes.push_back(strtoul(argv[i], nullptr, 10));
     }
@@ -228,9 +261,9 @@ int main(int argc, char const * argv[])
         sizes.erase(std::unique(sizes.begin(), sizes.end()), sizes.end());
     }
 
-    kbench_iters const fast { 2000000, 20000, 200000, 2000 };
-    kbench_iters const slow { 200000, 2000, 20000, 200 };
-    kbench_iters const test { 2000, 20, 200, 2 };
+    kbench_iters const fast { 2000000, 20000, 200000, 2000, only };
+    kbench_iters const slow { 200000, 2000, 20000, 200, only };
+    kbench_iters const test { 2000, 20, 200, 2, only };
 
     int mismatches = 0;
     printf("%5s %-12s %-12s %-8s %10s %10s %8s %s\n", "bits", "old", "new",
@@ -247,8 +280,20 @@ int main(int argc, char const * argv[])
         side const n = new_layer(bits);
         kbench_iters const & it =
             quick ? test : (bits > MODREDC2UL2_MAXBITS || bits > 126) ? slow : fast;
-        auto const ro = o.run(M, it);
-        auto const rn = n.run(M, it);
+        kbench_results ro, rn;
+        if (new_first) {
+            rn = n.run(M, it);
+            ro = o.run(M, it);
+        } else {
+            ro = o.run(M, it);
+            rn = n.run(M, it);
+            auto const rn2 = n.run(M, it);
+            auto const ro2 = o.run(M, it);
+            for (size_t k = 0; k < ro.size(); k++) {
+                ro[k].ns = std::min(ro[k].ns, ro2[k].ns);
+                rn[k].ns = std::min(rn[k].ns, rn2[k].ns);
+            }
+        }
         ASSERT_ALWAYS(ro.size() == rn.size());
         for (size_t k = 0; k < ro.size(); k++) {
             ASSERT_ALWAYS(ro[k].op == rn[k].op);
