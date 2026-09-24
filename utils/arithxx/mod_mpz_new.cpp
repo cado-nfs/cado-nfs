@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#include <memory>
 
 #include <gmp.h>
 
@@ -13,7 +12,6 @@
 #include "macros.h"
 #include "mod_mpz_new.hpp"
 #include "arithxx_common.hpp"
-#include "utils_cxx.hpp"
 
 /* Only the .cpp source files that emit the non-inline symbols will
  * include this impl header file. So even though it does not look like
@@ -23,16 +21,43 @@
 // scan-headers: stop here
 
 /* {{{ pow */
+/* r = b^e mod m. The base is read in place, and nothing is copied
+ * except the result, whose allocation is all that is left.
+ */
+static void mod_mpz_new_powm(mp_limb_t * r, mpz_srcptr b, mpz_srcptr e,
+        mpz_srcptr m)
+{
+    cxx_mpz R;
+    mpz_powm(R, b, e, m);
+    mp_size_t const n = mpz_size(m);
+    mp_size_t const k = mpz_size(R);
+    mpn_copyi(r, mpz_limbs_read(R), k);
+    mpn_zero(r + k, n - k);
+}
+
+/* an mpz view of the exponent e, which is copied only if the limbs are
+ * not 64-bit words */
+static void mod_mpz_new_powm(mp_limb_t * r, mpz_srcptr b,
+        uint64_t const * e, size_t const nrWords, mpz_srcptr m)
+{
+#if GMP_LIMB_BITS == 64
+    mpz_t E;
+    mpz_roinit_n(E, reinterpret_cast<mp_limb_t const *>(e), mp_size_t(nrWords));
+    mod_mpz_new_powm(r, b, E, m);
+#else
+    mod_mpz_new_powm(r, b, cxx_mpz(e, nrWords), m);
+#endif
+}
+
 template <>
 void arithxx_details::api<arithxx_mod_mpz_new>::pow(
     Residue & r, Residue const & b, uint64_t const * e,
     size_t const nrWords) const
 {
     auto const & me = downcast();
-    cxx_mpz R, B;
-    me.set_mpz_residue(B, b);
-    mpz_powm(R, B, cxx_mpz(e, nrWords), me.m);
-    me.set_residue_mpz(r, R);
+    mpz_t B;
+    mpz_roinit_n(B, b.r.get(), mpz_size(me.m));
+    mod_mpz_new_powm(r.r.get(), B, e, nrWords, me.m);
 }
 
 template <>
@@ -40,22 +65,30 @@ void arithxx_details::api<arithxx_mod_mpz_new>::pow2(
     Residue & r, uint64_t const * e,
     size_t const nrWords) const
 {
-    pow(r, downcast()(2), e, nrWords);
+    auto const & me = downcast();
+    mp_limb_t const two = 2;
+    mpz_t B;
+    mpz_roinit_n(B, &two, 1);
+    mod_mpz_new_powm(r.r.get(), B, e, nrWords, me.m);
 }
 
 template <>
 void arithxx_details::api<arithxx_mod_mpz_new>::pow(Residue & r, Residue const & b, Integer const & e) const
 {
-    size_t written;
-    auto t = std::unique_ptr<uint64_t[], free_delete<uint64_t>>(static_cast<uint64_t*>(mpz_export(nullptr, &written, -1, sizeof(uint64_t), 0, 0, e.x)));
-    pow(r, b, t.get(), written);
+    auto const & me = downcast();
+    mpz_t B;
+    mpz_roinit_n(B, b.r.get(), mpz_size(me.m));
+    mod_mpz_new_powm(r.r.get(), B, e, me.m);
 }
+
 template <>
 void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue &r, const Integer &e) const
 {
-    size_t written;
-    auto t = std::unique_ptr<uint64_t[], free_delete<uint64_t>>(static_cast<uint64_t*>(mpz_export(nullptr, &written, -1, sizeof(uint64_t), 0, 0, e.x)));
-    pow2(r, t.get(), written);
+    auto const & me = downcast();
+    mp_limb_t const two = 2;
+    mpz_t B;
+    mpz_roinit_n(B, &two, 1);
+    mod_mpz_new_powm(r.r.get(), B, e, me.m);
 }
 
 /* }}} */
@@ -243,11 +276,17 @@ template<>
 bool arithxx_details::api<arithxx_mod_mpz_new>::inv(Residue & r, Residue const & a) const
 {
     auto const & me = downcast();
-    cxx_mpz A;
-    me.set_mpz_residue(A, a);
-    bool const exists = mpz_invert(A, A, me.m);
-    if (exists)
-        me.set_residue_mpz(r, A);
+    /* read the limbs of a in place */
+    mpz_t A;
+    mpz_roinit_n(A, a.r.get(), mpz_size(me.m));
+    cxx_mpz R;
+    bool const exists = mpz_invert(R, A, me.m);
+    if (exists) {
+        mp_size_t const n = mpz_size(me.m);
+        mp_size_t const k = mpz_size(R);
+        mpn_copyi(r.r.get(), mpz_limbs_read(R), k);
+        mpn_zero(r.r.get() + k, n - k);
+    }
     return exists;
 }
 
