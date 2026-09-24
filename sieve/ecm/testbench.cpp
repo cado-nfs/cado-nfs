@@ -38,6 +38,7 @@ To test the mpz arithmetic on a 64-bit processor:
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 
+#include <cinttypes>
 #include <climits>
 #include <cstdint>
 #include <cstdio>
@@ -51,13 +52,12 @@ To test the mpz arithmetic on a 64-bit processor:
 
 #include "cxx_mpz.hpp"
 #include "facul.hpp"
+#include "ecm.hpp"
 #include "facul_ecm.h"
 #include "facul_method.hpp"
 #include "facul_strategies.hpp"
 #include "facul_strategies_stats.hpp"
 #include "macros.h"
-#include "arith/modredc_ul.h"
-#include "arith/modredc_ul_default.h"
 #include "timing.h"
 #include "utils_cxx.hpp"
 #include "cado_main.hpp"
@@ -69,10 +69,7 @@ static void print_pointorder(unsigned long const p,
                              ec_parameterization_t parameterization,
                              int const verbose)
 {
-    modulus_t m;
-    unsigned long o, knownfac;
-
-    modredcul_initmod_ul(m, p);
+    unsigned long knownfac;
 
     if (parameterization & ECM_TORSION12)
         knownfac = 12;
@@ -81,12 +78,10 @@ static void print_pointorder(unsigned long const p,
     else
         knownfac = 1;
 
-    o = ec_parameterization_point_order_ul(parameterization, parameter,
-                                           knownfac, 0, m, verbose);
+    uint64_t const o = ec_parameterization_point_order(parameterization,
+            parameter, knownfac, 0, p, verbose);
     if (verbose)
-        printf("%lu %lu\n", p, o);
-
-    modredcul_clearmod(m);
+        printf("%lu %" PRIu64 "\n", p, o);
 }
 
 static facul_status tryfactor(cxx_mpz const & N, facul_strategy_oneside const & strategy,

@@ -1,10 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
 // facul_doit.cpp will include these files anyway, we don't need to
 // include them here.
-// IWYU pragma: no_include "facul_ecm.h"  // for ecm_mpz
 // IWYU pragma: no_include "mpqs.h"       // for mpqs_mpz
 #include "arith/mod_mpz_default.h" // IWYU pragma: keep
-#define ecm ecm_mpz
 #define mpqs mpqs_mpz
 // scan-headers: skip
 #define FACUL_DOIT_READY_TO_INCLUDE_IMPL_CODE

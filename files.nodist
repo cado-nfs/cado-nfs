@@ -127,7 +127,6 @@ scripts/typecast.py
 sieve/ecm/CMakeLists-nodist.txt
 sieve/ecm/cofac_utils.sage
 sieve/ecm/ecm_avg_exp.gp
-sieve/ecm/ecm_check.c
 sieve/ecm/issmooth.c
 sieve/strategies/CMakeLists-nodist.txt
 sieve/strategies/F9.sh

@@ -22,7 +22,7 @@
 #include "modset.hpp"
 #include "pm1.hpp"
 #include "pp1.hpp"
-#include "facul_ecm.h"
+#include "ecm.hpp"
 #include "facul.hpp"
 #include "mpqs.h"
 #include "cxx_mpz.hpp"
