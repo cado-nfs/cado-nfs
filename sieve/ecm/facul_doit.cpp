@@ -20,7 +20,7 @@
 #include "facul_method.hpp"
 #include "macros.h"
 #include "modset.hpp"
-#include "mpqs_doit.h"
+#include "mpqs_doit.hpp"
 #include "pm1.hpp"
 #include "pp1.hpp"
 

@@ -50,7 +50,7 @@ add_library(facul
         facul_method.cpp
         facul_strategies_stats.cpp
         facul_strategies.cpp
-        mpqs_doit.c
+        mpqs_doit.cpp
         batch.cpp
         ec_arith_Weierstrass_new.cpp)
 

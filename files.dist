@@ -991,8 +991,8 @@ sieve/ecm/finishecm.cpp
 sieve/ecm/makeplan.cpp
 sieve/ecm/modset.cpp
 sieve/ecm/modset.hpp
-sieve/ecm/mpqs_doit.c
-sieve/ecm/mpqs_doit.h
+sieve/ecm/mpqs_doit.cpp
+sieve/ecm/mpqs_doit.hpp
 sieve/ecm/pm1.cpp
 sieve/ecm/pm1.hpp
 sieve/ecm/pp1.cpp
@@ -1409,7 +1409,7 @@ tests/sieve/ecm/test_factor_pm1_2_100_1000.inp
 tests/sieve/ecm/test_factor_pp1_27_100_1000.inp
 tests/sieve/ecm/test_factor_pp1_65_100_1000.inp
 tests/sieve/ecm/test_facul_default.cpp
-tests/sieve/ecm/test_mpqs.c
+tests/sieve/ecm/test_mpqs.cpp
 tests/sieve/ecm/test_order_ecm_10_1000000000_1000001000.inp
 tests/sieve/ecm/test_order_ecm_10_1000000_1001000.inp
 tests/sieve/ecm/test_order_ecm_10_1000_2000.inp
