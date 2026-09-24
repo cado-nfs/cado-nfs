@@ -856,6 +856,8 @@ mpqs_doit (mpz_ptr f, mpz_srcptr N0, int verbose)
   const double radix = sqrt(2.);
   const double inv_logradix = 1. / log(radix);
   long st;
+  /* Only maintained when verbose: reading the clock can cost a system
+     call, and these are shared by all threads. */
   static long init_time = 0, sieve_time = 0, check_time = 0;
   static long gauss_time = 0, total_time = 0;
   unsigned short *W; /* column weight */
@@ -869,7 +871,8 @@ mpqs_doit (mpz_ptr f, mpz_srcptr N0, int verbose)
   /* assume N0 is odd */
   ASSERT_ALWAYS (mpz_fdiv_ui (N0, 2) == 1);
 
-  init_time -= milliseconds ();
+  if (verbose)
+    init_time -= milliseconds ();
 
   Nbits = mpz_sizeinbase (N0, 2);
 
@@ -985,14 +988,16 @@ mpqs_doit (mpz_ptr f, mpz_srcptr N0, int verbose)
 
   hash_init (H, L); /* hash table storing relations with large primes */
 
-  init_time += milliseconds ();
+  if (verbose)
+    init_time += milliseconds ();
 
   int pols = 0;
   mpz_init (r);
   mpz_init (data->nextprime_bitfield);
   nextprime_init (mpz_get_ui(sqrta), data);
   while (nrel < ncol + WANT_EXCESS) {
-  sieve_time -= milliseconds ();
+  if (verbose)
+    sieve_time -= milliseconds ();
   do {
     unsigned long next_p = nextprime_get_next (mpz_get_ui(sqrta) + 1, data);
     mpz_set_ui(sqrta, next_p);
@@ -1177,9 +1182,12 @@ mpqs_doit (mpz_ptr f, mpz_srcptr N0, int verbose)
         update (S, i, p, F[j].logp, M);
     }
 
-  st = milliseconds ();
-  sieve_time += st;
-  check_time -= st;
+  if (verbose)
+    {
+      st = milliseconds ();
+      sieve_time += st;
+      check_time -= st;
+    }
 
 #ifdef TRACE
   printf ("%d: S=%d\n", TRACE, S[M + TRACE]);
@@ -1249,7 +1257,8 @@ mpqs_doit (mpz_ptr f, mpz_srcptr N0, int verbose)
             }
         }
   end_check:
-  check_time += milliseconds ();
+  if (verbose)
+    check_time += milliseconds ();
   }
   mpz_clear(data->nextprime_bitfield);
   mpz_clear (r);
@@ -1258,11 +1267,15 @@ mpqs_doit (mpz_ptr f, mpz_srcptr N0, int verbose)
     printf ("%ld rels with %d polynomials: %f per poly\n",
             nrel, pols, (double) nrel / (double) pols);
 
-  gauss_time -= milliseconds ();
+  if (verbose)
+    gauss_time -= milliseconds ();
   gauss (f, Mat, nrel, wrel, ncol + 1, X, Y, N0, verbose);
-  st = milliseconds ();
-  gauss_time += st;
-  total_time = st;
+  if (verbose)
+    {
+      st = milliseconds ();
+      gauss_time += st;
+      total_time = st;
+    }
 
   free (S);
   free (T);
