@@ -4,9 +4,14 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <span>
+#include <type_traits>
 #include <vector>
 
 #include "arithxx_batch_Q_to_Fp.hpp"
+#include "macros.h"
+#include "modint.hpp"
+#include "u64arith.h"
 
 /* note that the modredc64 impl has an explicit specialization of this
  */
@@ -18,22 +23,42 @@ arithxx_details::batch_Q_to_Fp_context<layer>::batch_Q_to_Fp_context(Integer con
     { }
 
 template<typename layer>
-std::vector<uint64_t> arithxx_details::batch_Q_to_Fp_context<layer>::operator()(std::vector<uint64_t> const & p, int const k) const
+bool arithxx_details::batch_Q_to_Fp_context<layer>::operator()(
+        std::span<uint64_t> r, std::span<uint64_t const> p, int const k) const
 {
-    /* We use -rem (mod den) here. batchinv_ul() does not
+    ASSERT_ALWAYS(r.size() == p.size());
+
+    /* We use -rem (mod den) here. batchinv_redc() does not
        mandate its c parameter to be fully reduced, which occurs here in the
        case of rem == 0. */
-    auto r = D.batchinv_redc(p, Integer(D.m - remainder));
-    if (r.empty())
-        return {};
+    Integer const c(D.m - remainder);
 
-    std::vector<uint64_t> ri(p.size());
+    if constexpr (std::is_same_v<Integer, Integer64>) {
+        /* den fits in one word: the inverses go straight to r */
+        if (!D.batchinv_redc(r, p, c))
+            return false;
+    } else {
+        auto const ri = D.batchinv_redc(p, c);
+        if (ri.empty() && !p.empty())
+            return false;
+        for (size_t i = 0; i < p.size(); i++)
+            r[i] = ri[i][0];
+    }
 
     for (size_t i = 0; i < p.size(); i++)
-        ri[i] = u64arith_post_process_inverse(r[i][0], p[i],
+        r[i] = u64arith_post_process_inverse(r[i], p[i],
                 remainder[0], -D.invm, quotient[0], k);
 
-    return ri;
+    return true;
+}
+
+template<typename layer>
+std::vector<uint64_t> arithxx_details::batch_Q_to_Fp_context<layer>::operator()(std::vector<uint64_t> const & p, int const k) const
+{
+    std::vector<uint64_t> r(p.size());
+    if (!(*this)(std::span<uint64_t>(r), std::span<uint64_t const>(p), k))
+        return {};
+    return r;
 }
 
 

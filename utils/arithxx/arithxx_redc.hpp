@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstddef>
 
+#include <span>
 #include <vector>
 
 #include "arithxx_common.hpp"
@@ -144,6 +145,12 @@ struct arithxx_details::redc
     static std::vector<uint64_t> batch_Q_to_Fp(Integer const & num,
             Integer const & den, int k,
             std::vector<uint64_t> const & p);
+
+    /* same, with the results in r, which must have the size of p.
+     * Returns false if den is not invertible modulo one of the p[i]. */
+    static bool batch_Q_to_Fp(std::span<uint64_t> r,
+            Integer const & num, Integer const & den, int k,
+            std::span<uint64_t const> p);
 };
 
 

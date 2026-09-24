@@ -90,7 +90,10 @@ have these coded right in the header file.
  - `batch_Q_to_Fp` and `batch_Q_to_Fp_context`. These correspond to dead
    code in `las-fill-in-buckets.cpp`, meant to compute rational roots in
    batches. It got commented out at some point. The backend code is now
-   tested again, but not put in production.
+   tested again, and MPQS (`sieve/ecm/mpqs_doit.cpp`) uses the modredc64
+   one. Besides the version that returns a vector, there is one that
+   writes into caller-provided storage (a `std::span`), which does not
+   allocate.
 
 ### I/O
  - `fprintf`, `printf`: -> all under the umbrella of libfmt overloads,
