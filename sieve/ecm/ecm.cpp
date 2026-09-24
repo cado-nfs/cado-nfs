@@ -14,6 +14,9 @@
 #include <vector>
 
 #include "arithxx/modredc64.hpp"
+#include "arithxx/modredc96.hpp"
+#include "arithxx/modredc126.hpp"
+#include "arithxx/mod_mpz_new.hpp"
 #include "bytecode.h"
 #include "ec_arith_common.hpp"
 #include "ec_arith_Edwards.hpp"
@@ -21,7 +24,6 @@
 #include "ec_arith_Weierstrass_new.hpp"
 #include "ec_parameterization.hpp"
 #include "ecm.hpp"
-#include "facul_arithxx.hpp"
 #include "facul_ecm.h"
 #include "macros.h"
 #include "stage2.h"
@@ -641,7 +643,7 @@ ecm_stage2(typename layer::Residue & r, ec_point<layer> const & P,
 /* Stores any factor found in f (1 if no factor found).
    If back-tracking was used, returns 1, otherwise returns 0. */
 template<typename layer>
-static int ecm_run(typename layer::Integer & f,
+int ecm(typename layer::Integer & f,
         typename layer::Modulus const & m,
         ecm_plan_t const & plan)
 {
@@ -826,18 +828,10 @@ static int ecm_run(typename layer::Integer & f,
     return bt;
 }
 
-#define ECM_ENTRY_POINT(modint, modulus)                                \
-int ecm(modint f, const modulus m, const ecm_plan_t * plan)             \
-{                                                                       \
-    return facul_arithxx_run(f, m,                                      \
-            [&]<typename layer>(auto & g, auto const & mm) {            \
-                return ecm_run<layer>(g, mm, *plan); });                \
-}
-
-ECM_ENTRY_POINT(modintredcul_t, modulusredcul_t)
-ECM_ENTRY_POINT(modintredc15ul_t, modulusredc15ul_t)
-ECM_ENTRY_POINT(modintredc2ul2_t, modulusredc2ul2_t)
-ECM_ENTRY_POINT(modintmpz_t, modulusmpz_t)
+template int ecm<arithxx_modredc64>(arithxx_modredc64::Integer &, arithxx_modredc64::Modulus const &, ecm_plan_t const &);
+template int ecm<arithxx_modredc96>(arithxx_modredc96::Integer &, arithxx_modredc96::Modulus const &, ecm_plan_t const &);
+template int ecm<arithxx_modredc126>(arithxx_modredc126::Integer &, arithxx_modredc126::Modulus const &, ecm_plan_t const &);
+template int ecm<arithxx_mod_mpz_new>(arithxx_mod_mpz_new::Integer &, arithxx_mod_mpz_new::Modulus const &, ecm_plan_t const &);
 
 /******************************************************************************/
 /******************* parameters, point and curve orders ***********************/

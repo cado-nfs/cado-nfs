@@ -976,13 +976,8 @@ sieve/ecm/ecm.hpp
 sieve/ecm/facul.cpp
 sieve/ecm/facul.hpp
 sieve/ecm/facul.sage
-sieve/ecm/facul_arithxx.hpp
 sieve/ecm/facul_doit.cpp
 sieve/ecm/facul_doit.hpp
-sieve/ecm/facul_doit_15ul.cpp
-sieve/ecm/facul_doit_2ul2.cpp
-sieve/ecm/facul_doit_mpz.cpp
-sieve/ecm/facul_doit_ul.cpp
 sieve/ecm/facul_ecm.h
 sieve/ecm/facul_fwd.hpp
 sieve/ecm/facul_method.cpp
@@ -996,13 +991,8 @@ sieve/ecm/finishecm.cpp
 sieve/ecm/makeplan.cpp
 sieve/ecm/modset.cpp
 sieve/ecm/modset.hpp
-sieve/ecm/mpqs.h
-sieve/ecm/mpqs_15ul.c
-sieve/ecm/mpqs_2ul2.c
 sieve/ecm/mpqs_doit.c
 sieve/ecm/mpqs_doit.h
-sieve/ecm/mpqs_mpz.c
-sieve/ecm/mpqs_ul.c
 sieve/ecm/pm1.cpp
 sieve/ecm/pm1.hpp
 sieve/ecm/pp1.cpp

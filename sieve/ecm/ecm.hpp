@@ -3,20 +3,16 @@
 
 #include <cstdint>
 
-#include "arith/modredc_ul.h"
-#include "arith/modredc_15ul.h"
-#include "arith/modredc_2ul2.h"
-#include "arith/mod_mpz.h"
 #include "facul_ecm.h"
 
-/* ECM with the given plan. The arithmetic is done with the arithxx layer
- * that suits the size of the modulus. The factor found, or 1, is written
- * to f. Returns 1 if backtracking was used, 0 otherwise.
+/* ECM with the given plan, modulo m, with an arithxx layer. The factor
+ * found, or 1, is written to f. Returns 1 if backtracking was used, 0
+ * otherwise. ecm.cpp instantiates this for modredc64, modredc96,
+ * modredc126 and mod_mpz_new.
  */
-int ecm(modintredcul_t f, const modulusredcul_t m, const ecm_plan_t * plan);
-int ecm(modintredc15ul_t f, const modulusredc15ul_t m, const ecm_plan_t * plan);
-int ecm(modintredc2ul2_t f, const modulusredc2ul2_t m, const ecm_plan_t * plan);
-int ecm(modintmpz_t f, const modulusmpz_t m, const ecm_plan_t * plan);
+template<typename layer>
+int ecm(typename layer::Integer & f, typename layer::Modulus const & m,
+        ecm_plan_t const & plan);
 
 /* The order of the starting point of the curve given by parameterization
  * and parameter, modulo the prime p. If the curve order is known to be ==

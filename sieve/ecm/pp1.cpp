@@ -6,7 +6,10 @@
 #include <utility>
 
 #include "bytecode.h"
-#include "facul_arithxx.hpp"
+#include "arithxx/modredc64.hpp"
+#include "arithxx/modredc96.hpp"
+#include "arithxx/modredc126.hpp"
+#include "arithxx/mod_mpz_new.hpp"
 #include "pp1.hpp"
 #include "pp1_stage2.hpp"
 
@@ -176,7 +179,7 @@ static int pp1_run(typename layer::Integer & f,
 
 /* P+1 starting from 2/7 */
 template<typename layer>
-static int pp1_27_run(typename layer::Integer & f,
+int pp1_27(typename layer::Integer & f,
         typename layer::Modulus const & m,
         pp1_plan_t const & plan)
 {
@@ -190,7 +193,7 @@ static int pp1_27_run(typename layer::Integer & f,
 
 /* P+1 starting from 6/5 */
 template<typename layer>
-static int pp1_65_run(typename layer::Integer & f,
+int pp1_65(typename layer::Integer & f,
         typename layer::Modulus const & m,
         pp1_plan_t const & plan)
 {
@@ -204,19 +207,11 @@ static int pp1_65_run(typename layer::Integer & f,
     return pp1_run<layer>(f, b, two, m, plan);
 }
 
-#define PP1_ENTRY_POINT(name, modint, modulus)                          \
-int name(modint f, const modulus m, const pp1_plan_t * plan)            \
-{                                                                       \
-    return facul_arithxx_run(f, m,                                      \
-            [&]<typename layer>(auto & g, auto const & mm) {            \
-                return name ## _run<layer>(g, mm, *plan); });           \
-}
-
-PP1_ENTRY_POINT(pp1_27, modintredcul_t, modulusredcul_t)
-PP1_ENTRY_POINT(pp1_27, modintredc15ul_t, modulusredc15ul_t)
-PP1_ENTRY_POINT(pp1_27, modintredc2ul2_t, modulusredc2ul2_t)
-PP1_ENTRY_POINT(pp1_27, modintmpz_t, modulusmpz_t)
-PP1_ENTRY_POINT(pp1_65, modintredcul_t, modulusredcul_t)
-PP1_ENTRY_POINT(pp1_65, modintredc15ul_t, modulusredc15ul_t)
-PP1_ENTRY_POINT(pp1_65, modintredc2ul2_t, modulusredc2ul2_t)
-PP1_ENTRY_POINT(pp1_65, modintmpz_t, modulusmpz_t)
+template int pp1_27<arithxx_modredc64>(arithxx_modredc64::Integer &, arithxx_modredc64::Modulus const &, pp1_plan_t const &);
+template int pp1_27<arithxx_modredc96>(arithxx_modredc96::Integer &, arithxx_modredc96::Modulus const &, pp1_plan_t const &);
+template int pp1_27<arithxx_modredc126>(arithxx_modredc126::Integer &, arithxx_modredc126::Modulus const &, pp1_plan_t const &);
+template int pp1_27<arithxx_mod_mpz_new>(arithxx_mod_mpz_new::Integer &, arithxx_mod_mpz_new::Modulus const &, pp1_plan_t const &);
+template int pp1_65<arithxx_modredc64>(arithxx_modredc64::Integer &, arithxx_modredc64::Modulus const &, pp1_plan_t const &);
+template int pp1_65<arithxx_modredc96>(arithxx_modredc96::Integer &, arithxx_modredc96::Modulus const &, pp1_plan_t const &);
+template int pp1_65<arithxx_modredc126>(arithxx_modredc126::Integer &, arithxx_modredc126::Modulus const &, pp1_plan_t const &);
+template int pp1_65<arithxx_mod_mpz_new>(arithxx_mod_mpz_new::Integer &, arithxx_mod_mpz_new::Modulus const &, pp1_plan_t const &);

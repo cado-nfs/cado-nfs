@@ -1,10 +1,6 @@
 #ifndef CADO_SIEVE_ECM_PP1_HPP
 #define CADO_SIEVE_ECM_PP1_HPP
 
-#include "arith/modredc_ul.h"
-#include "arith/modredc_15ul.h"
-#include "arith/modredc_2ul2.h"
-#include "arith/mod_mpz.h"
 #include "bytecode.h"
 #include "stage2.h"
 
@@ -15,19 +11,17 @@ struct pp1_plan_t {
   stage2_plan_t stage2;
 };
 
-/* P+1 with the given plan, starting from 2/7 (pp1_27) or 6/5 (pp1_65).
- * The arithmetic is done with the arithxx layer that suits the size of
- * the modulus. The factor found, or 1, is written to f. Returns 1 if
- * backtracking was used, 0 otherwise.
+/* P+1 with the given plan, modulo m, with an arithxx layer, starting from
+ * 2/7 (pp1_27) or 6/5 (pp1_65). The factor found, or 1, is written to f.
+ * Returns 1 if backtracking was used, 0 otherwise. pp1.cpp instantiates
+ * these for modredc64, modredc96, modredc126 and mod_mpz_new.
  */
-int pp1_27(modintredcul_t f, const modulusredcul_t m, const pp1_plan_t * plan);
-int pp1_27(modintredc15ul_t f, const modulusredc15ul_t m, const pp1_plan_t * plan);
-int pp1_27(modintredc2ul2_t f, const modulusredc2ul2_t m, const pp1_plan_t * plan);
-int pp1_27(modintmpz_t f, const modulusmpz_t m, const pp1_plan_t * plan);
-int pp1_65(modintredcul_t f, const modulusredcul_t m, const pp1_plan_t * plan);
-int pp1_65(modintredc15ul_t f, const modulusredc15ul_t m, const pp1_plan_t * plan);
-int pp1_65(modintredc2ul2_t f, const modulusredc2ul2_t m, const pp1_plan_t * plan);
-int pp1_65(modintmpz_t f, const modulusmpz_t m, const pp1_plan_t * plan);
+template<typename layer>
+int pp1_27(typename layer::Integer & f, typename layer::Modulus const & m,
+        pp1_plan_t const & plan);
+template<typename layer>
+int pp1_65(typename layer::Integer & f, typename layer::Modulus const & m,
+        pp1_plan_t const & plan);
 
 void pp1_make_plan (pp1_plan_t *, unsigned int, unsigned int, int);
 void pp1_clear_plan (pp1_plan_t *);

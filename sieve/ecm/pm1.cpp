@@ -2,7 +2,10 @@
 
 #include <cstdint>
 
-#include "facul_arithxx.hpp"
+#include "arithxx/modredc64.hpp"
+#include "arithxx/modredc96.hpp"
+#include "arithxx/modredc126.hpp"
+#include "arithxx/mod_mpz_new.hpp"
 #include "pm1.hpp"
 #include "pp1_stage2.hpp"
 
@@ -23,7 +26,7 @@
  * stored in f. Returns 1 if backtracking was used, 0 otherwise.
  */
 template<typename layer>
-static int pm1_run(typename layer::Integer & f,
+int pm1(typename layer::Integer & f,
         typename layer::Modulus const & m,
         pm1_plan_t const & plan)
 {
@@ -78,26 +81,7 @@ static int pm1_run(typename layer::Integer & f,
     return bt;
 }
 
-int pm1(modintredcul_t f, const modulusredcul_t m, const pm1_plan_t * plan)
-{
-    return facul_arithxx_run(f, m, [&]<typename layer>(auto & g, auto const & mm) {
-            return pm1_run<layer>(g, mm, *plan); });
-}
-
-int pm1(modintredc15ul_t f, const modulusredc15ul_t m, const pm1_plan_t * plan)
-{
-    return facul_arithxx_run(f, m, [&]<typename layer>(auto & g, auto const & mm) {
-            return pm1_run<layer>(g, mm, *plan); });
-}
-
-int pm1(modintredc2ul2_t f, const modulusredc2ul2_t m, const pm1_plan_t * plan)
-{
-    return facul_arithxx_run(f, m, [&]<typename layer>(auto & g, auto const & mm) {
-            return pm1_run<layer>(g, mm, *plan); });
-}
-
-int pm1(modintmpz_t f, const modulusmpz_t m, const pm1_plan_t * plan)
-{
-    return facul_arithxx_run(f, m, [&]<typename layer>(auto & g, auto const & mm) {
-            return pm1_run<layer>(g, mm, *plan); });
-}
+template int pm1<arithxx_modredc64>(arithxx_modredc64::Integer &, arithxx_modredc64::Modulus const &, pm1_plan_t const &);
+template int pm1<arithxx_modredc96>(arithxx_modredc96::Integer &, arithxx_modredc96::Modulus const &, pm1_plan_t const &);
+template int pm1<arithxx_modredc126>(arithxx_modredc126::Integer &, arithxx_modredc126::Modulus const &, pm1_plan_t const &);
+template int pm1<arithxx_mod_mpz_new>(arithxx_mod_mpz_new::Integer &, arithxx_mod_mpz_new::Modulus const &, pm1_plan_t const &);

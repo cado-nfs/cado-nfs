@@ -40,10 +40,7 @@ include_directories(. ..)
 # We now have wrappers, so it's very easy from the cmake perspective.
 add_library(facul
     OBJECT
-        facul_doit_ul.cpp
-        facul_doit_15ul.cpp
-        facul_doit_2ul2.cpp
-        facul_doit_mpz.cpp
+        facul_doit.cpp
         stage2.c
         bytecode.c
         pm1.cpp
@@ -53,7 +50,7 @@ add_library(facul
         facul_method.cpp
         facul_strategies_stats.cpp
         facul_strategies.cpp
-        mpqs_doit.c mpqs_ul.c mpqs_15ul.c mpqs_2ul2.c mpqs_mpz.c
+        mpqs_doit.c
         batch.cpp
         ec_arith_Weierstrass_new.cpp)
 
