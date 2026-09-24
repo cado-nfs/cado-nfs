@@ -20,7 +20,7 @@
 #include "facul_method.hpp"
 #include "facul_doit.hpp"
 #include "modset.hpp"
-#include "pm1.h"
+#include "pm1.hpp"
 #include "pp1.h"
 #include "facul_ecm.h"
 #include "facul.hpp"

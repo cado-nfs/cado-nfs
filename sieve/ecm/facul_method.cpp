@@ -8,15 +8,17 @@
 #include "facul_method.hpp"
 #include "facul_ecm.h"  // for ecm_plan_t, ecm_make_plan, ecm_clear_plan
 #include "macros.h"     // for ASSERT_ALWAYS, ASSERT, MAYBE_UNUSED
-#include "pm1.h"        // for pm1_plan_t, pm1_clear_plan, pm1_make_plan
+#include "pm1.hpp"      // for pm1_plan_t, pm1_clear_plan, pm1_make_plan
 #include "pp1.h"        // for pp1_plan_t, pp1_clear_plan, pp1_make_plan
 #include "utils_cxx.hpp"
 
 facul_method::~facul_method()
 {
-    if (method == PM1_METHOD)
+    if (method == PM1_METHOD) {
         pm1_clear_plan ((pm1_plan_t*) plan);
-    else if (method == PP1_27_METHOD)
+        delete (pm1_plan_t*) plan;
+        return;
+    } else if (method == PP1_27_METHOD)
         pp1_clear_plan ((pp1_plan_t*) plan);
     else if (method == PP1_65_METHOD)
         pp1_clear_plan ((pp1_plan_t*) plan);
@@ -42,7 +44,7 @@ facul_method::facul_method(parameters const & p, const int verbose)
             pp1_make_plan ((pp1_plan_t *) plan, B1, B2, verbose);
             break;
         case PM1_METHOD:
-            plan = malloc (sizeof (pm1_plan_t));
+            plan = new pm1_plan_t;
             pm1_make_plan ((pm1_plan_t*) plan, B1, B2, verbose);
             break;
         case EC_METHOD:
