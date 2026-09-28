@@ -112,15 +112,19 @@ FILE *verbose_output_get(size_t channel, int verbose, size_t index);
 int verbose_output_vfprint(size_t channel, int verbose, vfprintf_func_t func,
                            const char * fmt, ...);
 
+/* Whether some output attached to this channel would print a message
+ * of this verbosity. Once the outputs are set up, this takes no lock. */
+bool verbose_would_print(size_t channel, int verbosity);
+
 /* this is actually quite handy */
 template<typename... Args>
 void verbose_fmt_print(size_t channel, int verbose, fmt::format_string<Args...> s, Args&& ...args)
 {
+    if (!verbose_would_print(channel, verbose))
+        return;
     verbose_output_print (channel, verbose, "%s",
                         fmt::format(s, std::forward<Args>(args)...).c_str());
     // fmt::print("a\n");
 }
-
-bool verbose_would_print(const size_t channel, const int verbosity);
 
 #endif	/* CADO_VERBOSE_HPP */

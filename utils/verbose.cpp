@@ -6,6 +6,9 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include <array>
+#include <atomic>
+#include <climits>
 #include <vector>
 #include <utility>
 
@@ -29,6 +32,17 @@ static bool batch_locked = false;
 static std::thread::id batch_owner;
 
 static uint64_t verbose_flag_word;
+
+/* For the first few channels, the largest verbosity of the outputs that
+ * are attached to them (INT_MIN if none), so that verbose_would_print()
+ * can tell without taking the lock that a message would go nowhere. Some
+ * such messages are on hot paths of heavily multithreaded code, where
+ * taking a process-wide lock for each of them is very costly. These are
+ * only valid if outputs_configured is true, and they are only changed
+ * under io_mutex, by the functions that attach or detach outputs. */
+static constexpr size_t nr_fast_channels = 16;
+static std::array<std::atomic<int>, nr_fast_channels> channel_max_verbose;
+static std::atomic<bool> outputs_configured { false };
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 struct known_verbose_flag {
@@ -258,6 +272,9 @@ verbose_output_init(const size_t nr_channels)
 {
     auto foo = monitor();
     get_verbose_channel_outputs().assign(nr_channels, {});
+    for (auto & m : channel_max_verbose)
+        m = INT_MIN;
+    outputs_configured = nr_channels > 0;
     return 1;
 }
 
@@ -266,6 +283,7 @@ verbose_output_clear()
 {
     auto foo = monitor();
     get_verbose_channel_outputs().clear();
+    outputs_configured = false;
     return 1;
 }
 
@@ -274,6 +292,8 @@ verbose_output_add(const size_t channel, FILE * const out, const int verbose)
 {
     auto foo = monitor();
     get_verbose_channel_outputs()[channel].emplace_back(out, verbose);
+    if (channel < nr_fast_channels && verbose > channel_max_verbose[channel])
+        channel_max_verbose[channel] = verbose;
     return 0;
 }
 
@@ -283,6 +303,9 @@ verbose_output_print(const size_t channel, const int verbose,
 {
     va_list ap;
     int rc = 0;
+
+    if (!verbose_would_print(channel, verbose))
+        return 0;
 
     auto foo = monitor();
     va_start(ap, fmt);
@@ -304,6 +327,16 @@ verbose_output_print(const size_t channel, const int verbose,
 
 bool verbose_would_print(const size_t channel, const int verbosity)
 {
+    if (channel < nr_fast_channels && outputs_configured)
+        return verbosity <= channel_max_verbose[channel];
+
+    auto foo = monitor();
+    if (get_verbose_channel_outputs().empty()) {
+        /* Default behaviour: see verbose_output_print */
+        ASSERT_ALWAYS(channel < 2);
+        return verbosity <= 1;
+    }
+    ASSERT_ALWAYS(channel < get_verbose_channel_outputs().size());
     for (auto [ F, v ] : get_verbose_channel_outputs()[channel]) {
         /* print string if output verbosity is at least "verbosity" */
         if (v >= verbosity)
@@ -361,6 +394,9 @@ verbose_output_vfprint(const size_t channel, const int verbose,
 {
     va_list ap;
     int rc = 0;
+
+    if (!verbose_would_print(channel, verbose))
+        return 0;
 
     auto foo = monitor();
     va_start(ap, fmt);
