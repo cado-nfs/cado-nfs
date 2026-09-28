@@ -570,12 +570,13 @@ void fb_entry_x_roots<Nr_roots>::fprint(FILE * out) const
 static fb_root_p1 fb_linear_root(cxx_mpz_poly const & poly, fbprime_t const q)
 {
     modulusul_t m;
-    residueul_t r0, r1;
+    residueul_t r0, r1, t;
     fb_root_p1 R = 0;
 
     modul_initmod_ul(m, q);
     modul_init_noset0(r0, m);
     modul_init_noset0(r1, m);
+    modul_init_noset0(t, m);
 
     /* Set r0 = poly[0] % q, r1 = poly[1] (mod q) */
     modul_set_ul_reduced(r0, mpz_fdiv_ui(mpz_poly_coeff_const(poly, 0), q), m);
@@ -583,22 +584,28 @@ static fb_root_p1 fb_linear_root(cxx_mpz_poly const & poly, fbprime_t const q)
 
     /* We want poly[1] * a + poly[0] * b == 0 <=>
        a/b == - poly[0] / poly[1] */
-    R.proj = (modul_inv(r1, r1, m) == 0); /* r1 = 1 / poly[1] */
+    /* Note that modul_inv clobbers its output when the inverse does not
+     * exist, so we must not do it in place: the projective root below
+     * needs poly[1] mod q, which is not zero when q is a proper power of
+     * a prime that divides poly[1]. */
+    R.proj = (modul_inv(t, r1, m) == 0); /* t = 1 / poly[1] */
 
     if (R.proj) {
         ASSERT_ALWAYS(mpz_gcd_ui(NULL, mpz_poly_coeff_const(poly, 1), q) > 1);
-        /* invert r0 instead. */
-        int const rc = modul_inv(r0, r0, m);
+        /* invert r0 instead, and swap the roles */
+        int const rc = modul_inv(t, r0, m);
         ASSERT_ALWAYS(rc != 0);
+        std::swap(r0, r1);
     }
 
-    modul_mul(r1, r0, r1, m); /* r1 = poly[0] / poly[1] */
-    modul_neg(r1, r1, m);     /* r1 = - poly[0] / poly[1] */
+    modul_mul(r1, r0, t, m); /* r1 = poly[0] / poly[1] (or the reverse) */
+    modul_neg(r1, r1, m);    /* r1 = - poly[0] / poly[1] (or the reverse) */
 
     R.r = modul_get_ul(r1, m);
 
     modul_clear(r0, m);
     modul_clear(r1, m);
+    modul_clear(t, m);
     modul_clearmod(m);
 
     return R;

@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <type_traits>
 
 #include <algorithm>
 #include <array>
@@ -385,16 +386,23 @@ template unsigned char lognorm_base::lognorm(
     const int i1 = i0 + (1 << MIN(LOG_BUCKET_REGION, logI));            \
     do {} while (0)
 
+/* Under sublattices, row 0 of the sieve region is the real row sl.j0,
+ * which is the horizontal axis only when sl.j0 == 0. On that axis the
+ * only useful position is (1,0), which the class contains only when
+ * sl.i0 == 1, at abscissa 0 (the class with sl.i0 == m-1 contains
+ * (-1,0), which is the same thing). Note that fijd is scaled by m^deg.
+ */
 #define LOGNORM_COMMON_HANDLE_ORIGIN() do {				\
-    const bool has_haxis = !j0;                                         \
+    const bool has_haxis = !j0 && sl.j0 == 0;                           \
     const bool has_vaxis = region_rank_in_line == ((regions_per_line-1)/2);   \
     const bool has_origin = has_haxis && has_vaxis;                     \
     if (UNLIKELY(has_origin)) {						\
 	/* compute only the norm for i = 1. Everybody else is 255. */	\
         memset(S, 255, i1-i0);						\
-        if (has_origin) {						\
-            const double norm = (log2(fabs(fijd.lc()))) * scale;	\
-            S[1 - i0] = LOGNORM_GUARD_BITS + (unsigned char) (norm);	\
+        if (sl.m == 1 || sl.i0 == 1) {					\
+            const double norm = (log2(fabs(fijd.lc()))                  \
+                    - fijd.degree() * log2(sl.m)) * scale;              \
+            S[(sl.m == 1) - i0] = LOGNORM_GUARD_BITS + (unsigned char) (norm);	\
         }								\
         /* And now make sure we start at the next line */		\
         S+=I;								\
@@ -460,18 +468,21 @@ lognorm_reference::lognorm_reference(siever_config const & sc, cxx_cado_poly con
  */
 void lognorm_reference::fill_rat(
         unsigned char *S,
-        uint32_t N) const
+        uint32_t N,
+        sublat_runtime_t const & sl) const
 {
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
 
     double const u0 = fijd[0];
     double const u1 = fijd[1];
+    double const dj = double(sl.j0) / sl.m;
+    double const di = double(sl.i0) / sl.m;
 
     int const l = lognorm_reference::NORM_BITS - (int) ceil(log2(maxlog2));
 
     for(unsigned int j = j0 ; j < j1 ; j++) {
-	double z = u0 * j + u1 * i0;
+	double z = u0 * (j + dj) + u1 * (i0 + di);
 	for (int i = i0; i < i1; i++) {
             uint64_t y;
             /* clang doesn't seem to like this one */
@@ -500,25 +511,28 @@ void lognorm_reference::fill_rat(
 /* {{{ void lognorm_fill_alg_reference */
 /* Exact initialisation of F(i,j) with degre >= 2 (not mandatory). Slow.
    Internal function, only with simple types, for unit/integration testing. */
-void lognorm_reference::fill_alg(unsigned char *S, uint32_t N) const
+void lognorm_reference::fill_alg(unsigned char *S, uint32_t N, sublat_runtime_t const & sl) const
 {
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
 
     double const modscale = scale/0x100000;
     const double offset = 0x3FF00000 - LOGNORM_GUARD_BITS / modscale;
+    double const dj = double(sl.j0) / sl.m;
+    double const di = double(sl.i0) / sl.m;
 
     polynomial<double> u;
     for (unsigned int j = j0 ; j < j1 ; j++) {
-        u = fijd.inverse_scale(j);
+        u = fijd.inverse_scale(j + dj);
         for(int i = i0; i < i1; i++) {
-            *S++ = lg2(std::fabs(u(i)), offset, modscale);
+            *S++ = lg2(std::fabs(u(i + di)), offset, modscale);
         }
     }
 }
 
 void lognorm_reference::fill_siqs(unsigned char *S, uint32_t N) const
 {
+    sublat_runtime_t const sl; /* no sublattices here */
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
 
@@ -533,14 +547,14 @@ void lognorm_reference::fill_siqs(unsigned char *S, uint32_t N) const
 }
 
 /* }}} */
-void lognorm_reference::fill(unsigned char * S, unsigned int N) const/*{{{*/
+void lognorm_reference::fill(unsigned char * S, unsigned int N, sublat_runtime_t const & sl) const/*{{{*/
 {
     if (J == 1u) /* J=1 => line sieve */
         fill_siqs(S, N);
     else if (fijd.degree() > 1)
-        fill_alg(S, N);
+        fill_alg(S, N, sl);
     else
-        fill_rat(S, N);
+        fill_rat(S, N, sl);
 }
 /*}}}*/
 /* }}} */
@@ -571,10 +585,19 @@ lognorm_smart::lognorm_smart(
 {
 
     if (fijd.degree() > 1) {
-        int const hI = 1 << (logI-1);
+        /* fill_alg() evaluates G at (i+di)/(j+dj). Without sublattices,
+         * this is i/j with j >= 1 (row 0 is special), so [-I/2,I/2] is
+         * enough. Under sublattices, the first row has j+dj = sl.j0/m,
+         * which can be as small as 1/m.
+         */
+        double hI = 1 << (logI-1);
+        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Q)>, qlattice_basis>) {
+            if (Q.sublat.m > 1)
+                hI = (hI + 1) * Q.sublat.m;
+        }
         // fmt::print("Computing lognorm approximation for {} over interval [{},{}]\n", fij, -hI, hI);
         const piecewise_linear_approximator<double> A(fijd, log(2)/scale);
-        G = A.logapprox(-(double) hI, (double) hI);
+        G = A.logapprox(-hI, hI);
 #if 0
         if (G.has_precision_issues) {
             fmt::print("# Redoing norm initialization with long doubles because of previous errors with {}\n", Q);
@@ -615,7 +638,7 @@ static inline double compute_y(double G, double offset, double modscale) {
 /* Initialize lognorms of the bucket region S[] number N, for F(i,j) with
  * degree = 1.
  */
-void lognorm_smart::fill_rat_inner (unsigned char *S, int i0, int i1, unsigned int j0, unsigned int j1, polynomial<double> const & fijd) const
+void lognorm_smart::fill_rat_inner (unsigned char *S, int i0, int i1, unsigned int j0, unsigned int j1, polynomial<double> const & fijd, double c) const
 {
     double const modscale = scale / 0x100000;
     double const offset = 0x3FF00000 - LOGNORM_GUARD_BITS / modscale;
@@ -641,7 +664,7 @@ void lognorm_smart::fill_rat_inner (unsigned char *S, int i0, int i1, unsigned i
          * do get with nonlinear polynomial selection.
          */
         for (unsigned int j = j0; j < j1; j++) {
-            double const g = fabs(u0 * j);
+            double const g = fabs(u0 * j + c);
             uint8_t const y = COMPUTE_Y(g);
             size_t const di = i1 - i0;
             memset_with_writeahead(S, y, di, MEMSET_MIN);
@@ -656,9 +679,10 @@ void lognorm_smart::fill_rat_inner (unsigned char *S, int i0, int i1, unsigned i
 
     for (unsigned int j = j0; j < j1; j++) {
 	int i = i0;
-	double g = fabs(u0 * j + u1 * i0);
+	double const t0 = u0 * j + c;
+	double g = fabs(t0 + u1 * i0);
 	uint8_t y;
-	double const root = -u0 * j / u1;
+	double const root = -t0 / u1;
 
 	bool root_ahead = false;
 
@@ -670,7 +694,7 @@ void lognorm_smart::fill_rat_inner (unsigned char *S, int i0, int i1, unsigned i
 	 * To check for "g is almost zero", see bug #16388 and commit
 	 * 5f682c6. We use this test, which is admittedly a bit surprising.
 	 */
-	if (LIKELY(g * (1ULL << 51) >= fabs(u0 * j))) {
+	if (LIKELY(g * (1ULL << 51) >= fabs(u0 * j) + fabs(c))) {
 	    y = COMPUTE_Y(g);
 	    root_ahead = root >= i0;
 	} else {
@@ -712,7 +736,7 @@ void lognorm_smart::fill_rat_inner (unsigned char *S, int i0, int i1, unsigned i
 
 	    /* Now compute until y really changes signs. We don't expect
 	     * that this will be needed more than very few times.  */
-	    g = u0 * j + u1 * i;
+	    g = t0 + u1 * i;
             for( ; i < i1 && signbit(g) != signbit(u1) ; i++) {
                 *S++ = COMPUTE_Y(fabs(g));
                 g+=u1;
@@ -773,11 +797,14 @@ void lognorm_smart::fill_rat_inner (unsigned char *S, int i0, int i1, unsigned i
 #undef COMPUTE_Y
 }
 
-void lognorm_smart::fill_rat(unsigned char *S, uint32_t N) const
+void lognorm_smart::fill_rat(unsigned char *S, uint32_t N, sublat_runtime_t const & sl) const
 {
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
-    fill_rat_inner(S, i0, i1, j0, j1, fijd);
+    /* fijd is scaled by m, so that we want fijd[0]*(j+sl.j0/m) +
+     * fijd[1]*(i+sl.i0/m) */
+    double const c = (fijd[0] * sl.j0 + fijd[1] * sl.i0) / sl.m;
+    fill_rat_inner(S, i0, i1, j0, j1, fijd, c);
 }
 /* }}} */
 
@@ -819,10 +846,16 @@ void lognorm_smart::fill_siqs(unsigned char *S, uint32_t N) const /* {{{ */
 }
 /* }}} */
 
-void lognorm_smart::fill_alg(unsigned char *S, uint32_t N) const /* {{{ */
+void lognorm_smart::fill_alg(unsigned char *S, uint32_t N, sublat_runtime_t const & sl) const /* {{{ */
 {
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
+    /* Under sublattices, the position (i,j) stands for the real
+     * coordinates (m*i+sl.i0, m*j+sl.j0), and since fijd is scaled by
+     * m^deg, what we want is fijd(i+di, j+dj) with the two offsets
+     * below. */
+    double const dj = double(sl.j0) / sl.m;
+    double const di = double(sl.i0) / sl.m;
     auto jt0 = G.equations.begin();
     auto jt1 = G.equations.end();
     auto it0 = G.endpoints.begin();
@@ -845,16 +878,18 @@ void lognorm_smart::fill_alg(unsigned char *S, uint32_t N) const /* {{{ */
         // int Gi0 = j*r0 + (j*r0 >= 0);
         int Gi0 = i0;
         // int i = i0;
-        double mj1 = j;
+        double const jr = j + dj;
+        double mj1 = jr;
         ASSERT(fijd.degree() > 1);
         for(int d = fijd.degree() ; --d > 1 ; )
-            mj1 *= j;
+            mj1 *= jr;
         // for(auto const & uv : G.equations) {
         for(auto jt = jt0 ; jt != jt1 ; ++it, ++jt) {
             // double const r1 = *it++;
             double const r1 = *it;
             auto const & uv = *jt;
-            int Gi1 = j*r1 + (j*r1 >= 0);
+            double const x1 = jr*r1 - di;
+            int Gi1 = x1 + (x1 >= 0);
             // ASSERT(Gi0 >= i);
             if (Gi0 >= i1) {
                 jt1 = jt;
@@ -862,8 +897,12 @@ void lognorm_smart::fill_alg(unsigned char *S, uint32_t N) const /* {{{ */
             } else if (Gi1 > Gi0) {
                 Gi1 = std::min(Gi1, i1);
                 // ASSERT(Gi0 == i);
+                /* g(x/jr)*jr^d with x = i + di, which is
+                 * uv.first*mj1*j + uv.second*mj1*i plus the constant
+                 * below (zero without sublattices). */
                 fill_rat_inner(S, Gi0, Gi1, j, j+1, 
-                        polynomial<double> { uv.first, uv.second } * mj1
+                        polynomial<double> { uv.first, uv.second } * mj1,
+                        (uv.first * dj + uv.second * di) * mj1
                         );
                 S += Gi1 - Gi0;
                 // i = Gi1;
@@ -877,14 +916,14 @@ void lognorm_smart::fill_alg(unsigned char *S, uint32_t N) const /* {{{ */
 }
 /* }}} */
 
-void lognorm_smart::fill(unsigned char * S, unsigned int N) const/*{{{*/
+void lognorm_smart::fill(unsigned char * S, unsigned int N, sublat_runtime_t const & sl) const/*{{{*/
 {
     if (J == 1u) /* J=1 => line sieve */
         fill_siqs(S, N);
     else if (fijd.degree() > 1)
-        fill_alg(S, N);
+        fill_alg(S, N, sl);
     else
-        fill_rat(S, N);
+        fill_rat(S, N, sl);
 }
 /*}}}*/
 

@@ -20,7 +20,7 @@ class las_memory_accessor; // IWYU pragma: keep
 
 /* This thin wrapper is only here to start the timer */
 template <bucket_array_type T>
-static void run_allocate_buckets(worker_thread * worker, las_memory_accessor & memory, int n_bucket, double ratio, int logI, nfs_aux & aux, T & B)
+static void run_allocate_buckets(worker_thread * worker, las_memory_accessor & memory, int n_bucket, double ratio, int logI, bool parity_skip, nfs_aux & aux, T & B)
 {
     timetree_t & timer(aux.th[worker->rank()].timer);
     ENTER_THREAD_TIMER(timer);
@@ -30,12 +30,12 @@ static void run_allocate_buckets(worker_thread * worker, las_memory_accessor & m
     TIMER_CATEGORY(timer, bookkeeping());
     auto tt = worker->trace(chronograms::ALLOC());
 
-    B.allocate_memory(memory, n_bucket, ratio, logI);
+    B.allocate_memory(memory, n_bucket, ratio, logI, parity_skip);
 }
 
 template <bucket_array_type T>
 void
-reservation_array_base<T>::allocate_buckets(las_memory_accessor & memory, int n_bucket, double ratio, int logI, nfs_aux & aux, thread_pool & pool)
+reservation_array_base<T>::allocate_buckets(las_memory_accessor & memory, int n_bucket, double ratio, int logI, bool parity_skip, nfs_aux & aux, thread_pool & pool)
 {
     if (n_bucket <= 0) return;
 
@@ -53,7 +53,7 @@ reservation_array_base<T>::allocate_buckets(las_memory_accessor & memory, int n_
         pool.add_task(
                 thread_pool::QUEUE_MISC, cost,
                 run_allocate_buckets<T>,
-                std::ref(memory), n_bucket, ratio / n, logI, std::ref(aux), std::ref(BAs[i]));
+                std::ref(memory), n_bucket, ratio / n, logI, parity_skip, std::ref(aux), std::ref(BAs[i]));
         /* queue 2. Joined in nfs_work::allocate_buckets */
     }
 }
@@ -95,6 +95,7 @@ reservation_group::allocate_buckets(
         const int *n_bucket,
         bkmult_specifier const& mult,
         std::array<double, FB_MAX_PARTS> const & fill_ratio, int logI,
+        bool parity_skip,
         nfs_aux & aux,
         thread_pool & pool)
 {
@@ -109,7 +110,7 @@ reservation_group::allocate_buckets(
      gets filled only by its respective FB part */
   for(auto & r1s : get_all_slots<1, s>()) {
       using T1s = bucket_update_t<1, s>;
-      r1s.allocate_buckets(memory, n_bucket[1], mult.get<T1s>()*fill_ratio[1], logI, aux, pool);
+      r1s.allocate_buckets(memory, n_bucket[1], mult.get<T1s>()*fill_ratio[1], logI, parity_skip, aux, pool);
   }
 
   /* Long hint bucket arrays get filled by downsorting. The level-2
@@ -121,7 +122,7 @@ reservation_group::allocate_buckets(
 #if MAX_TOPLEVEL >= 2
   for(auto & r2s : get_all_slots<2, s>()) {
       using T2s = bucket_update_t<2, s>;
-      r2s.allocate_buckets(memory, n_bucket[2], mult.get<T2s>()*fill_ratio[2], logI, aux, pool);
+      r2s.allocate_buckets(memory, n_bucket[2], mult.get<T2s>()*fill_ratio[2], logI, parity_skip, aux, pool);
   }
   for(auto & r1l : get_all_slots<1, l>()) {
       using T1l = bucket_update_t<1, l>;
@@ -129,7 +130,7 @@ reservation_group::allocate_buckets(
           double s = 0;
           for(int level = 2 ; level <= MAX_TOPLEVEL ; level++)
               s += fill_ratio[level];
-          r1l.allocate_buckets(memory, n_bucket[1], mult.get<T1l>() * s, logI, aux, pool);
+          r1l.allocate_buckets(memory, n_bucket[1], mult.get<T1l>() * s, logI, parity_skip, aux, pool);
       }
   }
 #endif
@@ -137,7 +138,7 @@ reservation_group::allocate_buckets(
 #if MAX_TOPLEVEL >= 3
   for(auto & r3s : get_all_slots<3, s>()) {
       using T3s = bucket_update_t<3, s>;
-      r3s.allocate_buckets(memory, n_bucket[3], mult.get<T3s>()*fill_ratio[3], logI, aux, pool);
+      r3s.allocate_buckets(memory, n_bucket[3], mult.get<T3s>()*fill_ratio[3], logI, parity_skip, aux, pool);
   }
   for(auto & r2l : get_all_slots<2, l>()) {
       using T2l = bucket_update_t<2, l>;
@@ -145,7 +146,7 @@ reservation_group::allocate_buckets(
           double s = 0;
           for(int level = 3 ; level <= MAX_TOPLEVEL ; level++)
               s += fill_ratio[level];
-          r2l.allocate_buckets(memory, n_bucket[2], mult.get<T2l>() * s, logI, aux, pool);
+          r2l.allocate_buckets(memory, n_bucket[2], mult.get<T2l>() * s, logI, parity_skip, aux, pool);
       }
   }
 #endif
@@ -157,14 +158,15 @@ void reservation_group::allocate_buckets(
         const int *n_bucket,
         bkmult_specifier const& mult,
         std::array<double, FB_MAX_PARTS> const & fill_ratio, int logI,
+        bool parity_skip,
         nfs_aux & aux,
         thread_pool & pool,
         bool with_hints)
 {
     if (with_hints)
-        allocate_buckets<true>(memory, n_bucket, mult, fill_ratio, logI, aux, pool);
+        allocate_buckets<true>(memory, n_bucket, mult, fill_ratio, logI, parity_skip, aux, pool);
     else
-        allocate_buckets<false>(memory, n_bucket, mult, fill_ratio, logI, aux, pool);
+        allocate_buckets<false>(memory, n_bucket, mult, fill_ratio, logI, parity_skip, aux, pool);
 }
 
 template class reservation_array<bucket_array_t<1, shorthint_t> >;

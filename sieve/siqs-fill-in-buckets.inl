@@ -9,16 +9,17 @@
 #include "las-qlattice.hpp"
 #include "las-plattice.hpp"
 
-template <int LEVEL, class FB_ENTRY_TYPE>
+template <int LEVEL, class FB_ENTRY_TYPE, uint32_t M>
 void make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
         int side,
         nfs_work & ws,
         siqs_special_q_data const & Q,
+        sublat_t<M> const &,
         precomp_plattice_t<LEVEL> & V,
         fb_slice<FB_ENTRY_TYPE> const & slice)
 {
     int const logI = ws.conf.logI;
-    ASSERT_ALWAYS(!Q.sublat.m);
+    ASSERT_ALWAYS(Q.sublat.m == 1);
     ASSERT_ALWAYS(side == 0);
 
     auto const index0 = ws.sides[side].fbs->get_part(LEVEL).first_slice_index;
@@ -133,18 +134,6 @@ void fill_in_buckets_siqs_compute_hits(
 }
 
 template <int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
-static void fill_in_buckets_toplevel_sublat(
-    bucket_array_t<LEVEL, TARGET_HINT> &,
-    nfs_work &,
-    siqs_special_q_data const &,
-    plattices_dense_vector_t *,
-    fb_slice<FB_ENTRY_TYPE> const &,
-    where_am_I &)
-{
-    throw std::runtime_error("sublat is not supported in SIQS");
-}
-
-template <int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
 void
 fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> & orig_BA,
                          nfs_work & ws, fb_slice<FB_ENTRY_TYPE> const & slice,
@@ -152,14 +141,17 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> & orig_BA,
                          plattices_dense_vector_t * /* unused */,
                          where_am_I & w)
 {
-    if (LEVEL == 3) {
+    /* yes, it should be a compile-time error. */
+    if (LEVEL >= 3)
         throw std::runtime_error("Level 3 bucket sieving is not supported in SIQS");
-    }
+    if (Q.sublat.m != 1)
+        throw std::runtime_error("sublat is not supported in SIQS");
+
     int const logI = ws.conf.logI;
     size_t logJ = nbits(ws.J) - 1u; /* 2^m has m+1 bits */
     ASSERT_ALWAYS(ws.J == 1u << logJ); /* J must be a power of 2 */
 
-    ASSERT_ALWAYS(!Q.sublat.m);
+    ASSERT_ALWAYS(Q.sublat.m == 1);
 
     /* local copy. Gain a register + use stack */
     bucket_array_t<LEVEL, TARGET_HINT> BA = std::move(orig_BA);
@@ -207,7 +199,7 @@ fill_in_buckets_lowlevel(
     size_t logJ = nbits(ws.J) - 1u; /* 2^m has m+1 bits */
     ASSERT_ALWAYS(ws.J == 1u << logJ); /* J must be a power of 2 */
 
-    ASSERT_ALWAYS(!Q.sublat.m);
+    ASSERT_ALWAYS(Q.sublat.m == 1);
 
     /* The timer stuff is dealt with by the caller */
     slice_index_t const slice_index = plattices_vector.get_index();

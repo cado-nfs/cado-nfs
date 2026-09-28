@@ -330,14 +330,33 @@ cado_divert_test(F9_batch try_to_reuse_foreign
     batchfile0=${CMAKE_CURRENT_SOURCE_DIR}/bogus.batch0)
 set_tests_properties(F9_batch_try_to_reuse_foreign PROPERTIES WILL_FAIL 1)
 
-
-cado_divert_test(F9 sublat
+cado_divert_test(F9 sublat_2
         APPEND_ENVIRONMENT
             las_I=10
-            REL_COUNT=246
-            REFERENCE_SHA1=f35a27aa4d96918a087cf8169071985c3992e659
-            REFERENCE_REVISION=2c5ac2cff
+            REL_COUNT=201
+            REFERENCE_SHA1=162c5e300a7a051087f00550f3e8b80ab96fd5ba
+            REFERENCE_REVISION=3245fa353
+        APPEND_ARGUMENTS -sublat 2
+        TIMEOUT 150
+        )
+
+cado_divert_test(F9 sublat_3
+        APPEND_ENVIRONMENT
+            las_I=10
+            REL_COUNT=312
+            REFERENCE_SHA1=0bfcf6d63e6fc7dccd1b65e964cbf9dae18f0945
+            REFERENCE_REVISION=3245fa353
         APPEND_ARGUMENTS -sublat 3
+        TIMEOUT 150
+        )
+
+cado_divert_test(F9 sublat_6
+        APPEND_ENVIRONMENT
+            las_I=10
+            REL_COUNT=710
+            REFERENCE_SHA1=3cf06e4e82a568047b95849ff78ddb5248e7bcbd
+            REFERENCE_REVISION=3245fa353
+        APPEND_ARGUMENTS -sublat 6
         TIMEOUT 150
         )
 
@@ -667,6 +686,24 @@ cado_divert_test(test_init_norms rsa220_I17
     AVOID_CONCURRENT 2
 )
 
+foreach(m 2 3 6)
+    cado_divert_test(test_init_norms rsa220_sublat${m}
+        ARGUMENTS
+            -poly ${CMAKE_CURRENT_SOURCE_DIR}/rsa220.poly
+            -I 14 -sublat ${m} -lpb0 34 -lpb1 34 -mfb0 68 -mfb1 102
+            -q0 4000000000
+            -q1 4001000000
+            -random-sample 10
+            -random-seed 0
+            -sqside 1
+            -t 2
+            --hush-max-jitter 1
+            --abort-on-jitter 1,5
+            --nfills-speed-test 0
+        AVOID_CONCURRENT 2
+    )
+endforeach()
+
 cado_divert_test(test_init_norms bug21518
     ARGUMENTS
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/c160_21518.poly
@@ -727,6 +764,33 @@ cado_divert_test(test-smallsieve line_fragments1 # bucket region = half line
     ARGUMENTS -q -C -A 18 -I 14 -B 13)
 cado_divert_test(test-smallsieve line_fragments2 # bucket region = quarter line
     ARGUMENTS -q -C -A 18 -I 15 -B 13)
+endif()
+
+# This one is a tuner rather than a test: it times the two variants of the
+# survivor search and checks the compile-time choice in las-unsieve-sse2.cpp
+# against what it measures. The answer differs across microarchitectures,
+# hence the check.
+if(HAVE_SSE2 AND DEFINED ENV{CHECKS_EXPENSIVE})
+    set(unsieve_sources
+        ${PROJECT_SOURCE_DIR}/sieve/las-unsieve.cpp
+        ${PROJECT_SOURCE_DIR}/sieve/las-unsieve-sse2.cpp)
+    if(HAVE_AVX2)
+        list(APPEND unsieve_sources
+            ${PROJECT_SOURCE_DIR}/sieve/las-unsieve-avx2.cpp)
+    endif()
+    cado_define_test(test-unsieve-patterns.cpp ${unsieve_sources}
+        ${PROJECT_SOURCE_DIR}/sieve/las-where-am-i-prod.cpp
+        LIBRARIES utils ${gmplib})
+    set_property(TARGET test-unsieve-patterns
+        PROPERTY COMPILE_DEFINITIONS UNSIEVE_PATTERN_TUNER=1)
+    # Without this, the tuner measures the code-placement lottery instead of
+    # the loops: on Skylake-SP an unaligned build reported the one-sided
+    # search as slower than the two-sided one, which is impossible. The flag
+    # is for the tuner only, whatever the rest of the tree is built with.
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+        set_property(TARGET test-unsieve-patterns
+            APPEND PROPERTY COMPILE_OPTIONS -falign-loops=64)
+    endif()
 endif()
 
 if(HAVE_JEVENTS)

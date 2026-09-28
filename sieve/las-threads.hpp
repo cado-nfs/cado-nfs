@@ -57,7 +57,7 @@ class reservation_array_base {
 
     /* Allocate enough memory to be able to store at least n_bucket buckets,
        each of size at least fill_ratio * bucket region size. */
-    void allocate_buckets(las_memory_accessor & memory, int n_bucket, double fill_ratio, int logI, nfs_aux&, thread_pool&);
+    void allocate_buckets(las_memory_accessor & memory, int n_bucket, double fill_ratio, int logI, bool parity_skip, nfs_aux&, thread_pool&);
 
     ATTRIBUTE_NODISCARD
     std::vector<T> const& bucket_arrays() const { return BAs; }
@@ -155,9 +155,10 @@ class reservation_array<T, false> : public reservation_array_base<T> {
      * arrays. It happens once per special-q.
      */
     void allocate_buckets(las_memory_accessor & memory, int n_bucket,
-            double fill_ratio, int logI, nfs_aux & aux, thread_pool & pool)
+            double fill_ratio, int logI, bool parity_skip,
+            nfs_aux & aux, thread_pool & pool)
     {
-        super::allocate_buckets(memory, n_bucket, fill_ratio, logI, aux, pool);
+        super::allocate_buckets(memory, n_bucket, fill_ratio, logI, parity_skip, aux, pool);
         if (n_bucket <= 0) return;
         auto lock = get_lock();
         reset_queue();
@@ -351,6 +352,7 @@ public:
             const int *n_bucket,
             bkmult_specifier const& mult,
             std::array<double, FB_MAX_PARTS> const & fill_ratio, int logI,
+            bool parity_skip,
             nfs_aux & aux,
             thread_pool & pool,
             bool with_hints);
@@ -379,6 +381,7 @@ public:
             const int *n_bucket,
             bkmult_specifier const& mult,
             std::array<double, FB_MAX_PARTS> const & fill_ratio, int logI,
+            bool parity_skip,
             nfs_aux & aux,
             thread_pool & pool);
 };

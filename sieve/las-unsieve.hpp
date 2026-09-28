@@ -4,13 +4,14 @@
 #include "cado_config.h"
 
 #include <cstdint>
+#include <cstdlib>
 
 #include <array>
 #include <utility>
 #include <vector>
 
 #include "arith/ularith.h"
-#include "fb-types.hpp"
+#include "las-sublat.hpp"
 
 #ifdef HAVE_SSE2
 #include <emmintrin.h>
@@ -99,26 +100,55 @@ void search_survivors_in_line(unsigned char * const SS[2],
         unsigned int j, int i0, int i1,
         int N, j_divisibility_helper const & j_div,
         unsigned int td_max, unsieve_data const & us,
-        std::vector<uint32_t> &survivors, sublat_t);
+        std::vector<uint32_t> &survivors, sublat_runtime_t);
+
 template<std::size_t nsides>
 void search_survivors_in_line(
         std::array<unsigned char * const, nsides> SS,
         const std::array<unsigned char, nsides> bound,
         unsigned int length,
         std::vector<uint16_t> &survivors);
-#ifdef HAVE_SSE2 
+#ifdef HAVE_SSE2
+/* j, i0 and i1 are sublattice coordinates; the real coordinates are
+ * ii = sublat.m*(i0+x) + sublat.i0 and jj = sublat.m*j + sublat.j0, and
+ * sublat.m == 0 means no sublattices, in which case the two coincide. */
 void search_survivors_in_line_sse2(unsigned char * const SS[2],
         const unsigned char bound[2],
         unsigned int j, int i0, int i1,
         int N, j_divisibility_helper const & j_div,
         unsigned int td_max,
-        std::vector<uint32_t> &survivors);
+        std::vector<uint32_t> &survivors, sublat_runtime_t sublat);
 void search_survivors_in_line_sse2_oneside(unsigned char * const SS,
         const unsigned char bound,
         unsigned int j, int i0, int i1,
         int N, j_divisibility_helper const & j_div,
         unsigned int td_max,
-        std::vector<uint32_t> &survivors);
+        std::vector<uint32_t> &survivors, sublat_runtime_t sublat);
+/* Whether las was built to use the pattern-3 and pattern-5 variants of the
+ * survivor search. This is a compile-time choice, made in las-unsieve-sse2.cpp
+ * on the grounds that the patterns are a win on some microarchitectures and a
+ * loss on others. The tuner in tests/sieve checks it against measurement.
+ */
+extern bool const search_survivors_uses_patterns;
+
+/* Same as the two functions above, but with the pattern choice forced. Only
+ * the tuner uses these; las goes through the wrappers.
+ */
+template<bool use_patterns>
+void search_survivors_in_line_sse2_choice(unsigned char * const SS[2],
+        const unsigned char bound[2],
+        unsigned int j, int i0, int i1,
+        int N, j_divisibility_helper const & j_div,
+        unsigned int td_max,
+        std::vector<uint32_t> &survivors, sublat_runtime_t sublat);
+template<bool use_patterns>
+void search_survivors_in_line_sse2_oneside_choice(unsigned char * const SS,
+        unsigned char bound,
+        unsigned int j, int i0, int i1,
+        int N, j_divisibility_helper const & j_div,
+        unsigned int td_max,
+        std::vector<uint32_t> &survivors, sublat_runtime_t sublat);
+
 void search_survivors_in_line_sse2_siqs(
         unsigned char * SS,
         unsigned char bound,

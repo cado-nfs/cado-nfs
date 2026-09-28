@@ -9,6 +9,7 @@
 #include "macros.h"
 
 #include "fb-types.hpp"
+#include "las-sublat.hpp"
 #include "gcd.h"
 #include "las-config.hpp"
 #include "misc.h"
@@ -353,11 +354,21 @@ inline uint32_t invmod(uint32_t x, uint32_t m)
  * based on plattice_x_t).
  */
 struct plattice_enumerator_base {
+    /* M is the sublattice modulus, as a compile-time constant.
+     *
+     * That matters: this function is called once per (prime, root,
+     * sublattice class), and with a runtime modulus the seven `% m` and
+     * `/ m` below are seven 64-bit integer divisions, which dominate it
+     * completely. With M fixed the compiler turns them into shifts, or
+     * into a multiply-high for M == 3 and M == 6. The non-sublattice
+     * path, for comparison, is a single shift.
+     */
+    template<uint32_t M>
     static plattice_x_t starting_point(plattice_info const & pli,
-                                       int const logI, sublat_t const & sublat)
+                                       int const logI, sublat_t<M> const & sublat)
     {
         int64_t I = int64_t(1) << logI;
-        uint32_t m = sublat.m;
+        constexpr uint32_t m = M;
 
         // first FK vector a
         int64_t i0 = pli.get_i0();
@@ -369,15 +380,9 @@ struct plattice_enumerator_base {
         // FIXME: should have a better understanding of those cases
         // (and not only in the sublat case, to be honest)
         // Right now, we desactivate them, by putting a starting point
-        // above the limit.
-        if ((i1 == 0) || (j1 == 0)) {
-            return plattice_x_t(UMAX(plattice_x_t));
-        }
-
-        // If j0 or j1 reaches 20 bits, then it was saturated during the
-        // dense storage. Let's skip this prime for which the FK basis is
-        // very skewed. (only a few hits are missed)
-        if ((j0 == ((1 << 20) - 1)) || (j1 == ((1 << 20) - 1))) {
+        // above the limit. This includes the vertical lines (i0 == 0,
+        // and i1 >= I).
+        if ((i1 == 0) || (j1 == 0) || (i0 == 0) || (i1 >= I)) {
             return plattice_x_t(UMAX(plattice_x_t));
         }
 
@@ -403,22 +408,36 @@ struct plattice_enumerator_base {
         int64_t ii = (al * i0 + be * i1 - sublat.i0) / m; // exact divisions
         int64_t jj = (al * j0 + be * j1 - sublat.j0) / m;
 
-        // But here, ii might be beyond the bounds. So, let's fix.
-        // It should be enough to subtract one of the FK vectors.
-        // Note that a is the vector with negative abscissa.
+        // The points of this translate of the lattice that lie in the
+        // strip -I/2 <= ii < I/2 form a chain, and the FK walk goes from
+        // one to the next. We want the first one with jj >= 0.
+        //
+        // First, get into the strip. Since 0 <= al,be < m, we have
+        // -I <= ii < I. Recall that a = (i0,j0) = (-mi0,j0) and
+        // b = (i1,j1), with 0 < mi0 < I, 0 <= i1 < I, and mi0 + i1 >= I,
+        // so that at least one of mi0 and i1 is >= I/2. One step with
+        // that vector is enough.
+        ASSERT((ii >= -I) && (ii < I));
         if (ii < -I / 2) {
-            ASSERT(ii - i0 >= 0);
-            ii -= i0;
-            jj -= j0;
-        } else if (ii > I / 2 - 1) {
-            ASSERT(ii - i1 <= 0);
-            ii -= i1;
-            jj -= j1;
+            if (-i0 >= I / 2) {
+                ii -= i0;
+                jj -= j0;
+            } else {
+                ii += i1;
+                jj += j1;
+            }
+        } else if (ii >= I / 2) {
+            if (i1 >= I / 2) {
+                ii -= i1;
+                jj -= j1;
+            } else {
+                ii += i0;
+                jj += j0;
+            }
         }
         ASSERT((ii >= -I / 2) && (ii < I / 2));
 
-        // But now, jj might be negative! So let's start the FK walk until we
-        // go positive.
+        // If jj is negative, walk forward until we go positive.
         while (jj < 0) {
             int64_t aux = ii;
             if (aux >= I / 2 - i1) {
@@ -429,6 +448,29 @@ struct plattice_enumerator_base {
                 ii += i1;
                 jj += j1;
             }
+        }
+
+        // Otherwise, we may be past the first point of the chain with
+        // jj >= 0 (this does not happen for m == 2, but it does for m == 3
+        // and m == 6). The predecessor of a point in the strip is
+        // obtained by subtracting b, a, or a+b, and exactly one of those
+        // lands in the strip.
+        for (;;) {
+            int64_t pi, pj;
+            if (ii >= -I / 2 + i1) {
+                pi = ii - i1;
+                pj = jj - j1;
+            } else if (ii < I / 2 + i0) {
+                pi = ii - i0;
+                pj = jj - j0;
+            } else {
+                pi = ii - i0 - i1;
+                pj = jj - j0 - j1;
+            }
+            if (pj < 0)
+                break;
+            ii = pi;
+            jj = pj;
         }
 
         // Now, (ii,jj) is the starting point we are looking for. Let's
@@ -469,29 +511,32 @@ class plattice_enumerator : public plattice_enumerator_base
         }
     };
 
+    template<uint32_t M>
     plattice_enumerator(plattice_info const & basis, slice_offset_t const hint,
-                        int const logI, sublat_t const & sublat)
+                        int const logI, sublat_t<M> const & sublat)
         : inc_warp(basis.get_inc_warp(logI))
         , inc_step(basis.get_inc_step(logI))
         , bound_step(basis.get_bound_step(logI))
         , bound_warp(basis.get_bound_warp(logI))
         , hint(hint)
+        , x(plattice_enumerator_base::starting_point(basis, logI, sublat))
     {
-        if (!sublat.m)
-            x = plattice_x_t(1) << (logI - 1);
-        else {
-            x = plattice_enumerator_base::starting_point(basis, logI, sublat);
-        }
+        static_assert(M > 1);
     }
 
     plattice_enumerator(plattice_info const & basis, slice_offset_t const hint,
-                        int const logI)
+                        int const logI, sublat_t<1> const &)
         : inc_warp(basis.get_inc_warp(logI))
         , inc_step(basis.get_inc_step(logI))
         , bound_step(basis.get_bound_step(logI))
         , bound_warp(basis.get_bound_warp(logI))
         , hint(hint)
         , x(plattice_x_t(1) << (logI - 1))
+    {}
+
+    plattice_enumerator(plattice_info const & basis, slice_offset_t const hint,
+                        int const logI)
+        : plattice_enumerator(basis, hint, logI, sublat_t<1>{})
     {
     }
 
@@ -579,9 +624,10 @@ class plattice_enumerator_coprime : public plattice_enumerator
     typedef typename super::fence fence;
 
   public:
+    template<uint32_t M>
     plattice_enumerator_coprime(plattice_info const & basis,
                                 slice_offset_t const hint, int const logI,
-                                sublat_t const & sublat)
+                                sublat_t<M> const & sublat)
         : plattice_enumerator(basis, hint, logI, sublat)
         , u(0)
         , v(0)
@@ -610,79 +656,73 @@ class plattice_enumerator_coprime : public plattice_enumerator
 
 struct plattice_info_dense_t {
     uint32_t pack[3];
-    // This pack of 96 bits is enough to contain
-    //   mi0, i1, j0, j1
-    // as 20-bit unsigned integers and
-    //   hint
-    // as a 16-bit integer.
+    // This pack of 96 bits holds, without any loss:
+    //   mi0 and i1, as 20-bit unsigned integers,
+    //   the hint, as a 16-bit integer,
+    //   a flag byte,
+    //   j1, as a 32-bit integer.
+    // j0 is not stored: it is recovered from the determinant
+    // mi0*j1 + j0*i1, which is q (the caller knows q from the hint).
     //
-    // Note that mi0 and i1 are less than I, so this is ok, but
-    // j0 and j1 could be larger. However, this is for very skewed
-    // plattices, and we lose only a few hits by skipping those primes.
-    // So we saturate them at 2^20-1 for later detection.
+    // For a reduced lattice, mi0 < I, and i1 < I unless the lattice is
+    // a vertical line, in which case mi0 == 0 and i1 may be as large as
+    // q. For those, we store j0 instead of j1, and recover i1 as q/j0.
+    // j1 is lost, but the step vector of a vertical line is never used.
     //
-    // uint16_t hint; // FIXME: this could be recovered for free...
+    // (This used to store j0 and j1 on 20 bits each, saturated. At
+    // logI=15 and q around 2^31, that is wrong for about one lattice
+    // in ten, and the replays for the sublattices other than the first
+    // one lost a few percent of the relations.)
 
-    plattice_info_dense_t(plattice_info const & pli, uint16_t _hint)
+    static constexpr uint32_t vertical_flag = 1;
+
+    plattice_info_dense_t(plattice_info const & pli, uint16_t hint,
+                          uint32_t MAYBE_UNUSED q)
     {
-        uint32_t mi0;
-        uint32_t i1;
-        uint32_t j0;
-        uint32_t j1;
-        uint16_t hint;
-        hint = _hint;
-        // Handle orthogonal lattices (proj and r=0 cases)
-        if (pli.i1 == 1 && pli.j1 == 0) {
-            i1 = 1;
-            j1 = 0;
-            mi0 = UMAX(uint32_t);
-            j0 = pli.j0;
-        } else if (pli.i1 == 0 && pli.j1 == 1) {
-            i1 = 0;
-            j1 = 1;
-            mi0 = UMAX(uint32_t);
-            j0 = pli.j0;
-        } else {
-            // generic case: true FK-basis
-            mi0 = pli.mi0;
-            j0 = pli.j0;
-            i1 = pli.i1;
-            j1 = pli.j1;
-        }
         constexpr uint32_t mask8 = (1 << 8) - 1;
-        constexpr uint32_t mask16 = (1 << 16) - 1;
         constexpr uint32_t mask20 = (1 << 20) - 1;
 
-        // Saturate skewed lattices, for later detection and skipping.
-        j0 = std::min(j0, mask20);
-        j1 = std::min(j1, mask20);
+        ASSERT(pli.determinant() == q);
 
-        pack[0] = (mi0 & mask20) | (i1 << 20);
-        pack[1] = ((i1 >> 12) & mask8) | ((j0 & mask20) << 8) | (j1 << 28);
-        pack[2] = ((j1 >> 4) & mask16) | (hint << 16);
+        uint32_t flags = 0;
+        uint32_t mi0 = pli.mi0;
+        uint32_t i1 = pli.i1;
+        uint32_t j = pli.j1;
+
+        if (mi0 == 0) {
+            flags |= vertical_flag;
+            i1 = 0;
+            j = pli.j0;
+        }
+        ASSERT_ALWAYS(mi0 <= mask20 && i1 <= mask20);
+
+        pack[0] = mi0 | (i1 << 20);
+        pack[1] = ((i1 >> 12) & mask8) | (uint32_t(hint) << 8) | (flags << 24);
+        pack[2] = j;
     }
 
-    plattice_info unpack(int const logI) const
+    plattice_info unpack(uint32_t const q) const
     {
         plattice_info pli;
         constexpr uint32_t mask8 = (1 << 8) - 1;
-        constexpr uint32_t mask16 = (1 << 16) - 1;
         constexpr uint32_t mask20 = (1 << 20) - 1;
         pli.mi0 = pack[0] & mask20;
         pli.i1 = (pack[0] >> 20) | ((pack[1] & mask8) << 12);
-        pli.j0 = (pack[1] >> 8) & mask20;
-        pli.j1 = (pack[1] >> 28) | ((pack[2] & mask16) << 4);
-
-        // Orthogonal bases
-        if (pli.i1 == 1 && pli.j1 == 0) {
-            pli.mi0 = ((int32_t)1 << logI) - 1;
-        } else if (pli.i1 == 0 && pli.j1 == 1) {
-            pli.j0 = ((int32_t)1 << logI) + 1;
+        if ((pack[1] >> 24) & vertical_flag) {
+            pli.j0 = pack[2];
+            pli.i1 = q / pli.j0;
+            pli.j1 = 0;
+        } else {
+            pli.j1 = pack[2];
+            /* i1 > 0, since i1 + mi0 >= I and mi0 < I. Everything fits
+             * in 32 bits, and a 32-bit division is notably cheaper than
+             * a 64-bit one on some microarchitectures. */
+            pli.j0 = (q - pli.mi0 * pli.j1) / pli.i1;
         }
         return pli;
     }
 
-    uint16_t get_hint() const { return pack[2] >> 16; }
+    uint16_t get_hint() const { return pack[1] >> 8; }
 };
 
 class plattices_dense_vector_t : public std::vector<plattice_info_dense_t>

@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <climits>
+#include <cstdint>
 
 #include <vector>
 #include <list>
@@ -13,6 +14,7 @@
 
 #include "las-forwardtypes.hpp"         // spos_t
 #include "fb-types.hpp"
+#include "gcd.h"
 #include "las-smallsieve-lowlevel.hpp"
 #include "las-smallsieve.hpp"
 
@@ -84,16 +86,19 @@ struct small_sieve_base {/*{{{*/
     int i0;
     // int i1;
     /* those are (1,0,0) in the standard case */
-    int sublatm;
-    int sublati0;
-    int sublatj0;
-    int row0_is_oddj;
+    sublat_runtime_t sublat;
     bool has_origin;
     inline int F() const { return 1 << min_logI_logB; }
     inline int I() const { return 1 << logI; }
     static const bool skip_line_jj0 = false;
-    small_sieve_base(int logI, int N, sublat_t const & sublat)/*{{{*/
-        : logI(logI), N(N)
+    /* returned by first_position_power_of_two() when the prime power has
+     * no hit at all in the residue class being sieved, which can happen
+     * once the sublattice modulus is even */
+    static constexpr spos_t NO_POSITION = INT32_MIN;
+    small_sieve_base(int logI, int N, sublat_runtime_t const & sublat)/*{{{*/
+        : logI(logI)
+        , N(N)
+        , sublat(sublat)
     {
         unsigned int log_lines_per_region;
         //min_logI_logB         = is_fragment::test(LOG_BUCKET_REGION, logI, MIN(LOG_BUCKET_REGION, logI));
@@ -108,40 +113,205 @@ struct small_sieve_base {/*{{{*/
         // I     = (1<<logI);
         i0    = ((region_rank_in_line<<LOG_BUCKET_REGION)-(1 << (logI-1)));
         // i1    = (i0+(1<<min_logI_logB));
-        // row0_is_oddj  = ((j0*sublatm+sublatj0)&1);
-
-        sublatm = sublat.m ? sublat.m : 1;
-        sublati0 = sublat.i0;
-        sublatj0 = sublat.j0;
 
         bool has_haxis = !j0;
         bool has_vaxis = region_rank_in_line == ((regions_per_line-1)/2);
         has_origin = has_haxis && has_vaxis;
+        ASSERT(sublat.m == 1 || sublat.m == 2 || sublat.m == 3 || sublat.m == 6);
     }/*}}}*/
 
-    /* Returns (ii - sublati0 + k*q) / sublatm with k >= 0 minimal so that
+    /* {{{ parity of the real (i,j) coordinates
+     *
+     * The sieve position x on row dj of this bucket region has real
+     * coordinates
+     *
+     *      ii = sublat.m * (i0 + x)  + sublat.i0
+     *      jj = sublat.m * (j0 + dj) + sublat.j0
+     *
+     * and the small sieve never has to touch a position where ii and jj
+     * are both even, since gcd(ii,jj) >= 2 there. Note that i0 is always
+     * even, so it never contributes to the parity of ii.
+     *
+     * When sublat.m is odd -- which includes the ordinary case
+     * sublat.m == 1 -- ii and jj have the parities of x + sublat.i0 and
+     * dj + sublat.j0. So the parity of a row flips as dj grows, and on an
+     * even row every other x must be skipped.
+     *
+     * When sublat.m is even, both parities are *constant* over the whole
+     * sublattice: ii has the parity of sublat.i0, jj that of sublat.j0.
+     * The caller never asks for the class where both are even (las.cpp
+     * skips i_cong == j_cong == 0), so at least one of the two is odd
+     * everywhere in the class, and there is nothing to skip on any row.
+     *
+     * That is why an even modulus -- in particular m == 2, the classical
+     * "oddness type" decomposition used by the Franke-Kleinjung sievers
+     * -- is the easy case rather than a harder one: the alternating
+     * logic simply does not apply.
+     */
+    bool has_even_sublatm() const { return (sublat.m & 1) == 0; }
+
+    /* Does row dj == 0 of this region need the skip-every-other-x
+     * treatment, and does that property flip from one row to the next? */
+    bool row0_needs_parity_skip() const {
+        if (has_even_sublatm()) {
+            ASSERT(((sublat.i0 | sublat.j0) & 1) != 0);
+            return false;
+        }
+        return ((j0 + sublat.j0) & 1) == 0;
+    }
+    bool parity_skip_alternates() const { return !has_even_sublatm(); }
+
+    /* On a row whose jj is even, which x have ii even and must therefore
+     * be skipped: 0 for none at all, 1 for the even x, 2 for the odd x. */
+    int parity_skip_class() const {
+        if (has_even_sublatm()) return 0;
+        return (sublat.i0 & 1) ? 2 : 1;
+    }
+    /* }}} */
+
+    /* {{{ prime powers that are not coprime to the sublattice modulus
+     *
+     * Write g = gcd(q, sublat.m). The congruence
+     *
+     *      ii == r * jj  (mod q),   ii = m*x + sublat.i0, jj = m*y + sublat.j0
+     *
+     * becomes, in sublattice coordinates,
+     *
+     *      m*x == m*r*y + c  (mod q),      c = r*sublat.j0 - sublat.i0
+     *
+     * which has a solution only when g divides c, and which then reads
+     *
+     *      x == r*y + (c/g) * (m/g)^-1   (mod q/g).
+     *
+     * So a prime power q behaves, in sublattice coordinates, exactly like
+     * the prime power q/g -- same root, shifted offset -- and either it is
+     * absent from this residue class altogether, or it hits with stride
+     * q/g rather than q. Verified exhaustively for m in {2,3,6} by
+     * bench/cado/verify-sublat-powers.py in the siever-archaeology repo.
+     *
+     * For g = 1, which is every case except a prime dividing the modulus,
+     * all of this collapses to the identity and nothing changes.
+     *
+     * Concretely for m = 2 and q = 2^k: the class (1,0) -- i odd, j even --
+     * never has any power of two dividing, while the classes (0,1) and
+     * (1,1) have stride 2^(k-1) for the roots of the right parity.
+     */
+    fbprime_t sublat_reduced_modulus(fbprime_t q) const {
+        return q / (fbprime_t) gcd_ul(q, (unsigned long) sublat.m);
+    }
+
+    /* Like fix_sublat_i(), but works when q and sublat.m share a factor,
+     * and says so when the congruence has no solution in this class
+     * (in which case *res is untouched). */
+    bool fix_sublat_i_checked(int64_t ii, fbprime_t q, int & res) const {
+        unsigned long const g = gcd_ul(q, (unsigned long) sublat.m);
+        if (g == 1) {
+            res = fix_sublat_i(ii, q);
+            return true;
+        }
+        /* Adding q to ii cannot change ii mod g, so either it is already
+         * right or there is nothing to be done. */
+        int64_t d = ii - (int64_t) sublat.i0;
+        if (d % (int64_t) g)
+            return false;
+        res = fix_sublat_i(ii, q);
+        return true;
+    }
+    /* }}} */
+
+    /* {{{ entries that are sieved row by row under sublattices
+     *
+     * This covers the entries that small_sieve_init() marks with
+     * set_sublat_rowwise(): prime powers whose prime divides the
+     * sublattice modulus (and which are not flat over the class), and
+     * the projective entries that are not pattern-sieved.
+     *
+     * The condition for a hit is
+     *
+     *      ii == T  (mod q)
+     *
+     * where T = r*jj and q = p for an affine entry, and T = (jj/g)*U for
+     * a projective one, which furthermore needs g | jj. With
+     * ii = m*x + sublat.i0, this becomes
+     *
+     *      m*x == T - sublat.i0  (mod q)
+     *
+     * which, with d = gcd(m, q), is solvable iff d divides the right
+     * hand side, and then reads
+     *
+     *      x == ((T - sublat.i0)/d) * (m/d)^-1  (mod q/d).
+     *
+     * (m/d is coprime to q/d because m is squarefree.) This is the
+     * statement of sublat_reduced_modulus() above, with the row
+     * condition of projective entries on top.
+     *
+     * There are few such entries, so we simply do this row by row. We
+     * do not bother with skipping the positions where ii and jj are both
+     * even (the survivor search skips them anyway).
+     *
+     * f is called with the row index relative to j0, the first position
+     * in that row, and the stride.
+     */
+    template<typename F>
+    void foreach_sublat_rowwise_row(ssp_t const & ssp, F && f) const
+    {
+        bool const proj = ssp.is_proj();
+        uint64_t const q = proj ? ssp.get_q() : ssp.get_p();
+        uint64_t const g = proj ? ssp.get_g() : 1;
+        uint64_t const U = proj ? ssp.get_U() : ssp.get_r();
+        uint64_t const m = sublat.m;
+        uint64_t const d = gcd_ul(q, m);
+        uint64_t const s = q / d;
+        uint64_t const md = m / d;
+        /* (m/d)^-1 mod s. m/d is 1, 2 or 3, so one of s+1 and 2*s+1 is
+         * a multiple of it. */
+        uint64_t minv = 0;
+        for (uint64_t t = 0; t < md; t++) {
+            if ((t * s + 1) % md == 0) {
+                minv = ((t * s + 1) / md) % s;
+                break;
+            }
+        }
+        uint64_t const si0 = sublat.i0 % q;
+        for (unsigned int j = j0; j < j1; j++) {
+            uint64_t const jj = uint64_t(j) * m + sublat.j0;
+            if (jj % g)
+                continue;
+            uint64_t const c = ((jj / g) % q * U + q - si0) % q;
+            if (c % d)
+                continue;
+            int64_t const x = int64_t((c / d) * minv % s);
+            int64_t pos = (x - i0) % int64_t(s);
+            if (pos < 0)
+                pos += s;
+            f(j - j0, pos, (int64_t) s);
+        }
+    }
+    /* }}} */
+
+    /* Returns (ii - sublat.i0 + k*q) / sublat.m with k >= 0 minimal so that
        result is an integer */
     int fix_sublat_i(int64_t ii, const fbprime_t q) const {
-        if (sublatm == 1) {
+        if (sublat.m == 1) {
             ASSERT(ii <= INT_MAX);
             return (int) ii;
-        } else if (sublatm == 2) {
-            ASSERT(q % 2 != 0 || ii % 2 == sublati0);
-            for( ; ii % 2 != sublati0 ; ii += q);
-            ii = (ii - sublati0) / 2;
+        } else if (sublat.m == 2) {
+            ASSERT(q % 2 != 0 || ii % 2 == sublat.i0);
+            for( ; ii % 2 != sublat.i0 ; ii += q);
+            ii = (ii - sublat.i0) / 2;
             ASSERT(ii <= INT_MAX);
             return ii;
-        } else if (sublatm == 3) {
-            ASSERT(q % 3 != 0 || ii % 3 == sublati0);
-            for( ; ii % 3 != sublati0 ; ii += q);
-            ii = (ii - sublati0) / 3;
+        } else if (sublat.m == 3) {
+            ASSERT(q % 3 != 0 || ii % 3 == sublat.i0);
+            for( ; ii % 3 != sublat.i0 ; ii += q);
+            ii = (ii - sublat.i0) / 3;
             ASSERT(ii <= INT_MAX);
             return ii;
-        } else if (sublatm == 6) {
-            ASSERT(q % 2 != 0 || ii % 2 == sublati0);
-            ASSERT(q % 3 != 0 || ii % 3 == sublati0);
-            for( ; ii % 6 != sublati0 ; ii += q);
-            ii = (ii - sublati0) / 6;
+        } else if (sublat.m == 6) {
+            ASSERT(q % 2 != 0 || ii % 2 == sublat.i0);
+            ASSERT(q % 3 != 0 || ii % 3 == sublat.i0);
+            for( ; ii % 6 != sublat.i0 ; ii += q);
+            ii = (ii - sublat.i0) / 6;
             ASSERT(ii <= INT_MAX);
             return ii;
         } else {
@@ -154,26 +324,27 @@ struct small_sieve_base {/*{{{*/
         /* equation here: i-r*j = 0 mod p */
 
         /* Expanded wrt first row j0 and sublats: smallest pos0 s.t.:
-         *  sublatm*(i0+pos0)+sublati0 - r*(j0*sublatm+sublatj0) = -k*p
-         *  (p is coprime to sublatm).
+         *  sublat.m*(i0+pos0)+sublat.i0 - r*(j0*sublat.m+sublat.j0) = -k*p
+         *  (p is coprime to sublat.m).
          *
          * In non-sublat mode, this means:  (i0+pos0)-r*j0 = 0 mod p
          * so that pos0 = (r*j0 - i0) mod p where i0 is traditionally
          * negative (that helps for sign stuff, of course).
          *
-         * So S = sublatm*pos0 must be such that:
+         * So S = sublat.m*pos0 must be such that:
          *
-         * S = r*(j0*sublatm+sublatj0) - (sublatm*i0+sublati0) + k*p
+         * S = r*(j0*sublat.m+sublat.j0) - (sublat.m*i0+sublat.i0) + k*p
          *
          * pos0 being an integer, of course. So there's only one
-         * congruence class for k mod sublatm such that the above
+         * congruence class for k mod sublat.m such that the above
          * happens. We start by computing it.
          *
-         *  k:=((sublati0 - r * sublatj0) * invp_mod_m) mod sublatm;
+         *  k:=((sublat.i0 - r * sublat.j0) * invp_mod_m) mod sublat.m;
          *
          * then we deduce pos0 as:
          *
-         *  pos0:=j0 * r - i0 + (((r*sublatj0-sublati0)+k*p) div sublatm)
+         *  pos0:=j0 * r - i0 + (((r*sublat.j0-sublat.i0)+k*p) div
+         *  sublat.m)
          *
          * and finally we take pos0 mod p.
          */
@@ -181,15 +352,15 @@ struct small_sieve_base {/*{{{*/
          */
         // spos_t x = (spos_t)(j0) * (spos_t)ssp.get_r() - i0;
         int64_t x = (int64_t)(j0) * (int64_t)ssp.get_r() - i0;
-        if (sublatm > 1) {
-            ASSERT(ssp.get_p() % sublatm);
+        if (sublat.m > 1) {
+            ASSERT(ssp.get_p() % sublat.m);
             /* alternative code. not clear it's better.
-               ASSERT(sublatm == 2 || sublatm == 3 || sublatm == 6);
+               ASSERT(sublat.m == 2 || sublat.m == 3 || sublat.m == 6);
                uint64_t invp_mod_m = p;
-               int k = ((sublati0 - r * sublatj0) * invp_mod_m) % sublatm;
-               x += ((r * sublatj0 - sublati0) + k * p) / sublatm;
+               int k = ((sublat.i0 - r * sublat.j0) * invp_mod_m) % sublat.m;
+               x += ((r * sublat.j0 - sublat.i0) + k * p) / sublat.m;
                */
-            spos_t y = ssp.get_r() * sublatj0;
+            spos_t y = ssp.get_r() * sublat.j0;
             x += fix_sublat_i(y, ssp.get_p());
         }
         x = x % (int64_t)ssp.get_p();
@@ -224,11 +395,11 @@ struct small_sieve_base {/*{{{*/
         /*
          * Because of the sublat feature, (i0,j0) actually correspond
          * to "expanded" indices computed as:
-         *      ii = i0 * sublatm + sublati0
-         *      jj = j0 * sublatm + sublatj0
+         *      ii = i0 * sublat.m + sublat.i0
+         *      jj = j0 * sublat.m + sublat.j0
          */
 
-        unsigned int jj = j0*sublatm + sublatj0;
+        unsigned int jj = j0*sublat.m + sublat.j0;
 
         /* First question is to find the next multiple of g above jj.
          * This is done as follows */
@@ -247,17 +418,17 @@ struct small_sieve_base {/*{{{*/
          * position (1,0). At least at some point it did */
         if (skip_line_jj0 && jj == 0) jj += ssp.get_g();
 
-        // In sublat mode, we also need jj congruent to sublatj0 mod m.
-        // XXX A very nasty situation: when ssp.g and sublatm are
+        // In sublat mode, we also need jj congruent to sublat.j0 mod m.
+        // XXX A very nasty situation: when ssp.g and sublat.m are
         // not coprime, we may very well have an infinite loop here
-        // (say we want to sieve only even lines and sublatj0=1,
-        // sublatm=1. For the moment, we do SSP_DISCARD_SUBLAT
-        // whenever p and sublatm have a common divisor. If we want
+        // (say we want to sieve only even lines and sublat.j0=1,
+        // sublat.m=1. For the moment, we do SSP_DISCARD_SUBLAT
+        // whenever p and sublat.m have a common divisor. If we want
         // to be finer grain, we need to selectively discard some
         // small sieved primes depending on the sublattice we're
         // considering (or but ssdpos to ULONG_MAX ?).
-        if (sublatm > 1) {
-            for( ; int(jj % sublatm) != sublatj0 ; jj += ssp.get_g());
+        if (sublat.m > 1) {
+            for( ; jj % sublat.m != sublat.j0 ; jj += ssp.get_g());
         }
         // Find the corresponding i
         int ii = int(jj/ssp.get_g())*int(ssp.get_U());
@@ -265,8 +436,8 @@ struct small_sieve_base {/*{{{*/
         ii = fix_sublat_i(ii, ssp.get_q());
         // In the sublat mode, switch back to reduced convention
         // (exact divisions)
-        if (sublatm > 1) {
-            jj = (jj-sublatj0) / sublatm;
+        if (sublat.m > 1) {
+            jj = (jj-sublat.j0) / sublat.m;
         }
 
         /* At this point we know that the point (ii,jj) is one of the
@@ -306,30 +477,41 @@ struct small_sieve_base {/*{{{*/
          * power for i-j*r multiple of our power of 2, which means
          * i even too. Thus a useless report.
          */
+        /* With an even sublattice modulus the parity of the real j is
+         * fixed over the whole class, so either every row is odd and
+         * there is no "next odd line" to look for, or no row is and this
+         * power of two has no hit here at all. See the discussion of
+         * sublat_reduced_modulus() above. */
         unsigned int j = j0;
-        uint64_t jj = j*sublatm + sublatj0;
-        // uint64_t ii = i0*sublatm + sublati0;
+        uint64_t jj = j*sublat.m + sublat.j0;
+        // uint64_t ii = i0*sublat.m + sublat.i0;
         /* next odd line */
         // This was: jj |= 1;
         int i0ref = i0;
         if ((jj & 1) == 0) {
-            jj += sublatm;
+            if (has_even_sublatm())
+                return NO_POSITION;
+            jj += sublat.m;
             i0ref = (-I()/2);
         }
-        spos_t x = (spos_t)jj * (spos_t)ssp.get_r();
-        x = fix_sublat_i(x, ssp.get_p());
-        x = (x - i0ref) & (ssp.get_p() - 1);
-        if (x < 0) x += ssp.get_p();
+        fbprime_t const q = sublat_reduced_modulus(ssp.get_p());
+        int xi;
+        if (!fix_sublat_i_checked((spos_t)jj * (spos_t)ssp.get_r(),
+                                  ssp.get_p(), xi))
+            return NO_POSITION;
+        spos_t x = xi;
+        x = (x - i0ref) & (q - 1);
+        if (x < 0) x += q;
         /* our target is position x in the bucket region which starts
          * at coordinates (i0ref, jj). How far is that from us ?
          */
-        // The condition is: if ((jj / sublatm) > j)
-        // but we separate the case sublatm=1 to avoid the div in the
+        // The condition is: if ((jj / sublat.m) > j)
+        // but we separate the case sublat.m=1 to avoid the div in the
         // general case.
-        if (((sublatm == 1) && (jj > j)) ||
-                ((jj / sublatm) > j)) {
+        if (((sublat.m == 1) && (jj > j)) ||
+                ((jj / sublat.m) > j)) {
             x -= region_rank_in_line << LOG_BUCKET_REGION;
-            x += (((uint64_t)((jj / sublatm) - j0))<<logI);
+            x += (((uint64_t)((jj / sublat.m) - j0))<<logI);
             /* For the case of several bucket regions per line, it's
              * clear that this position will be outside the current
              * bucket region. Note that some special care is needed
@@ -351,7 +533,7 @@ struct small_sieve_base {/*{{{*/
     fbroot_t first_position_in_line(ssp_t const & ssp, unsigned int dj = 0) const
     {
         const unsigned int j = j0 + dj;
-        const unsigned int jj = j * sublatm + sublatj0;
+        const unsigned int jj = j * sublat.m + sublat.j0;
 
         if (ssp.is_proj()) {
             ASSERT (jj % ssp.get_g() == 0);
@@ -398,7 +580,7 @@ struct small_sieve : public small_sieve_base {/*{{{*/
             std::vector<ssp_t> const & not_nice_primes,
             unsigned char*S, int logI,
             unsigned int N,
-            sublat_t const & sublat
+            sublat_runtime_t const & sublat
             )
         : super(logI, N, sublat),
             positions(positions),
@@ -449,12 +631,24 @@ struct small_sieve : public small_sieve_base {/*{{{*/
     using super::i0;
     using super::j0;
     using super::j1;
-    using super::sublatj0;
+    using super::sublat;
     using super::I;
     using super::F;
     using super::skip_line_jj0;
 
     void handle_projective_prime(ssp_t const & ssp, where_am_I & w);
+    void handle_sublat_rowwise(ssp_t const & ssp, where_am_I & w MAYBE_UNUSED) {/*{{{*/
+        WHERE_AM_I_UPDATE(w, p, ssp.is_proj() ? ssp.get_g() * ssp.get_q() : ssp.get_p());
+        const unsigned char logp = ssp.logp;
+        super::foreach_sublat_rowwise_row(ssp,
+                [&](unsigned int dj, int64_t pos, int64_t s) {
+                    unsigned char * S_ptr = S + ((size_t) dj << logI);
+                    for ( ; pos < F() ; pos += s) {
+                        WHERE_AM_I_UPDATE(w, x, ((size_t) dj << logI) + pos);
+                        sieve_increase (S_ptr + pos, logp, w);
+                    }
+                });
+    }/*}}}*/
     void handle_power_of_2(ssp_t const & ssp, where_am_I & w MAYBE_UNUSED) {/*{{{*/
         /* Powers of 2 are treated separately */
         /* Don't sieve powers of 2 again that were pattern-sieved */
@@ -469,6 +663,17 @@ struct small_sieve : public small_sieve_base {/*{{{*/
         unsigned char *S_ptr = S;
 
         int pos = super::first_position_power_of_two(ssp);
+        if (pos == super::NO_POSITION)
+            return;
+
+        /* In sublattice coordinates this power of two hits with stride
+         * q = p/gcd(p,sublat.m), not p. With an even modulus the parity of
+         * the real j is constant, so every sublattice row is sieved and
+         * consecutive rows are one apart rather than two; the position
+         * then advances by r per row instead of 2r. See
+         * sublat_reduced_modulus(). */
+        const fbprime_t q = super::sublat_reduced_modulus(p);
+        const unsigned int dj = super::has_even_sublatm() ? 1 : 2;
 
         unsigned int j = j0;
         /* Our encoding is that when the first row is even, the
@@ -484,21 +689,23 @@ struct small_sieve : public small_sieve_base {/*{{{*/
          * one go. But really, who cares, at the end of the day.
          */
 
-        if ((j*super::sublatm + super::sublatj0) % 2 == 0) {
+        if ((j*super::sublat.m + super::sublat.j0) % 2 == 0) {
+            /* cannot happen for an even modulus: first_position_power_of_two
+             * returned NO_POSITION in that case */
+            ASSERT(!super::has_even_sublatm());
             ASSERT(pos >= F());
             pos -= F(); S_ptr += F();
             j++;
         }
-        if (j < j1) pos &= (p-1);
-        for( ; j < j1 ; j+= 2) {
-            for (int i = pos; i < F(); i += p) {
+        if (j < j1) pos &= (q-1);
+        for( ; j < j1 ; j += dj) {
+            for (int i = pos; i < F(); i += q) {
                 WHERE_AM_I_UPDATE(w, x, ((size_t) (j-j0) << logI) + i);
                 sieve_increase (S_ptr + i, logp, w);
             }
-            // odd lines only.
-            pos = (pos + (r << 1)) & (p - 1);
-            S_ptr += I();
-            S_ptr += I();
+            pos = (pos + r * dj) & (q - 1);
+            for (unsigned int k = 0; k < dj; k++)
+                S_ptr += I();
         }
 #if 0
         /* see above. Because we do j+=2, we have either j==j1 or
@@ -528,19 +735,18 @@ struct small_sieve : public small_sieve_base {/*{{{*/
          * So whether we add I or (i1-i0) to S0 does not matter much.
          */
 
-        bool row0_even = (((j0&super::sublatm)+super::sublatj0) & 1) == 0;
-        bool dj_row0_evenness = (super::sublatm & 1);
-        bool even = row0_even;
+        bool even = super::row0_needs_parity_skip();
+        const bool alternates = super::parity_skip_alternates();
 
         for(unsigned int j = j0; j < j1; j++) {
             WHERE_AM_I_UPDATE(w, j, j - j0);
-            if (skip_line_jj0 && sublatj0 == 0 && j0 == 0 && j == 0) {
+            if (skip_line_jj0 && sublat.j0 == 0 && j0 == 0 && j == 0) {
                 /* A nice prime p hits in line j=0 only in locations
                    where p|i, so no need to sieve those. */
             } else if (even) {
                 /* for j even, we sieve only odd pi, so step = 2p. */
                 {
-                    spos_t xpos = ((super::sublati0 + pos) & 1) ? pos : (pos+p);
+                    spos_t xpos = ((super::sublat.i0 + pos) & 1) ? pos : (pos+p);
                     even_code()(S0, S1, S0 - S, xpos, p+p, logp, w);
                 }
             } else {
@@ -548,8 +754,8 @@ struct small_sieve : public small_sieve_base {/*{{{*/
             }
             S0 += I();
             S1 += I();
-            pos += r; if (pos >= (spos_t) p) pos -= p; 
-            even ^= dj_row0_evenness;
+            pos += r; if (pos >= (spos_t) p) pos -= p;
+            even ^= alternates;
         }
         return true;
     }/*}}}*/
@@ -570,8 +776,8 @@ struct small_sieve : public small_sieve_base {/*{{{*/
              */
 
 #ifdef HAVE_SSE41
-            bool row0_even = (((j0&super::sublatm)+super::sublatj0) & 1) == 0;
-            bool dj_row0_evenness = (super::sublatm & 1);
+            const bool row0_even = super::row0_needs_parity_skip();
+            const bool alternates = super::parity_skip_alternates();
 
             for( ; index + 3 < sorted_limit ; index+=4) {
                 /* find 4 index values with no special prime */
@@ -617,14 +823,14 @@ struct small_sieve : public small_sieve_base {/*{{{*/
                  * So whether we add I or (i1-i0) to S0 does not matter much.
                  */
                 __m128i ones = _mm_set1_epi32(1);
-                __m128i sublati0 = _mm_set1_epi32(super::sublati0);
+                __m128i sublati0 = _mm_set1_epi32(super::sublat.i0);
                 bool even = row0_even;
                 for(unsigned int j = j0 ; j < j1; j++) {
                     WHERE_AM_I_UPDATE(w, j, j - j0);
                     /* the if() branch here that the compiler and/or the
                      * branch predictor are smart enough to make its code
                      * reduce to almost zero */
-                    if (skip_line_jj0 && sublatj0 == 0 && j0 == 0 && j == 0) {
+                    if (skip_line_jj0 && sublat.j0 == 0 && j0 == 0 && j == 0) {
                         /* A nice prime p hits in line j=0 only in locations
                            where p|i, so no need to sieve those. */
                     } else if (even) {
@@ -662,7 +868,7 @@ struct small_sieve : public small_sieve_base {/*{{{*/
                     S1 += I();
                     pos = _mm_add_epi32(pos, r);
                     pos = _mm_sub_epi32(pos, _mm_andnot_si128(_mm_cmplt_epi32(pos, p), p));
-                    even ^= dj_row0_evenness;
+                    even ^= alternates;
                 }
             }
 #endif
@@ -776,7 +982,9 @@ struct small_sieve : public small_sieve_base {/*{{{*/
          * start positions *only* for the primes in the ssps array. */
 
         for(auto const & ssp : not_nice_primes) {
-            if (ssp.is_pattern_sieved()) {
+            if (ssp.is_sublat_rowwise()) {
+                handle_sublat_rowwise(ssp, w);
+            } else if (ssp.is_pattern_sieved()) {
                 /* This ssp is pattern-sieved, nothing to do here */
             } else if (ssp.is_proj()) {
                 handle_projective_prime(ssp, w);

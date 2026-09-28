@@ -166,6 +166,11 @@ void nfs_work::allocate_buckets(nfs_aux & aux, thread_pool & pool)
 
     bool const do_resieve = conf.needs_resieving();
 
+    /* Only the plain siever skips the positions where i and j are both
+     * even. Within a sublattice, every position is hit with density 1/p.
+     */
+    bool const parity_skip = conf.sublat_bound <= 1;
+
     for (auto & wss : sides) {
         if (wss.no_fb()) continue;
         wss.group.allocate_buckets(
@@ -174,6 +179,7 @@ void nfs_work::allocate_buckets(nfs_aux & aux, thread_pool & pool)
                 bk_multiplier,
                 wss.fbs->stats.weight,
                 conf.logI,
+                parity_skip,
                 aux, pool, do_resieve);
     }
     pool.drain_queue(thread_pool::QUEUE_MISC);
@@ -412,8 +418,16 @@ void nfs_work::prepare_for_new_q(las_info & las0, special_q_task * task, typenam
     bk_multiplier = las0.get_bk_multiplier();
     compute_toplevel_and_buckets();
 
-    jd = las0.get_j_divisibility_helper(J);
-    us = las0.get_unsieve_data(conf);
+    /* Coprimality is decided on the *real* row jj = m*j + sublat.j0, which
+     * runs up to m*J, so both helpers have to be built for that range and
+     * not for J. Getting this wrong reads past the end of their tables. */
+    {
+        unsigned int const m = Q.sublat.m;
+        int extra = 0;
+        while ((1U << extra) < m) extra++;
+        jd = las0.get_j_divisibility_helper(J * m);
+        us = las0.get_unsieve_data(conf.logI, conf.logA + extra);
+    }
 
     /* we may now allocate the bucket regions for all threads. Those are
      * quite unsignificant of course, but in cases where we have gobs of

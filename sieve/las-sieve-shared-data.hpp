@@ -128,6 +128,7 @@ struct sieve_shared_data {
     > us_cache;
     public:
     unsieve_data const * get_unsieve_data(siever_config const & conf);
+    unsieve_data const * get_unsieve_data(int logI, int logA);
 
     /* in las-unsieve.cpp */
     /* Data for divisibility tests p|i in lines where p|j */

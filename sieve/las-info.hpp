@@ -123,6 +123,9 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     unsieve_data const * get_unsieve_data(siever_config const & conf) {
         return local_cache().get_unsieve_data(conf);
     }
+    unsieve_data const * get_unsieve_data(int logI, int logA) {
+        return local_cache().get_unsieve_data(logI, logA);
+    }
     j_divisibility_helper const * get_j_divisibility_helper(int J) {
         return local_cache().get_j_divisibility_helper(J);
     }

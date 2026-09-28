@@ -313,7 +313,7 @@ void process_bucket_region_run::init_norms(int side)/*{{{*/
 
     int const N = first_region0_index + already_done + bucket_relative_index;
 
-    ws.sides[side].lognorms.fill(S[side], N);
+    ws.sides[side].lognorms.fill(S[side], N, Q.sublat);
 
 #if defined(TRACE_K) 
     if (trace_on_spot_N(w->N))
@@ -474,15 +474,25 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
             S[0] ? S[0] + offset : nullptr,
             S.size() > 1 && S[1] ? S[1] + offset : nullptr,
         };
-        /* TODO FIXME XXX that's weird. How come don't we merge that with
-         * the lognorm computation that goes in the ws.sides[side]
-         * regions before apply_buckets + small_sieve ?? Could it help
-         * save a bit of time in search_survivors_in_line ?
+        /* The prime powers that divide the sublattice modulus are not
+         * sieved at all: they contribute the same log to every position
+         * of the class, so small_sieve_init() merely accumulates that
+         * log in ssd->constant_logp. Raising the bound by the same
+         * amount selects exactly the same survivors, for free.
+         *
+         * (this used to carry a FIXME asking whether the bound could be
+         * merged into the lognorm initialisation. It could, and it would
+         * let us skip the S-minus-S pass, but that pass measures at 0.4%
+         * of the total; it would do nothing at all for the survivor
+         * search, where the bound is a scalar broadcast once.)
          */
-        const unsigned char both_bounds[2] = {
-            ws.sides[0].lognorms.bound,
-            ws.sides[1].lognorms.bound,
+        auto bound_of = [&](int side) {
+            /* 255 must keep meaning "not a survivor" */
+            unsigned int const b = ws.sides[side].lognorms.bound
+                                 + ws.sides[side].ssd->constant_logp;
+            return (unsigned char) (b < 254 ? b : 254);
         };
+        const unsigned char both_bounds[2] = { bound_of(0), bound_of(1) };
         size_t const old_size = temp_sv.size();
 
         ASSERT(j < ws.J);

@@ -37,9 +37,7 @@ static int abort_on_fail = 0;
 static int only_complete_functions = 0;
 
 /* this is really a mock structure just for the fun of it. */
-static sublat_t sl;
-
-
+static sublat_runtime_t sl;
 
 
 /******************************************************************/

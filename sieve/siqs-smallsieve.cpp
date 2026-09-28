@@ -218,7 +218,7 @@ siqs_small_sieve_data::small_sieve_prepare_many_start_positions(
         unsigned int first_region_index,
         int nregions,
         int logI,
-        sublat_t const &)
+        sublat_runtime_t const &)
 {
     /* nregions should be a positive power of 2 */
     ASSERT_ALWAYS(nregions > 0 && !(nregions & (nregions - 1u)));
@@ -303,7 +303,7 @@ siqs_small_sieve_data::sieve_small_bucket_region(
         unsigned int N,
         int bucket_relative_index,
         int logI,
-        sublat_t const &,
+        sublat_runtime_t const &,
         where_am_I & w) const
 {
     std::vector<siqs_pos_t> const & ssdpos = ssdpos_many[bucket_relative_index];
@@ -320,7 +320,7 @@ siqs_small_sieve_data::resieve_small_bucket_region(
         unsigned int N,
         int bucket_relative_index,
         int logI,
-        sublat_t const &,
+        sublat_runtime_t const &,
         where_am_I & w MAYBE_UNUSED)
 {
     auto const & ssdpos = ssdpos_many[bucket_relative_index];

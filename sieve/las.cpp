@@ -300,8 +300,6 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     bkmult_specifier const bkmult =
         hypothetical_bkmult ? *hypothetical_bkmult : las.get_bk_multiplier();
 
-    /* FIXME: I think that this code misses the case of sublat. */
-
     /* sc.instantiate_thresholds() depends on sc.logI */
     std::vector<fb_factorbase::key_type> K;
 
@@ -312,6 +310,8 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
 
     size_t memory = 0;
     size_t more;
+
+    bool const with_sublat = sc.sublat_bound > 1;
 
 #if 0 && defined(__linux__) && defined(HAVE_GLIBC) && defined(__x86_64__)
     /* count threads. Each costs 8M+4k for the stack, 64MB for the
@@ -486,8 +486,12 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
                 iceildiv(size_t(1) << sc.logA, BUCKET_REGIONS[fib_level])
                 : (size_t(1) << (LOG_BUCKET_REGIONS[fib_level + 1] - LOG_BUCKET_REGIONS[fib_level]));
             size_t nup_per_reg = 0.25 * w * BUCKET_REGIONS[fib_level] / nba;
-            /* assume LOG_BUCKET_REGIONS[fib_level] > logI */
-            nup_per_reg *= 3;
+            /* The plain siever skips the positions where i and j are
+             * both even, so that only 3/4 of the positions receive
+             * updates. Under sublattices, all of them do (see
+             * bucket_array_t::allocate_memory).
+             */
+            nup_per_reg *= with_sublat ? 4 : 3;
             nup_per_reg += NB_DEVIATIONS_BUCKET_REGIONS * sqrt(nup_per_reg);
             size_t const nupdates = nup_per_reg * nreg * nba;
             {
@@ -506,6 +510,19 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
                         fib_level,
                         side, nprimes,
                         size_disp(more = nprimes * sizeof(plattice_enumerator)));
+                memory += more;
+            } else if (with_sublat) {
+                /* The Franke-Kleinjung bases of the toplevel primes are
+                 * computed for the first sublattice, and kept for the
+                 * other ones.
+                 */
+                verbose_fmt_print(0, 3 + hush,
+                        "# level {}, side {}: {} primes => dense plattices"
+                        " kept across sublattices: {}\n",
+                        fib_level,
+                        side, nprimes,
+                        size_disp(more = nprimes * sizeof(plattice_info_dense_t)));
+                memory += more;
             }
             {
                 /* Count the slice_start pointers as well. We need to know
@@ -936,23 +953,11 @@ do_one_special_q(
         }
     }
 
-    unsigned int sublat_bound = Q.sublat.m;
-    if (sublat_bound == 0)
-        sublat_bound = 1;
-
-    for (unsigned int i_cong = 0; i_cong < sublat_bound; ++i_cong) {
-        for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
-            if (Q.sublat.m) {
-                if (i_cong == 0 && j_cong == 0)
-                    continue;
-                Q.sublat.i0 = i_cong;
-                Q.sublat.j0 = j_cong;
-                verbose_fmt_print(0, 1,
-                        "# Sublattice (i,j) == ({}, {}) mod {}\n",
-                        Q.sublat.i0, Q.sublat.j0, Q.sublat.m);
-            }
-            do_one_special_q_sublat(ws, wc_p, aux_p, Q, pool);
-        }
+    for (auto const & ij: Q.sublat.sublattices()) {
+        Q.sublat = ij;
+        if (Q.sublat.m > 1)
+            verbose_fmt_print(0, 1, "# Sublattice {}\n", Q.sublat);
+        do_one_special_q_sublat(ws, wc_p, aux_p, Q, pool);
     }
 
     /* It's better than before, but still. We're going to keep this data

@@ -13,6 +13,7 @@
 #include "las-config.hpp"
 #include "las-qlattice.hpp"
 #include "las-siever-config.hpp"
+#include "las-sublat.hpp"
 #include "logapprox.hpp"
 #include "polynomial.hpp"
 #include "macros.h"
@@ -79,7 +80,11 @@ struct lognorm_base {/*{{{*/
             unsigned int j,
             special_q_data_class auto const & Q) const;
 
-    virtual void fill(unsigned char * S, unsigned int N MAYBE_UNUSED) const {
+    /* sl is the sublattice class being sieved: the position x on row j
+     * of the region stands for the real coordinates
+     * (sl.m*i+sl.i0, sl.m*j+sl.j0). */
+    virtual void fill(unsigned char * S, unsigned int N MAYBE_UNUSED,
+            sublat_runtime_t const & sl MAYBE_UNUSED) const {
         /* Whether we put something or not here is not really important.
          * A no-op would do as well. */
         memset(S, 255, 1U << LOG_BUCKET_REGION);
@@ -105,10 +110,10 @@ struct lognorm_reference : public lognorm_base {/*{{{*/
     lognorm_reference& operator=(lognorm_reference const &) = default;
     lognorm_reference(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, uint32_t J);
     ~lognorm_reference() override = default;
-    void fill(unsigned char * S, unsigned int N) const override;
+    void fill(unsigned char * S, unsigned int N, sublat_runtime_t const & sl) const override;
     private:
-    void fill_alg(unsigned char * S, uint32_t N) const;
-    void fill_rat(unsigned char * S, uint32_t N) const;
+    void fill_alg(unsigned char * S, uint32_t N, sublat_runtime_t const & sl) const;
+    void fill_rat(unsigned char * S, uint32_t N, sublat_runtime_t const & sl) const;
     void fill_siqs(unsigned char * S, uint32_t N) const;
 };
 
@@ -139,11 +144,12 @@ struct lognorm_smart : public lognorm_base {/*{{{*/
             int logI,
             uint32_t J);
     ~lognorm_smart() override = default;
-    void fill(unsigned char * S, unsigned int N) const override;
+    void fill(unsigned char * S, unsigned int N, sublat_runtime_t const & sl) const override;
     private:
-    void fill_rat_inner (unsigned char *S, int i0, int i1, unsigned int j0, unsigned int j1, polynomial<double> const & fijd) const;
-    void fill_alg(unsigned char * S, uint32_t N) const;
-    void fill_rat(unsigned char * S, uint32_t N) const;
+    /* fills with the logs of |fijd[0]*j + c + fijd[1]*i| */
+    void fill_rat_inner (unsigned char *S, int i0, int i1, unsigned int j0, unsigned int j1, polynomial<double> const & fijd, double c = 0) const;
+    void fill_alg(unsigned char * S, uint32_t N, sublat_runtime_t const & sl) const;
+    void fill_rat(unsigned char * S, uint32_t N, sublat_runtime_t const & sl) const;
     void fill_siqs(unsigned char * S, uint32_t N) const;
 };
 

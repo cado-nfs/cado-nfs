@@ -264,7 +264,7 @@ qlattice_basis::convert_ab_to_ij(
     }
     i = mpz_get_si(ii);
     j = mpz_get_ui(jj);
-    if (sublat.m != 0) {
+    if (sublat.m > 1) {
         int64_t imodm = i % int64_t(sublat.m);
         if (imodm < 0) {
             imodm += sublat.m;

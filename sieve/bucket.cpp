@@ -73,6 +73,7 @@ template <int LEVEL, hint_type HINT>
 void bucket_array_t<LEVEL, HINT>::allocate_memory(
     las_memory_accessor & memory, uint32_t const new_n_bucket,
     double const fill_ratio, int MAYBE_UNUSED logI,
+    bool MAYBE_UNUSED parity_skip,
     slice_index_t const prealloc_slices)
 {
     static_assert(LEVEL < FB_MAX_PARTS);
@@ -98,6 +99,10 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
      * Bucket regions for which this line ordinate is even will receive
      * updates for 50% of the locations only, in contrast to 100% when the
      * ordinate is even.
+     *
+     * All of this is only true if parity_skip is set. Under sublattices,
+     * the fill does not skip anything, and all locations receive
+     * updates.
      */
 
     size_t const Q = 0.25 * fill_ratio * BUCKET_REGIONS[LEVEL];
@@ -122,7 +127,12 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
     bs_odd = bucket_misalignment(bs_odd, sizeof(update_t));
     new_big_size = bs_odd * new_n_bucket;
 #else
-    if (LOG_BUCKET_REGIONS[LEVEL] <= logI) {
+    if (!parity_skip) {
+        bs_even = bs_odd = 4 * Q + ndev * sqrt(4 * Q);
+        bs_even = bucket_misalignment(bs_even, sizeof(update_t));
+        bs_odd = bucket_misalignment(bs_odd, sizeof(update_t));
+        new_big_size = bs_odd * new_n_bucket;
+    } else if (LOG_BUCKET_REGIONS[LEVEL] <= logI) {
         bitmask_line_ordinate = UINT32_C(1)
                                 << (logI - LOG_BUCKET_REGIONS[LEVEL]);
         ASSERT_ALWAYS(new_n_bucket % 2 == 0);

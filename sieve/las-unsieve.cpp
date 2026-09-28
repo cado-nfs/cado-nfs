@@ -96,22 +96,40 @@ unsieve_data::~unsieve_data()
     delete[] entries;
 }
 
+/* skip_class says which x are already known not to be survivors, because
+ * the small sieve left them alone: 0 for none, 1 for the even x, 2 for the
+ * odd x. We can then step by 2p instead of p. See
+ * sublat_runtime_t::parity_skip_class(); without sublattices this is simply
+ * "the even x, when j is even". */
 static inline void
 unsieve_one_prime (unsigned char *line_start, const unsigned int p, 
-                   const unsigned int j, const unsigned int start_idx,
+                   const int skip_class, const unsigned int start_idx,
                    const unsigned int I)
 {
-  unsigned int x, np = p; /* if 2|j, np=2p, else np=p */
+  unsigned int x, np = p;
 
   x = start_idx;
-  if (j % 2U == 0U)
+  if (skip_class != 0)
     {
       np += p;
-      if (x % 2U == 0U)
+      if ((int) (x % 2U) == skip_class - 1)
         x += p;
     }
   for ( ; x < I; x += np)
     line_start[x] = 255;
+}
+
+/* t with m*t == 1 (mod p), for the handful of moduli that sublattices use
+ * and any p coprime to m. Only reached for p > td_max, so p > 3 and the
+ * inverse always exists. */
+static inline unsigned int
+inv_small_mod (unsigned int m, unsigned int p)
+{
+  for (unsigned int k = 0; k < m; k++)
+    if ((k * p + 1) % m == 0)
+      return ((k * p + 1) / m) % p;
+  ASSERT_ALWAYS(0);
+  return 0;
 }
 
 
@@ -273,19 +291,46 @@ unsieve_7(unsigned char *line_start, const unsigned int start_idx,
 }
 
 
+/* Mark as dead every x on this line whose real coordinates ii, jj have a
+ * common prime factor of at least min_p. Everything below min_p is left to
+ * the div[] tests in search_survivors_in_line*().
+ *
+ * j, i0 and i1 are sublattice coordinates; S maps them to the real ones.
+ */
 static void
 unsieve_not_coprime_line(unsigned char * line_start,
                          unsigned int j,
                          int i0, int i1,
                          unsigned int min_p,
-                         unsieve_data const & us)
+                         unsieve_data const & us,
+                         sublat_runtime_t const & S)
 {
-  unsigned int p, c=j;
+  unsigned int p;
   int start_idx;
 
-  if (j == 0)
+  unsigned int const jj = S.jj(j);
+  if (jj == 0)
     return;
+  ASSERT(jj < us.Jmax);
 
+  /* the x that are already dead, and can therefore be stepped over */
+  int const skip_class = (jj % 2U == 0U) ? S.parity_skip_class() : 0;
+
+  /* p | ii means m*(i0+x) + sublat.i0 == 0 (mod p), i.e.
+   *   x == -i0 - sublat.i0 * m^-1  (mod p).
+   * With m == 1 and sublat.i0 == 0 this is the familiar (-i0) % p. Only
+   * primes above min_p > 3 get here, so m is always invertible mod p. */
+#define UNSIEVE_START_IDX(p)                                            \
+  do {                                                                  \
+      int64_t t = -(int64_t) i0;                                        \
+      if (S.m != 1 && S.i0)                                             \
+          t -= (int64_t) S.i0 * (int64_t) inv_small_mod(S.m, (p));      \
+      t %= (int64_t) (p);                                               \
+      if (t < 0) t += (p);                                              \
+      start_idx = (int) t;                                              \
+  } while (0)
+
+  unsigned int c = jj;
   while (c % 2U == 0U) 
     c >>= 1;
 
@@ -294,18 +339,18 @@ unsieve_not_coprime_line(unsigned char * line_start,
       p = us.entries[c].lpf; /* set p to largest prime factor of c */
       if (p < min_p)
         return;
-      start_idx = (-i0) % p; if (start_idx < 0) start_idx += p;
+      UNSIEVE_START_IDX(p);
       c = us.entries[c].cof;
       if (p <= 7)
         break;
-      unsieve_one_prime (line_start, p, j, start_idx, i1 - i0);
+      unsieve_one_prime (line_start, p, skip_class, start_idx, i1 - i0);
     }
   
   if (p == 7U)
     {
       unsieve_7(line_start, start_idx, i1 - i0, us);
       p = us.entries[c].lpf;
-      start_idx = (-i0) % p; if (start_idx < 0) start_idx += p;
+      UNSIEVE_START_IDX(p);
       c = us.entries[c].cof;
     }
 
@@ -316,7 +361,7 @@ unsieve_not_coprime_line(unsigned char * line_start,
     {
       unsieve_5(line_start, start_idx, i1 - i0, us);
       p = us.entries[c].lpf;
-      start_idx = (-i0) % p; if (start_idx < 0) start_idx += p;
+      UNSIEVE_START_IDX(p);
       c = us.entries[c].cof;
     }
 
@@ -327,6 +372,7 @@ unsieve_not_coprime_line(unsigned char * line_start,
       unsieve_3(line_start, start_idx, i1 - i0, us);
 
   ASSERT_ALWAYS(c <= 1);
+#undef UNSIEVE_START_IDX
 }
 
 j_divisibility_helper::j_divisibility_helper(uint32_t J)
@@ -399,12 +445,14 @@ search_survivors_in_line1(unsigned char * const SS[2],
         unsigned int j, 
         int i0, int i1,
         int N MAYBE_UNUSED, j_divisibility_helper const & j_div,
-        unsigned int td_max, std::vector<uint32_t> &survivors)
+        unsigned int td_max, std::vector<uint32_t> &survivors,
+        sublat_runtime_t const & S)
 {
     unsigned int div[6][2], nr_div;
 
-    nr_div = extract_j_div(div, j, j_div, 3, td_max);
+    nr_div = extract_j_div(div, S.jj(j), j_div, 3, td_max);
     ASSERT_ALWAYS(nr_div <= 6);
+    int const skip_class = (S.jj(j) % 2 == 0) ? S.parity_skip_class() : 0;
 
     for (int x = 0; x < (i1 - i0); x++) {
         if (!sieve_info_test_lognorm(bound[0], bound[1], SS[0][x], SS[1][x]))
@@ -412,11 +460,17 @@ search_survivors_in_line1(unsigned char * const SS[2],
             SS[0][x] = 255;
             continue;
         }
+        /* positions the small sieve left alone because ii and jj are both
+           even */
+        if (skip_class && (int) (x & 1) == skip_class - 1) {
+            SS[0][x] = 255;
+            continue;
+        }
 
         /* The very small prime used in the bound pattern, and unsieving larger
            primes have not identified this as gcd(i,j) > 1. It remains to check
            the trial-divided primes. */
-        const unsigned int i = abs (i0 + x);
+        const unsigned int i = S.abs_ii(i0, x);
         int divides = 0;
         switch (nr_div) {
             // coverity[unterminated_case]
@@ -436,7 +490,7 @@ search_survivors_in_line1(unsigned char * const SS[2],
 
         if (divides) {
             if (verify_gcd)
-                ASSERT_ALWAYS(bin_gcd_int64_safe (i, j) != 1);
+                ASSERT_ALWAYS(bin_gcd_int64_safe (i, S.jj(j)) != 1);
   #ifdef TRACE_K
             if (trace_on_spot_Nx(N, x)) {
                 verbose_fmt_print(TRACE_CHANNEL, 0, "# Slot [{}] in bucket {} has non coprime (i,j)=({},{})\n",
@@ -447,7 +501,7 @@ search_survivors_in_line1(unsigned char * const SS[2],
         } else {
             survivors.push_back(x);
             if (verify_gcd)
-                ASSERT_ALWAYS(bin_gcd_int64_safe (i, j) == 1);
+                ASSERT_ALWAYS(bin_gcd_int64_safe (i, S.jj(j)) == 1);
   #ifdef TRACE_K
             if (trace_on_spot_Nx(N, x)) {
                 verbose_fmt_print(TRACE_CHANNEL, 0, "# Slot [{}] in bucket {} is survivor with coprime (i,j)\n",
@@ -472,15 +526,21 @@ search_survivors_in_line1_oneside(unsigned char * Sf,
         unsigned int j, 
         int i0, int i1,
         int N MAYBE_UNUSED, j_divisibility_helper const & j_div,
-        unsigned int td_max, std::vector<uint32_t> &survivors)
+        unsigned int td_max, std::vector<uint32_t> &survivors,
+        sublat_runtime_t const & S)
 {
     unsigned int div[6][2], nr_div;
 
-    nr_div = extract_j_div(div, j, j_div, 3, td_max);
+    nr_div = extract_j_div(div, S.jj(j), j_div, 3, td_max);
     ASSERT_ALWAYS(nr_div <= 6);
+    int const skip_class = (S.jj(j) % 2 == 0) ? S.parity_skip_class() : 0;
 
     for (int x = 0; x < (i1 - i0); x++) {
         if (Sf[x] > bound) {
+            Sf[x] = 255;
+            continue;
+        }
+        if (skip_class && (int) (x & 1) == skip_class - 1) {
             Sf[x] = 255;
             continue;
         }
@@ -488,7 +548,7 @@ search_survivors_in_line1_oneside(unsigned char * Sf,
         /* The very small prime used in the bound pattern, and unsieving larger
            primes have not identified this as gcd(i,j) > 1. It remains to check
            the trial-divided primes. */
-        const unsigned int i = abs (i0 + x);
+        const unsigned int i = S.abs_ii(i0, x);
         int divides = 0;
         switch (nr_div) {
             case 6: divides |= (i * div[5][0] <= div[5][1]);no_break();
@@ -502,7 +562,7 @@ search_survivors_in_line1_oneside(unsigned char * Sf,
 
         if (divides) {
             if (verify_gcd)
-                ASSERT_ALWAYS(bin_gcd_int64_safe (i, j) != 1);
+                ASSERT_ALWAYS(bin_gcd_int64_safe (i, S.jj(j)) != 1);
   #ifdef TRACE_K
             if (trace_on_spot_Nx(N, x)) {
                 verbose_fmt_print(TRACE_CHANNEL, 0, "# Slot [{}] in bucket {} has non coprime (i,j)=({},{})\n",
@@ -513,7 +573,7 @@ search_survivors_in_line1_oneside(unsigned char * Sf,
         } else {
             survivors.push_back(x);
             if (verify_gcd)
-                ASSERT_ALWAYS(bin_gcd_int64_safe (i, j) == 1);
+                ASSERT_ALWAYS(bin_gcd_int64_safe (i, S.jj(j)) == 1);
   #ifdef TRACE_K
             if (trace_on_spot_Nx(N, x)) {
                 verbose_fmt_print(TRACE_CHANNEL, 0, "# Slot [{}] in bucket {} is survivor with coprime (i,j)\n",
@@ -537,16 +597,16 @@ search_survivors_in_line(unsigned char * const SS[2],
         int i0, int i1,
         int N, j_divisibility_helper const & j_div,
         unsigned int td_max, unsieve_data const & us,
-        std::vector<uint32_t> &survivors, sublat_t sublat)
+        std::vector<uint32_t> &survivors, sublat_runtime_t sublat)
 {
     ASSERT_ALWAYS(SS[0] || SS[1]);
     unsigned char * Sf = SS[0];
 
     if (SS[0] && SS[1]) {
-
-        /* In line j = 0, only the coordinate (i, j) = (-1, 0) may survive */
-        // FIXME: in sublat mode, this is broken!
-        if (j == 0 && (!sublat.m)) {
+        /* In line j = 0, only the coordinate (i, j) = (-1, 0) may survive.
+         * With sublattices the real row is m*j + sublat.j0, so this applies
+         * exactly when that is zero. */
+        if (sublat.jj(j) == 0) {
             if (i0 <= 0 && i1 > 0) {
                 unsigned char const s0 = SS[0][1-i0];
                 unsigned char const s1 = SS[1][1-i0];
@@ -556,40 +616,18 @@ search_survivors_in_line(unsigned char * const SS[2],
                     SS[1][1 - i0] = s1;
                     survivors.push_back(1 - i0);
                 }
-            } else {
-                memset(SS[0], 255, i1 - i0);
+                return;
             }
-            return;
         }
 
-        // Naive version when we have sublattices, because unsieving is
-        // harder. TODO: implement a fast version
-        if (sublat.m) {
-            for (int x = 0; x < (i1 - i0); x++) {
-                if (!sieve_info_test_lognorm(bound[0], bound[1], SS[0][x], SS[1][x])) {
-                    SS[0][x] = 255;
-                    continue;
-                }
-                const unsigned int i = abs(int(sublat.m)*(i0 + x)+int(sublat.i0));
-                const unsigned int jj = sublat.m*j+sublat.j0;
-                if ((((jj % 2) == 0) && ((i % 2) == 0)) ||
-                        (bin_gcd_int64_safe (i, jj) != 1)) {
-                    SS[0][x] = 255;
-                } else {
-                    survivors.push_back(x);
-                }
-            }
-            return;
-        }
-
-        unsieve_not_coprime_line(Sf, j, i0, i1, td_max + 1, us);
+        unsieve_not_coprime_line(Sf, j, i0, i1, td_max + 1, us, sublat);
 
 #if defined(HAVE_SSE2)
         search_survivors_in_line_sse2(SS, bound, j, i0, i1, N, j_div, td_max,
-                survivors);
+                survivors, sublat);
 #else
         search_survivors_in_line1(SS, bound, j, i0, i1, N, j_div, td_max,
-                survivors);
+                survivors, sublat);
 #endif
     } else {
         unsigned char b = bound[0];
@@ -599,9 +637,10 @@ search_survivors_in_line(unsigned char * const SS[2],
         }
         /* ok, here only Sf is non-null. We want the values below b. */
 
-        /* In line j = 0, only the coordinate (i, j) = (-1, 0) may survive */
-        // FIXME: in sublat mode, this is broken!
-        if (j == 0 && (!sublat.m)) {
+        /* In line j = 0, only the coordinate (i, j) = (-1, 0) may survive.
+         * With sublattices the real row is m*j + sublat.j0, so this applies
+         * exactly when that is zero. */
+        if (sublat.jj(j) == 0) {
             if (i0 <= 0 && i1 > 0) {
                 unsigned char const s = Sf[1-i0];
                 memset(Sf, 255, i1 - i0);
@@ -609,40 +648,18 @@ search_survivors_in_line(unsigned char * const SS[2],
                     Sf[1 - i0] = s;
                     survivors.push_back(1 - i0);
                 }
-            } else {
-                memset(Sf, 255, i1 - i0);
+                return;
             }
-            return;
         }
 
-        // Naive version when we have sublattices, because unsieving is
-        // harder. TODO: implement a fast version
-        if (sublat.m) {
-            for (int x = 0; x < (i1 - i0); x++) {
-                if (Sf[x] > b) {
-                    Sf[x] = 255;
-                    continue;
-                }
-                const unsigned int i = abs(int(sublat.m)*(i0 + x))+int(sublat.i0);
-                const unsigned int jj = sublat.m*j+sublat.j0;
-                if ((((jj % 2) == 0) && ((i % 2) == 0)) ||
-                        (bin_gcd_int64_safe (i, jj) != 1)) {
-                    Sf[x] = 255;
-                } else {
-                    survivors.push_back(x);
-                }
-            }
-            return;
-        }
-
-        unsieve_not_coprime_line(Sf, j, i0, i1, td_max + 1, us);
+        unsieve_not_coprime_line(Sf, j, i0, i1, td_max + 1, us, sublat);
 
 #if defined(HAVE_SSE2)
         search_survivors_in_line_sse2_oneside(Sf, b, j, i0, i1, N, j_div, td_max,
-                survivors);
+                survivors, sublat);
 #else
         search_survivors_in_line1_oneside(Sf, b, j, i0, i1, N, j_div, td_max,
-                survivors);
+                survivors, sublat);
 #endif
     }
 }

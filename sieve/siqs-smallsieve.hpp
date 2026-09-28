@@ -125,7 +125,7 @@ public:
             unsigned int first_region_index,
             int nregions,
             int logI,
-            sublat_t const & sl) final;
+            sublat_runtime_t const & sl) final;
 
     void small_sieve_activate_many_start_positions() final;
 
@@ -134,7 +134,7 @@ public:
             unsigned int N,
             int bucket_relative_index,
             int logI,
-            sublat_t const & sl,
+            sublat_runtime_t const & sl,
             where_am_I & w) const final;
 
     void resieve_small_bucket_region(
@@ -143,7 +143,7 @@ public:
             unsigned int N,
             int bucket_relative_index,
             int logI,
-            sublat_t const & sl,
+            sublat_runtime_t const & sl,
             where_am_I & w MAYBE_UNUSED) final;
 
 private:

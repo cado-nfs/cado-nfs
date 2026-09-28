@@ -1087,6 +1087,7 @@ sieve/las-special-q-task-simple.hpp
 sieve/las-special-q-task-tree.cpp
 sieve/las-special-q-task-tree.hpp
 sieve/las-special-q-task.hpp
+sieve/las-sublat.hpp
 sieve/las-threads-work-data.cpp
 sieve/las-threads-work-data.hpp
 sieve/las-threads.cpp
@@ -1477,6 +1478,7 @@ tests/sieve/test-reduce-plattice.cpp
 tests/sieve/test-sieve2357.cpp
 tests/sieve/test-smallsieve-mock.hpp
 tests/sieve/test-smallsieve.cpp
+tests/sieve/test-unsieve-patterns.cpp
 tests/sieve/test_batchinv.cpp
 tests/sieve/test_fb_root.cpp
 tests/sieve/test_init_norms.cpp
@@ -1485,6 +1487,7 @@ tests/sieve/test_logapprox.cpp
 tests/sieve/test_trialdiv.cpp
 tests/sieve/test_trialdiv_example_stdin.txt
 tests/sieve/torture-redc.cpp
+tests/sieve/tune-unsieve-patterns.sh
 tests/sqrt/CMakeLists.txt
 tests/sqrt/Makefile
 tests/sqrt/test-crtalgsqrt/c30.dep.000

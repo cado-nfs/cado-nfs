@@ -10,12 +10,11 @@
 
 #include "cado_poly.hpp"
 #include "special-q.hpp"
-#include "fb-types.hpp"
+#include "las-sublat.hpp"
 
 struct special_q_data_base {
     special_q doing;
-    // handy to have here.
-    sublat_t sublat;
+    sublat_runtime_t sublat;
 
     special_q_data_base() = default;
     explicit special_q_data_base(special_q const & doing)

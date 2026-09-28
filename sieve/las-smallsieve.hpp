@@ -14,6 +14,7 @@
 #include "macros.h"
 #include "smallsieve.hpp"
 #include "threadpool.hpp"
+#include "las-sublat.hpp"
 
 
 /* Simple primes/roots. These are implicitly "nice", i.e., odd primes/powers
@@ -94,11 +95,19 @@ public:
     bool is_nice() const {return !is_pow2() && !is_proj();}
     bool is_pow() const { return rootp != 0; }
     bool is_pattern_sieved() const {return (flags & SSP_PATTERN_SIEVED) != 0;}
+    bool is_sublat_rowwise() const {return (flags & SSP_SUBLAT_ROWWISE) != 0;}
 
     void set_pow(unsigned int p) { rootp = p; }
     void set_pow2() {flags |= SSP_POW2; rootp=2;}
     void set_proj() {flags |= SSP_PROJ;}
     void set_pattern_sieved() {flags |= SSP_PATTERN_SIEVED;}
+    /* Powers of two under an even sublattice modulus have to go through
+     * handle_power_of_2(), which knows about the reduced stride; sieve2357
+     * does not. */
+    void unset_pattern_sieved() {flags &= ~SSP_PATTERN_SIEVED;}
+    /* Under sublattices, some entries are sieved row by row by
+     * small_sieve::handle_sublat_rowwise(), see there. */
+    void set_sublat_rowwise() {flags |= SSP_SUBLAT_ROWWISE; unset_pattern_sieved();}
 
 private:
     void init_proj(fbprime_t p, fbprime_t r, unsigned char _logp,
@@ -120,7 +129,7 @@ public:
             unsigned int first_region_index,
             int nregions,
             int logI,
-            sublat_t const & sl) final;
+            sublat_runtime_t const & sl) final;
 
     // Multithreaded thread_pool interface
     void small_sieve_prepare_many_start_positions(
@@ -129,7 +138,7 @@ public:
             unsigned int first_region_index,
             int nregions,
             int logI,
-            sublat_t const & sl) final;
+            sublat_runtime_t const & sl) final;
 
 protected:
     void small_sieve_prepare_many_start_positions_range(
@@ -139,7 +148,7 @@ protected:
             unsigned int first_region_index,
             int nregions,
             int logI,
-            sublat_t const & sl,
+            sublat_runtime_t const & sl,
             bool is_first);
 public:
     void small_sieve_init(
@@ -162,7 +171,7 @@ public:
             unsigned int N,
             int bucket_relative_index,
             int logI,
-            sublat_t const & sl,
+            sublat_runtime_t const & sl,
             where_am_I & w) const final;
 
     void resieve_small_bucket_region(
@@ -171,7 +180,7 @@ public:
             unsigned int N,
             int bucket_relative_index,
             int logI,
-            sublat_t const & sl,
+            sublat_runtime_t const & sl,
             where_am_I & w MAYBE_UNUSED) final;
 
 protected:
@@ -179,7 +188,7 @@ protected:
             std::vector<spos_t> & ssdpos,
             unsigned int first_region_index,
             int logI,
-            sublat_t const & sl);
+            sublat_runtime_t const & sl);
 
     void small_sieve_print_contents(const char * prefix) const;
 

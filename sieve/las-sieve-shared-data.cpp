@@ -74,7 +74,11 @@ void sieve_shared_data::load_factor_base(cxx_param_list & pl, int nthreads) /*{{
 /*}}}*/
 unsieve_data const * sieve_shared_data::get_unsieve_data(siever_config const & conf) /* {{{ */
 {
-    std::pair<int, int> const p(conf.logI, conf.logA);
+    return get_unsieve_data(conf.logI, conf.logA);
+}/*}}}*/
+unsieve_data const * sieve_shared_data::get_unsieve_data(int logI, int logA) /* {{{ */
+{
+    std::pair<int, int> const p(logI, logA);
     std::lock_guard<std::mutex> const dummy(us_cache.mutex());
     auto it = us_cache.find(p);
     if (it != us_cache.end()) {

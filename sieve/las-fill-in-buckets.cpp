@@ -35,6 +35,7 @@
 #include "tdict.hpp"
 #include "threadpool.hpp"
 #include "verbose.hpp"
+#include "las-sublat.hpp"
 
 /***************************************************************************/
 /********        Main bucket sieving functions                    **********/
@@ -121,9 +122,12 @@ discard_power_for_bucket_sieving<fb_entry_general>(fb_entry_general const & e)
 #include "las-fill-in-buckets.inl"
 #endif
 
+template<uint32_t M>
+inline
 void fill_in_buckets_prepare_plattices(
         nfs_work & ws,
         ALGO::special_q_data const & Q,
+        sublat_t<M> const & sublat,
         thread_pool & pool,
         int side,
         cado::multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS-1> & precomp_plattice)
@@ -144,10 +148,21 @@ void fill_in_buckets_prepare_plattices(
                     using E = std::remove_reference_t<decltype(s)>::entry_t;
                     // Forward function pointer & arguments directly!
                     pool.add_task(thread_pool::QUEUE_GENERIC, 0.0,
-                            make_lattice_bases<T::level, E>,
-                            side, std::ref(ws), std::ref(Q), std::ref(V), std::cref(s));
+                            make_lattice_bases<T::level, E, M>,
+                            side, std::ref(ws), std::ref(Q), sublat, std::ref(V), std::cref(s));
                 }
         });
+    });
+}
+void fill_in_buckets_prepare_plattices(
+        nfs_work & ws,
+        ALGO::special_q_data const & Q,
+        thread_pool & pool,
+        int side,
+        cado::multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS-1> & precomp_plattice)
+{
+    dispatch_sublat(Q.sublat, [&](auto sublat) {
+            fill_in_buckets_prepare_plattices(ws, Q, sublat, pool, side, precomp_plattice);
     });
 }
 
@@ -162,9 +177,9 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker,
         int side,
         nfs_work & ws,
         nfs_aux & aux,
+        fb_slice<FB_ENTRY_TYPE> const & slice,
         ALGO::special_q_data const & Q,
-        plattices_dense_vector_t * plattices_dense_vector,
-        fb_slice<FB_ENTRY_TYPE> const & slice)
+        plattices_dense_vector_t * plattices_dense_vector)
 {
     static_assert(!TARGET_HINT::is_long_v);
 
@@ -212,81 +227,20 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker,
         throw e;
     }
 }
-/* same for sublat */
-template <int LEVEL, class FB_ENTRY_TYPE, hint_type TARGET_HINT>
-static void
-fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker,
-        int side,
-        nfs_work & ws,
-        nfs_aux & aux,
-        ALGO::special_q_data const & Q,
-        plattices_dense_vector_t * plattices_dense_vector,
-        fb_slice<FB_ENTRY_TYPE> const & slice
-        )
-{
-    static_assert(!TARGET_HINT::is_long_v);
-
-    /* Import some contextual stuff */
-    int const id = worker->rank();
-    nfs_aux::thread_data & taux(aux.th[id]);
-    timetree_t & timer(aux.get_timer(worker));
-    where_am_I & w(taux.w);
-    nfs_work::side_data & wss(ws.sides[side]);
-
-    ENTER_THREAD_TIMER(timer);
-    MARK_TIMER_FOR_SIDE(timer, side);
-
-#ifndef DISABLE_TIMINGS
-    /* This is one of the places where helgrind is likely to complain. We
-     * use thread-safe statics. Helgrind can't cope with it,
-     * unfortunately. So the error is a false positive.
-     *
-     * https://sourceforge.net/p/valgrind/mailman/message/32434015/
-     */
-    timetree_t::accounting_child const local_timer_sentry(timer,
-                                                          tdict_slot_for_fibt);
-#endif
-
-    WHERE_AM_I_UPDATE(w, side, side);
-    WHERE_AM_I_UPDATE(w, i, slice.get_index());
-    WHERE_AM_I_UPDATE(w, N, 0);
-
-    try {
-        /* Get an unused bucket array that we can write to */
-        auto acquired = wss.reserve_BA<LEVEL, TARGET_HINT>();
-        auto tt = worker->trace(chronograms::FIB(
-                    side,
-                    LEVEL,
-                    wss.rank_BA(acquired.access()),
-                    slice.get_index()));
-        fill_in_buckets_toplevel_sublat<LEVEL, FB_ENTRY_TYPE>(
-                acquired.access(),
-                ws, Q,
-                plattices_dense_vector,
-                slice, w);
-    } catch (buckets_are_full & e) {
-        e.side = side;
-        throw e;
-    }
-}
 
 // Static helper function outside loop to avoid lambda closure bloat inside foreach_slice
 template <int LEVEL, class FB_ENTRY_TYPE, hint_type TARGET_HINT>
 static void run_fill_in_buckets_toplevel(worker_thread* worker, int side, nfs_work & ws,
-                                         nfs_aux & aux, ALGO::special_q_data const & Q,
-                                         plattices_dense_vector_t * pre,
+                                         nfs_aux & aux,
                                          fb_slice<FB_ENTRY_TYPE> const & s,
+                                         ALGO::special_q_data const & Q,
+                                         plattices_dense_vector_t * pre,
                                          std::shared_ptr<where_am_I> w_copy)
 {
     int const id = worker->rank();
     aux.th[id].w = *w_copy;
-    if (pre) {
-        fill_in_buckets_toplevel_sublat_wrapper<LEVEL, FB_ENTRY_TYPE, TARGET_HINT>(
-            worker, side, ws, aux, Q, pre, s);
-    } else {
-        fill_in_buckets_toplevel_wrapper<LEVEL, FB_ENTRY_TYPE, TARGET_HINT>(
-            worker, side, ws, aux, Q, nullptr, s);
-    }
+    fill_in_buckets_toplevel_wrapper<LEVEL, FB_ENTRY_TYPE, TARGET_HINT>(
+            worker, side, ws, aux, s, Q, pre);
 }
 
 template <int LEVEL, hint_type TARGET_HINT>
@@ -316,10 +270,11 @@ static void fill_in_buckets_one_side(nfs_work & ws, nfs_aux & aux,
 
     typename precomp_plattice_dense_t<LEVEL>::type * Vpre = nullptr;
 
-    if (Q.sublat.m) {
+    if (Q.sublat.m > 1) {
         auto & Vpre_ref(wss.precomp_plattice_dense.get<LEVEL>());
-        if (Q.sublat.i0 == 0 && Q.sublat.j0 == 1) {
-            Vpre_ref = typename precomp_plattice_dense_t<LEVEL>::type(P.nslices());
+        if (Q.sublat.is_first()) {
+            Vpre_ref.clear();
+            Vpre_ref.resize(P.nslices());
         }
         ASSERT_ALWAYS(Vpre_ref.size() == P.nslices());
         Vpre = &Vpre_ref;
@@ -330,12 +285,17 @@ static void fill_in_buckets_one_side(nfs_work & ws, nfs_aux & aux,
         auto w_copy = std::make_shared<where_am_I>(w);
         slice_index_t const idx = s.get_index();
         ASSERT_ALWAYS(P.first_slice_index + pushed == idx);
-        plattices_dense_vector_t * pre = Vpre ? &((*Vpre)[idx]) : nullptr;
+        /* Vpre is indexed within this part, so the global slice index has
+         * to be shifted -- exactly as fb.hpp does it. This only made no
+         * difference while the toplevel was 1, where first_slice_index is
+         * 0; at toplevel 2 or 3 it wrote past the end of the vector. */
+        plattices_dense_vector_t * pre =
+            Vpre ? &((*Vpre)[idx - P.first_slice_index]) : nullptr;
         using entry_t = std::decay_t<decltype(s)>::entry_t;
 
         pool.add_task(thread_pool::QUEUE_GENERIC, s.get_weight(),
             run_fill_in_buckets_toplevel<LEVEL, entry_t, TARGET_HINT>,
-            side, std::ref(ws), std::ref(aux), std::ref(Q), pre, std::cref(s), w_copy);
+            side, std::ref(ws), std::ref(aux), std::cref(s), std::ref(Q), pre, w_copy);
 
         pushed++;
     });

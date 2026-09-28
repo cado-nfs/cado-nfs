@@ -6,12 +6,13 @@
 #include "las-config.hpp"
 #include "macros.h"
 
-/* About row0_is_oddj: in order to check whether a j coordinate is even,
- * we need to take into account the bucket number, especially in case
- * buckets are as large as the sieve region. The row number corresponding
- * to a given i0 is i0/I, but we also need to add bucket_nr*bucket_size/I
- * to this, which is what this flag is for.  Sublat must also be taken
- * into account.
+/* Checking whether a j coordinate is even has to take the bucket number
+ * into account, especially when buckets are as large as the sieve
+ * region, and it has to take the sublattice into account as well. All of
+ * that now lives in small_sieve_base (las-smallsieve-glue.hpp), which
+ * carries the full discussion; use row0_needs_parity_skip(),
+ * parity_skip_alternates() and parity_skip_class() rather than open
+ * coding it.
  */
 
 /* This is copied from LOGNORM_FILL_COMMON_DEFS in las-norms.cpp ; from
@@ -34,6 +35,9 @@
     const int sublatm MAYBE_UNUSED = sl.m ? sl.m : 1; \
     const unsigned int sublati0 MAYBE_UNUSED = sl.i0;       \
     const unsigned int sublatj0 MAYBE_UNUSED = sl.j0;       \
+    /* only correct for odd sublatm; tests/sieve/test-smallsieve.cpp uses \
+     * it as its own reference. Production code should ask               \
+     * small_sieve_base instead -- see the comment above. */             \
     const int row0_is_oddj MAYBE_UNUSED = (j0*sublatm + sublatj0) & 1;  \
     bool has_haxis = !j0;                                               \
     bool has_vaxis = region_rank_in_line == ((regions_per_line-1)/2);   \

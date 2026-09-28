@@ -460,7 +460,7 @@ template <int LEVEL, hint_type HINT> class bucket_array_t
        already been allocated, does not resize it.  */
     void
     allocate_memory(las_memory_accessor & memory, uint32_t _n_bucket,
-                    double fill_ratio, int logI,
+                    double fill_ratio, int logI, bool parity_skip,
                     slice_index_t prealloc_slices = initial_slice_alloc);
 
   private:

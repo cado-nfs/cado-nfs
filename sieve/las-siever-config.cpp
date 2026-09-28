@@ -132,8 +132,7 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
 
     }
 
-    // Sublattices?
-    sc.sublat_bound = 0; // no sublattices by default.
+    // Sublattices? The default is to have none (i.e., sublat_bound == 1)
     pl.parse("sublat", sc.sublat_bound);
 
     /* Parse optional siever configuration parameters */

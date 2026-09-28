@@ -21,6 +21,8 @@
 #include "las-config.hpp"
 #include "las-coordinates.hpp"
 #include "las-norms.hpp"
+#include "las-sublat.hpp"
+#include "fmt/format.h"
 #include "las-siever-config.hpp"
 #include "special-q.hpp"
 #include "macros.h"
@@ -114,6 +116,7 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
 
   pl.declare_usage("I",    "set sieving region to 2^I times J");
   pl.declare_usage("A",    "set sieving region to 2^A");
+  pl.declare_usage("sublat", "check all residue classes modulo this sublattice modulus");
 
   siever_config::declare_usage<NFS>(pl);
 
@@ -299,6 +302,8 @@ int main(int argc, char const * argv[])
 
         siever_config conf = Adj.config();
         conf.logI = Adj.logI;
+        /* as in choose_sieve_area() */
+        Adj.Q.sublat.m = conf.sublat_bound;
 
         /* done with skew gauss ! */
 
@@ -337,11 +342,13 @@ int main(int argc, char const * argv[])
             memset(S[c], 0, B);
         }
 
-        /* do a correctness check */
+        /* do a correctness check, for all sublattice classes if we have
+         * sublattices */
+        for(auto const & sl : Adj.Q.sublat.sublattices())
         for(int const side : sides) {
             unsigned int const N = (check_bucket >= 0) ? check_bucket : (unsigned int) gmp_urandomm_ui(rstate, iceildiv(((uint64_t) I)*J, B));
             for(size_t c = 0 ; c < impls.size() ; c++) {
-                lognorms[c][side]->fill(S[c], N);
+                lognorms[c][side]->fill(S[c], N, sl);
                 if (c == 0) continue;
                 int dmin=INT_MAX;
                 int dmax=INT_MIN;
@@ -370,10 +377,10 @@ int main(int argc, char const * argv[])
                     convert_Nx_to_ij(imax, jmax, N, xdmax, logI);
                     zmax = (double) imax / jmax;
 
-                    fprintf(stderr, "Norm computation disagree for side %d"
-                            " (region %d, %s vs %s);\n",
+                    fmt::print(stderr, "Norm computation disagree for side {}"
+                            " (region {}, {} vs {}, sublattice {});\n",
                             side, N,
-                            impls[c].c_str(), impls[0].c_str());
+                            impls[c], impls[0], sl);
                         fprintf(stderr, " min %d (@%d == %d,%u ~ %.2f)\n",
                             dmin, xdmin, imin, jmin, zmin);
                         fprintf(stderr, " max %d (@%d == %d,%u ~ %.2f)\n",
@@ -403,7 +410,7 @@ int main(int argc, char const * argv[])
                 rstate2 = rstate;
                 double t = -wct_seconds();
                 for(int i = 0 ; i < nfills_speed_test ; i++) {
-                    lognorms[c][side]->fill(S[c], gmp_urandomm_ui(rstate2, iceildiv(((uint64_t) I)*J, B)));
+                    lognorms[c][side]->fill(S[c], gmp_urandomm_ui(rstate2, iceildiv(((uint64_t) I)*J, B)), sublat_runtime_t());
                 }
                 printf("# Side %d, lognorm %s code: %.3f microseconds per bucket region\n", 
                         side,

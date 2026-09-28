@@ -46,7 +46,7 @@ struct siever_config {
      * FIXME: er. now that get_strategies lives below las, we can do this
      * move, right ?
      */
-    unsigned int sublat_bound;
+    unsigned int sublat_bound = 1;
 
 
     /* These four parameters are as they are provided in the command

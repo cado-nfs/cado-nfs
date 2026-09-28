@@ -25,23 +25,6 @@ using slice_index_t = uint32_t;
 /* Each factor base entry within a slice has a unique offset */
 using slice_offset_t = uint16_t;
 
-// FIXME: could probably go somewhere else...
-// Small struct for sublattice info:
-// One sieves only positions congruent to (i0,j0) mod m
-struct sublat_t {
-    uint32_t m=0; // 0 means no sublattices.
-    uint32_t i0=0;
-    uint32_t j0=0;
-
-    void adjustIJ(int & i, unsigned int & j) const
-    {
-        if (m != 0) {
-            i = i*m + i0;
-            j = j*m + j0;
-        }
-    }
-};
-
 /* This structure encodes an element of P1(Z/p^k) for some p^k (which is
  * not embedded in the structure).
  *

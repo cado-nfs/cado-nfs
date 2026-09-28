@@ -259,6 +259,8 @@ las_small_sieve_data::small_sieve_init(
     // This zeroes out all vectors, but keeps storage around nevertheless
     small_sieve_clear();
 
+    constant_logp = 0;
+
     ssps.reserve(resieved.size() + rest.size());
 
     /* If logI == LOG_BUCKET_REGION, no offsets are needed as the sieve
@@ -299,16 +301,21 @@ las_small_sieve_data::small_sieve_init(
                     continue;
                 }
 
-                if (sublatm) {
-                    // In sublat mode, disable pattern sieving and primes
-                    // dividing m. (pp is the prime, here)
-                    //
-                    // FIXME. ok, they're certainly not "nice", but we should
-                    // sieve them nonetheless.
-                    if (pp == 3 || (sublatm % pp) == 0) {
-                        continue;
-                    }
-                }
+                /* A prime power sharing a factor with the sublattice
+                 * modulus needs the reduced stride that
+                 * small_sieve_base::sublat_reduced_modulus() describes.
+                 * Two sub-cases show up below: the power itself divides
+                 * the modulus (reduced stride 1: constant contribution,
+                 * handled here), or only the underlying prime does
+                 * (reduced stride > 1, handled by handle_power_of_2()).
+                 *
+                 * Note that this test used to read `pp == 3 || (sublatm %
+                 * pp) == 0`. The first half was redundant whenever 3
+                 * divides m -- the only case that had been tried -- and
+                 * simply threw the prime 3 away for every other modulus.
+                 */
+                bool const shares_factor_with_m =
+                    sublatm && (sublatm % pp) == 0;
 
                 const unsigned char logp = fb_log_delta (pp, root.exp, root.oldexp, scale);
 
@@ -316,6 +323,7 @@ las_small_sieve_data::small_sieve_init(
                 auto Rq = fb_root_in_qlattice(p, Rab, e.invq, Q);
                 fbroot_t const r_q = Rq.r;
                 bool const is_proj_in_ij = Rq.is_projective();
+
                 /* If this root is somehow interesting (projective in (a,b) or
                    in (i,j) plane), print a message */
                 if (verbose && (Rab.is_projective() || is_proj_in_ij))
@@ -328,8 +336,65 @@ las_small_sieve_data::small_sieve_init(
 
                 ssp_t new_ssp(p, r_q, logp, is_proj_in_ij);
 
+                if (shares_factor_with_m) {
+                    /* An entry is "flat" over the sublattice class when the
+                     * condition it expresses does not involve the position
+                     * at all. Its log is then a constant, which we hand to
+                     * search_survivors() through constant_logp rather than
+                     * write over the whole region.
+                     *
+                     * Affine, with p (the power itself) dividing m: the
+                     * condition is i == r*j (mod p), and i and j are
+                     * sublat.i0 and sublat.j0 mod p everywhere.
+                     *
+                     * Projective with q == 1 and g dividing m: the
+                     * condition is g | j alone, i.e. g | sublat.j0, since
+                     * j is sublat.j0 mod g everywhere.
+                     *
+                     * In both cases "flat" cuts both ways: when the
+                     * congruence fails, the entry contributes nothing
+                     * anywhere and is simply dropped.
+                     */
+                    bool flat = false, hits = false;
+                    if (!is_proj_in_ij && (sublatm % p) == 0) {
+                        unsigned int const si0 = Q.sublat.i0 % p;
+                        unsigned int const sj0 = Q.sublat.j0 % p;
+                        flat = true;
+                        hits = (si0 + p - (r_q * sj0) % p) % p == 0;
+                    } else if (is_proj_in_ij && new_ssp.get_q() == 1
+                               && (sublatm % new_ssp.get_g()) == 0) {
+                        flat = true;
+                        hits = (Q.sublat.j0 % new_ssp.get_g()) == 0;
+                    }
+                    if (flat) {
+                        if (hits) {
+                            /* logs are small, but let's not wrap */
+                            unsigned int const c = constant_logp + logp;
+                            constant_logp = c < 254 ? c : 254;
+                        }
+                        continue;
+                    }
+                    /* What is left depends on the position, with a
+                     * reduced stride, and for a projective entry a
+                     * condition on the row as well. Neither the pattern
+                     * sieve nor handle_projective_prime() know about
+                     * this. */
+                    new_ssp.set_sublat_rowwise();
+                } else if (sublatm > 1 && is_proj_in_ij
+                           && !new_ssp.is_pattern_sieved()) {
+                    /* handle_projective_prime() decides which positions
+                     * have both coordinates even from the sublattice
+                     * coordinates, not from the real ones. */
+                    new_ssp.set_sublat_rowwise();
+                }
+
                 if (p != pp)
                     new_ssp.set_pow(pp);
+
+                if (new_ssp.is_sublat_rowwise()) {
+                    ssp.push_back(new_ssp);
+                    continue;
+                }
 
                 /* pattern-sieved primes go to ssp */
                 if (new_ssp.is_proj()) {
@@ -522,7 +587,7 @@ las_small_sieve_data::small_sieve_start(
         std::vector<spos_t> & ssdpos,
         unsigned int first_region_index,
         int logI,
-        sublat_t const & sl)
+        sublat_runtime_t const & sl)
 {
     /* We want to compute the index of the "next" hit, counted from the
      * starting offset of the "current" bucket region at (i0,j0). The
@@ -564,7 +629,7 @@ las_small_sieve_data::small_sieve_prepare_many_start_positions_range(
         unsigned int first_region_index,
         int nregions,
         int logI,
-        sublat_t const & sl,
+        sublat_runtime_t const & sl,
         bool is_first)
 {
     auto tt = worker_thread::trace(worker, chronograms::SSS(side, 1));
@@ -634,7 +699,7 @@ las_small_sieve_data::small_sieve_prepare_many_start_positions(
         unsigned int first_region_index,
         int nregions,
         int logI,
-        sublat_t const & sl)
+        sublat_runtime_t const & sl)
 {
     size_t const S = ssps.size();
     if (S == 0) {
@@ -670,7 +735,7 @@ las_small_sieve_data::small_sieve_prepare_many_start_positions(
         unsigned int first_region_index,
         int nregions,
         int logI,
-        sublat_t const & sl)
+        sublat_runtime_t const & sl)
 {
     /* We're going to stage the next batch of init values in
      * ssdpos_many_next, while the init values in ssdpos_many are
@@ -999,14 +1064,14 @@ void small_sieve::do_pattern_sieve(where_am_I & w MAYBE_UNUSED)
        updated in line j = 0. If disabled, the more general pattern-sieving
        code below will be used for line 0, too, but that will hit all locations
        with odd i. */
-    if (skip_line_jj0 && j == 0 && super::sublatj0 == 0) {
+    if (skip_line_jj0 && j == 0 && super::sublat.j0 == 0) {
         const int verbose = 0;
         WHERE_AM_I_UPDATE(w, j, 0);
         /* If sublattice, does this sublattice contain ii = 1 ?
            If we sieve fragments of a line, does this fragment contain
            i = 1? We assume that a fragment contains i = 1 iff it contains
            the origin */
-        if ((super::sublatm == 1 || super::sublati0 == 1) &&
+        if ((super::sublat.m == 1 || super::sublat.i0 == 1) &&
             super::has_origin) {
             for (auto const & ssp : not_nice_primes) {
                 /* Primes that are not pattern-sieved are handled elsewhere */
@@ -1035,7 +1100,7 @@ void small_sieve::do_pattern_sieve(where_am_I & w MAYBE_UNUSED)
     for ( ; j < j1; j++) {
         size_t i = 0;   // Info: this is not an abscissa, here, but a plain counter
         const unsigned int dj = j - j0;
-        const unsigned int jj = j * super::sublatm + super::sublatj0;
+        const unsigned int jj = j * super::sublat.m + super::sublat.j0;
         const size_t x0 = (size_t) dj << logI;
         int skip_mod_2 = 0;
         WHERE_AM_I_UPDATE(w, j, dj);
@@ -1046,13 +1111,11 @@ void small_sieve::do_pattern_sieve(where_am_I & w MAYBE_UNUSED)
         }
 #endif
         if (jj % 2 == 0) {
-            if (super::sublatm == 3 && super::sublati0 == 1) {
-                /* Skip odd indices which correspond to even ii */
-                skip_mod_2 = 2;
-            } else {
-                /* Skip even indices which correspond to even ii */
-                skip_mod_2 = 1;
-            }
+            /* 0 to skip nothing, 1 to skip the even indices, 2 to skip
+             * the odd ones -- whichever of them have ii even. This used
+             * to be spelled out for sublatm == 3 only; see the parity
+             * discussion in small_sieve_base. */
+            skip_mod_2 = super::parity_skip_class();
         }
         for (auto const & ssp : not_nice_primes) {
             ASSERT_ALWAYS(i < not_nice_primes.size());
@@ -1126,7 +1189,7 @@ las_small_sieve_data::sieve_small_bucket_region(
         unsigned int N,
         int bucket_relative_index,
         int logI,
-        sublat_t const & sl,
+        sublat_runtime_t const & sl,
         where_am_I & w) const
 {
     std::vector<spos_t> const & ssdpos = ssdpos_many[bucket_relative_index];
@@ -1157,7 +1220,7 @@ las_small_sieve_data::resieve_small_bucket_region(
         unsigned int N,
         int bucket_relative_index,
         int logI,
-        sublat_t const & sl,
+        sublat_runtime_t const & sl,
         where_am_I & w MAYBE_UNUSED)
 {
     std::vector<spos_t> const & ssdpos = ssdpos_many[bucket_relative_index];
@@ -1169,10 +1232,13 @@ las_small_sieve_data::resieve_small_bucket_region(
 
     unsigned int const i_compens_sublat = sublati0 & 1;
 
-    // Odd/even property of j is the same as for j+2, even with
-    // sublat, unless sublat.m is even, which is not handled right
-    // now. Same for i.
-    ASSERT_ALWAYS(!sublatm || ((sublatm & 1) == 1));
+    /* Whether a row needs the skip-every-other-i treatment, and whether
+     * that flips from one row to the next, is decided by
+     * small_sieve_base -- see the long comment there. For an even
+     * sublattice modulus both parities are fixed over the whole class,
+     * so nothing is ever skipped and nothing ever flips. */
+    bool const row0_even = C.row0_needs_parity_skip();
+    bool const alternates = C.parity_skip_alternates();
 
     for(size_t index = 0 ; index < resieve_end_offset ; index++) {
         auto const & ssps_cur(ssps[index]);
@@ -1192,27 +1258,25 @@ las_small_sieve_data::resieve_small_bucket_region(
          * j odd: (sieve all values of index)
          *   for(index = pos                  ; index < I ; index += p)
          *
-         * we may merge the two by setting q=p&-!((j&1)^row0_is_oddj)
-         *
-         * which, when (j+row0_is_oddj) is even, is p, and is 0
-         * otherwise.
+         * we may merge the two by setting q to p on the rows where even
+         * i must be skipped, and to 0 on the others.
          *
          * In turn, since q changes for each j, 1 xor within the loop
          * is enough to make it alternate between 0 and p, once the
-         * starting value is correct.
+         * starting value is correct -- but only when the parity does
+         * alternate at all, which is not the case for an even
+         * sublattice modulus (see small_sieve_base).
          *
          * TODO: ok, this is nice and good, but:
          *
          *  - I haven't seen this win for simple small sieve, so I
          *    doubt it's a good idea. Relying on the branch predictor
          *    or the compiler does not seem to be so stupid after all.
-         *  - as present, the behaviour is obviously buggy for
-         *    sublatm even.
          *  - we really want to have the same structure both for
          *    small sieve and resieving.
          */
-        bool const row0_even = (((j0&sublatm)+sublatj0) & 1) == 0;
         unsigned int q = row0_even ? p : 0;
+        unsigned int const dq = alternates ? p : 0;
         int i = 0; /* placate gcc */
         for (unsigned int j = j0; j < j1; j ++) {
             WHERE_AM_I_UPDATE(w, j, j);
@@ -1234,7 +1298,7 @@ las_small_sieve_data::resieve_small_bucket_region(
             if (pos >= (spos_t) p) pos -= (spos_t) p;
 
             S_ptr += I;
-            q ^= p;
+            q ^= dq;
         }
     }
 
@@ -1243,11 +1307,34 @@ las_small_sieve_data::resieve_small_bucket_region(
          * obviously won't resieve powers of two, so we're bound to deal
          * with only projective primes here.
          */
-        ASSERT(sp.is_pow2() || sp.is_proj() || sp.is_pattern_sieved());
+        ASSERT(sp.is_pow2() || sp.is_proj() || sp.is_pattern_sieved()
+                || sp.is_sublat_rowwise());
 
         /* FIXME: I should not have to do this test */
         if (sp.is_pow() || sp.is_pow2())
             continue;
+
+        if (sp.is_sublat_rowwise()) {
+            /* see small_sieve::handle_sublat_rowwise(). Contrary to what
+             * we do below, we also deal with projective entries that do
+             * not sieve full lines. */
+            const fbprime_t p = sp.is_proj() ? sp.get_g() * sp.get_q() : sp.get_p();
+            if (p < fbK.td_thresh)
+                continue;
+            WHERE_AM_I_UPDATE(w, p, p);
+            C.foreach_sublat_rowwise_row(sp,
+                    [&](unsigned int dj, int64_t pos, int64_t s) {
+                        size_t const x0 = (size_t) dj << logI;
+                        for ( ; pos < C.F() ; pos += s) {
+                            if (S[x0 + pos] == 255) continue;
+                            bucket_update_t<1, primehint_t> prime;
+                            prime.p = p;
+                            prime.x = x0 + pos;
+                            BP->push_update(prime);
+                        }
+                    });
+            continue;
+        }
 
         /* TODO: it doesn't seem very smart to resieve projective primes
          */
@@ -1289,39 +1376,26 @@ las_small_sieve_data::resieve_small_bucket_region(
             unsigned int j = j0 + (pos >> logI);
             for (; j < j1; j += g) {
                 unsigned char *S_ptr = S + pos;
-                /* FIXME: sublat */
-                if (!(j & 1)) {
-                    /* Even j: test only odd ii-coordinates */
-                    for (int ii = 1; ii < C.F(); ii += 2) {
-                        if (S_ptr[ii] == 255) continue;
-                        bucket_update_t<1, primehint_t> prime;
-                        const unsigned int x = pos + ii;
-                        if (resieve_very_verbose) {
-                            verbose_fmt_print(0, 1,
-                                    "# resieve_small_bucket_region even j:"
-                                    " root {},inf divides at x = {}",
-                                    g, x);
-                        }
-                        prime.p = g;
-                        prime.x = x;
-                        BP->push_update(prime);
+                /* On a row whose real ordinate jj is even, the positions
+                 * whose real abscissa is even are useless. Which ones
+                 * they are is decided by small_sieve_base. */
+                const unsigned int jj = j * C.sublat.m + C.sublat.j0;
+                const int skip = (jj & 1) ? 0 : C.parity_skip_class();
+                const int x0 = (skip == 1);
+                const int dx = skip ? 2 : 1;
+                for (int ii = x0; ii < C.F(); ii += dx) {
+                    if (S_ptr[ii] == 255) continue;
+                    bucket_update_t<1, primehint_t> prime;
+                    const unsigned int x = pos + ii;
+                    if (resieve_very_verbose) {
+                        verbose_fmt_print(0, 1,
+                                "# resieve_small_bucket_region:"
+                                " root {},inf divides at x = {}",
+                                g, x);
                     }
-                } else {
-                    /* Odd j: test all ii-coordinates */
-                    for (int ii = 0; ii < C.F(); ii++) {
-                        if (S_ptr[ii] == 255) continue;
-                        bucket_update_t<1, primehint_t> prime;
-                        const unsigned int x = pos + ii;
-                        if (resieve_very_verbose) {
-                            verbose_fmt_print(0, 1,
-                                    "# resieve_small_bucket_region odd j:"
-                                    " root {},inf divides at x = {}",
-                                    g, x);
-                        }
-                        prime.p = g;
-                        prime.x = x;
-                        BP->push_update(prime);
-                    }
+                    prime.p = g;
+                    prime.x = x;
+                    BP->push_update(prime);
                 }
                 pos += gI;
             }
