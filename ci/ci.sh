@@ -19,7 +19,7 @@ fi
 if is_freebsd ; then
     # need to debug something.
     set -x
-    ps xwwau | grep pkg
+    ps xwwau | grep pkg || :
 fi
 
 case "$JOB_NAME" in
