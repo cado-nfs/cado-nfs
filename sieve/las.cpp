@@ -556,8 +556,10 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
             for(int level = fib_level - 1 ; level >= 1 ; level--) {
                 {
                     // how many downsorted updates are alive at a given point in
-                    // time ?
-                    size_t const nupdates_D = nupdates >> 8;
+                    // time ? Those of one bucket of the level above.
+                    size_t const nreg_above = iceildiv(size_t(1) << sc.logA,
+                            BUCKET_REGIONS[level + 1]);
+                    size_t const nupdates_D = iceildiv(nupdates, nreg_above);
                     verbose_fmt_print(0, 3 + hush,
                             "# level {}, side {}:"
                             " {} downsorted {}-updates [{}l]: {}\n",
