@@ -1,14 +1,17 @@
 
 The main page of the Cado-NFS source code is
-[https://gitlab.inria.fr/cado-nfs/cado-nfs](https://gitlab.inria.fr/cado-nfs/cado-nfs).
+[https://gitlab.com/cado-nfs/cado-nfs](https://gitlab.com/cado-nfs/cado-nfs).
+
+Repeat: as of 20261001, **CADO-NFS no longer has gitlab.inria.fr as its main home** (some of the links in this README might remain dangling until the conversion is complete).
+
 If you're accessing the cado-nfs source from a different link, it may be
 an outdated fork. (This being said, all commits to the
 `master` branch are automatically mirrored to the [cado-nfs project on
 GitHub](https://github.com/cado-nfs/cado-nfs), so the latter should be
 up-to-date as well.)
 
-[![pipeline status](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/pipelines?ref=master)
-[![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/index.html?job=merge+coverage+tests)
+[![pipeline status](https://gitlab.com/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.com/cado-nfs/cado-nfs/-/pipelines?ref=master)
+[![coverage report](https://gitlab.com/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.com/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/index.html?job=merge+coverage+tests)
 [![coverity scan](https://scan.coverity.com/projects/23184/badge.svg)](https://scan.coverity.com/projects/cado-nfs)
 
 Quick install:
@@ -42,7 +45,7 @@ Other architectures are checked regularly, and should work. Please refer
 to the gitlab-ci page for the list of regularly tested platforms, and their
 current status. The overall pipeline status for the master branch is
 [![pipeline
-status](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/pipelines?ref=master),
+status](https://gitlab.com/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.com/cado-nfs/cado-nfs/-/pipelines?ref=master),
 and details can be obtained by clicking on the badges.  Note however that
 a failing pipeline might mean that a bug affects only one platform in
 particular, or could be caused by one runner encountering difficulties.
@@ -463,7 +466,7 @@ a docker container (assuming you are using an `x86_64` CPU, haswell or
 later).
 
 ```
-docker run --rm registry.gitlab.inria.fr/cado-nfs/cado-nfs/factoring-full cado-nfs.py 90377629292003121684002147101760858109247336549001090677693
+docker run --rm registry.gitlab.com/cado-nfs/cado-nfs/factoring-full cado-nfs.py 90377629292003121684002147101760858109247336549001090677693
 ```
 
 Again, this is work in progress.
@@ -555,7 +558,7 @@ no longer supported by cado-nfs anyway)
   in GMP (<https://gmplib.org/list-archives/gmp-bugs/2015-March/003607.html>).
   Workaround: use tasks.sqrt.threads=1 or GMP >= 6.1.0.
 * GCC 4.1.2 is known to miscompile CADO-NFS (see
-  <https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/14490>),
+  <https://gitlab.com/cado-nfs/cado-nfs/-/issues/14490>),
   GCC 4.2.0, 4.2.1 and 4.2.2 are also affected.
 * under NetBSD 5.1 amd64, Pthreads in the linear algebra step seem not to
   work, please use `-t 1` option in `cado-nfs.py` or `tasks.linalg.threads=1x1`.
@@ -579,11 +582,11 @@ The website of the project is hosted at:
 
 You can get the latest development version with:
 ```
-git clone https://gitlab.inria.fr/cado-nfs/cado-nfs.git
+git clone https://gitlab.com/cado-nfs/cado-nfs.git
 ```
 or
 ```
-git clone git@gitlab.inria.fr:cado-nfs/cado-nfs.git
+git clone git@gitlab.com:cado-nfs/cado-nfs.git
 ```
 (use the latter if you have an account on Inria gitlab, and commit access
 to cado-nfs)
@@ -599,7 +602,7 @@ If you find a bug, if you have a problem compiling cado-nfs, if you want to
 factor a large number and seek for advice for tuning the parameters, then
 the cado-nfs list is the right place to ask.
 
-On the <https://gitlab.inria.fr/cado-nfs/cado-nfs> web page you can also
+On the <https://gitlab.com/cado-nfs/cado-nfs> web page you can also
 find the cado-nfs bug tracker (a.k.a project issues). The bug tracker is
 an important piece of the cado-nfs development cycle.  Submitting bugs
 and merge requests there is welcome (you need an Inria gitlab account),
