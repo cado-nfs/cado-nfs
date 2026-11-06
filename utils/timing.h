@@ -84,7 +84,9 @@ CADO_INLINE void timingstats_dict_add_myprocess(timingstats_dict_ptr x MAYBE_UNU
 }
 
 struct weighted_double {
-    unsigned int n;
+    /* a count of operations: 64 bits, as lingen's tuning of large blocks
+     * (m+n >= 2048) counts over 2^32 coefficient products per call */
+    uint64_t n;
     double t;
 };
 #endif
