@@ -3623,10 +3623,13 @@ class FactorBaseTask(Task):
             if poly != prevpoly:
                 self.logger.warning("Received different polynomial, "
                                     "discarding old factor base file")
-                # remove previous state + store new poly
-                self.state = {"poly": str(poly)}
+                # remove previous state + store new poly; self.state is
+                # the database dict, so it is emptied in place (assigning
+                # a plain dict here lost the state at every restart)
+                self.state.clear(commit=False)
+                self.state.update({"poly": str(poly)})
         else:
-            self.state = {"poly": str(poly)}
+            self.state.update({"poly": str(poly)})
 
         # For each side corresponding to a nonlinear polynomial, we compute the
         # factor base if
