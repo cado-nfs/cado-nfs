@@ -5,6 +5,20 @@
 # documentation.
 # See parameters/cl/params.qs.d90 for an example which contains some
 # documentation specific to the QS algorithm for class groups computation.
+#
+# Parameters chosen (November 2026) to minimise sieving + linear algebra
+# together: unlike for factoring, the linear algebra cost grows like the
+# cube of the matrix size (the determinants have about 1.9 bits per row, so
+# the number of moduli grows with the matrix).
+# Checked with a complete computation.
+#
+# Expected for a typical discriminant, in core time of a 2.1 GHz Xeon
+# (Emerald Rapids): about 0.6 core-hours (sieving 0.3 core-hours,
+# linear algebra 0.3 core-hours), 8e+03 special-q's, a matrix with about
+# 4200 rows, 0.4 GB per sieving process.
+# The sieving time depends on which small primes split: 30 % more or less
+# is common between discriminants of the same size.
+#
 
 ###########################################################################
 # General parameters
@@ -16,19 +30,24 @@ name = d80
 # Sieve
 ###########################################################################
 
-tasks.I = 14
+tasks.I = 13
 tasks.lim0 = 200000
-tasks.lpb0 = 22
-tasks.sieve.mfb0 = 44
+tasks.lpb0 = 26
+tasks.sieve.mfb0 = 52
 
-tasks.sieve.qfac_nfac = 11
-tasks.sieve.qfac_min = 1700
-tasks.sieve.qfac_max = 2100
+# The special-q's are products of qfac_nfac primes taken in increasing order
+# from qfac_min on.  The range below suits |D| around 10^79.5; for a given
+# discriminant the best yield is obtained when the primes actually used are
+# centred on (sqrt(|D|)/2^(I-1))^(1/qfac_nfac).
+tasks.sieve.qfac_nfac = 13
+tasks.sieve.qfac_min = 474
+tasks.sieve.qfac_max = 1114
+
 tasks.sieve.qrange = 100
 
-tasks.sieve.ncurves0 = 8
+tasks.sieve.ncurves0 = 20
 
-tasks.sieve.rels_wanted = 200000
+tasks.sieve.rels_wanted = 640000
 
 ###########################################################################
 # Filtering
@@ -41,4 +60,8 @@ tasks.nmatrices = 2
 # Linalg
 ###########################################################################
 
-tasks.linalg.moduli_nbits = 256
+# The determinants are large (about 1.9 bits per row of the matrix), so many
+# moduli are needed; wide moduli are cheaper per bit of determinant.  Do not
+# go above 704: the prime is part of the workunit file names, and those
+# become too long for most filesystems.
+tasks.linalg.moduli_nbits = 704

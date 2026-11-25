@@ -668,6 +668,12 @@ misc/smooth_detect.cpp
 misc/smooth_detect.hpp
 parameters/cl/params.qs.d100
 parameters/cl/params.qs.d100.Kleinjung
+parameters/cl/params.qs.d110
+parameters/cl/params.qs.d120
+parameters/cl/params.qs.d130
+parameters/cl/params.qs.d140
+parameters/cl/params.qs.d150
+parameters/cl/params.qs.d160
 parameters/cl/params.qs.d20
 parameters/cl/params.qs.d60
 parameters/cl/params.qs.d70

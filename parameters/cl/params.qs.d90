@@ -7,6 +7,19 @@
 # documentation specific to the QS algorithm for factorization.
 #
 # Undocumented parameters have the same meaning as in NFS.
+#
+# Parameters chosen (November 2026) to minimise sieving + linear algebra
+# together: unlike for factoring, the linear algebra cost grows like the
+# cube of the matrix size (the determinants have about 1.9 bits per row, so
+# the number of moduli grows with the matrix).
+# Checked with a complete computation.
+#
+# Expected for a typical discriminant, in core time of a 2.1 GHz Xeon
+# (Emerald Rapids): about 5 core-hours (sieving 3.1 core-hours,
+# linear algebra 1.7 core-hours), 2.9e+04 special-q's, a matrix with about
+# 7100 rows, 0.5 GB per sieving process.
+# The sieving time depends on which small primes split: 30 % more or less
+# is common between discriminants of the same size.
 
 ###########################################################################
 # General parameters
@@ -18,10 +31,10 @@ name = d90
 # Sieve
 ###########################################################################
 
-tasks.I = 14
+tasks.I = 13
 tasks.lim0 = 400000
-tasks.lpb0 = 23
-tasks.sieve.mfb0 = 46
+tasks.lpb0 = 26
+tasks.sieve.mfb0 = 52
 
 # Special-q's are different in QS: they are integers q that are products of
 # n primes taken from an given interval. The number of prime factors is set
@@ -38,23 +51,27 @@ tasks.sieve.mfb0 = 46
 # sqrt(|discriminant|)/((2^I)/2).
 
 # Number of prime factors of the special-q
-tasks.sieve.qfac_nfac = 12
+tasks.sieve.qfac_nfac = 14
 
 # Lower bound on primes appearing in the special-q
-tasks.sieve.qfac_min = 2400
+# (The range below suits |D| around 10^89.5; for a given discriminant the
+# best yield is obtained when the primes actually used, which are taken in
+# increasing order from qfac_min on, are centred on
+# (sqrt(|D|)/2^(I-1))^(1/qfac_nfac).)
+tasks.sieve.qfac_min = 725
 
 # upper bound on primes appearing in the special-q
-tasks.sieve.qfac_max = 2900
+tasks.sieve.qfac_max = 1436
 
 # Number of special-q's per elementary sieving task
-tasks.sieve.qrange = 250
+tasks.sieve.qrange = 300
 
 # There is no real reason to have tasks.qmin != 0.
 # tasks.qmin = 0
 
-tasks.sieve.ncurves0 = 12
+tasks.sieve.ncurves0 = 20
 
-tasks.sieve.rels_wanted = 300000
+tasks.sieve.rels_wanted = 806000
 
 ###########################################################################
 # Filtering
@@ -87,7 +104,11 @@ tasks.nmatrices = 2
 
 # Size (in bits) of the moduli used by linear algebra.
 # Default value is 64
-tasks.linalg.moduli_nbits = 256
+# The determinants are large (about 1.9 bits per row of the matrix), so many
+# moduli are needed; wide moduli are cheaper per bit of determinant.  Do not
+# go above 704: the prime is part of the workunit file names, and those
+# become too long for most filesystems.
+tasks.linalg.moduli_nbits = 704
 
 ###########################################################################
 # Computing the group structure
