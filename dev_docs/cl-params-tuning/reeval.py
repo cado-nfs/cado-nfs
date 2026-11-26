@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Re-evaluate the stored filtering simulations with a given sieve geometry / cost assumptions and
-print the optimum per size.  reeval.py [alpha=0] [dup=..] [nbits=704] [lascale=1]"""
+"""Re-evaluate the stored filtering simulations (final/*.jsonl) with given cost assumptions and print
+the optimum per size.  reeval.py [alpha=0] [dup=..] [nbits=704] [sscale=1] [lascale=1]
+sscale / lascale: factors on the sieving / linear algebra times, e.g. those printed by calibrate.py."""
 import json, math, sys, collections, glob
 from opt import la_cost
 from ymodel import yield_sq
@@ -25,7 +26,7 @@ def t_sq(d, I, n, lim):
         return best[1]
     a, b = TPOS[(I, n)]
     return (a + b * math.sqrt(lim / 1e6)) * 1e-9 * 2.0 ** (I + n - 1)
-def evaluate(d, alpha=0.0, nbits=704, lascale=1.0, dup=None, neq=2, beta=1.95, geom=None):
+def evaluate(d, alpha=0.0, nbits=704, lascale=1.0, sscale=1.0, dup=None, neq=2, beta=1.95, geom=None):
     I, n = geom or GEOM[d]
     dup = DUP[d] if dup is None else dup
     Dt = 10 ** (d - 0.5)
@@ -39,7 +40,7 @@ def evaluate(d, alpha=0.0, nbits=704, lascale=1.0, dup=None, neq=2, beta=1.95, g
         N, W = r["N_scaled"], r["W_scaled"]
         if r["shrink"] > 1 and N > 8000: W = max(W, 170.0 * N)
         raw = R / (1 - dup)
-        sv = raw / y * ts
+        sv = raw / y * ts * sscale
         la, P = la_cost(N, W, nbits=nbits, neq=neq, beta=beta); la *= lascale
         rows.append(dict(d=d, I=I, nfac=n, lim=lim, lpb=lpb, R=R, raw=raw, nsq=raw / y, y=y, t_sq=ts, N=N, w=W / N, P=P,
                          sieve=sv, la=la, total=sv + la))

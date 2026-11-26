@@ -128,6 +128,9 @@ and 1.3 for the new ones: they were already close to the optimum.
 
 ## Reproducing
 
+`HANDOFF.md` lists what is left to do on a machine with cluster access;
+`calibrate.py` measures the two speed factors of another machine.
+
     export CADO_BUILD=/path/to/build/dir
     g++ -O2 -o fakeqs fakeqs.cpp
     python3 timing2.py 120 15 16 29 3200000        # sieve speed, d120 file

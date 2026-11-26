@@ -1,0 +1,9 @@
+work/
+la/
+sim/
+__pycache__/
+allbest.json
+calibration.*.json
+samples/*.rels
+samples/tmp.*
+fakeqs

@@ -1,0 +1,17 @@
+{
+ "d": 120,
+ "D": "-692314944158255900419619862584615409358631741026691658005071601446648328643092991175559381307048971641935095071782718291",
+ "I": 13,
+ "nfac": 18,
+ "lim": 3200000,
+ "lpb": 29,
+ "mfb": 58,
+ "ncurves": 20,
+ "nq": 335,
+ "qmin": 1187,
+ "qmax": 1698,
+ "raw": 3580,
+ "uniq": 3513,
+ "file": "samples/d120.I13.n18.lim3200000.lpb29.mfb58.rels",
+ "note": "gunzip the .rels.gz next to this file first; 'file' is relative to the script directory"
+}
